@@ -10,18 +10,16 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/logprocess"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-// ClientType represents our active connection client
-type ClientType struct {
-	Conn       net.Conn
-	ClientAddr string
-}
+const ConnPollTime = 1 * time.Second
 
-// clientHolder is an atomic container for *ClientType
-var ClientPtr atomic.Pointer[ClientType]
 var ConfigPtr atomic.Pointer[ds.Config]
 var CoreLock *sync.Mutex = &sync.Mutex{}
+var PollerRunning int32 = 0
+var LogsWrapInitialized bool = false
 
 func SetConfig(cfg *ds.Config) {
 	CoreLock.Lock()
@@ -32,14 +30,46 @@ func SetConfig(cfg *ds.Config) {
 func Disconnect() {
 	CoreLock.Lock()
 	defer CoreLock.Unlock()
-	client := ClientPtr.Load()
+	atomic.StoreInt32(&global.OutrigConnected, 0)
+	client := global.ClientPtr.Load()
+	atomic.StoreInt32(&global.OutrigEnabled, 0)
 	if client == nil {
-		atomic.StoreInt32(&global.OutrigEnabled, 0)
 		return
 	}
-	atomic.StoreInt32(&global.OutrigEnabled, 0)
-	ClientPtr.Store(nil)
+	global.ClientPtr.Store(nil)
+	time.Sleep(100 * time.Millisecond)
 	client.Conn.Close()
+}
+
+func RunConnPoller() {
+	ok := atomic.CompareAndSwapInt32(&PollerRunning, 0, 1)
+	if !ok {
+		return
+	}
+	defer atomic.StoreInt32(&PollerRunning, 0)
+	for {
+		PollConn()
+		time.Sleep(ConnPollTime)
+	}
+}
+
+func PollConn() {
+	enabled := atomic.LoadInt32(&global.OutrigEnabled)
+	if enabled != 0 {
+		// check for errors
+		if atomic.LoadInt64(&global.TransportErrors) > 0 {
+			Disconnect()
+			return
+		}
+		return
+	} else {
+		TryConnect()
+	}
+}
+
+func onConnect() {
+	atomic.StoreInt32(&global.OutrigConnected, 1)
+	logprocess.OnFirstConnect()
 }
 
 func TryConnect() {
@@ -51,20 +81,23 @@ func TryConnect() {
 	if atomic.LoadInt32(&global.OutrigEnabled) != 0 {
 		return
 	}
+	atomic.StoreInt64(&global.TransportErrors, 0)
 	var c net.Conn
 	var err error
 	cfg := ConfigPtr.Load()
 	// Attempt domain socket if not disabled
 	if cfg.DomainSocketPath != "-" {
-		if _, errStat := os.Stat(cfg.DomainSocketPath); errStat == nil {
-			c, err = net.DialTimeout("unix", cfg.DomainSocketPath, 2*time.Second)
+		dsPath := utilfn.ExpandHomeDir(cfg.DomainSocketPath)
+		if _, errStat := os.Stat(dsPath); errStat == nil {
+			c, err = net.DialTimeout("unix", dsPath, 2*time.Second)
 			if err == nil {
-				fmt.Println("Connected via domain socket:", cfg.DomainSocketPath)
-				ClientPtr.Store(&ClientType{
+				fmt.Println("Outrig connected via domain socket:", dsPath)
+				global.ClientPtr.Store(&ds.ClientType{
 					Conn:       c,
 					ClientAddr: cfg.DomainSocketPath,
 				})
 				atomic.StoreInt32(&global.OutrigEnabled, 1)
+				go onConnect()
 				return
 			}
 		}
@@ -74,12 +107,13 @@ func TryConnect() {
 	if cfg.ServerAddr != "-" {
 		c, err = net.DialTimeout("tcp", cfg.ServerAddr, 2*time.Second)
 		if err == nil {
-			fmt.Println("Connected via TCP:", cfg.ServerAddr)
-			ClientPtr.Store(&ClientType{
+			fmt.Println("Outrig connected via TCP:", cfg.ServerAddr)
+			global.ClientPtr.Store(&ds.ClientType{
 				Conn:       c,
 				ClientAddr: cfg.ServerAddr,
 			})
 			atomic.StoreInt32(&global.OutrigEnabled, 1)
+			go onConnect()
 			return
 		}
 	}

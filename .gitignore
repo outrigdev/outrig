@@ -14,6 +14,7 @@ out/
 make/
 artifacts/
 internaldocs/
+*.pack
 
 # Yarn Modern
 .pnp.*

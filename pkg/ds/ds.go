@@ -1,5 +1,9 @@
 package ds
 
+import (
+	"net"
+)
+
 type Config struct {
 	// DomainSocketPath is the path to the Unix domain socket. If "" => use default.
 	// If "-" => disable domain socket.
@@ -8,6 +12,22 @@ type Config struct {
 	// ServerAddr is the TCP address (host:port). If "" => use default.
 	// If "-" => disable TCP.
 	ServerAddr string
+}
+
+// ClientType represents our active connection client
+type ClientType struct {
+	Conn       net.Conn
+	ClientAddr string
+}
+
+type InitInfoType struct {
+	Executable string   `json:"executable"`
+	Args       []string `json:"args"`
+	Env        []string `json:"env"`
+	StartTime  int64    `json:"starttime"`
+	Pid        int      `json:"pid"`
+	User       string   `json:"user,omitempty"`
+	Hostname   string   `json:"hostname,omitempty"`
 }
 
 type LogLine struct {
