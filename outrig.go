@@ -33,9 +33,18 @@ func Enable() {
 	core.TryConnect()
 }
 
+func DefaultConfig() *ds.Config {
+	return &ds.Config{
+		DomainSocketPath: base.DefaultDomainSocketName,
+		ServerAddr:       base.DefaultTCPAddr,
+		WrapStdout:       true,
+		WrapStderr:       true,
+	}
+}
+
 func Init(cfgParam *ds.Config) error {
 	if cfgParam == nil {
-		cfgParam = &ds.Config{}
+		cfgParam = DefaultConfig()
 	}
 	finalCfg := *cfgParam
 	if finalCfg.DomainSocketPath == "" {
@@ -44,7 +53,7 @@ func Init(cfgParam *ds.Config) error {
 	if finalCfg.ServerAddr == "" {
 		finalCfg.ServerAddr = base.DefaultTCPAddr
 	}
-	core.SetConfig(&finalCfg)
+	global.ConfigPtr.Store(&finalCfg)
 	initInfo := ds.InitInfoType{
 		StartTime: time.Now().UnixMilli(),
 		Args:      utilfn.CopyStrArr(os.Args),

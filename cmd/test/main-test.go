@@ -1,8 +1,6 @@
 package main
 
 import (
-	_ "github.com/outrigdev/outrig/pkg/loginit"
-
 	"fmt"
 	"os"
 	"time"
@@ -12,7 +10,9 @@ import (
 
 func main() {
 	fmt.Printf("log before init\n")
-	outrig.Init(nil)
+	config := outrig.DefaultConfig()
+	// config.WrapStderr = false
+	outrig.Init(config)
 	defer outrig.Shutdown()
 	fmt.Fprintf(os.Stderr, "[stderr] stdout is %T\n", os.Stdout)
 	fmt.Printf("hello outrig!\n")

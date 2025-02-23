@@ -16,16 +16,9 @@ import (
 
 const ConnPollTime = 1 * time.Second
 
-var ConfigPtr atomic.Pointer[ds.Config]
 var CoreLock *sync.Mutex = &sync.Mutex{}
 var PollerRunning int32 = 0
 var LogsWrapInitialized bool = false
-
-func SetConfig(cfg *ds.Config) {
-	CoreLock.Lock()
-	defer CoreLock.Unlock()
-	ConfigPtr.Store(cfg)
-}
 
 func Disconnect() {
 	CoreLock.Lock()
@@ -84,7 +77,10 @@ func TryConnect() {
 	atomic.StoreInt64(&global.TransportErrors, 0)
 	var c net.Conn
 	var err error
-	cfg := ConfigPtr.Load()
+	cfg := global.ConfigPtr.Load()
+	if cfg == nil {
+		return
+	}
 	// Attempt domain socket if not disabled
 	if cfg.DomainSocketPath != "-" {
 		dsPath := utilfn.ExpandHomeDir(cfg.DomainSocketPath)

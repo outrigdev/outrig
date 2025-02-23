@@ -75,7 +75,6 @@ func (d *DupWrap) Restore() (*os.File, error) {
 }
 
 func (d *DupWrap) handleData(data []byte) {
-	fmt.Fprintf(os.Stderr, "[stderr] got %q from pipe\n", data)
 	callbackFnPtr := d.CallbackFn.Load()
 	if callbackFnPtr != nil && *callbackFnPtr != nil {
 		if d.Buffer == nil {
@@ -83,7 +82,6 @@ func (d *DupWrap) handleData(data []byte) {
 		}
 		var lines []string
 		if len(d.BufferedOutput) > 0 {
-			fmt.Fprintf(os.Stderr, "[stderr] flushing %d bytes\n", len(d.BufferedOutput))
 			lines = d.Buffer.ProcessBuf(d.BufferedOutput)
 			d.BufferedOutput = nil
 		}
@@ -93,7 +91,6 @@ func (d *DupWrap) handleData(data []byte) {
 		}
 	} else {
 		if !d.ShouldBuffer.Load() {
-			fmt.Fprintf(os.Stderr, "[stderr] dropping line (shouldbuffer false)\n")
 			d.BufferedOutput = nil
 			return
 		}
@@ -103,7 +100,6 @@ func (d *DupWrap) handleData(data []byte) {
 		if len(d.BufferedOutput)+len(data) > MaxInitBufferSize {
 			data = data[:MaxInitBufferSize-len(d.BufferedOutput)]
 		}
-		fmt.Fprintf(os.Stderr, "[stderr] buffering %d bytes\n", len(data))
 		d.BufferedOutput = append(d.BufferedOutput, data...)
 	}
 }

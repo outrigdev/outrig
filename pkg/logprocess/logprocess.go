@@ -1,8 +1,6 @@
 package logprocess
 
 import (
-	"fmt"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,15 +23,13 @@ var (
 func InitLogProcess() {
 	initOnce.Do(func() {
 		logChan = make(chan *ds.LogLine, LogBufferSize)
-		err := loginitimpl.InitLogWrap(nil)
-		fmt.Fprintf(os.Stderr, "[stderr] LogWrap init: %v\n", err)
+		loginitimpl.InitLogWrap(nil)
 	})
 }
 
 func OnFirstConnect() {
 	firstConnectOnce.Do(func() {
 		loginitimpl.InitLogWrap(LogCallback)
-		fmt.Fprintf(os.Stderr, "[stderr] LogWrap OnFirstConnect\n")
 		go ConsumeLogLines()
 	})
 }

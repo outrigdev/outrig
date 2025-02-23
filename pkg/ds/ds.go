@@ -12,6 +12,9 @@ type Config struct {
 	// ServerAddr is the TCP address (host:port). If "" => use default.
 	// If "-" => disable TCP.
 	ServerAddr string
+
+	WrapStdout bool
+	WrapStderr bool
 }
 
 // ClientType represents our active connection client

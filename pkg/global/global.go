@@ -13,6 +13,7 @@ var OutrigConnected int32 = 0
 var LineNum int64 = 0
 
 var ClientPtr atomic.Pointer[ds.ClientType]
+var ConfigPtr atomic.Pointer[ds.Config]
 
 var TransportErrors int64 = 0
 var TransportPacketsSent int64 = 0

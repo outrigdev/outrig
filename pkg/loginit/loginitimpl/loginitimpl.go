@@ -4,6 +4,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/outrigdev/outrig/pkg/global"
 )
 
 var MaxInitBufferSize = 64 * 1024
@@ -16,7 +18,7 @@ var InitLock = &sync.Mutex{}
 var OrigStdout *os.File = os.Stdout
 var OrigStderr *os.File = os.Stderr
 
-var StdoutFileWrap FileWrap
+var StdoutFileWrap, StderrFileWrap FileWrap
 
 type LogCallbackFnType = func(string, string)
 
@@ -29,26 +31,53 @@ type FileWrap interface {
 }
 
 func InitLogWrap(callbackFn LogCallbackFnType) error {
+	var wrapStdout bool = true
+	var wrapStderr bool = true
+	config := global.ConfigPtr.Load()
+	if config != nil {
+		wrapStdout = config.WrapStdout
+		wrapStderr = config.WrapStderr
+	}
 	InitLock.Lock()
 	defer InitLock.Unlock()
 	if Initialized {
 		if callbackFn != nil {
-			StdoutFileWrap.SetCallback(callbackFn)
-			StdoutFileWrap.StopBuffering()
+			if StdoutFileWrap != nil {
+				StdoutFileWrap.SetCallback(callbackFn)
+				StdoutFileWrap.StopBuffering()
+			}
+			if StderrFileWrap != nil {
+				StderrFileWrap.SetCallback(callbackFn)
+				StderrFileWrap.StopBuffering()
+			}
 		}
 		return nil
 	}
 	Initialized = true
-	dw, err := MakeFileWrap(os.Stdout, "/dev/stdout", callbackFn)
-	if err != nil {
-		return err
+	if wrapStdout {
+		dw, err := MakeFileWrap(os.Stdout, "/dev/stdout", callbackFn)
+		if err != nil {
+			return err
+		}
+		OrigStdout = dw.GetOrigFile()
+		StdoutFileWrap = dw
+		go dw.Run()
+		time.AfterFunc(time.Duration(InitWaitTimeMs)*time.Millisecond, func() {
+			StdoutFileWrap.StopBuffering()
+		})
 	}
-	OrigStdout = dw.GetOrigFile()
-	StdoutFileWrap = dw
-	go dw.Run()
-	time.AfterFunc(time.Duration(InitWaitTimeMs)*time.Millisecond, func() {
-		StdoutFileWrap.StopBuffering()
-	})
+	if wrapStderr {
+		dw, err := MakeFileWrap(os.Stderr, "/dev/stderr", callbackFn)
+		if err != nil {
+			return err
+		}
+		OrigStderr = dw.GetOrigFile()
+		StderrFileWrap = dw
+		go dw.Run()
+		time.AfterFunc(time.Duration(InitWaitTimeMs)*time.Millisecond, func() {
+			StderrFileWrap.StopBuffering()
+		})
+	}
 	return nil
 }
 
@@ -59,6 +88,18 @@ func DisableLogWrap() {
 		return
 	}
 	Initialized = false
-	OrigStdout, _ = StdoutFileWrap.Restore()
-	StdoutFileWrap = nil
+	if StdoutFileWrap != nil {
+		orig, _ := StdoutFileWrap.Restore()
+		if orig != nil {
+			OrigStdout = orig
+		}
+		StdoutFileWrap = nil
+	}
+	if StderrFileWrap != nil {
+		orig, _ := StderrFileWrap.Restore()
+		if orig != nil {
+			OrigStderr = orig
+		}
+		StderrFileWrap = nil
+	}
 }
