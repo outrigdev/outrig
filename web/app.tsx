@@ -1,10 +1,13 @@
-import { useState } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./app.css";
+import { atom, useAtom } from "jotai";
+
+const countAtom = atom(0);
+countAtom.debugLabel = "countAtom";
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [count, setCount] = useAtom(countAtom);
 
   return (
     <>
