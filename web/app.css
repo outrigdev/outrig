@@ -15,6 +15,9 @@
   --color-success: var(--themecolor-success);
   --color-warning: var(--themecolor-warning);
   --color-error: var(--themecolor-error);
+
+  --font-mono: "HackNerdMono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 [data-theme="light"] {
@@ -67,4 +70,32 @@
     --themecolor-button: rgba(255, 255, 255, 0.1);
     --themecolor-buttonhover: rgba(255, 255, 255, 0.2);
   }
+}
+
+@font-face {
+  font-family: "HackNerdMono";
+  src: url("/fonts/hacknerdmono-regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "HackNerdMono";
+  src: url("/fonts/hacknerdmono-bold.ttf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "HackNerdMono";
+  src: url("/fonts/hacknerdmono-italic.ttf") format("truetype");
+  font-weight: normal;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: "HackNerdMono";
+  src: url("/fonts/hacknerdmono-bolditalic.ttf") format("truetype");
+  font-weight: bold;
+  font-style: italic;
 }

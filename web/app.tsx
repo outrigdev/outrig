@@ -65,13 +65,35 @@ function App() {
         </div>
       </header>
 
-      {/* Tabs row */}
-      <nav className="bg-panel px-4 py-2 border-b border-border">
+      <nav className="bg-panel px-4 border-b-2 border-border flex">
         <button
           data-selected={true}
-          className="px-4 py-1 text-primary rounded cursor-pointer bg-button hover:bg-buttonhover transition-colors"
+          className="relative px-4 py-2 text-primary text-sm 
+             data-[selected]:after:content-[''] data-[selected]:after:absolute 
+             data-[selected]:after:left-0 data-[selected]:after:bottom-[-2px] 
+             data-[selected]:after:w-full data-[selected]:after:h-[2px] 
+             data-[selected]:after:bg-primary
+             hover:after:content-[''] hover:after:absolute 
+             hover:after:left-0 hover:after:bottom-[-2px] 
+             hover:after:w-full hover:after:h-[2px] 
+             hover:after:bg-muted
+             hover:text-primary transition-colors"
         >
           Logs
+        </button>
+        <button
+          className="relative px-4 py-2 text-secondary text-sm 
+             data-[selected]:after:content-[''] data-[selected]:after:absolute 
+             data-[selected]:after:left-0 data-[selected]:after:bottom-[-2px] 
+             data-[selected]:after:w-full data-[selected]:after:h-[2px] 
+             data-[selected]:after:bg-primary
+             hover:after:content-[''] hover:after:absolute 
+             hover:after:left-0 hover:after:bottom-[-2px] 
+             hover:after:w-full hover:after:h-[2px] 
+             hover:after:bg-muted
+             transition-colors"
+        >
+          GoRoutines
         </button>
       </nav>
 
