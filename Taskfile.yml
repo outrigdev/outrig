@@ -1,0 +1,44 @@
+version: "3"
+
+tasks:
+    dev:vite:
+        desc: Run the Vite development server
+        cmds:
+            - npm run dev
+
+    dev:server:
+        desc: Run the Go server in development mode
+        cmds:
+            - OUTRIG_DEV=1 go run server/main-server.go
+
+    dev:
+        desc: Run both the Vite development server and Go server
+        cmds:
+            - task: dev:server
+            - task: dev:vite
+
+    build:frontend:
+        desc: Build the frontend for production
+        cmds:
+            - npm run build
+            - mkdir -p server/pkg/web/dist
+            - cp -r dist/* server/pkg/web/dist/
+
+    build:server:
+        desc: Build the Go server with embedded frontend
+        deps: [build:frontend]
+        cmds:
+            - mkdir -p bin/
+            - go build -o bin/outrig-server server/main-server.go
+
+    build:
+        desc: Build everything for production
+        cmds:
+            - task: build:server
+
+    prod:
+        desc: Run the production server
+        deps:
+            - build
+        cmds:
+            - ./bin/outrig-server

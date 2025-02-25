@@ -104,14 +104,14 @@ func runWebServers() error {
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP listener: %w", err)
 	}
-	log.Printf("HTTP server listening on %s\n", httpListener.Addr().String())
+	log.Printf("HTTP server listening on http://%s\n", httpListener.Addr().String())
 
 	// Create TCP listener for WebSocket server
 	wsListener, err := web.MakeTCPListener("websocket", "127.0.0.1:"+strconv.Itoa(WebSocketPort))
 	if err != nil {
 		return fmt.Errorf("failed to create WebSocket listener: %w", err)
 	}
-	log.Printf("WebSocket server listening on %s\n", wsListener.Addr().String())
+	log.Printf("WebSocket server listening on ws://%s\n", wsListener.Addr().String())
 
 	// Run HTTP server
 	go web.RunWebServer(httpListener)
