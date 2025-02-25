@@ -7,12 +7,17 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
+	"github.com/outrigdev/outrig/server/pkg/web"
 )
+
+const WebServerPort = 5005
+const WebSocketPort = 5006
 
 // Packet is the envelope for incoming JSON packets.
 type Packet struct {
@@ -93,6 +98,30 @@ func runDomainSocketServer() error {
 	return nil
 }
 
+func runWebServers() error {
+	// Create TCP listener for HTTP server
+	httpListener, err := web.MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(WebServerPort))
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP listener: %w", err)
+	}
+	log.Printf("HTTP server listening on %s\n", httpListener.Addr().String())
+
+	// Create TCP listener for WebSocket server
+	wsListener, err := web.MakeTCPListener("websocket", "127.0.0.1:"+strconv.Itoa(WebSocketPort))
+	if err != nil {
+		return fmt.Errorf("failed to create WebSocket listener: %w", err)
+	}
+	log.Printf("WebSocket server listening on %s\n", wsListener.Addr().String())
+
+	// Run HTTP server
+	go web.RunWebServer(httpListener)
+
+	// Run WebSocket server
+	go web.RunWebSocketServer(wsListener)
+
+	return nil
+}
+
 func main() {
 	err := serverbase.EnsureHomeDir()
 	if err != nil {
@@ -106,10 +135,20 @@ func main() {
 	}
 	defer lock.Close() // the defer statement will keep the lock alive
 
+	// Run domain socket server
 	err = runDomainSocketServer()
 	if err != nil {
-		log.Printf("%v\n", err)
+		log.Printf("Error starting domain socket server: %v\n", err)
 		return
 	}
-	select {}
+
+	// Run web servers (HTTP and WebSocket)
+	err = runWebServers()
+	if err != nil {
+		log.Printf("Error starting web servers: %v\n", err)
+		return
+	}
+
+	log.Println("All servers started successfully")
+	select {} // Wait forever
 }
