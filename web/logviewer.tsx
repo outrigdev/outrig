@@ -28,11 +28,11 @@ const LogViewer: React.FC<LogViewerProps> = ({ logIds, logLines }) => {
         placeholder="Search logs..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full p-1 mb-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring"
+        className="w-full p-1 pl-2 mb-2 text-primary placeholder-muted border border-border rounded focus:outline-none focus:ring"
       />
       <div className="w-full h-full overflow-auto flex-1">
         {/* Inner div - Forces min 1200px width and scrolls vertically */}
-        <div className="w-full min-w-[1200px] h-full bg-white dark:bg-black text-black dark:text-white font-mono text-xs leading-tight">
+        <div className="w-full min-w-[1200px] h-full bg-white text-black font-mono text-xs leading-tight p-1">
           {filteredLogIds.map((id) => {
             const log = logLines.get(id);
             if (!log) return null;
