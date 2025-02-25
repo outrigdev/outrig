@@ -2,100 +2,101 @@
 
 /* Tell Tailwind to generate utilities that reference our theme tokens */
 @theme inline {
-  --color-white: var(--themecolor-white);
-  --color-black: var(--themecolor-black);
-  --color-appbg: var(--themecolor-appbg);
-  --color-primary: var(--themecolor-primary);
-  --color-secondary: var(--themecolor-secondary);
-  --color-muted: var(--themecolor-muted);
-  --color-panel: var(--themecolor-panel);
-  --color-border: var(--themecolor-border);
-  --color-buttonhover: var(--themecolor-buttonhover);
-  --color-button: var(--themecolor-button);
-  --color-success: var(--themecolor-success);
-  --color-warning: var(--themecolor-warning);
-  --color-error: var(--themecolor-error);
+    --color-white: var(--themecolor-white);
+    --color-black: var(--themecolor-black);
+    --color-appbg: var(--themecolor-appbg);
+    --color-primary: var(--themecolor-primary);
+    --color-secondary: var(--themecolor-secondary);
+    --color-muted: var(--themecolor-muted);
+    --color-panel: var(--themecolor-panel);
+    --color-border: var(--themecolor-border);
+    --color-buttonhover: var(--themecolor-buttonhover);
+    --color-button: var(--themecolor-button);
+    --color-success: var(--themecolor-success);
+    --color-warning: var(--themecolor-warning);
+    --color-error: var(--themecolor-error);
 
-  --font-mono: "HackNerdMono", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
+    --font-mono:
+        "HackNerdMono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+        monospace;
 }
 
 [data-theme="light"] {
-  --themecolor-white: white;
-  --themecolor-black: black;
-  --themecolor-appbg: #f9fafb;
-  --themecolor-primary: #111827;
-  --themecolor-secondary: rgb(120, 120, 120);
-  --themecolor-muted: rgb(160, 160, 160);
-  --themecolor-panel: #f3f4f6;
+    --themecolor-white: white;
+    --themecolor-black: black;
+    --themecolor-appbg: #f9fafb;
+    --themecolor-primary: #111827;
+    --themecolor-secondary: rgb(120, 120, 120);
+    --themecolor-muted: rgb(160, 160, 160);
+    --themecolor-panel: #f3f4f6;
 
-  --themecolor-border: #e5e7eb; /* Light gray for subtle dividers */
-  --themecolor-strongborder: #d1d5db; /* Darker gray for stronger emphasis */
+    --themecolor-border: #d1d5db; /* Light gray for subtle dividers */
+    --themecolor-strongborder: #6b7280; /* Darker gray for stronger emphasis */
 
-  --themecolor-buttonhover: rgba(0, 0, 0, 0.1);
-  --themecolor-selected: rgba(0, 0, 0, 0.1);
-  --themecolor-button: transparent;
+    --themecolor-buttonhover: rgba(0, 0, 0, 0.1);
+    --themecolor-selected: rgba(0, 0, 0, 0.1);
+    --themecolor-button: transparent;
 
-  --themecolor-success: #10b981; /* Green */
-  --themecolor-warning: #f59e0b; /* Amber */
-  --themecolor-error: #ef4444; /* Red */
+    --themecolor-success: #10b981; /* Green */
+    --themecolor-warning: #f59e0b; /* Amber */
+    --themecolor-error: #ef4444; /* Red */
 
-  [data-selected] {
-    --themecolor-button: rgba(0, 0, 0, 0.1);
-    --themecolor-buttonhover: rgba(0, 0, 0, 0.2);
-  }
+    [data-selected] {
+        --themecolor-button: rgba(0, 0, 0, 0.1);
+        --themecolor-buttonhover: rgba(0, 0, 0, 0.2);
+    }
 }
 
 [data-theme="dark"] {
-  --themecolor-white: black;
-  --themecolor-black: white;
-  --themecolor-appbg: #121212; /* Deep black, softer than pure black */
-  --themecolor-primary: #f7f7f7;
-  --themecolor-secondary: rgb(195, 200, 194);
-  --themecolor-muted: rgb(130, 135, 130);
-  --themecolor-panel: rgba(255, 255, 255, 0.08); /* Dark gray panel */
+    --themecolor-white: black;
+    --themecolor-black: white;
+    --themecolor-appbg: #121212; /* Deep black, softer than pure black */
+    --themecolor-primary: #f7f7f7;
+    --themecolor-secondary: rgb(195, 200, 194);
+    --themecolor-muted: rgb(130, 135, 130);
+    --themecolor-panel: rgba(255, 255, 255, 0.08); /* Dark gray panel */
 
-  --themecolor-border: rgba(255, 255, 255, 0.15); /* Subtle light border */
-  --themecolor-strongborder: rgba(255, 255, 255, 0.3); /* Stronger emphasis */
+    --themecolor-border: rgba(255, 255, 255, 0.15); /* Subtle light border */
+    --themecolor-strongborder: rgba(255, 255, 255, 0.3); /* Stronger emphasis */
 
-  --themecolor-buttonhover: rgba(255, 255, 255, 0.1);
-  --themecolor-selected: rgba(255, 255, 255, 0.1);
-  --themecolor-button: transparent;
+    --themecolor-buttonhover: rgba(255, 255, 255, 0.1);
+    --themecolor-selected: rgba(255, 255, 255, 0.1);
+    --themecolor-button: transparent;
 
-  --themecolor-success: #22c55e; /* Bright green */
-  --themecolor-warning: #facc15; /* Bright amber */
-  --themecolor-error: #f87171; /* Soft red */
+    --themecolor-success: #22c55e; /* Bright green */
+    --themecolor-warning: #facc15; /* Bright amber */
+    --themecolor-error: #f87171; /* Soft red */
 
-  [data-selected] {
-    --themecolor-button: rgba(255, 255, 255, 0.1);
-    --themecolor-buttonhover: rgba(255, 255, 255, 0.2);
-  }
+    [data-selected] {
+        --themecolor-button: rgba(255, 255, 255, 0.1);
+        --themecolor-buttonhover: rgba(255, 255, 255, 0.2);
+    }
 }
 
 @font-face {
-  font-family: "HackNerdMono";
-  src: url("/fonts/hacknerdmono-regular.ttf") format("truetype");
-  font-weight: normal;
-  font-style: normal;
+    font-family: "HackNerdMono";
+    src: url("/fonts/hacknerdmono-regular.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
 }
 
 @font-face {
-  font-family: "HackNerdMono";
-  src: url("/fonts/hacknerdmono-bold.ttf") format("truetype");
-  font-weight: bold;
-  font-style: normal;
+    font-family: "HackNerdMono";
+    src: url("/fonts/hacknerdmono-bold.ttf") format("truetype");
+    font-weight: bold;
+    font-style: normal;
 }
 
 @font-face {
-  font-family: "HackNerdMono";
-  src: url("/fonts/hacknerdmono-italic.ttf") format("truetype");
-  font-weight: normal;
-  font-style: italic;
+    font-family: "HackNerdMono";
+    src: url("/fonts/hacknerdmono-italic.ttf") format("truetype");
+    font-weight: normal;
+    font-style: italic;
 }
 
 @font-face {
-  font-family: "HackNerdMono";
-  src: url("/fonts/hacknerdmono-bolditalic.ttf") format("truetype");
-  font-weight: bold;
-  font-style: italic;
+    font-family: "HackNerdMono";
+    src: url("/fonts/hacknerdmono-bolditalic.ttf") format("truetype");
+    font-weight: bold;
+    font-style: italic;
 }
