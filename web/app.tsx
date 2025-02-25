@@ -1,39 +1,73 @@
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./app.css";
-import { atom, useAtom } from "jotai";
+import { useState } from "react";
+import { Sun, Moon } from "lucide-react";
+import LogViewer from "./logviewer";
 
-const countAtom = atom(0);
-countAtom.debugLabel = "countAtom";
+// Sample data
+const sampleLogLines: Map<number, LogLine> = new Map([
+  [
+    1,
+    {
+      linenum: 1,
+      ts: Date.now(),
+      msg: "This is the first log line",
+      source: "/dev/stdout",
+    },
+  ],
+  [
+    2,
+    {
+      linenum: 2,
+      ts: Date.now(),
+      msg: "Another log entry here",
+      source: "/dev/stderr",
+    },
+  ],
+  [
+    3,
+    {
+      linenum: 3,
+      ts: Date.now(),
+      msg: "Yet another log line",
+      source: "/dev/stdout",
+    },
+  ],
+]);
+
+const sampleLogIds = Array.from(sampleLogLines.keys());
 
 function App() {
-  const [count, setCount] = useAtom(countAtom);
+  const [darkMode, setDarkMode] = useState(false);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+    <div
+      className={`${darkMode ? "dark" : ""} h-screen w-screen flex flex-col`}
+    >
+      {/* Header */}
+      <header className="bg-gray-100 dark:bg-gray-800 p-4">
+        <div className="flex justify-between items-center">
+          <div className="text-2xl font-bold">Outrig</div>
+          <button
+            onClick={() => setDarkMode((prev) => !prev)}
+            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm flex items-center space-x-2"
+          >
+            {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            <span>{darkMode ? "Light Mode" : "Dark Mode"}</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Tabs row */}
+      <nav className="bg-gray-200 dark:bg-gray-700 px-4 py-2">
+        <button className="px-4 py-1 bg-white dark:bg-gray-600 text-black dark:text-white rounded shadow-sm">
+          Logs
         </button>
-        <p>
-          Edit <code>web/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the{" "}
-        <span className="text-bold text-blue-500">Vite and React</span> logos to
-        learn more
-      </p>
-    </>
+      </nav>
+
+      {/* Main content */}
+      <main className="flex-grow bg-gray-50 dark:bg-gray-900 overflow-auto w-full">
+        <LogViewer logIds={sampleLogIds} logLines={sampleLogLines} />
+      </main>
+    </div>
   );
 }
 
