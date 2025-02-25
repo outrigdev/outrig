@@ -32,3 +32,10 @@ func CopyStrArr(arr []string) []string {
 	copy(newArr, arr)
 	return newArr
 }
+
+func GoDrainChan[T any](ch chan T) {
+	go func() {
+		for range ch {
+		}
+	}()
+}

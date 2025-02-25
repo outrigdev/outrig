@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/outrigdev/outrig/pkg/utilds"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 const wsReadWaitTimeout = 15 * time.Second
@@ -21,8 +23,13 @@ const wsWriteWaitTimeout = 10 * time.Second
 const wsPingPeriodTickTime = 10 * time.Second
 const wsInitialPingTime = 1 * time.Second
 
-var GlobalLock = &sync.Mutex{}
-var ConnIdMap = map[string]*websocket.Conn{} // connId => conn
+var ConnMap = utilds.MakeSyncMap[*WebSocketModel]()
+
+type WebSocketModel struct {
+	ConnId   string
+	Conn     *websocket.Conn
+	OutputCh chan any
+}
 
 func RunWebSocketServer(listener net.Listener) {
 	gr := mux.NewRouter()
@@ -75,9 +82,8 @@ func processMessage(jmsg map[string]any, outputCh chan any) {
 	if msgType == "" {
 		return
 	}
-	
-	// Echo back the message for now
-	outputCh <- jmsg
+
+	// TODO process message
 }
 
 func ReadLoop(conn *websocket.Conn, outputCh chan any, closeCh chan any, connId string) {
@@ -128,6 +134,7 @@ func WritePing(conn *websocket.Conn) error {
 func WriteLoop(conn *websocket.Conn, outputCh chan any, closeCh chan any, connId string) {
 	ticker := time.NewTicker(wsInitialPingTime)
 	defer ticker.Stop()
+	defer utilfn.GoDrainChan(outputCh)
 	initialPing := true
 	for {
 		select {
@@ -168,49 +175,47 @@ func WriteLoop(conn *websocket.Conn, outputCh chan any, closeCh chan any, connId
 	}
 }
 
-func registerConn(connId string, conn *websocket.Conn) {
-	GlobalLock.Lock()
-	defer GlobalLock.Unlock()
-	ConnIdMap[connId] = conn
-}
-
-func unregisterConn(connId string) {
-	GlobalLock.Lock()
-	defer GlobalLock.Unlock()
-	delete(ConnIdMap, connId)
-}
-
 func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	conn, err := WebSocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return fmt.Errorf("WebSocket Upgrade Failed: %v", err)
 	}
 	defer conn.Close()
-	
+
 	connId := uuid.New().String()
 	outputCh := make(chan any, 100)
 	closeCh := make(chan any)
-	
+
 	log.Printf("[websocket] new connection: connid:%s\n", connId)
-	
-	registerConn(connId, conn)
-	defer unregisterConn(connId)
-	
+
+	wsModel := &WebSocketModel{
+		ConnId:   connId,
+		Conn:     conn,
+		OutputCh: outputCh,
+	}
+
+	ConnMap.Set(connId, wsModel)
+	defer func() {
+		ConnMap.Delete(connId)
+		time.Sleep(1 * time.Second)
+		close(outputCh)
+	}()
+
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
-	
+
 	go func() {
 		// read loop
 		defer wg.Done()
 		ReadLoop(conn, outputCh, closeCh, connId)
 	}()
-	
+
 	go func() {
 		// write loop
 		defer wg.Done()
 		WriteLoop(conn, outputCh, closeCh, connId)
 	}()
-	
+
 	wg.Wait()
 	return nil
 }
