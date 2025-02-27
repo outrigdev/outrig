@@ -47,7 +47,15 @@ function MainTab() {
     return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;
 }
 
-function Header() {
+function Header({ full }: { full: boolean }) {
+    if (full) {
+        return <HeaderFull />;
+    } else {
+        return <HeaderSmall />;
+    }
+}
+
+function HeaderFull() {
     const darkMode = useAtomValue(AppModel.darkMode);
 
     return (
@@ -59,6 +67,32 @@ function Header() {
                     className="px-3 py-1 border border-border bg-button text-primary rounded text-sm flex items-center space-x-2 hover:bg-buttonhover transition-colors cursor-pointer"
                 >
                     {darkMode ? <Moon size={16} /> : <Sun size={16} />}
+                </button>
+            </div>
+        </header>
+    );
+}
+
+function HeaderSmall() {
+    const darkMode = useAtomValue(AppModel.darkMode);
+
+    return (
+        <header className="bg-panel text-primary py-1 px-3 border-b border-border">
+            <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-2">
+                    <img
+                        src="/outriglogo.svg"
+                        alt="Outrig Logo"
+                        className="h-6"
+                        style={{ height: "1.125rem" }} // Match text-lg (1.125rem)
+                    />
+                    <div className="text-lg font-semibold">Outrig</div>
+                </div>
+                <button
+                    onClick={() => AppModel.setDarkMode(!darkMode)}
+                    className="px-2 py-0.5 border border-border bg-button text-primary rounded text-xs flex items-center space-x-1 hover:bg-buttonhover transition-colors cursor-pointer"
+                >
+                    {darkMode ? <Moon size={14} /> : <Sun size={14} />}
                 </button>
             </div>
         </header>
@@ -95,7 +129,7 @@ function App() {
 
     return (
         <div className="h-screen w-screen flex flex-col bg-appbg">
-            <Header />
+            <Header full={false} />
 
             <nav className="bg-panel px-0.5 border-b-2 border-border flex">
                 <Tab name="logs" displayName="Logs" />

@@ -1,46 +1,47 @@
 {
-  "editor.formatOnSave": true,
-  "editor.detectIndentation": false,
-  "editor.formatOnPaste": false,
-  "editor.tabSize": 4,
-  "editor.insertSpaces": false,
-  "prettier.useEditorConfig": true,
-  "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[javascriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[css]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[html]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[yaml]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.insertSpaces": true,
-    "editor.autoIndent": "keep"
-  },
-  "[go]": {
-    "editor.defaultFormatter": "golang.go"
-  },
-  "[mdx]": {
-    "editor.wordWrap": "on"
-  },
-  "[md]": {
-    "editor.wordWrap": "on"
-  },
-  "files.associations": {
-    "*.css": "tailwindcss"
-  }
+    "editor.formatOnSave": true,
+    "editor.detectIndentation": false,
+    "editor.formatOnPaste": false,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": false,
+    "prettier.useEditorConfig": true,
+    "terminal.integrated.defaultProfile.osx": "bash",
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[javascriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[css]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[html]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[yaml]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.insertSpaces": true,
+        "editor.autoIndent": "keep"
+    },
+    "[go]": {
+        "editor.defaultFormatter": "golang.go"
+    },
+    "[mdx]": {
+        "editor.wordWrap": "on"
+    },
+    "[md]": {
+        "editor.wordWrap": "on"
+    },
+    "files.associations": {
+        "*.css": "tailwindcss"
+    }
 }
