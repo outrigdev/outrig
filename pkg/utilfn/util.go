@@ -1,6 +1,7 @@
 package utilfn
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -38,4 +39,12 @@ func GoDrainChan[T any](ch chan T) {
 		for range ch {
 		}
 	}()
+}
+
+func ReUnmarshal(out any, in any) error {
+	barr, err := json.Marshal(in)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(barr, out)
 }
