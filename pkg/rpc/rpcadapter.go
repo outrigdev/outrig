@@ -12,7 +12,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-var WshCommandDeclMap = GenerateWshCommandDeclMap()
+var WshCommandDeclMap = GenerateRpcCommandDeclMap()
 
 func findCmdMethod(impl any, cmd string) *reflect.Method {
 	rtype := reflect.TypeOf(impl)

@@ -1,4 +1,4 @@
-package rpcimpl
+package rpctypes
 
 import (
 	"context"
@@ -14,4 +14,9 @@ type FullRpcInterface interface {
 
 type CommandMessageData struct {
 	Message string `json:"message"`
+}
+
+// for frontend
+type ServerCommandMeta struct {
+	CommandType string `json:"commandtype"`
 }

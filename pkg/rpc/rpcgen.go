@@ -10,10 +10,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/outrigdev/outrig/pkg/rpcimpl"
+	"github.com/outrigdev/outrig/pkg/rpctypes"
 )
 
-type WshRpcMethodDecl struct {
+type RpcMethodDecl struct {
 	Command                 string
 	CommandType             string
 	MethodName              string
@@ -22,9 +22,9 @@ type WshRpcMethodDecl struct {
 }
 
 var contextRType = reflect.TypeOf((*context.Context)(nil)).Elem()
-var wshRpcInterfaceRType = reflect.TypeOf((*rpcimpl.FullRpcInterface)(nil)).Elem()
+var wshRpcInterfaceRType = reflect.TypeOf((*rpctypes.FullRpcInterface)(nil)).Elem()
 
-func getWshCommandType(method reflect.Method) string {
+func getRpcCommandType(method reflect.Method) string {
 	if method.Type.NumOut() == 1 {
 		outType := method.Type.Out(0)
 		if outType.Kind() == reflect.Chan {
@@ -34,7 +34,7 @@ func getWshCommandType(method reflect.Method) string {
 	return RpcType_Call
 }
 
-func getWshMethodResponseType(commandType string, method reflect.Method) reflect.Type {
+func getRpcMethodResponseType(commandType string, method reflect.Method) reflect.Type {
 	switch commandType {
 	case RpcType_ResponseStream:
 		if method.Type.NumOut() != 1 {
@@ -63,30 +63,30 @@ func getWshMethodResponseType(commandType string, method reflect.Method) reflect
 	}
 }
 
-func generateWshCommandDecl(method reflect.Method) *WshRpcMethodDecl {
+func generateRpcCommandDecl(method reflect.Method) *RpcMethodDecl {
 	if method.Type.NumIn() == 0 || method.Type.In(0) != contextRType {
 		panic(fmt.Sprintf("method %q does not have context as first argument", method.Name))
 	}
 	cmdStr := method.Name
-	decl := &WshRpcMethodDecl{}
+	decl := &RpcMethodDecl{}
 	// remove Command suffix
 	if !strings.HasSuffix(cmdStr, "Command") {
 		panic(fmt.Sprintf("method %q does not have Command suffix", cmdStr))
 	}
 	cmdStr = cmdStr[:len(cmdStr)-len("Command")]
 	decl.Command = strings.ToLower(cmdStr)
-	decl.CommandType = getWshCommandType(method)
+	decl.CommandType = getRpcCommandType(method)
 	decl.MethodName = method.Name
 	var cdataType reflect.Type
 	if method.Type.NumIn() > 1 {
 		cdataType = method.Type.In(1)
 	}
 	decl.CommandDataType = cdataType
-	decl.DefaultResponseDataType = getWshMethodResponseType(decl.CommandType, method)
+	decl.DefaultResponseDataType = getRpcMethodResponseType(decl.CommandType, method)
 	return decl
 }
 
-func MakeMethodMapForImpl(impl any, declMap map[string]*WshRpcMethodDecl) map[string]reflect.Method {
+func MakeMethodMapForImpl(impl any, declMap map[string]*RpcMethodDecl) map[string]reflect.Method {
 	rtype := reflect.TypeOf(impl)
 	rtnMap := make(map[string]reflect.Method)
 	for midx := 0; midx < rtype.NumMethod(); midx++ {
@@ -106,12 +106,12 @@ func MakeMethodMapForImpl(impl any, declMap map[string]*WshRpcMethodDecl) map[st
 
 }
 
-func GenerateWshCommandDeclMap() map[string]*WshRpcMethodDecl {
+func GenerateRpcCommandDeclMap() map[string]*RpcMethodDecl {
 	rtype := wshRpcInterfaceRType
-	rtnMap := make(map[string]*WshRpcMethodDecl)
+	rtnMap := make(map[string]*RpcMethodDecl)
 	for midx := 0; midx < rtype.NumMethod(); midx++ {
 		method := rtype.Method(midx)
-		decl := generateWshCommandDecl(method)
+		decl := generateRpcCommandDecl(method)
 		rtnMap[decl.Command] = decl
 	}
 	return rtnMap

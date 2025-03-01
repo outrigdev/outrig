@@ -16,7 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/panichandler"
-	"github.com/outrigdev/outrig/pkg/rpcimpl"
+	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
@@ -40,7 +40,7 @@ const (
 // returns true if handler is complete, false for an async handler
 type CommandHandlerFnType = func(*RpcResponseHandler) bool
 
-type ServerImpl interface {
+type RpcServerImpl interface {
 	RpcServerImpl()
 }
 
@@ -49,14 +49,14 @@ type AbstractRpcClient interface {
 	RecvRpcMessage() ([]byte, bool) // blocking
 }
 
-type WshRpc struct {
+type RpcClient struct {
 	Lock               *sync.Mutex
 	InputCh            chan []byte
 	OutputCh           chan []byte
 	CtxDoneCh          chan string // for context cancellation, value is ResId
 	AuthToken          string
 	RpcMap             map[string]*rpcData
-	ServerImpl         ServerImpl
+	ServerImpl         RpcServerImpl
 	ResponseHandlerMap map[string]*RpcResponseHandler // reqId => handler
 	Debug              bool
 	DebugName          string
@@ -70,27 +70,27 @@ type RpcOpts struct {
 	StreamCancelFn func() `json:"-"` // this is an *output* parameter, set by the handler
 }
 
-type wshRpcContextKey struct{}
-type wshRpcRespHandlerContextKey struct{}
+type rpcContextKey struct{}
+type rpcRespHandlerContextKey struct{}
 
-func withWshRpcContext(ctx context.Context, wshRpc *WshRpc) context.Context {
-	return context.WithValue(ctx, wshRpcContextKey{}, wshRpc)
+func withRpcClientContext(ctx context.Context, rpcClient *RpcClient) context.Context {
+	return context.WithValue(ctx, rpcContextKey{}, rpcClient)
 }
 
 func withRespHandler(ctx context.Context, handler *RpcResponseHandler) context.Context {
-	return context.WithValue(ctx, wshRpcRespHandlerContextKey{}, handler)
+	return context.WithValue(ctx, rpcRespHandlerContextKey{}, handler)
 }
 
-func GetWshRpcFromContext(ctx context.Context) *WshRpc {
-	rtn := ctx.Value(wshRpcContextKey{})
+func GetRpcClientFromContext(ctx context.Context) *RpcClient {
+	rtn := ctx.Value(rpcContextKey{})
 	if rtn == nil {
 		return nil
 	}
-	return rtn.(*WshRpc)
+	return rtn.(*RpcClient)
 }
 
 func GetRpcSourceFromContext(ctx context.Context) string {
-	rtn := ctx.Value(wshRpcRespHandlerContextKey{})
+	rtn := ctx.Value(rpcRespHandlerContextKey{})
 	if rtn == nil {
 		return ""
 	}
@@ -98,7 +98,7 @@ func GetRpcSourceFromContext(ctx context.Context) string {
 }
 
 func GetIsCanceledFromContext(ctx context.Context) bool {
-	rtn := ctx.Value(wshRpcRespHandlerContextKey{})
+	rtn := ctx.Value(rpcRespHandlerContextKey{})
 	if rtn == nil {
 		return false
 	}
@@ -106,18 +106,18 @@ func GetIsCanceledFromContext(ctx context.Context) bool {
 }
 
 func GetRpcResponseHandlerFromContext(ctx context.Context) *RpcResponseHandler {
-	rtn := ctx.Value(wshRpcRespHandlerContextKey{})
+	rtn := ctx.Value(rpcRespHandlerContextKey{})
 	if rtn == nil {
 		return nil
 	}
 	return rtn.(*RpcResponseHandler)
 }
 
-func (w *WshRpc) SendRpcMessage(msg []byte) {
+func (w *RpcClient) SendRpcMessage(msg []byte) {
 	w.InputCh <- msg
 }
 
-func (w *WshRpc) RecvRpcMessage() ([]byte, bool) {
+func (w *RpcClient) RecvRpcMessage() ([]byte, bool) {
 	msg, more := <-w.OutputCh
 	return msg, more
 }
@@ -128,7 +128,7 @@ type RpcMessage struct {
 	ResId     string `json:"resid,omitempty"`
 	Timeout   int64  `json:"timeout,omitempty"`
 	Route     string `json:"route,omitempty"`     // to route/forward requests to alternate servers
-	AuthToken string `json:"authtoken,omitempty"` // needed for routing unauthenticated requests (WshRpcMultiProxy)
+	AuthToken string `json:"authtoken,omitempty"` // needed for routing unauthenticated requests (RpcMultiProxy)
 	Source    string `json:"source,omitempty"`    // source route id
 	Cont      bool   `json:"cont,omitempty"`      // flag if additional requests/responses are forthcoming
 	Cancel    bool   `json:"cancel,omitempty"`    // used to cancel a streaming request or response (sent from the side that is not streaming)
@@ -200,7 +200,7 @@ type rpcData struct {
 	Handler *RpcRequestHandler
 }
 
-func validateServerImpl(serverImpl ServerImpl) {
+func validateServerImpl(serverImpl RpcServerImpl) {
 	if serverImpl == nil {
 		return
 	}
@@ -211,7 +211,7 @@ func validateServerImpl(serverImpl ServerImpl) {
 }
 
 // closes outputCh when inputCh is closed/done
-func MakeWshRpc(inputCh chan []byte, outputCh chan []byte, serverImpl ServerImpl, debugName string) *WshRpc {
+func MakeRpcClient(inputCh chan []byte, outputCh chan []byte, serverImpl RpcServerImpl, debugName string) *RpcClient {
 	if inputCh == nil {
 		inputCh = make(chan []byte, DefaultInputChSize)
 	}
@@ -219,7 +219,7 @@ func MakeWshRpc(inputCh chan []byte, outputCh chan []byte, serverImpl ServerImpl
 		outputCh = make(chan []byte, DefaultOutputChSize)
 	}
 	validateServerImpl(serverImpl)
-	rtn := &WshRpc{
+	rtn := &RpcClient{
 		Lock:               &sync.Mutex{},
 		DebugName:          debugName,
 		InputCh:            inputCh,
@@ -233,27 +233,27 @@ func MakeWshRpc(inputCh chan []byte, outputCh chan []byte, serverImpl ServerImpl
 	return rtn
 }
 
-func (w *WshRpc) SetAuthToken(token string) {
+func (w *RpcClient) SetAuthToken(token string) {
 	w.AuthToken = token
 }
 
-func (w *WshRpc) GetAuthToken() string {
+func (w *RpcClient) GetAuthToken() string {
 	return w.AuthToken
 }
 
-func (w *WshRpc) registerResponseHandler(reqId string, handler *RpcResponseHandler) {
+func (w *RpcClient) registerResponseHandler(reqId string, handler *RpcResponseHandler) {
 	w.Lock.Lock()
 	defer w.Lock.Unlock()
 	w.ResponseHandlerMap[reqId] = handler
 }
 
-func (w *WshRpc) unregisterResponseHandler(reqId string) {
+func (w *RpcClient) unregisterResponseHandler(reqId string) {
 	w.Lock.Lock()
 	defer w.Lock.Unlock()
 	delete(w.ResponseHandlerMap, reqId)
 }
 
-func (w *WshRpc) cancelRequest(reqId string) {
+func (w *RpcClient) cancelRequest(reqId string) {
 	if reqId == "" {
 		return
 	}
@@ -266,14 +266,14 @@ func (w *WshRpc) cancelRequest(reqId string) {
 
 }
 
-func (w *WshRpc) handleRequest(req *RpcMessage) {
+func (w *RpcClient) handleRequest(req *RpcMessage) {
 	var respHandler *RpcResponseHandler
 	timeoutMs := req.Timeout
 	if timeoutMs <= 0 {
 		timeoutMs = DefaultTimeoutMs
 	}
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Duration(timeoutMs)*time.Millisecond)
-	ctx = withWshRpcContext(ctx, w)
+	ctx = withRpcClientContext(ctx, w)
 	respHandler = &RpcResponseHandler{
 		w:               w,
 		ctx:             ctx,
@@ -311,7 +311,7 @@ func (w *WshRpc) handleRequest(req *RpcMessage) {
 	isAsync = !handlerFn(respHandler)
 }
 
-func (w *WshRpc) runServer() {
+func (w *RpcClient) runServer() {
 	defer func() {
 		panichandler.PanicHandler("rpc.runServer", recover())
 		close(w.OutputCh)
@@ -342,7 +342,7 @@ outer:
 		var msg RpcMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
-			log.Printf("wshrpc received bad message: %v\n", err)
+			log.Printf("rpcclient received bad message: %v\n", err)
 			continue
 		}
 		if msg.Cancel {
@@ -367,7 +367,7 @@ outer:
 	}
 }
 
-func (w *WshRpc) getResponseCh(resId string) (chan *RpcMessage, *rpcData) {
+func (w *RpcClient) getResponseCh(resId string) (chan *RpcMessage, *rpcData) {
 	if resId == "" {
 		return nil, nil
 	}
@@ -380,14 +380,14 @@ func (w *WshRpc) getResponseCh(resId string) (chan *RpcMessage, *rpcData) {
 	return rd.ResCh, rd
 }
 
-func (w *WshRpc) SetServerImpl(serverImpl ServerImpl) {
+func (w *RpcClient) SetServerImpl(serverImpl RpcServerImpl) {
 	validateServerImpl(serverImpl)
 	w.Lock.Lock()
 	defer w.Lock.Unlock()
 	w.ServerImpl = serverImpl
 }
 
-func (w *WshRpc) registerRpc(handler *RpcRequestHandler, command string, route string, reqId string) chan *RpcMessage {
+func (w *RpcClient) registerRpc(handler *RpcRequestHandler, command string, route string, reqId string) chan *RpcMessage {
 	w.Lock.Lock()
 	defer w.Lock.Unlock()
 	rpcCh := make(chan *RpcMessage, RespChSize)
@@ -407,7 +407,7 @@ func (w *WshRpc) registerRpc(handler *RpcRequestHandler, command string, route s
 	return rpcCh
 }
 
-func (w *WshRpc) unregisterRpc(reqId string, err error) {
+func (w *RpcClient) unregisterRpc(reqId string, err error) {
 	w.Lock.Lock()
 	defer w.Lock.Unlock()
 	rd := w.RpcMap[reqId]
@@ -433,7 +433,7 @@ func (w *WshRpc) unregisterRpc(reqId string, err error) {
 }
 
 // no response
-func (w *WshRpc) SendCommand(command string, data any, opts *RpcOpts) error {
+func (w *RpcClient) SendCommand(command string, data any, opts *RpcOpts) error {
 	var optsCopy RpcOpts
 	if opts != nil {
 		optsCopy = *opts
@@ -449,7 +449,7 @@ func (w *WshRpc) SendCommand(command string, data any, opts *RpcOpts) error {
 }
 
 // single response
-func (w *WshRpc) SendRpcRequest(command string, data any, opts *RpcOpts) (any, error) {
+func (w *RpcClient) SendRpcRequest(command string, data any, opts *RpcOpts) (any, error) {
 	var optsCopy RpcOpts
 	if opts != nil {
 		optsCopy = *opts
@@ -464,7 +464,7 @@ func (w *WshRpc) SendRpcRequest(command string, data any, opts *RpcOpts) (any, e
 }
 
 type RpcRequestHandler struct {
-	w           *WshRpc
+	w           *RpcClient
 	ctx         context.Context
 	ctxCancelFn *atomic.Pointer[context.CancelFunc]
 	reqId       string
@@ -538,7 +538,7 @@ func (handler *RpcRequestHandler) callContextCancelFn() {
 }
 
 type RpcResponseHandler struct {
-	w               *WshRpc
+	w               *RpcClient
 	ctx             context.Context
 	contextCancelFn *atomic.Pointer[context.CancelFunc]
 	reqId           string
@@ -571,8 +571,8 @@ func (handler *RpcResponseHandler) NeedsResponse() bool {
 
 func (handler *RpcResponseHandler) SendMessage(msg string) {
 	rpcMsg := &RpcMessage{
-		Command: rpcimpl.Command_Message,
-		Data: rpcimpl.CommandMessageData{
+		Command: rpctypes.Command_Message,
+		Data: rpctypes.CommandMessageData{
 			Message: msg,
 		},
 		AuthToken: handler.w.GetAuthToken(),
@@ -652,7 +652,7 @@ func (handler *RpcResponseHandler) IsDone() bool {
 	return handler.done.Load()
 }
 
-func (w *WshRpc) SendComplexRequest(command string, data any, opts *RpcOpts) (rtnHandler *RpcRequestHandler, rtnErr error) {
+func (w *RpcClient) SendComplexRequest(command string, data any, opts *RpcOpts) (rtnHandler *RpcRequestHandler, rtnErr error) {
 	if w.IsServerDone() {
 		return nil, errors.New("server is no longer running, cannot send new requests")
 	}
@@ -696,13 +696,13 @@ func (w *WshRpc) SendComplexRequest(command string, data any, opts *RpcOpts) (rt
 	return handler, nil
 }
 
-func (w *WshRpc) IsServerDone() bool {
+func (w *RpcClient) IsServerDone() bool {
 	w.Lock.Lock()
 	defer w.Lock.Unlock()
 	return w.ServerDone
 }
 
-func (w *WshRpc) setServerDone() {
+func (w *RpcClient) setServerDone() {
 	w.Lock.Lock()
 	defer w.Lock.Unlock()
 	w.ServerDone = true
@@ -710,7 +710,7 @@ func (w *WshRpc) setServerDone() {
 	utilfn.GoDrainChan(w.InputCh)
 }
 
-func (w *WshRpc) retrySendTimeout(resId string) {
+func (w *RpcClient) retrySendTimeout(resId string) {
 	done := func() bool {
 		w.Lock.Lock()
 		defer w.Lock.Unlock()
@@ -732,7 +732,7 @@ func (w *WshRpc) retrySendTimeout(resId string) {
 	}
 }
 
-func (w *WshRpc) sendRespWithBlockMessage(msg RpcMessage) {
+func (w *RpcClient) sendRespWithBlockMessage(msg RpcMessage) {
 	respCh, rd := w.getResponseCh(msg.ResId)
 	if respCh == nil {
 		return
