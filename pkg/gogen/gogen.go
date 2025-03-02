@@ -5,11 +5,9 @@ package gogen
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/outrigdev/outrig/pkg/rpc"
-	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 func GenerateBoilerplate(buf *strings.Builder, pkgName string, imports []string) {
@@ -23,53 +21,6 @@ func GenerateBoilerplate(buf *strings.Builder, pkgName string, imports []string)
 			buf.WriteString(fmt.Sprintf("\t%q\n", imp))
 		}
 		buf.WriteString(")\n\n")
-	}
-}
-
-func getBeforeColonPart(s string) string {
-	if colonIdx := strings.Index(s, ":"); colonIdx != -1 {
-		return s[:colonIdx]
-	}
-	return s
-}
-
-func GenerateMetaMapConsts(buf *strings.Builder, constPrefix string, rtype reflect.Type, embedded bool) {
-	if !embedded {
-		buf.WriteString("const (\n")
-	} else {
-		buf.WriteString("\n")
-	}
-	var lastBeforeColon = ""
-	isFirst := true
-	for idx := 0; idx < rtype.NumField(); idx++ {
-		field := rtype.Field(idx)
-		if field.PkgPath != "" {
-			continue
-		}
-		if field.Anonymous {
-			var embeddedBuf strings.Builder
-			GenerateMetaMapConsts(&embeddedBuf, constPrefix, field.Type, true)
-			buf.WriteString(embeddedBuf.String())
-			continue
-		}
-		fieldName := field.Name
-		jsonTag := utilfn.GetJsonTag(field)
-		if jsonTag == "" {
-			jsonTag = fieldName
-		}
-		beforeColon := getBeforeColonPart(jsonTag)
-		if beforeColon != lastBeforeColon {
-			if !isFirst {
-				buf.WriteString("\n")
-			}
-			lastBeforeColon = beforeColon
-		}
-		cname := constPrefix + fieldName
-		buf.WriteString(fmt.Sprintf("\t%-40s = %q\n", cname, jsonTag))
-		isFirst = false
-	}
-	if !embedded {
-		buf.WriteString(")\n")
 	}
 }
 
@@ -90,7 +41,7 @@ func GenMethod_Call(buf *strings.Builder, methodDecl *rpc.RpcMethodDecl) {
 		tParamVal = methodDecl.DefaultResponseDataType.String()
 	}
 	fmt.Fprintf(buf, "func %s(w *rpc.RpcClient%s, opts *rpc.RpcOpts) %s {\n", methodDecl.MethodName, dataType, returnType)
-	fmt.Fprintf(buf, "\t%s, err := sendRpcRequestCallHelper[%s](w, %q, %s, opts)\n", respName, tParamVal, methodDecl.Command, dataVarName)
+	fmt.Fprintf(buf, "\t%s, err := SendRpcRequestCallHelper[%s](w, %q, %s, opts)\n", respName, tParamVal, methodDecl.Command, dataVarName)
 	if methodDecl.DefaultResponseDataType != nil {
 		fmt.Fprintf(buf, "\treturn resp, err\n")
 	} else {
@@ -111,7 +62,7 @@ func GenMethod_ResponseStream(buf *strings.Builder, methodDecl *rpc.RpcMethodDec
 	if methodDecl.DefaultResponseDataType != nil {
 		respType = methodDecl.DefaultResponseDataType.String()
 	}
-	fmt.Fprintf(buf, "func %s(w *rpc.RpcClient%s, opts *rpc.RpcOpts) chan rpc.RespOrErrorUnion[%s] {\n", methodDecl.MethodName, dataType, respType)
-	fmt.Fprintf(buf, "\treturn sendRpcRequestResponseStreamHelper[%s](w, %q, %s, opts)\n", respType, methodDecl.Command, dataVarName)
+	fmt.Fprintf(buf, "func %s(w *rpc.RpcClient%s, opts *rpc.RpcOpts) chan rpc.RespUnion[%s] {\n", methodDecl.MethodName, dataType, respType)
+	fmt.Fprintf(buf, "\treturn SendRpcRequestResponseStreamHelper[%s](w, %q, %s, opts)\n", respType, methodDecl.Command, dataVarName)
 	fmt.Fprintf(buf, "}\n\n")
 }

@@ -19,7 +19,8 @@ func GenerateRpcClient() error {
 	fmt.Fprintf(os.Stderr, "generating wshclient file to %s\n", WshClientFileName)
 	var buf strings.Builder
 	gogen.GenerateBoilerplate(&buf, "wshclient", []string{
-		"github.com/outrigdev/outrig/rpc",
+		"github.com/outrigdev/outrig/pkg/rpc",
+		"github.com/outrigdev/outrig/pkg/rpctypes",
 	})
 	wshDeclMap := rpc.GenerateRpcCommandDeclMap()
 	for _, key := range utilfn.GetOrderedMapKeys(wshDeclMap) {

@@ -45,8 +45,8 @@ func getRpcMethodResponseType(commandType string, method reflect.Method) reflect
 			panic(fmt.Sprintf("method %q has invalid return type %s for response stream", method.Name, outType))
 		}
 		elemType := outType.Elem()
-		if !strings.HasPrefix(elemType.Name(), "RespOrErrorUnion") {
-			panic(fmt.Sprintf("method %q has invalid return element type %s for response stream (should be RespOrErrorUnion)", method.Name, elemType))
+		if !strings.HasPrefix(elemType.Name(), "RespUnion") {
+			panic(fmt.Sprintf("method %q has invalid return element type %s for response stream (should be RespUnion)", method.Name, elemType))
 		}
 		respField, found := elemType.FieldByName("Response")
 		if !found {

@@ -131,7 +131,7 @@ func serverImplAdapter(impl any) func(*RpcResponseHandler) bool {
 					panichandler.PanicHandler("serverImplAdapter:responseStream", recover())
 				}()
 				defer handler.Finalize()
-				// must use reflection here because we don't know the generic type of RespOrErrorUnion
+				// must use reflection here because we don't know the generic type of RespUnion
 				for {
 					respVal, ok := rtnChVal.Recv()
 					if !ok {

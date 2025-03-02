@@ -70,6 +70,11 @@ type RpcOpts struct {
 	StreamCancelFn func() `json:"-"` // this is an *output* parameter, set by the handler
 }
 
+type RespUnion[T any] struct {
+	Response T
+	Error    error
+}
+
 type rpcContextKey struct{}
 type rpcRespHandlerContextKey struct{}
 
