@@ -13,9 +13,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-const WshClientFileName = "pkg/wshrpc/wshclient/wshclient.go"
-const WaveObjMetaConstsFileName = "pkg/waveobj/metaconsts.go"
-const SettingsMetaConstsFileName = "pkg/wconfig/metaconsts.go"
+const WshClientFileName = "pkg/rpcclient/rpcclient.go"
 
 func GenerateRpcClient() error {
 	fmt.Fprintf(os.Stderr, "generating wshclient file to %s\n", WshClientFileName)
