@@ -21,7 +21,7 @@ const ClientApiFileName = "web/rpc/rpcclientapi.ts"
 
 func generateTypesFile(tsTypesMap map[reflect.Type]string) error {
 	fmt.Fprintf(os.Stderr, "generating types file to %s\n", TypesFileName)
-	err := tsgen.GenerateWshServerTypes(tsTypesMap)
+	err := tsgen.GenerateRpcServerTypes(tsTypesMap)
 	if err != nil {
 		return fmt.Errorf("error generating wsh server types: %w", err)
 	}
@@ -69,7 +69,7 @@ func generateWshClientApiFile(tsTypeMap map[reflect.Type]string) error {
 	fmt.Fprintf(&buf, "class RpcApiType {\n")
 	for _, methodDecl := range orderedKeys {
 		methodDecl := declMap[methodDecl]
-		methodStr := tsgen.GenerateWshClientApiMethod(methodDecl, tsTypeMap)
+		methodStr := tsgen.GenerateRpcClientApiMethod(methodDecl, tsTypeMap)
 		fmt.Fprint(&buf, methodStr)
 		fmt.Fprintf(&buf, "\n")
 	}
@@ -84,6 +84,7 @@ func generateWshClientApiFile(tsTypeMap map[reflect.Type]string) error {
 
 func main() {
 	tsTypesMap := make(map[reflect.Type]string)
+	tsgen.GenerateExtraTypes(tsTypesMap)
 	err := generateTypesFile(tsTypesMap)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating types file: %v\n", err)

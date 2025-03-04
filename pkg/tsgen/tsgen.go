@@ -29,7 +29,7 @@ var TypeUnions = []tsgenmeta.TypeUnionMeta{}
 var contextRType = reflect.TypeOf((*context.Context)(nil)).Elem()
 var errorRType = reflect.TypeOf((*error)(nil)).Elem()
 var anyRType = reflect.TypeOf((*interface{})(nil)).Elem()
-var wshRpcInterfaceRType = reflect.TypeOf((*rpctypes.FullRpcInterface)(nil)).Elem()
+var rpcInterfaceRType = reflect.TypeOf((*rpctypes.FullRpcInterface)(nil)).Elem()
 
 func generateTSMethodTypes(method reflect.Method, tsTypesMap map[reflect.Type]string, skipFirstArg bool) error {
 	for idx := 0; idx < method.Type.NumIn(); idx++ {
@@ -307,48 +307,17 @@ func GenerateMethodBody(serviceName string, method reflect.Method, meta tsgenmet
 	return fmt.Sprintf("        return WOS.callBackendService(%q, %q, Array.from(arguments))\n", serviceName, method.Name)
 }
 
-func GenerateServiceClass(serviceName string, serviceObj any, tsTypesMap map[reflect.Type]string) string {
-	serviceType := reflect.TypeOf(serviceObj)
-	var sb strings.Builder
-	tsServiceName := serviceType.Elem().Name()
-	sb.WriteString(fmt.Sprintf("// %s (%s)\n", serviceType.Elem().String(), serviceName))
-	sb.WriteString("class ")
-	sb.WriteString(tsServiceName + "Type")
-	sb.WriteString(" {\n")
-	isFirst := true
-	for midx := 0; midx < serviceType.NumMethod(); midx++ {
-		method := serviceType.Method(midx)
-		if strings.HasSuffix(method.Name, "_Meta") {
-			continue
-		}
-		var meta tsgenmeta.MethodMeta
-		metaMethod, found := serviceType.MethodByName(method.Name + "_Meta")
-		if found {
-			serviceObjVal := reflect.ValueOf(serviceObj)
-			metaVal := metaMethod.Func.Call([]reflect.Value{serviceObjVal})
-			meta = metaVal[0].Interface().(tsgenmeta.MethodMeta)
-		}
-		sb.WriteString(GenerateMethodSignature(serviceName, method, meta, isFirst, tsTypesMap))
-		sb.WriteString(GenerateMethodBody(serviceName, method, meta))
-		sb.WriteString("    }\n")
-		isFirst = false
-	}
-	sb.WriteString("}\n\n")
-	sb.WriteString(fmt.Sprintf("export const %s = new %sType();\n", tsServiceName, tsServiceName))
-	return sb.String()
-}
-
-func GenerateWshClientApiMethod(methodDecl *rpc.RpcMethodDecl, tsTypesMap map[reflect.Type]string) string {
+func GenerateRpcClientApiMethod(methodDecl *rpc.RpcMethodDecl, tsTypesMap map[reflect.Type]string) string {
 	if methodDecl.CommandType == rpc.RpcType_ResponseStream {
-		return generateWshClientApiMethod_ResponseStream(methodDecl, tsTypesMap)
+		return generateRpcClientApiMethod_ResponseStream(methodDecl, tsTypesMap)
 	} else if methodDecl.CommandType == rpc.RpcType_Call {
-		return generateWshClientApiMethod_Call(methodDecl, tsTypesMap)
+		return generateRpcClientApiMethod_Call(methodDecl, tsTypesMap)
 	} else {
-		panic(fmt.Sprintf("cannot generate wshserver commandtype %q", methodDecl.CommandType))
+		panic(fmt.Sprintf("cannot generate rpcserver commandtype %q", methodDecl.CommandType))
 	}
 }
 
-func generateWshClientApiMethod_ResponseStream(methodDecl *rpc.RpcMethodDecl, tsTypesMap map[reflect.Type]string) string {
+func generateRpcClientApiMethod_ResponseStream(methodDecl *rpc.RpcMethodDecl, tsTypesMap map[reflect.Type]string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("    // command %q [%s]\n", methodDecl.Command, methodDecl.CommandType))
 	respType := "any"
@@ -362,16 +331,16 @@ func generateWshClientApiMethod_ResponseStream(methodDecl *rpc.RpcMethodDecl, ts
 	genRespType := fmt.Sprintf("AsyncGenerator<%s, void, boolean>", respType)
 	if methodDecl.CommandDataType != nil {
 		cmdDataTsName, _ := TypeToTSType(methodDecl.CommandDataType, tsTypesMap)
-		sb.WriteString(fmt.Sprintf("	%s(client: WshClient, data: %s, opts?: RpcOpts): %s {\n", methodDecl.MethodName, cmdDataTsName, genRespType))
+		sb.WriteString(fmt.Sprintf("	%s(client: RpcClient, data: %s, opts?: RpcOpts): %s {\n", methodDecl.MethodName, cmdDataTsName, genRespType))
 	} else {
-		sb.WriteString(fmt.Sprintf("	%s(client: WshClient, opts?: RpcOpts): %s {\n", methodDecl.MethodName, genRespType))
+		sb.WriteString(fmt.Sprintf("	%s(client: RpcClient, opts?: RpcOpts): %s {\n", methodDecl.MethodName, genRespType))
 	}
-	sb.WriteString(fmt.Sprintf("        return client.wshRpcStream(%q, %s, opts);\n", methodDecl.Command, dataName))
+	sb.WriteString(fmt.Sprintf("        return client.rpcStream(%q, %s, opts);\n", methodDecl.Command, dataName))
 	sb.WriteString("    }\n")
 	return sb.String()
 }
 
-func generateWshClientApiMethod_Call(methodDecl *rpc.RpcMethodDecl, tsTypesMap map[reflect.Type]string) string {
+func generateRpcClientApiMethod_Call(methodDecl *rpc.RpcMethodDecl, tsTypesMap map[reflect.Type]string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("    // command %q [%s]\n", methodDecl.Command, methodDecl.CommandType))
 	rtnType := "Promise<void>"
@@ -385,19 +354,19 @@ func generateWshClientApiMethod_Call(methodDecl *rpc.RpcMethodDecl, tsTypesMap m
 	}
 	if methodDecl.CommandDataType != nil {
 		cmdDataTsName, _ := TypeToTSType(methodDecl.CommandDataType, tsTypesMap)
-		sb.WriteString(fmt.Sprintf("    %s(client: WshClient, data: %s, opts?: RpcOpts): %s {\n", methodDecl.MethodName, cmdDataTsName, rtnType))
+		sb.WriteString(fmt.Sprintf("    %s(client: RpcClient, data: %s, opts?: RpcOpts): %s {\n", methodDecl.MethodName, cmdDataTsName, rtnType))
 	} else {
-		sb.WriteString(fmt.Sprintf("    %s(client: WshClient, opts?: RpcOpts): %s {\n", methodDecl.MethodName, rtnType))
+		sb.WriteString(fmt.Sprintf("    %s(client: RpcClient, opts?: RpcOpts): %s {\n", methodDecl.MethodName, rtnType))
 	}
-	methodBody := fmt.Sprintf("        return client.wshRpcCall(%q, %s, opts);\n", methodDecl.Command, dataName)
+	methodBody := fmt.Sprintf("        return client.rpcCall(%q, %s, opts);\n", methodDecl.Command, dataName)
 	sb.WriteString(methodBody)
 	sb.WriteString("    }\n")
 	return sb.String()
 }
 
-func GenerateWshServerTypes(tsTypesMap map[reflect.Type]string) error {
+func GenerateRpcServerTypes(tsTypesMap map[reflect.Type]string) error {
 	GenerateTSType(reflect.TypeOf(rpc.RpcOpts{}), tsTypesMap)
-	rtype := wshRpcInterfaceRType
+	rtype := rpcInterfaceRType
 	for midx := 0; midx < rtype.NumMethod(); midx++ {
 		method := rtype.Method(midx)
 		err := generateTSMethodTypes(method, tsTypesMap, false)
@@ -406,4 +375,10 @@ func GenerateWshServerTypes(tsTypesMap map[reflect.Type]string) error {
 		}
 	}
 	return nil
+}
+
+func GenerateExtraTypes(tsTypesMap map[reflect.Type]string) {
+	for _, extraType := range ExtraTypes {
+		GenerateTSType(reflect.TypeOf(extraType), tsTypesMap)
+	}
 }

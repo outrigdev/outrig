@@ -1,10 +1,14 @@
 declare global {
-    type LogLine = {
-        linenum: number;
-        ts: number;
-        msg: string;
-        source: string;
+    type ClientRpcEntry = {
+        reqId: string;
+        startTs: number;
+        command: string;
+        msgFn: (msg: RpcMessage) => void;
     };
+
+    interface AbstractRpcClient {
+        recvRpcMessage(msg: RpcMessage): void;
+    }
 }
 
 export {};

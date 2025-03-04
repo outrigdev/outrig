@@ -7,19 +7,22 @@ const StableConnTime = 2000; // Time after which connection is considered stable
 const PingInterval = 5000; // Send ping every 5 seconds
 
 // Reconnect timeouts in seconds
-const ReconnectTimeouts = [0, 0, 2, 5, 10, 10, 30, 60];
+const ReconnectTimeouts = [1, 1, 2, 5, 10, 10, 30, 60];
+const MaxReconnectAttempts = 20;
 
 interface WebSocketOptions {
     url: string;
     onOpen?: () => void;
-    onMessage?: (data: any) => void;
+    onRpcMessage?: (data: RpcMessage) => void;
     onClose?: () => void;
     onError?: (error: Event) => void;
-    autoReconnect?: boolean;
-    reconnectInterval?: number;
-    maxReconnectAttempts?: number;
-    tabId?: string; // Optional identifier for this connection
 }
+
+export type WSEventType = {
+    type: string;
+    ts: number;
+    data?: any;
+};
 
 // Array of reconnect handlers that will be called when connection is reestablished
 const reconnectHandlers: (() => void)[] = [];
@@ -41,69 +44,60 @@ export function removeWSReconnectHandler(handler: () => void) {
     }
 }
 
-export class OutrigWebSocket {
-    private ws: WebSocket | null = null;
-    private options: WebSocketOptions;
-    private reconnectAttempts = 0;
-    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    private lastPingTime = 0;
-    private lastReconnectTime = 0;
-    private isConnected = false;
-    private isOpening = false;
-    private msgQueue: any[] = [];
-    private noReconnect = false;
-    private onOpenTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    private pingIntervalId: ReturnType<typeof setInterval> | null = null;
+export class WebSocketController {
+    ws: WebSocket | null = null;
+    options: WebSocketOptions;
+    reconnectAttempts = 0;
+    reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    isConnected = false;
+    isOpening = false;
+    msgQueue: WSEventType[] = [];
+    noReconnect = false;
+    onOpenTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    pingIntervalId: ReturnType<typeof setInterval> | null = null;
 
     constructor(options: WebSocketOptions) {
-        this.options = {
-            autoReconnect: true,
-            reconnectInterval: 1000,
-            maxReconnectAttempts: 20,
-            tabId: crypto.randomUUID(), // Generate a random ID if not provided
-            ...options,
-        };
+        this.options = options;
         this.connectNow("initial");
-        this.startPingInterval();
+        this._startPingInterval();
     }
 
-    /**
-     * Attempt to connect to the WebSocket server
-     */
-    private connectNow(desc: string) {
+    _handleWindowFocus() {
+        if (this.isConnected) {
+            return;
+        }
+        console.log("[websocket] window focus detected, attempting immediate reconnection");
+        this.reconnectAttempts = 0;
+        if (this.isOpening) {
+            return;
+        }
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        this.connectNow("focus");
+    }
+
+    connectNow(desc: string) {
         if (this.isConnected || this.noReconnect) {
             return;
         }
-
-        this.lastReconnectTime = Date.now();
         console.log(`[websocket] trying to connect: ${desc}`);
-
         this.isOpening = true;
-
-        // Construct URL with tabId if provided
         let url = this.options.url;
-        if (this.options.tabId) {
-            const separator = url.includes("?") ? "&" : "?";
-            url = `${url}${separator}tabid=${this.options.tabId}`;
-        }
-
         try {
             this.ws = new WebSocket(url);
-
-            this.ws.onopen = (e) => this.onopen(e);
-            this.ws.onmessage = (e) => this.onmessage(e);
-            this.ws.onclose = (e) => this.onclose(e);
-            this.ws.onerror = (e) => this.onerror(e);
+            this.ws.onopen = (e) => this._onopenHandler(e);
+            this.ws.onmessage = (e) => this._onmessageHandler(e);
+            this.ws.onclose = (e) => this._oncloseHandler(e);
+            this.ws.onerror = (e) => this._onerrorHandler(e);
         } catch (error) {
             console.error("[websocket] Error creating WebSocket:", error);
-            this.reconnect();
+            this.tryReconnect();
         }
     }
 
-    /**
-     * Handle WebSocket open event
-     */
-    private onopen(e: Event) {
+    _onopenHandler(e: Event) {
         console.log("[websocket] connection established");
         this.isConnected = true;
         this.isOpening = false;
@@ -129,47 +123,42 @@ export class OutrigWebSocket {
         }
 
         // Process any queued messages
-        this.runMsgQueue();
+        this._runMsgQueue();
     }
 
-    /**
-     * Handle WebSocket message event
-     */
-    private onmessage(event: MessageEvent) {
+    _onmessageHandler(event: MessageEvent) {
         try {
-            const data = JSON.parse(event.data) as { type?: string; stime?: number };
+            const data = JSON.parse(event.data) as WSEventType;
 
             // Handle ping/pong messages for keeping the connection alive
             if (data.type === "ping") {
-                this.sendMessage({ type: "pong", stime: Date.now() });
+                this.sendMessage({ type: "pong", ts: Date.now() });
                 return;
             } else if (data.type === "pong") {
                 // Calculate round-trip time if needed
-                if (data.stime) {
+                if (data.ts) {
                     const now = Date.now();
-                    const rtt = now - data.stime;
+                    const rtt = now - data.ts;
                     console.debug(`[websocket] RTT: ${rtt}ms`);
                 }
                 return;
-            }
-
-            // Handle regular messages
-            if (this.options.onMessage) {
-                try {
-                    this.options.onMessage(data);
-                } catch (error) {
-                    console.error("[websocket] Error in message handler:", error);
+            } else if (data.type === "rpc") {
+                if (this.options.onRpcMessage) {
+                    try {
+                        this.options.onRpcMessage(data.data);
+                    } catch (error) {
+                        console.error("[websocket] Error in RPC message handler:", error);
+                    }
                 }
+            } else {
+                console.error("[websocket] unknown message type:", data.type);
             }
         } catch (error) {
             console.error("[websocket] Error parsing message:", error);
         }
     }
 
-    /**
-     * Handle WebSocket close event
-     */
-    private onclose(event: CloseEvent) {
+    _oncloseHandler(event: CloseEvent) {
         // Clear the onOpen timeout if it exists
         if (this.onOpenTimeoutId) {
             clearTimeout(this.onOpenTimeoutId);
@@ -191,14 +180,11 @@ export class OutrigWebSocket {
                 this.options.onClose();
             }
 
-            this.reconnect();
+            this.tryReconnect();
         }
     }
 
-    /**
-     * Handle WebSocket error event
-     */
-    private onerror(error: Event) {
+    _onerrorHandler(error: Event) {
         console.error("[websocket] error:", error);
         if (this.options.onError) {
             this.options.onError(error);
@@ -206,10 +192,7 @@ export class OutrigWebSocket {
         // No need to call reconnect here as onclose will be called after onerror
     }
 
-    /**
-     * Schedule a reconnection attempt
-     */
-    private reconnect(forceClose = false) {
+    tryReconnect(forceClose = false) {
         if (this.noReconnect) {
             return;
         }
@@ -225,7 +208,7 @@ export class OutrigWebSocket {
         }
 
         this.reconnectAttempts++;
-        if (this.reconnectAttempts > (this.options.maxReconnectAttempts || 20)) {
+        if (this.reconnectAttempts > MaxReconnectAttempts) {
             console.log("[websocket] max reconnect attempts reached, giving up");
             return;
         }
@@ -234,11 +217,6 @@ export class OutrigWebSocket {
         let timeout = 60; // Default to 60 seconds
         if (this.reconnectAttempts < ReconnectTimeouts.length) {
             timeout = ReconnectTimeouts[this.reconnectAttempts];
-        }
-
-        // If we just tried to reconnect, use a short timeout
-        if (Date.now() - this.lastReconnectTime < 500) {
-            timeout = 1;
         }
 
         if (timeout > 0) {
@@ -250,10 +228,7 @@ export class OutrigWebSocket {
         }, timeout * 1000);
     }
 
-    /**
-     * Start the ping interval
-     */
-    private startPingInterval() {
+    _startPingInterval() {
         // Clear any existing interval
         if (this.pingIntervalId) {
             clearInterval(this.pingIntervalId);
@@ -267,10 +242,7 @@ export class OutrigWebSocket {
         }, PingInterval);
     }
 
-    /**
-     * Process the message queue
-     */
-    private runMsgQueue() {
+    _runMsgQueue() {
         if (!this.isConnected || this.msgQueue.length === 0) {
             return;
         }
@@ -280,23 +252,20 @@ export class OutrigWebSocket {
 
         // Process next message after a short delay
         setTimeout(() => {
-            this.runMsgQueue();
+            this._runMsgQueue();
         }, 100);
     }
 
-    /**
-     * Send a ping message to the server
-     */
-    public sendPing() {
-        this.lastPingTime = Date.now();
-        this.sendMessage({ type: "ping", stime: this.lastPingTime });
+    sendPing() {
+        const now = Date.now();
+        this.sendMessage({ type: "ping", ts: now });
     }
 
     /**
      * Send a message to the server
      * @returns boolean indicating if the message was sent successfully
      */
-    public sendMessage(data: any): boolean {
+    sendMessage(data: WSEventType): boolean {
         if (!this.isConnected) {
             this.msgQueue.push(data);
             return false;
@@ -308,7 +277,7 @@ export class OutrigWebSocket {
         }
 
         try {
-            const message = typeof data === "string" ? data : JSON.stringify(data);
+            const message = JSON.stringify(data);
 
             // Check message size
             const byteSize = new Blob([message]).size;
@@ -329,30 +298,24 @@ export class OutrigWebSocket {
         }
     }
 
-    /**
-     * Push a message to be sent, queuing it if not connected
-     */
-    public pushMessage(data: any): void {
+    pushRawMessage(data: WSEventType): void {
         if (!this.isConnected) {
             this.msgQueue.push(data);
             return;
         }
-
         this.sendMessage(data);
     }
 
-    /**
-     * Shutdown the WebSocket connection and prevent reconnection
-     */
-    public shutdown() {
+    pushRpcMessage(data: RpcMessage): void {
+        this.pushRawMessage({ type: "rpc", ts: Date.now(), data });
+    }
+
+    shutdown() {
         this.noReconnect = true;
         this.close();
     }
 
-    /**
-     * Close the WebSocket connection
-     */
-    public close() {
+    close() {
         // Clear all timers
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
@@ -379,44 +342,7 @@ export class OutrigWebSocket {
         this.isOpening = false;
     }
 
-    /**
-     * Check if the WebSocket is currently connected
-     */
-    public isOpen(): boolean {
+    isOpen(): boolean {
         return this.isConnected && this.ws !== null && this.ws.readyState === WebSocket.OPEN;
     }
-}
-
-// Global WebSocket instance
-let globalWS: OutrigWebSocket | null = null;
-
-/**
- * Initialize the global WebSocket connection
- */
-export function initWebSocket(options: WebSocketOptions): OutrigWebSocket {
-    if (globalWS) {
-        globalWS.shutdown();
-    }
-
-    globalWS = new OutrigWebSocket(options);
-    return globalWS;
-}
-
-/**
- * Get the global WebSocket instance
- */
-export function getWebSocket(): OutrigWebSocket | null {
-    return globalWS;
-}
-
-/**
- * Send a message using the global WebSocket
- */
-export function sendWSMessage(data: any): boolean {
-    if (!globalWS) {
-        console.error("[websocket] No global WebSocket instance");
-        return false;
-    }
-
-    return globalWS.pushMessage(data) !== undefined;
 }

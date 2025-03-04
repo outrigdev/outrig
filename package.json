@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "base64-js": "^1.5.1",
     "jotai": "^2.12.1",
     "lucide-react": "^0.475.0",
     "prettier": "^3.5.2",

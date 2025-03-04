@@ -63,7 +63,7 @@ func TestCirBufBasicOperations(t *testing.T) {
 	}
 
 	// Try to read from empty buffer
-	val, ok = cb.Read()
+	_, ok = cb.Read()
 	if ok {
 		t.Errorf("Reading from empty buffer should return false, got %v", ok)
 	}
@@ -78,17 +78,17 @@ func TestCirBufOverwrite(t *testing.T) {
 	if kicked != nil {
 		t.Errorf("Expected nil kicked element, got %v", *kicked)
 	}
-	
+
 	kicked = cb.Write("B")
 	if kicked != nil {
 		t.Errorf("Expected nil kicked element, got %v", *kicked)
 	}
-	
+
 	kicked = cb.Write("C")
 	if kicked != nil {
 		t.Errorf("Expected nil kicked element, got %v", *kicked)
 	}
-	
+
 	// Now the buffer is full, next writes should kick out elements
 	kicked = cb.Write("D") // This should overwrite "A"
 	if kicked == nil || *kicked != "A" {
@@ -98,7 +98,7 @@ func TestCirBufOverwrite(t *testing.T) {
 			t.Errorf("Expected kicked element A, got %v", *kicked)
 		}
 	}
-	
+
 	kicked = cb.Write("E") // This should overwrite "B"
 	if kicked == nil || *kicked != "B" {
 		if kicked == nil {
