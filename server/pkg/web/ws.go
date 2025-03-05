@@ -25,10 +25,16 @@ const wsInitialPingTime = 1 * time.Second
 
 var ConnMap = utilds.MakeSyncMap[*WebSocketModel]()
 
+type WSEventType struct {
+	Type string `json:"type"`
+	Ts   int64  `json:"ts"`
+	Data any    `json:"data,omitempty"`
+}
+
 type WebSocketModel struct {
 	ConnId   string
 	Conn     *websocket.Conn
-	OutputCh chan any
+	OutputCh chan WSEventType
 }
 
 func RunWebSocketServer(listener net.Listener) {
@@ -62,31 +68,16 @@ func HandleWs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getMessageType(jmsg map[string]any) string {
-	if str, ok := jmsg["type"].(string); ok {
-		return str
-	}
-	return ""
-}
-
-func getStringFromMap(jmsg map[string]any, key string) string {
-	if str, ok := jmsg[key].(string); ok {
-		return str
-	}
-	return ""
-}
-
-func processMessage(jmsg map[string]any, outputCh chan any) {
+func processMessage(event WSEventType, outputCh chan WSEventType) {
 	// Process incoming messages here
-	msgType := getMessageType(jmsg)
-	if msgType == "" {
+	if event.Type == "" {
 		return
 	}
-
+	log.Printf("[websocket] processing message: %v\n", event.Type)
 	// TODO process message
 }
 
-func ReadLoop(conn *websocket.Conn, outputCh chan any, closeCh chan any, connId string) {
+func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any, connId string) {
 	readWait := wsReadWaitTimeout
 	conn.SetReadLimit(64 * 1024)
 	conn.SetReadDeadline(time.Now().Add(readWait))
@@ -97,31 +88,30 @@ func ReadLoop(conn *websocket.Conn, outputCh chan any, closeCh chan any, connId 
 			log.Printf("[websocket] ReadPump error (%s): %v\n", connId, err)
 			break
 		}
-		jmsg := map[string]any{}
-		err = json.Unmarshal(message, &jmsg)
+		var event WSEventType
+		err = json.Unmarshal(message, &event)
 		if err != nil {
 			log.Printf("[websocket] error unmarshalling json: %v\n", err)
 			break
 		}
 		conn.SetReadDeadline(time.Now().Add(readWait))
-		msgType := getMessageType(jmsg)
-		if msgType == "pong" {
+		if event.Type == "pong" {
 			// nothing
 			continue
 		}
-		if msgType == "ping" {
+		if event.Type == "ping" {
 			now := time.Now()
-			pongMessage := map[string]interface{}{"type": "pong", "stime": now.UnixMilli()}
+			pongMessage := WSEventType{Type: "pong", Ts: now.UnixMilli()}
 			outputCh <- pongMessage
 			continue
 		}
-		go processMessage(jmsg, outputCh)
+		go processMessage(event, outputCh)
 	}
 }
 
 func WritePing(conn *websocket.Conn) error {
 	now := time.Now()
-	pingMessage := map[string]interface{}{"type": "ping", "stime": now.UnixMilli()}
+	pingMessage := map[string]interface{}{"type": "ping", "ts": now.UnixMilli()}
 	jsonVal, _ := json.Marshal(pingMessage)
 	_ = conn.SetWriteDeadline(time.Now().Add(wsWriteWaitTimeout)) // no error
 	err := conn.WriteMessage(websocket.TextMessage, jsonVal)
@@ -131,7 +121,7 @@ func WritePing(conn *websocket.Conn) error {
 	return nil
 }
 
-func WriteLoop(conn *websocket.Conn, outputCh chan any, closeCh chan any, connId string) {
+func WriteLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any, connId string) {
 	ticker := time.NewTicker(wsInitialPingTime)
 	defer ticker.Stop()
 	defer utilfn.GoDrainChan(outputCh)
@@ -139,17 +129,11 @@ func WriteLoop(conn *websocket.Conn, outputCh chan any, closeCh chan any, connId
 	for {
 		select {
 		case msg := <-outputCh:
-			var barr []byte
-			var err error
-			if _, ok := msg.([]byte); ok {
-				barr = msg.([]byte)
-			} else {
-				barr, err = json.Marshal(msg)
-				if err != nil {
-					log.Printf("[websocket] cannot marshal websocket message: %v\n", err)
-					// just loop again
-					break
-				}
+			barr, err := json.Marshal(msg)
+			if err != nil {
+				log.Printf("[websocket] cannot marshal websocket message: %v\n", err)
+				// just loop again
+				break
 			}
 			err = conn.WriteMessage(websocket.TextMessage, barr)
 			if err != nil {
@@ -183,7 +167,7 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	defer conn.Close()
 
 	connId := uuid.New().String()
-	outputCh := make(chan any, 100)
+	outputCh := make(chan WSEventType, 100)
 	closeCh := make(chan any)
 
 	log.Printf("[websocket] new connection: connid:%s\n", connId)

@@ -2,13 +2,18 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"os/exec"
+	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -122,12 +127,79 @@ func runWebServers() error {
 	return nil
 }
 
+// startViteServer starts the Vite development server as a subprocess
+// and pipes its stdout/stderr to the Go server's stdout/stderr.
+// It returns a function that can be called to stop the Vite server.
+func startViteServer(ctx context.Context) (*exec.Cmd, error) {
+	log.Println("Starting Vite development server...")
+
+	// Create the command to run task dev:vite
+	cmd := exec.CommandContext(ctx, "task", "dev:vite")
+
+	// Get pipes for stdout and stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stdout pipe: %w", err)
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stderr pipe: %w", err)
+	}
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start Vite server: %w", err)
+	}
+
+	// Copy stdout to our stdout
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			fmt.Println("[vite]", scanner.Text())
+		}
+	}()
+
+	// Copy stderr to our stderr
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			fmt.Fprintln(os.Stderr, "[vite]", scanner.Text())
+		}
+	}()
+
+	log.Println("Vite development server started")
+	return cmd, nil
+}
+
 func main() {
+	// Create a context that we can cancel
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create a WaitGroup to track subprocess shutdown
+	var wg sync.WaitGroup
+
+	// Set up signal handling
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+
+	// Handle signals in a goroutine
+	go func() {
+		sig := <-signalChan
+		log.Printf("Received signal: %v\n", sig)
+		cancel() // Cancel the context to stop all processes
+
+		// Give processes a moment to clean up
+		signal.Stop(signalChan)
+	}()
+
 	err := serverbase.EnsureHomeDir()
 	if err != nil {
 		log.Printf("error cannot create outrig home directory (%s): %v\n", base.OutrigHome, err)
 		return
 	}
+
 	lock, err := serverbase.AcquireOutrigServerLock()
 	if err != nil {
 		log.Printf("error acquiring outrig lock (another instance of Outrig Server is likely running): %v\n", err)
@@ -150,5 +222,44 @@ func main() {
 	}
 
 	log.Println("All servers started successfully")
-	select {} // Wait forever
+
+	// If we're in development mode, start the Vite server
+	if os.Getenv("OUTRIG_DEV") == "1" {
+		viteCmd, err := startViteServer(ctx)
+		if err != nil {
+			log.Printf("Error starting Vite server: %v\n", err)
+			return
+		}
+
+		// Add to WaitGroup before starting the goroutine
+		wg.Add(1)
+
+		// Wait for the Vite server to exit when the context is canceled
+		go func() {
+			defer wg.Done() // Mark this goroutine as done when it completes
+
+			<-ctx.Done()
+			log.Println("Shutting down Vite server...")
+
+			// The context cancellation should already signal the process to stop,
+			// but we can also explicitly wait for it to finish
+			if err := viteCmd.Wait(); err != nil {
+				// Don't report error if it's due to the context being canceled
+				if ctx.Err() != context.Canceled {
+					log.Printf("Vite server exited with error: %v\n", err)
+				}
+			}
+
+			log.Println("Vite server shutdown complete")
+		}()
+	}
+
+	// Wait for context cancellation (from signal handler)
+	<-ctx.Done()
+	log.Println("Shutting down server...")
+
+	// Wait for all subprocesses to finish shutting down
+	log.Println("Waiting for all processes to complete...")
+	wg.Wait()
+	log.Println("All processes shutdown complete")
 }

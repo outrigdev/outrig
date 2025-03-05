@@ -2,6 +2,8 @@ import { RpcClient } from "./rpc/rpc";
 import { RpcRouter } from "./rpc/rpcrouter";
 import { addWSReconnectHandler, WebSocketController } from "./websocket/client";
 
+const WebSocketEndpoint = "ws://localhost:5006/ws";
+
 let DefaultRouter: RpcRouter = null;
 let DefaultRpcClient: RpcClient = null;
 let GlobalWS: WebSocketController = null;
@@ -17,7 +19,7 @@ class UpstreamWshRpcProxy implements AbstractRpcClient {
 
 function initRpcSystem() {
     GlobalWS = new WebSocketController({
-        url: "ws://localhost:5006",
+        url: WebSocketEndpoint,
         onRpcMessage: (msg: RpcMessage) => {
             if (DefaultRouter == null) {
                 return;
