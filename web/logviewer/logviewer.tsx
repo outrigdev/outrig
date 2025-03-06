@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue } from "jotai";
-import { Search } from "lucide-react";
+import { Filter } from "lucide-react";
 import React, { JSX, useRef } from "react";
 import { LogViewerModel } from "./logviewer-model";
 
@@ -56,11 +56,11 @@ const LogViewer: React.FC<object> = () => {
             <div className="py-1">
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none text-muted">
-                        <Search size={16} />
+                        <Filter size={16} fill="currentColor" stroke="currentColor" strokeWidth={1} />
                     </div>
                     <input
                         type="text"
-                        placeholder="search logs..."
+                        placeholder="filter..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="w-full bg-transparent text-primary placeholder:text-muted text-sm py-1 pl-8 pr-2 
