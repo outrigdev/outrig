@@ -32,15 +32,15 @@
     --themecolor-black: black;
     --themecolor-appbg: #f9fafb;
     --themecolor-primary: #111827;
-    --themecolor-secondary: rgb(120, 120, 120);
-    --themecolor-muted: rgb(160, 160, 160);
-    --themecolor-panel: #f3f4f6;
+    --themecolor-secondary: rgba(0, 0, 0, 0.6);
+    --themecolor-muted: rgba(0, 0, 0, 0.45);
+    --themecolor-panel: #ffffff;
 
-    --themecolor-border: #d1d5db; /* Light gray for subtle dividers */
-    --themecolor-strongborder: #6b7280; /* Darker gray for stronger emphasis */
+    --themecolor-border: rgba(0, 0, 0, 0.08); /* More subtle border */
+    --themecolor-strongborder: rgba(0, 0, 0, 0.16); /* Darker gray for stronger emphasis */
 
-    --themecolor-buttonhover: rgba(0, 0, 0, 0.1);
-    --themecolor-selected: rgba(0, 0, 0, 0.1);
+    --themecolor-buttonhover: rgba(0, 0, 0, 0.05);
+    --themecolor-selected: rgba(0, 0, 0, 0.06);
     --themecolor-button: transparent;
 
     --themecolor-success: #10b981; /* Green */
@@ -48,25 +48,25 @@
     --themecolor-error: #ef4444; /* Red */
 
     [data-selected] {
-        --themecolor-button: rgba(0, 0, 0, 0.1);
-        --themecolor-buttonhover: rgba(0, 0, 0, 0.2);
+        --themecolor-button: rgba(0, 0, 0, 0.04);
+        --themecolor-buttonhover: rgba(0, 0, 0, 0.08);
     }
 }
 
 [data-theme="dark"] {
     --themecolor-white: black;
     --themecolor-black: white;
-    --themecolor-appbg: #121212;
-    --themecolor-primary: #f7f7f7;
-    --themecolor-secondary: rgb(195, 200, 194);
-    --themecolor-muted: rgb(130, 135, 130);
-    --themecolor-panel: rgba(255, 255, 255, 0.08);
+    --themecolor-appbg: #0c0c0c;
+    --themecolor-primary: #f0f0f0;
+    --themecolor-secondary: rgba(255, 255, 255, 0.65);
+    --themecolor-muted: rgba(255, 255, 255, 0.45);
+    --themecolor-panel: #151515;
 
-    --themecolor-border: rgba(255, 255, 255, 0.15);
-    --themecolor-strongborder: rgba(255, 255, 255, 0.3);
+    --themecolor-border: rgba(255, 255, 255, 0.08);
+    --themecolor-strongborder: rgba(255, 255, 255, 0.15);
 
-    --themecolor-buttonhover: rgba(255, 255, 255, 0.1);
-    --themecolor-selected: rgba(255, 255, 255, 0.1);
+    --themecolor-buttonhover: rgba(255, 255, 255, 0.06);
+    --themecolor-selected: rgba(255, 255, 255, 0.06);
     --themecolor-button: transparent;
 
     --themecolor-success: #22c55e;
@@ -74,8 +74,8 @@
     --themecolor-error: #f87171;
 
     [data-selected] {
-        --themecolor-button: rgba(255, 255, 255, 0.1);
-        --themecolor-buttonhover: rgba(255, 255, 255, 0.2);
+        --themecolor-button: rgba(255, 255, 255, 0.04);
+        --themecolor-buttonhover: rgba(255, 255, 255, 0.08);
     }
 }
 
