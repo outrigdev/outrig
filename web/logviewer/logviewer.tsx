@@ -35,7 +35,7 @@ const LogLineView: React.FC<LogLineViewProps> = ({ line }) => {
     }
 
     return (
-        <div className="flex whitespace-nowrap hover:bg-buttonhover py-0.5">
+        <div className="flex whitespace-nowrap hover:bg-buttonhover">
             <div className="select-none pr-2 text-muted w-12 text-right">{formatLineNumber(line.linenum, 4)}</div>
             <div>
                 <span className="text-secondary">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
@@ -44,27 +44,35 @@ const LogLineView: React.FC<LogLineViewProps> = ({ line }) => {
         </div>
     );
 };
-
-const LogViewer: React.FC<object> = () => {
+// LogViewer component with better alignment
+export const LogViewer: React.FC<object> = () => {
     const model = useRef(new LogViewerModel()).current;
     const [search, setSearch] = useAtom(model.searchTerm);
     const filteredLogLines = useAtomValue(model.filteredLogLines);
 
     return (
         <div className="w-full h-full flex flex-col">
-            {/* Search container with icon */}
-            <div className="py-1">
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none text-muted">
-                        <Filter size={16} fill="currentColor" stroke="currentColor" strokeWidth={1} />
+            <div className="py-1 px-1">
+                <div className="flex items-center">
+                    {/* Line number space - 6 characters wide with right-aligned filter icon */}
+                    <div className="select-none pr-2 text-muted w-12 text-right font-mono flex justify-end items-center">
+                        <Filter
+                            size={16}
+                            className="text-muted"
+                            fill="currentColor"
+                            stroke="currentColor"
+                            strokeWidth={1}
+                        />
                     </div>
+
+                    {/* Filter input */}
                     <input
                         type="text"
                         placeholder="filter..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full bg-transparent text-primary placeholder:text-muted text-sm py-1 pl-8 pr-2 
-                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
+                        className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
+                                   border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
             </div>
@@ -83,5 +91,3 @@ const LogViewer: React.FC<object> = () => {
         </div>
     );
 };
-
-export default LogViewer;

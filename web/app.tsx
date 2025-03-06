@@ -2,7 +2,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { Moon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
-import LogViewer from "./logviewer/logviewer";
+import { LogViewer } from "./logviewer/logviewer";
 
 function MainTab() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
