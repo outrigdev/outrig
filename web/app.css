@@ -56,22 +56,22 @@
 [data-theme="dark"] {
     --themecolor-white: black;
     --themecolor-black: white;
-    --themecolor-appbg: #121212; /* Deep black, softer than pure black */
+    --themecolor-appbg: #121212;
     --themecolor-primary: #f7f7f7;
     --themecolor-secondary: rgb(195, 200, 194);
     --themecolor-muted: rgb(130, 135, 130);
-    --themecolor-panel: rgba(255, 255, 255, 0.08); /* Dark gray panel */
+    --themecolor-panel: rgba(255, 255, 255, 0.08);
 
-    --themecolor-border: rgba(255, 255, 255, 0.15); /* Subtle light border */
-    --themecolor-strongborder: rgba(255, 255, 255, 0.3); /* Stronger emphasis */
+    --themecolor-border: rgba(255, 255, 255, 0.15);
+    --themecolor-strongborder: rgba(255, 255, 255, 0.3);
 
     --themecolor-buttonhover: rgba(255, 255, 255, 0.1);
     --themecolor-selected: rgba(255, 255, 255, 0.1);
     --themecolor-button: transparent;
 
-    --themecolor-success: #22c55e; /* Bright green */
-    --themecolor-warning: #facc15; /* Bright amber */
-    --themecolor-error: #f87171; /* Soft red */
+    --themecolor-success: #22c55e;
+    --themecolor-warning: #facc15;
+    --themecolor-error: #f87171;
 
     [data-selected] {
         --themecolor-button: rgba(255, 255, 255, 0.1);

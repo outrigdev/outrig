@@ -6,16 +6,10 @@ tasks:
         cmds:
             - npm run dev
 
-    dev:server:
+    dev:
         desc: Run the Go server in development mode
         cmds:
             - OUTRIG_DEV=1 go run server/main-server.go
-
-    dev:
-        desc: Run both the Vite development server and Go server
-        cmds:
-            - task: dev:server
-            - task: dev:vite
 
     build:frontend:
         desc: Build the frontend for production
