@@ -36,3 +36,9 @@ tasks:
             - build
         cmds:
             - ./bin/outrig-server
+
+    generate:
+        desc: Generate RPC code (Go/TypeScript)
+        cmds:
+            - go run cmd/generatego/main-generatego.go
+            - go run cmd/generatets/main-generatets.go

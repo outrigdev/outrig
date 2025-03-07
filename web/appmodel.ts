@@ -6,6 +6,11 @@ class AppModel {
     // UI state
     selectedTab = atom("logs");
     darkMode = atom<boolean>(localStorage.getItem("theme") === "dark");
+    
+    // Status metrics
+    numGoRoutines = atom<number>(24);
+    numLogLines = atom<number>(1083);
+    appStatus = atom<"connected" | "disconnected" | "paused">("connected");
 
     constructor() {
         this.applyTheme();

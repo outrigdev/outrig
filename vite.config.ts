@@ -8,5 +8,8 @@ export default defineConfig({
         watch: {
             ignored: ["**/*.go", "go.mod", "go.sum"],
         },
+        proxy: {
+            "/api": "http://localhost:5005",
+        },
     },
 });

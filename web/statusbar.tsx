@@ -1,11 +1,43 @@
-import { useSetAtom } from "jotai";
-import { Box, CircleDot, List, Wifi } from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { Box, CircleDot, List, Wifi, WifiOff, PauseCircle } from "lucide-react";
 import { AppModel } from "./appmodel";
 import { Tooltip } from "./elements/tooltip";
 
+function ConnectionStatus() {
+    const appStatus = useAtomValue(AppModel.appStatus);
+    
+    let icon;
+    let displayName;
+    
+    switch (appStatus) {
+        case "connected":
+            icon = <Wifi size={12} />;
+            displayName = "Connected";
+            break;
+        case "disconnected":
+            icon = <WifiOff size={12} />;
+            displayName = "Disconnected";
+            break;
+        case "paused":
+            icon = <PauseCircle size={12} />;
+            displayName = "Paused";
+            break;
+        default:
+            icon = <Wifi size={12} />;
+            displayName = "Connected";
+    }
+    
+    return (
+        <div className="flex items-center space-x-1">
+            {icon}
+            <span>{displayName}</span>
+        </div>
+    );
+}
+
 export function StatusBar() {
-    const numGoRoutines = 24;
-    const numLogLines = 1083;
+    const numGoRoutines = useAtomValue(AppModel.numGoRoutines);
+    const numLogLines = useAtomValue(AppModel.numLogLines);
     const setSelectedTab = useSetAtom(AppModel.selectedTab);
 
     return (
@@ -15,16 +47,13 @@ export function StatusBar() {
                     <Box size={12} />
                     <span>appname</span>
                 </div>
-                <div className="flex items-center space-x-1">
-                    <Wifi size={12} />
-                    <span>Connected</span>
-                </div>
+                <ConnectionStatus />
             </div>
             <div className="flex items-center space-x-4">
                 <Tooltip content={`${numLogLines} Log Lines`} placement="bottom">
                     <div className="flex items-center space-x-1 cursor-pointer" onClick={() => setSelectedTab("logs")}>
                         <List size={12} />
-                        <span>1083</span>
+                        <span>{numLogLines}</span>
                     </div>
                 </Tooltip>
                 <Tooltip content={`${numGoRoutines} GoRoutines`} placement="bottom">
@@ -33,7 +62,7 @@ export function StatusBar() {
                         onClick={() => setSelectedTab("goroutines")}
                     >
                         <CircleDot size={12} />
-                        <span>24</span>
+                        <span>{numGoRoutines}</span>
                     </div>
                 </Tooltip>
             </div>
