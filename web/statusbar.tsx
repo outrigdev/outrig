@@ -1,58 +1,7 @@
 import { useSetAtom } from "jotai";
 import { Box, CircleDot, List, Wifi } from "lucide-react";
-import { useState } from "react";
-import {
-    FloatingPortal,
-    autoUpdate,
-    flip,
-    offset,
-    shift,
-    useFloating,
-    useHover,
-    useInteractions,
-} from "@floating-ui/react";
 import { AppModel } from "./appmodel";
-
-interface TooltipProps {
-    children: React.ReactNode;
-    content: string;
-    placement?: "top" | "bottom" | "left" | "right";
-}
-
-function Tooltip({ children, content, placement = "top" }: TooltipProps) {
-    const [isOpen, setIsOpen] = useState(false);
-
-    const { refs, floatingStyles, context } = useFloating({
-        open: isOpen,
-        onOpenChange: setIsOpen,
-        placement,
-        middleware: [offset(5), flip(), shift()],
-        whileElementsMounted: autoUpdate,
-    });
-
-    const hover = useHover(context);
-    const { getReferenceProps, getFloatingProps } = useInteractions([hover]);
-
-    return (
-        <>
-            <div ref={refs.setReference} {...getReferenceProps()}>
-                {children}
-            </div>
-            {isOpen && (
-                <FloatingPortal>
-                    <div
-                        ref={refs.setFloating}
-                        style={floatingStyles}
-                        {...getFloatingProps()}
-                        className="bg-panel border border-border rounded-md px-2 py-1 text-xs text-primary shadow-md z-50"
-                    >
-                        {content}
-                    </div>
-                </FloatingPortal>
-            )}
-        </>
-    );
-}
+import { Tooltip } from "./elements/tooltip";
 
 export function StatusBar() {
     const numGoRoutines = 24;
@@ -73,10 +22,7 @@ export function StatusBar() {
             </div>
             <div className="flex items-center space-x-4">
                 <Tooltip content={`${numLogLines} Log Lines`} placement="bottom">
-                    <div
-                        className="flex items-center space-x-1 cursor-pointer"
-                        onClick={() => setSelectedTab("logs")}
-                    >
+                    <div className="flex items-center space-x-1 cursor-pointer" onClick={() => setSelectedTab("logs")}>
                         <List size={12} />
                         <span>1083</span>
                     </div>
