@@ -22,6 +22,13 @@ type FullRpcInterface interface {
 	StreamUpdateCommand(ctx context.Context, data StreamUpdateData) error
 
 	UpdateStatusCommand(ctx context.Context, data StatusUpdateData) error
+
+	// event commands
+	EventPublishCommand(ctx context.Context, data EventType) error
+	EventSubCommand(ctx context.Context, data SubscriptionRequest) error
+	EventUnsubCommand(ctx context.Context, data string) error
+	EventUnsubAllCommand(ctx context.Context) error
+	EventReadHistoryCommand(ctx context.Context, data EventReadHistoryData) ([]*EventType, error)
 }
 
 type CommandMessageData struct {
@@ -65,4 +72,24 @@ type StatusUpdateData struct {
 	Status        string `json:"status"`
 	NumLogLines   int    `json:"numloglines"`
 	NumGoRoutines int    `json:"numgoroutines"`
+}
+
+type EventReadHistoryData struct {
+	Event    string `json:"event"`
+	Scope    string `json:"scope"`
+	MaxItems int    `json:"maxitems"`
+}
+
+type EventType struct {
+	Event   string   `json:"event"`
+	Scopes  []string `json:"scopes,omitempty"`
+	Sender  string   `json:"sender,omitempty"`
+	Persist int      `json:"persist,omitempty"`
+	Data    any      `json:"data,omitempty"`
+}
+
+type SubscriptionRequest struct {
+	Event     string   `json:"event"`
+	Scopes    []string `json:"scopes,omitempty"`
+	AllScopes bool     `json:"allscopes,omitempty"`
 }

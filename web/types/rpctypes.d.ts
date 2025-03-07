@@ -15,6 +15,22 @@ declare global {
         widgetid: string;
     };
 
+    // rpctypes.EventReadHistoryData
+    type EventReadHistoryData = {
+        event: string;
+        scope: string;
+        maxitems: number;
+    };
+
+    // rpctypes.EventType
+    type EventType = {
+        event: string;
+        scopes?: string[];
+        sender?: string;
+        persist?: number;
+        data?: any;
+    };
+
     // ds.LogLine
     type LogLine = {
         linenum: number;
@@ -83,6 +99,13 @@ declare global {
         filteredcount: number;
         totalcount: number;
         lines: LogLine[];
+    };
+
+    // rpctypes.SubscriptionRequest
+    type SubscriptionRequest = {
+        event: string;
+        scopes?: string[];
+        allscopes?: boolean;
     };
 
 }

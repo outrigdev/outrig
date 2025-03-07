@@ -11,6 +11,31 @@ class RpcApiType {
         return client.rpcCall("droprequest", data, opts);
     }
 
+    // command "eventpublish" [call]
+    EventPublishCommand(client: RpcClient, data: EventType, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("eventpublish", data, opts);
+    }
+
+    // command "eventreadhistory" [call]
+    EventReadHistoryCommand(client: RpcClient, data: EventReadHistoryData, opts?: RpcOpts): Promise<EventType[]> {
+        return client.rpcCall("eventreadhistory", data, opts);
+    }
+
+    // command "eventsub" [call]
+    EventSubCommand(client: RpcClient, data: SubscriptionRequest, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("eventsub", data, opts);
+    }
+
+    // command "eventunsub" [call]
+    EventUnsubCommand(client: RpcClient, data: string, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("eventunsub", data, opts);
+    }
+
+    // command "eventunsuball" [call]
+    EventUnsubAllCommand(client: RpcClient, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("eventunsuball", null, opts);
+    }
+
     // command "message" [call]
     MessageCommand(client: RpcClient, data: CommandMessageData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("message", data, opts);

@@ -57,6 +57,7 @@ type RpcClient struct {
 	AuthToken          string
 	RpcMap             map[string]*rpcData
 	ServerImpl         RpcServerImpl
+	EventListener      *EventListener
 	ResponseHandlerMap map[string]*RpcResponseHandler // reqId => handler
 	Debug              bool
 	DebugName          string
@@ -232,6 +233,7 @@ func MakeRpcClient(inputCh chan []byte, outputCh chan []byte, serverImpl RpcServ
 		CtxDoneCh:          make(chan string, CtxDoneChSize),
 		RpcMap:             make(map[string]*rpcData),
 		ServerImpl:         serverImpl,
+		EventListener:      MakeEventListener(),
 		ResponseHandlerMap: make(map[string]*RpcResponseHandler),
 	}
 	go rtn.runServer()
@@ -272,6 +274,22 @@ func (w *RpcClient) cancelRequest(reqId string) {
 }
 
 func (w *RpcClient) handleRequest(req *RpcMessage) {
+	// events first
+	if req.Command == rpctypes.Command_EventRecv {
+		if req.Data == nil {
+			// invalid
+			return
+		}
+		var waveEvent EventType
+		err := utilfn.ReUnmarshal(&waveEvent, req.Data)
+		if err != nil {
+			// invalid
+			return
+		}
+		w.EventListener.RecvEvent(&waveEvent)
+		return
+	}
+
 	var respHandler *RpcResponseHandler
 	timeoutMs := req.Timeout
 	if timeoutMs <= 0 {

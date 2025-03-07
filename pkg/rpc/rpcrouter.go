@@ -14,7 +14,6 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
-	"github.com/outrigdev/outrig/server/pkg/rps"
 	"github.com/outrigdev/outrig/server/pkg/rpstypes"
 )
 
@@ -92,7 +91,7 @@ func NewWshRouter() *WshRouter {
 	return rtn
 }
 
-func (router *WshRouter) SendEvent(routeId string, event rps.WaveEvent) {
+func (router *WshRouter) SendEvent(routeId string, event EventType) {
 	defer func() {
 		panichandler.PanicHandler("WshRouter.SendEvent", recover())
 	}()
@@ -312,7 +311,7 @@ func (router *WshRouter) RegisterRoute(routeId string, rpc AbstractRpcClient, sh
 		defer func() {
 			panichandler.PanicHandler("RpcRouter:registerRoute:routeup", recover())
 		}()
-		rps.Broker.Publish(rps.WaveEvent{Event: rpstypes.Event_RouteUp, Scopes: []string{routeId}})
+		Broker.Publish(EventType{Event: rpstypes.Event_RouteUp, Scopes: []string{routeId}})
 	}()
 	go func() {
 		defer func() {
@@ -366,8 +365,8 @@ func (router *WshRouter) UnregisterRoute(routeId string) {
 		defer func() {
 			panichandler.PanicHandler("RpcRouter:unregisterRoute:routedown", recover())
 		}()
-		rps.Broker.UnsubscribeAll(routeId)
-		rps.Broker.Publish(rps.WaveEvent{Event: rpstypes.Event_RouteDown, Scopes: []string{routeId}})
+		Broker.UnsubscribeAll(routeId)
+		Broker.Publish(EventType{Event: rpstypes.Event_RouteDown, Scopes: []string{routeId}})
 	}()
 }
 

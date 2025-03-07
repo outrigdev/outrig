@@ -2,37 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // RPC PubSub
-package rps
+package rpc
 
 import (
 	"strings"
 	"sync"
 
+	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 // this broker interface is mostly generic
 // strong typing and event types can be defined elsewhere
 
+var Broker = &BrokerType{
+	Lock:       &sync.Mutex{},
+	SubMap:     make(map[string]*BrokerSubscription),
+	PersistMap: make(map[persistKey]*persistEventWrap),
+}
+
+func init() {
+	Broker.SetClient(DefaultRouter)
+}
+
+type EventType = rpctypes.EventType
+type SubscriptionRequest = rpctypes.SubscriptionRequest
+
 const MaxPersist = 4096
 const ReMakeArrThreshold = 10 * 1024
 
-type WaveEvent struct {
-	Event   string   `json:"event"`
-	Scopes  []string `json:"scopes,omitempty"`
-	Sender  string   `json:"sender,omitempty"`
-	Persist int      `json:"persist,omitempty"`
-	Data    any      `json:"data,omitempty"`
-}
-
-type SubscriptionRequest struct {
-	Event     string   `json:"event"`
-	Scopes    []string `json:"scopes,omitempty"`
-	AllScopes bool     `json:"allscopes,omitempty"`
-}
-
 type Client interface {
-	SendEvent(routeId string, event WaveEvent)
+	SendEvent(routeId string, event EventType)
 }
 
 type BrokerSubscription struct {
@@ -48,7 +48,7 @@ type persistKey struct {
 
 type persistEventWrap struct {
 	ArrTotalAdds int
-	Events       []*WaveEvent
+	Events       []*EventType
 }
 
 type BrokerType struct {
@@ -56,12 +56,6 @@ type BrokerType struct {
 	Client     Client
 	SubMap     map[string]*BrokerSubscription
 	PersistMap map[persistKey]*persistEventWrap
-}
-
-var Broker = &BrokerType{
-	Lock:       &sync.Mutex{},
-	SubMap:     make(map[string]*BrokerSubscription),
-	PersistMap: make(map[persistKey]*persistEventWrap),
 }
 
 func scopeHasStarMatch(scope string) bool {
@@ -187,7 +181,7 @@ func (b *BrokerType) UnsubscribeAll(subRouteId string) {
 }
 
 // does not take wildcards, use "" for all
-func (b *BrokerType) ReadEventHistory(eventType string, scope string, maxItems int) []*WaveEvent {
+func (b *BrokerType) ReadEventHistory(eventType string, scope string, maxItems int) []*EventType {
 	if maxItems <= 0 {
 		return nil
 	}
@@ -202,12 +196,12 @@ func (b *BrokerType) ReadEventHistory(eventType string, scope string, maxItems i
 		maxItems = len(pe.Events)
 	}
 	// return new arr
-	rtn := make([]*WaveEvent, maxItems)
+	rtn := make([]*EventType, maxItems)
 	copy(rtn, pe.Events[len(pe.Events)-maxItems:])
 	return rtn
 }
 
-func (b *BrokerType) persistEvent(event WaveEvent) {
+func (b *BrokerType) persistEvent(event EventType) {
 	if event.Persist <= 0 {
 		return
 	}
@@ -228,20 +222,20 @@ func (b *BrokerType) persistEvent(event WaveEvent) {
 		if pe == nil {
 			pe = &persistEventWrap{
 				ArrTotalAdds: 0,
-				Events:       make([]*WaveEvent, 0, event.Persist),
+				Events:       make([]*EventType, 0, event.Persist),
 			}
 			b.PersistMap[key] = pe
 		}
 		pe.Events = append(pe.Events, &event)
 		pe.ArrTotalAdds++
 		if pe.ArrTotalAdds > ReMakeArrThreshold {
-			pe.Events = append([]*WaveEvent{}, pe.Events...)
+			pe.Events = append([]*EventType{}, pe.Events...)
 			pe.ArrTotalAdds = len(pe.Events)
 		}
 	}
 }
 
-func (b *BrokerType) Publish(event WaveEvent) {
+func (b *BrokerType) Publish(event EventType) {
 	// log.Printf("BrokerType.Publish: %v\n", event)
 	if event.Persist > 0 {
 		b.persistEvent(event)
@@ -256,7 +250,7 @@ func (b *BrokerType) Publish(event WaveEvent) {
 	}
 }
 
-func (b *BrokerType) getMatchingRouteIds(event WaveEvent) []string {
+func (b *BrokerType) getMatchingRouteIds(event EventType) []string {
 	b.Lock.Lock()
 	defer b.Lock.Unlock()
 	bs := b.SubMap[event.Event]
