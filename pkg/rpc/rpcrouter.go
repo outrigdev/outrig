@@ -14,7 +14,6 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
-	"github.com/outrigdev/outrig/server/pkg/rpstypes"
 )
 
 const (
@@ -311,7 +310,7 @@ func (router *WshRouter) RegisterRoute(routeId string, rpc AbstractRpcClient, sh
 		defer func() {
 			panichandler.PanicHandler("RpcRouter:registerRoute:routeup", recover())
 		}()
-		Broker.Publish(EventType{Event: rpstypes.Event_RouteUp, Scopes: []string{routeId}})
+		Broker.Publish(EventType{Event: rpctypes.Event_RouteUp, Scopes: []string{routeId}})
 	}()
 	go func() {
 		defer func() {
@@ -366,7 +365,7 @@ func (router *WshRouter) UnregisterRoute(routeId string) {
 			panichandler.PanicHandler("RpcRouter:unregisterRoute:routedown", recover())
 		}()
 		Broker.UnsubscribeAll(routeId)
-		Broker.Publish(EventType{Event: rpstypes.Event_RouteDown, Scopes: []string{routeId}})
+		Broker.Publish(EventType{Event: rpctypes.Event_RouteDown, Scopes: []string{routeId}})
 	}()
 }
 

@@ -21,6 +21,7 @@ var ExtraTypes = []any{
 	map[string]any{},
 	rpc.RpcMessage{},
 	rpctypes.ServerCommandMeta{},
+	rpctypes.EventCommonFields{},
 }
 
 // add extra type unions to generate here
@@ -29,6 +30,7 @@ var TypeUnions = []tsgenmeta.TypeUnionMeta{}
 var contextRType = reflect.TypeOf((*context.Context)(nil)).Elem()
 var errorRType = reflect.TypeOf((*error)(nil)).Elem()
 var anyRType = reflect.TypeOf((*interface{})(nil)).Elem()
+var eventTypeRType = reflect.TypeOf((*rpctypes.EventType)(nil)).Elem()
 var rpcInterfaceRType = reflect.TypeOf((*rpctypes.FullRpcInterface)(nil)).Elem()
 
 func generateTSMethodTypes(method reflect.Method, tsTypesMap map[reflect.Type]string, skipFirstArg bool) error {
@@ -129,14 +131,35 @@ func TypeToTSType(t reflect.Type, tsTypesMap map[reflect.Type]string) (string, [
 	}
 }
 
-var tsRenameMap = map[string]string{
-	"Window":           "WaveWindow",
-	"Elem":             "VDomElem",
-	"MetaTSType":       "MetaType",
-	"MetaSettingsType": "SettingsType",
+var tsRenameMap = map[string]string{}
+
+func generateEventType(tsTypesMap map[reflect.Type]string) (string, []reflect.Type) {
+	var buf bytes.Buffer
+	var extraTypes []reflect.Type
+
+	buf.WriteString("// EventType union (rpctypes.EventToTypeMap)\n")
+	buf.WriteString("type EventType = \n")
+	tmap := rpctypes.EventToTypeMap
+	for eventName, rtype := range tmap {
+		var tsType string
+		var optStr string
+		if rtype != nil {
+			extraTypes = append(extraTypes, rtype)
+			tsType, _ = TypeToTSType(rtype, tsTypesMap)
+		} else {
+			tsType = "null"
+			optStr = "?"
+		}
+		buf.WriteString(fmt.Sprintf("    | (EventCommonFields & { event: %q; data%s: %s })\n", eventName, optStr, tsType))
+	}
+	buf.WriteString(";\n")
+	return buf.String(), extraTypes
 }
 
 func generateTSTypeInternal(rtype reflect.Type, tsTypesMap map[reflect.Type]string, embedded bool) (string, []reflect.Type) {
+	if rtype == eventTypeRType {
+		return generateEventType(tsTypesMap)
+	}
 	var buf bytes.Buffer
 	tsTypeName := rtype.Name()
 	if tsRename, ok := tsRenameMap[tsTypeName]; ok {

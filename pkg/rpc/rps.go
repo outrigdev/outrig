@@ -5,6 +5,9 @@
 package rpc
 
 import (
+	"fmt"
+	"log"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -235,6 +238,26 @@ func (b *BrokerType) persistEvent(event EventType) {
 	}
 }
 
+func remarshalEventData(event *EventType) error {
+	if event.Data == nil {
+		return nil
+	}
+	dataType := rpctypes.EventToTypeMap[event.Event]
+	if dataType == nil {
+		event.Data = nil
+		return nil
+	}
+	if reflect.TypeOf(event.Data) == dataType {
+		return nil
+	}
+	newDataValuePtr := reflect.New(dataType)
+	if err := utilfn.ReUnmarshal(newDataValuePtr.Interface(), event.Data); err != nil {
+		return fmt.Errorf("error remarshalling event data (from %T to %v): %w", event.Data, dataType, err)
+	}
+	event.Data = newDataValuePtr.Elem().Interface()
+	return nil
+}
+
 func (b *BrokerType) Publish(event EventType) {
 	// log.Printf("BrokerType.Publish: %v\n", event)
 	if event.Persist > 0 {
@@ -245,6 +268,14 @@ func (b *BrokerType) Publish(event EventType) {
 		return
 	}
 	routeIds := b.getMatchingRouteIds(event)
+	if len(routeIds) == 0 {
+		return
+	}
+	err := remarshalEventData(&event)
+	if err != nil {
+		log.Printf("[error] cannot remarshal event data: %v\n", err)
+		return
+	}
 	for _, routeId := range routeIds {
 		client.SendEvent(routeId, event)
 	}

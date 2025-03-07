@@ -22,7 +22,13 @@
         "noFallthroughCasesInSwitch": true,
         "noUncheckedSideEffectImports": true,
         "strictNullChecks": false,
-        "useUnknownInCatchVariables": false
+        "useUnknownInCatchVariables": false,
+
+        "baseUrl": "./",
+
+        "paths": {
+            "@/*": ["web/*"]
+        }
     },
     "include": ["web"]
 }

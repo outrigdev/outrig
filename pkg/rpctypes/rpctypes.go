@@ -2,6 +2,7 @@ package rpctypes
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/outrigdev/outrig/pkg/ds"
 )
@@ -12,6 +13,18 @@ const (
 	Command_RouteUnannounce = "routeunannounce"
 	Command_EventRecv       = "eventrecv"
 )
+
+const (
+	Event_RouteDown       = "route:down"
+	Event_RouteUp         = "route:up"
+	Event_AppStatusUpdate = "app:statusupdate"
+)
+
+var EventToTypeMap = map[string]reflect.Type{
+	Event_RouteDown:       nil,
+	Event_RouteUp:         nil,
+	Event_AppStatusUpdate: reflect.TypeOf(StatusUpdateData{}),
+}
 
 type FullRpcInterface interface {
 	MessageCommand(ctx context.Context, data CommandMessageData) error
@@ -29,6 +42,11 @@ type FullRpcInterface interface {
 	EventUnsubCommand(ctx context.Context, data string) error
 	EventUnsubAllCommand(ctx context.Context) error
 	EventReadHistoryCommand(ctx context.Context, data EventReadHistoryData) ([]*EventType, error)
+}
+
+type RespUnion[T any] struct {
+	Response T
+	Error    error
 }
 
 type CommandMessageData struct {
@@ -68,7 +86,7 @@ type DropRequestData struct {
 }
 
 type StatusUpdateData struct {
-	AppName       string `json:"appname"`
+	AppId         string `json:"appid"`
 	Status        string `json:"status"`
 	NumLogLines   int    `json:"numloglines"`
 	NumGoRoutines int    `json:"numgoroutines"`
@@ -78,6 +96,13 @@ type EventReadHistoryData struct {
 	Event    string `json:"event"`
 	Scope    string `json:"scope"`
 	MaxItems int    `json:"maxitems"`
+}
+
+// for FE (for discrimated union)
+type EventCommonFields struct {
+	Scopes  []string `json:"scopes,omitempty"`
+	Sender  string   `json:"sender,omitempty"`
+	Persist int      `json:"persist,omitempty"`
 }
 
 type EventType struct {

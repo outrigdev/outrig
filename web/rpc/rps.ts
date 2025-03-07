@@ -1,7 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { DefaultRpcClient } from "../init";
+import { DefaultRpcClient } from "@/init";
 import { isBlank } from "../util/util";
 import { RpcApi } from "./rpcclientapi";
 

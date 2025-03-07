@@ -8,6 +8,7 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/rpc"
+	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -44,21 +45,21 @@ func SendRpcRequestCallHelper[T any](w *rpc.RpcClient, command string, data inte
 	return respData, nil
 }
 
-func RtnStreamErr[T any](ch chan rpc.RespUnion[T], err error) {
+func RtnStreamErr[T any](ch chan rpctypes.RespUnion[T], err error) {
 	go func() {
 		defer func() {
 			panichandler.PanicHandler("wshclientutil:rtnErr", recover())
 		}()
-		ch <- rpc.RespUnion[T]{Error: err}
+		ch <- rpctypes.RespUnion[T]{Error: err}
 		close(ch)
 	}()
 }
 
-func SendRpcRequestResponseStreamHelper[T any](w *rpc.RpcClient, command string, data interface{}, opts *rpc.RpcOpts) chan rpc.RespUnion[T] {
+func SendRpcRequestResponseStreamHelper[T any](w *rpc.RpcClient, command string, data interface{}, opts *rpc.RpcOpts) chan rpctypes.RespUnion[T] {
 	if opts == nil {
 		opts = &rpc.RpcOpts{}
 	}
-	respChan := make(chan rpc.RespUnion[T], 32)
+	respChan := make(chan rpctypes.RespUnion[T], 32)
 	if w == nil {
 		RtnStreamErr(respChan, errors.New("nil wshrpc passed to wshclient"))
 		return respChan
@@ -83,16 +84,16 @@ func SendRpcRequestResponseStreamHelper[T any](w *rpc.RpcClient, command string,
 			}
 			resp, err := reqHandler.NextResponse()
 			if err != nil {
-				respChan <- rpc.RespUnion[T]{Error: err}
+				respChan <- rpctypes.RespUnion[T]{Error: err}
 				break
 			}
 			var respData T
 			err = utilfn.ReUnmarshal(&respData, resp)
 			if err != nil {
-				respChan <- rpc.RespUnion[T]{Error: err}
+				respChan <- rpctypes.RespUnion[T]{Error: err}
 				break
 			}
-			respChan <- rpc.RespUnion[T]{Response: respData}
+			respChan <- rpctypes.RespUnion[T]{Response: respData}
 		}
 	}()
 	return respChan
