@@ -14,6 +14,8 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
+	"github.com/outrigdev/outrig/server/pkg/rps"
+	"github.com/outrigdev/outrig/server/pkg/rpstypes"
 )
 
 const (
@@ -88,6 +90,27 @@ func NewWshRouter() *WshRouter {
 	}
 	go rtn.runServer()
 	return rtn
+}
+
+func (router *WshRouter) SendEvent(routeId string, event rps.WaveEvent) {
+	defer func() {
+		panichandler.PanicHandler("WshRouter.SendEvent", recover())
+	}()
+	rpc := router.GetRpc(routeId)
+	if rpc == nil {
+		return
+	}
+	msg := RpcMessage{
+		Command: rpctypes.Command_EventRecv,
+		Route:   routeId,
+		Data:    event,
+	}
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		// nothing to do
+		return
+	}
+	rpc.SendRpcMessage(msgBytes)
 }
 
 func noRouteErr(routeId string) error {
@@ -287,6 +310,12 @@ func (router *WshRouter) RegisterRoute(routeId string, rpc AbstractRpcClient, sh
 	router.RouteMap[routeId] = rpc
 	go func() {
 		defer func() {
+			panichandler.PanicHandler("RpcRouter:registerRoute:routeup", recover())
+		}()
+		rps.Broker.Publish(rps.WaveEvent{Event: rpstypes.Event_RouteUp, Scopes: []string{routeId}})
+	}()
+	go func() {
+		defer func() {
 			panichandler.PanicHandler("WshRouter:registerRoute:recvloop", recover())
 		}()
 		// announce
@@ -333,6 +362,13 @@ func (router *WshRouter) UnregisterRoute(routeId string) {
 			delete(router.AnnouncedRoutes, routeId)
 		}
 	}
+	go func() {
+		defer func() {
+			panichandler.PanicHandler("RpcRouter:unregisterRoute:routedown", recover())
+		}()
+		rps.Broker.UnsubscribeAll(routeId)
+		rps.Broker.Publish(rps.WaveEvent{Event: rpstypes.Event_RouteDown, Scopes: []string{routeId}})
+	}()
 }
 
 // this may return nil (returns default only for empty routeId)

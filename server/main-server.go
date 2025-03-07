@@ -17,8 +17,8 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/rpc"
-	"github.com/outrigdev/outrig/pkg/rpcserver"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/rpcserver"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/web"
 )

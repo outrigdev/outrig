@@ -10,6 +10,7 @@ const (
 	Command_Message         = "message"
 	Command_RouteAnnounce   = "routeannounce"
 	Command_RouteUnannounce = "routeunannounce"
+	Command_EventRecv       = "eventrecv"
 )
 
 type FullRpcInterface interface {
