@@ -6,6 +6,11 @@ const MaxWebSocketSendSize = 5 * 1024 * 1024; // 5MB
 const StableConnTime = 2000; // Time after which connection is considered stable
 const PingInterval = 5000; // Send ping every 5 seconds
 
+// Event types
+const EventType_Rpc = "rpc";
+const EventType_Ping = "ping";
+const EventType_Pong = "pong";
+
 // Reconnect timeouts in seconds
 const ReconnectTimeouts = [1, 1, 2, 5, 10, 10, 30, 60];
 const MaxReconnectAttempts = 20;
@@ -131,10 +136,10 @@ export class WebSocketController {
             const data = JSON.parse(event.data) as WSEventType;
 
             // Handle ping/pong messages for keeping the connection alive
-            if (data.type === "ping") {
-                this.sendMessage({ type: "pong", ts: Date.now() });
+            if (data.type === EventType_Ping) {
+                this.sendMessage({ type: EventType_Pong, ts: Date.now() });
                 return;
-            } else if (data.type === "pong") {
+            } else if (data.type === EventType_Pong) {
                 // Calculate round-trip time if needed
                 if (data.ts) {
                     const now = Date.now();
@@ -142,7 +147,7 @@ export class WebSocketController {
                     console.debug(`[websocket] RTT: ${rtt}ms`);
                 }
                 return;
-            } else if (data.type === "rpc") {
+            } else if (data.type === EventType_Rpc) {
                 if (this.options.onRpcMessage) {
                     try {
                         this.options.onRpcMessage(data.data);
@@ -258,7 +263,7 @@ export class WebSocketController {
 
     sendPing() {
         const now = Date.now();
-        this.sendMessage({ type: "ping", ts: now });
+        this.sendMessage({ type: EventType_Ping, ts: now });
     }
 
     /**
@@ -307,7 +312,7 @@ export class WebSocketController {
     }
 
     pushRpcMessage(data: RpcMessage): void {
-        this.pushRawMessage({ type: "rpc", ts: Date.now(), data });
+        this.pushRawMessage({ type: EventType_Rpc, ts: Date.now(), data });
     }
 
     shutdown() {

@@ -7,7 +7,9 @@ import (
 )
 
 const (
-	Command_Message = "message"
+	Command_Message         = "message"
+	Command_RouteAnnounce   = "routeannounce"
+	Command_RouteUnannounce = "routeunannounce"
 )
 
 type FullRpcInterface interface {
@@ -17,7 +19,7 @@ type FullRpcInterface interface {
 	DropRequestCommand(ctx context.Context, data DropRequestData) error
 
 	StreamUpdateCommand(ctx context.Context, data StreamUpdateData) error
-	
+
 	UpdateStatusCommand(ctx context.Context, data StatusUpdateData) error
 }
 

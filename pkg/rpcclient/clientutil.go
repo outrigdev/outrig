@@ -11,6 +11,13 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
+var BareClient *rpc.RpcClient
+
+func init() {
+	BareClient = rpc.MakeRpcClient(nil, nil, nil, "outrigsrv-client")
+	rpc.DefaultRouter.RegisterRoute(rpc.BareClientRoute, BareClient, true)
+}
+
 func SendRpcRequestCallHelper[T any](w *rpc.RpcClient, command string, data interface{}, opts *rpc.RpcOpts) (T, error) {
 	if opts == nil {
 		opts = &rpc.RpcOpts{}

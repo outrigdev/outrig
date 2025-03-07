@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
@@ -22,6 +23,10 @@ const wsReadWaitTimeout = 15 * time.Second
 const wsWriteWaitTimeout = 10 * time.Second
 const wsPingPeriodTickTime = 10 * time.Second
 const wsInitialPingTime = 1 * time.Second
+
+const EventType_Rpc = "rpc"
+const EventType_Ping = "ping"
+const EventType_Pong = "pong"
 
 var ConnMap = utilds.MakeSyncMap[*WebSocketModel]()
 
@@ -33,6 +38,7 @@ type WSEventType struct {
 
 type WebSocketModel struct {
 	ConnId   string
+	RouteId  string
 	Conn     *websocket.Conn
 	OutputCh chan WSEventType
 }
@@ -68,16 +74,25 @@ func HandleWs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func processMessage(event WSEventType, outputCh chan WSEventType) {
+func processMessage(event WSEventType, rpcCh chan []byte) {
 	// Process incoming messages here
 	if event.Type == "" {
 		return
 	}
-	log.Printf("[websocket] processing message: %v\n", event.Type)
-	// TODO process message
+	if event.Type == EventType_Rpc {
+		rpcMsg := event.Data
+		msgBytes, err := json.Marshal(rpcMsg)
+		if err != nil {
+			log.Printf("[websocket] error marshalling rpc message: %v\n", err)
+			return
+		}
+		rpcCh <- msgBytes
+		return
+	}
+	log.Printf("[websocket] invalid message type: %s\n", event.Type)
 }
 
-func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any, connId string) {
+func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any, connId string, rpcCh chan []byte) {
 	readWait := wsReadWaitTimeout
 	conn.SetReadLimit(64 * 1024)
 	conn.SetReadDeadline(time.Now().Add(readWait))
@@ -95,23 +110,23 @@ func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any,
 			break
 		}
 		conn.SetReadDeadline(time.Now().Add(readWait))
-		if event.Type == "pong" {
+		if event.Type == EventType_Pong {
 			// nothing
 			continue
 		}
-		if event.Type == "ping" {
+		if event.Type == EventType_Ping {
 			now := time.Now()
-			pongMessage := WSEventType{Type: "pong", Ts: now.UnixMilli()}
+			pongMessage := WSEventType{Type: EventType_Pong, Ts: now.UnixMilli()}
 			outputCh <- pongMessage
 			continue
 		}
-		go processMessage(event, outputCh)
+		go processMessage(event, rpcCh)
 	}
 }
 
 func WritePing(conn *websocket.Conn) error {
 	now := time.Now()
-	pingMessage := map[string]interface{}{"type": "ping", "ts": now.UnixMilli()}
+	pingMessage := map[string]interface{}{"type": EventType_Ping, "ts": now.UnixMilli()}
 	jsonVal, _ := json.Marshal(pingMessage)
 	_ = conn.SetWriteDeadline(time.Now().Add(wsWriteWaitTimeout)) // no error
 	err := conn.WriteMessage(websocket.TextMessage, jsonVal)
@@ -166,18 +181,21 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	}
 	defer conn.Close()
 
+	routeId := r.URL.Query().Get("routeid")
+	if routeId == "" {
+		return fmt.Errorf("routeid not provided")
+	}
 	connId := uuid.New().String()
 	outputCh := make(chan WSEventType, 100)
 	closeCh := make(chan any)
 
-	log.Printf("[websocket] new connection: connid:%s\n", connId)
-
+	log.Printf("[websocket] new connection: connid:%s, routeid:%s\n", connId, routeId)
 	wsModel := &WebSocketModel{
 		ConnId:   connId,
+		RouteId:  routeId,
 		Conn:     conn,
 		OutputCh: outputCh,
 	}
-
 	ConnMap.Set(connId, wsModel)
 	defer func() {
 		ConnMap.Delete(connId)
@@ -185,13 +203,17 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 		close(outputCh)
 	}()
 
+	wproxy := rpc.MakeRpcProxy()
+	rpc.DefaultRouter.RegisterRoute(routeId, wproxy, true)
+	defer rpc.DefaultRouter.UnregisterRoute(routeId)
+
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 
 	go func() {
 		// read loop
 		defer wg.Done()
-		ReadLoop(conn, outputCh, closeCh, connId)
+		ReadLoop(conn, outputCh, closeCh, connId, wproxy.FromRemoteCh)
 	}()
 
 	go func() {

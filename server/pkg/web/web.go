@@ -118,38 +118,38 @@ func MakeUnixListener(socketPath string) (net.Listener, error) {
 // blocking
 func RunWebServer(listener net.Listener) {
 	gr := mux.NewRouter()
-	
+
 	// API endpoints
 	apiRouter := gr.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/health", WebFnWrap(WebFnOpts{AllowCaching: false, JsonErrors: true}, handleHealth))
-	
+
 	// Add more API endpoints here as needed
-	
+
 	// Static file serving
 	fileSystem := GetFileSystem()
-	
+
 	// For any path not matched by the API, try to serve a static file
 	// or fall back to index.html for SPA routing
 	gr.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ServeIndexOrFile(w, r, fileSystem)
 	})
-	
+
 	handler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")
-	
+
 	// In development mode, enable CORS
 	isDev := os.Getenv("OUTRIG_DEV") == "1"
 	if isDev {
 		handler = handlers.CORS(handlers.AllowedOrigins([]string{"*"}))(handler)
 	}
-	
+
 	server := &http.Server{
 		ReadTimeout:    HttpReadTimeout,
 		WriteTimeout:   HttpWriteTimeout,
 		MaxHeaderBytes: HttpMaxHeaderBytes,
 		Handler:        handler,
 	}
-	
-	log.Printf("HTTP server running on %s\n", listener.Addr())
+
+	log.Printf("HTTP server running on http://%s\n", listener.Addr())
 	err := server.Serve(listener)
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)

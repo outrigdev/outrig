@@ -16,6 +16,8 @@ import (
 	"syscall"
 
 	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/rpc"
+	"github.com/outrigdev/outrig/pkg/rpcserver"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/web"
@@ -206,6 +208,9 @@ func main() {
 		return
 	}
 	defer lock.Close() // the defer statement will keep the lock alive
+
+	outrigRpcServer := rpc.MakeRpcClient(nil, nil, &rpcserver.RpcServerImpl{}, "outrigsrv")
+	rpc.DefaultRouter.RegisterRoute("outrigsrv", outrigRpcServer, true)
 
 	// Run domain socket server
 	err = runDomainSocketServer()
