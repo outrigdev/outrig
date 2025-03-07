@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./app.css";
-import App from "./app.tsx";
+import { App } from "./app.tsx";
 import { initRpcSystem } from "./init.ts";
 
 initRpcSystem();
