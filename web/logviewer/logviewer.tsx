@@ -1,6 +1,6 @@
 import { useAtom, useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
-import React, { JSX, useRef } from "react";
+import React, { JSX, useEffect, useRef } from "react";
 import { LogViewerModel } from "./logviewer-model";
 
 interface LogLineViewProps {
@@ -49,6 +49,18 @@ export const LogViewer: React.FC<object> = () => {
     const model = useRef(new LogViewerModel()).current;
     const [search, setSearch] = useAtom(model.searchTerm);
     const filteredLogLines = useAtomValue(model.filteredLogLines);
+    const searchRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        // on window focus, focus the search input
+        const onFocus = () => {
+            searchRef.current?.focus();
+        };
+        window.addEventListener("focus", onFocus);
+        return () => {
+            window.removeEventListener("focus", onFocus);
+        };
+    }, []);
 
     return (
         <div className="w-full h-full flex flex-col">
@@ -67,6 +79,7 @@ export const LogViewer: React.FC<object> = () => {
 
                     {/* Filter input */}
                     <input
+                        ref={searchRef}
                         type="text"
                         placeholder="filter..."
                         value={search}

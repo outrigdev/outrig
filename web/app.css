@@ -79,6 +79,14 @@
     }
 }
 
+html,
+body {
+    background-color: var(--color-appbg);
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+}
+
 @font-face {
     font-family: "Inter";
     src: url("/fonts/inter-variable.woff2") format("woff2");
