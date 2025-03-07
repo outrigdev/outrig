@@ -69,6 +69,14 @@ declare global {
         commandtype: string;
     };
 
+    // rpctypes.StatusUpdateData
+    type StatusUpdateData = {
+        appname: string;
+        status: string;
+        numloglines: number;
+        numgoroutines: number;
+    };
+
     // rpctypes.StreamUpdateData
     type StreamUpdateData = {
         widgetid: string;

@@ -17,6 +17,8 @@ type FullRpcInterface interface {
 	DropRequestCommand(ctx context.Context, data DropRequestData) error
 
 	StreamUpdateCommand(ctx context.Context, data StreamUpdateData) error
+	
+	UpdateStatusCommand(ctx context.Context, data StatusUpdateData) error
 }
 
 type CommandMessageData struct {
@@ -53,4 +55,11 @@ type StreamUpdateData struct {
 
 type DropRequestData struct {
 	WidgetID string `json:"widgetid"`
+}
+
+type StatusUpdateData struct {
+	AppName       string `json:"appname"`
+	Status        string `json:"status"`
+	NumLogLines   int    `json:"numloglines"`
+	NumGoRoutines int    `json:"numgoroutines"`
 }

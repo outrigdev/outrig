@@ -34,4 +34,10 @@ func StreamUpdateCommand(w *rpc.RpcClient, data rpctypes.StreamUpdateData, opts 
 	return err
 }
 
+// command "updatestatus", rpctypes.UpdateStatusCommand
+func UpdateStatusCommand(w *rpc.RpcClient, data rpctypes.StatusUpdateData, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "updatestatus", data, opts)
+	return err
+}
+
 

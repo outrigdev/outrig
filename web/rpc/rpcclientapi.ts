@@ -25,6 +25,12 @@ class RpcApiType {
     StreamUpdateCommand(client: RpcClient, data: StreamUpdateData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("streamupdate", data, opts);
     }
+
+    // command "updatestatus" [call]
+    UpdateStatusCommand(client: RpcClient, data: StatusUpdateData, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("updatestatus", data, opts);
+    }
+
 }
 
 export const RpcApi = new RpcApiType();
