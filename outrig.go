@@ -3,11 +3,10 @@ package outrig
 import (
 	"os"
 	"os/user"
-	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/base"
-	"github.com/outrigdev/outrig/pkg/core"
+	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/logprocess"
@@ -17,22 +16,23 @@ import (
 // Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:
 type Config = ds.Config
 
+var ctrl *controller.ControllerImpl
+
+// Disable disables Outrig
 func Disable(disconnect bool) {
-	atomic.StoreInt32(&global.OutrigForceDisabled, 1)
-	atomic.StoreInt32(&global.OutrigEnabled, 0)
-	if disconnect {
-		core.Disconnect()
+	if ctrl != nil {
+		ctrl.Disable(disconnect)
 	}
 }
 
+// Enable enables Outrig
 func Enable() {
-	atomic.StoreInt32(&global.OutrigForceDisabled, 0)
-	if atomic.LoadInt32(&global.OutrigConnected) != 0 {
-		atomic.StoreInt32(&global.OutrigEnabled, 1)
+	if ctrl != nil {
+		ctrl.Enable()
 	}
-	core.TryConnect()
 }
 
+// DefaultConfig returns the default configuration
 func DefaultConfig() *ds.Config {
 	return &ds.Config{
 		DomainSocketPath: base.DefaultDomainSocketName,
@@ -42,6 +42,7 @@ func DefaultConfig() *ds.Config {
 	}
 }
 
+// Init initializes Outrig
 func Init(cfgParam *ds.Config) error {
 	if cfgParam == nil {
 		cfgParam = DefaultConfig()
@@ -53,7 +54,13 @@ func Init(cfgParam *ds.Config) error {
 	if finalCfg.ServerAddr == "" {
 		finalCfg.ServerAddr = base.DefaultTCPAddr
 	}
-	global.ConfigPtr.Store(&finalCfg)
+
+	// Create and initialize the controller
+	ctrl = controller.NewController()
+	global.GlobalController = ctrl
+	ctrl.SetConfig(&finalCfg)
+
+	// Initialize the init info
 	initInfo := ds.InitInfoType{
 		StartTime: time.Now().UnixMilli(),
 		Args:      utilfn.CopyStrArr(os.Args),
@@ -70,12 +77,17 @@ func Init(cfgParam *ds.Config) error {
 		initInfo.Hostname = hostname
 	}
 	global.InitInfo.Store(&initInfo)
+
+	// Initialize log processing
 	logprocess.InitLogProcess()
-	go core.RunConnPoller()
-	return nil
+
+	// Initialize the controller
+	return ctrl.Init(&finalCfg)
 }
 
+// Shutdown shuts down Outrig
 func Shutdown() {
-	// TODO wait for last log lines to be sent
-	// TODO send shutdown log lines
+	if ctrl != nil {
+		ctrl.Shutdown()
+	}
 }

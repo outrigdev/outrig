@@ -8,7 +8,6 @@ import (
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/loginit/loginitimpl"
-	"github.com/outrigdev/outrig/pkg/transport"
 )
 
 const LogBufferSize = 2000
@@ -55,10 +54,13 @@ func addLogLine(line string, source string) {
 func ConsumeLogLines() {
 	for {
 		logLine := <-logChan
-		pk := &transport.PacketType{
-			Type: "log",
+		pk := &ds.PacketType{
+			Type: ds.PacketTypeLog,
 			Data: logLine,
 		}
-		transport.SendPacket(pk)
+		
+		if global.GlobalController != nil {
+			global.GlobalController.SendPacket(pk)
+		}
 	}
 }

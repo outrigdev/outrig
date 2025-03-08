@@ -4,6 +4,16 @@ import (
 	"net"
 )
 
+// Transport packet types
+const (
+	PacketTypeLog = "log"
+)
+
+type PacketType struct {
+	Type string `json:"type"`
+	Data any    `json:"data"`
+}
+
 type Config struct {
 	// DomainSocketPath is the path to the Unix domain socket. If "" => use default.
 	// If "-" => disable domain socket.
