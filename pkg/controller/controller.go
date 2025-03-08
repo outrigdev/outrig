@@ -21,7 +21,7 @@ type ControllerImpl struct {
 	Lock          sync.Mutex // lock for this struct
 	Conn          net.Conn   // connection to server
 	ClientAddr    string     // client address
-	pollerRunning int32      // atomic flag for connection poller
+	pollerOnce    sync.Once  // ensures poller is started only once
 }
 
 func NewController() *ControllerImpl {
@@ -205,16 +205,12 @@ func (c *ControllerImpl) onConnect() {
 }
 
 func (c *ControllerImpl) runConnPoller() {
-	ok := atomic.CompareAndSwapInt32(&c.pollerRunning, 0, 1)
-	if !ok {
-		return
-	}
-	defer atomic.StoreInt32(&c.pollerRunning, 0)
-
-	for {
-		c.pollConn()
-		time.Sleep(ConnPollTime)
-	}
+	c.pollerOnce.Do(func() {
+		for {
+			c.pollConn()
+			time.Sleep(ConnPollTime)
+		}
+	})
 }
 
 func (c *ControllerImpl) pollConn() {
