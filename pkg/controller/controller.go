@@ -21,17 +21,35 @@ import (
 const ConnPollTime = 1 * time.Second
 
 type ControllerImpl struct {
-	Lock       sync.Mutex               // lock for this struct
-	conn       atomic.Pointer[net.Conn] // connection to server (atomic pointer for lock-free access)
-	ClientAddr string                   // client address
-	pollerOnce sync.Once                // ensures poller is started only once
-	AppRunId   string                   // unique ID for this app run (UUID)
-	AppName    string                   // name of the application
-	ModuleName string                   // name of the Go module
+	Lock       sync.Mutex                // lock for this struct
+	conn       atomic.Pointer[net.Conn]  // connection to server (atomic pointer for lock-free access)
+	configPtr  atomic.Pointer[ds.Config] // configuration (atomic pointer for lock-free access)
+	ClientAddr string                    // client address
+	pollerOnce sync.Once                 // ensures poller is started only once
+	AppRunId   string                    // unique ID for this app run (UUID)
+	AppName    string                    // name of the application
+	ModuleName string                    // name of the Go module
 }
 
-func NewController() *ControllerImpl {
-	return &ControllerImpl{}
+func MakeController(config ds.Config) (*ControllerImpl, error) {
+	c := &ControllerImpl{}
+
+	c.AppRunId = uuid.New().String()
+
+	if config.AppName == "" {
+		config.AppName = c.determineAppName()
+	}
+	c.AppName = config.AppName
+
+	if config.ModuleName == "" {
+		c.ModuleName = c.determineModuleName()
+	}
+	c.ModuleName = config.ModuleName
+
+	c.configPtr.Store(&config)
+
+	go c.runConnPoller()
+	return c, nil
 }
 
 // Connection management methods
@@ -50,7 +68,7 @@ func (c *ControllerImpl) Connect() bool {
 	atomic.StoreInt64(&global.TransportErrors, 0)
 	var conn net.Conn
 	var err error
-	cfg := global.ConfigPtr.Load()
+	cfg := c.configPtr.Load()
 	if cfg == nil {
 		return false
 	}
@@ -137,11 +155,7 @@ func (c *ControllerImpl) Disable(disconnect bool) {
 // Configuration methods
 
 func (c *ControllerImpl) GetConfig() *ds.Config {
-	return global.ConfigPtr.Load()
-}
-
-func (c *ControllerImpl) SetConfig(cfg *ds.Config) {
-	global.ConfigPtr.Store(cfg)
+	return c.configPtr.Load()
 }
 
 // Transport methods
@@ -196,30 +210,6 @@ func (c *ControllerImpl) GetTransportStats() (int64, int64) {
 }
 
 // Initialization methods
-
-func (c *ControllerImpl) Init(cfgParam *ds.Config) error {
-	if cfgParam != nil {
-		c.SetConfig(cfgParam)
-	}
-
-	c.AppRunId = uuid.New().String()
-
-	cfg := c.GetConfig()
-	if cfg != nil && cfg.AppName != "" {
-		c.AppName = cfg.AppName
-	} else {
-		c.AppName = c.determineAppName()
-	}
-
-	if cfg != nil && cfg.ModuleName != "" {
-		c.ModuleName = cfg.ModuleName
-	} else {
-		c.ModuleName = c.determineModuleName()
-	}
-
-	go c.runConnPoller()
-	return nil
-}
 
 func (c *ControllerImpl) determineModuleName() string {
 	// Start from current directory

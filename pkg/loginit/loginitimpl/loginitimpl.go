@@ -33,7 +33,7 @@ type FileWrap interface {
 func InitLogWrap(callbackFn LogCallbackFnType) error {
 	var wrapStdout bool = true
 	var wrapStderr bool = true
-	config := global.ConfigPtr.Load()
+	config := global.GlobalController.GetConfig()
 	if config != nil {
 		wrapStdout = config.WrapStdout
 		wrapStderr = config.WrapStderr

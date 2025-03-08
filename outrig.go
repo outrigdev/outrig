@@ -58,9 +58,12 @@ func Init(cfgParam *ds.Config) error {
 	}
 
 	// Create and initialize the controller
-	ctrl = controller.NewController()
+	var err error
+	ctrl, err = controller.MakeController(finalCfg)
+	if err != nil {
+		return err
+	}
 	global.GlobalController = ctrl
-	ctrl.SetConfig(&finalCfg)
 
 	// Initialize the init info
 	initInfo := ds.InitInfoType{
@@ -83,8 +86,7 @@ func Init(cfgParam *ds.Config) error {
 	// Initialize log processing
 	logprocess.InitLogProcess()
 
-	// Initialize the controller
-	return ctrl.Init(&finalCfg)
+	return nil
 }
 
 // Shutdown shuts down Outrig
