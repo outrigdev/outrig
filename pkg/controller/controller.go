@@ -27,44 +27,40 @@ type ControllerImpl struct {
 	configPtr  atomic.Pointer[ds.Config] // configuration (atomic pointer for lock-free access)
 	ClientAddr string                    // client address
 	pollerOnce sync.Once                 // ensures poller is started only once
-	AppRunId   string                    // unique ID for this app run (UUID)
-	AppName    string                    // name of the application
-	ModuleName string                    // name of the Go module
-	InitInfo   ds.InitInfoType           // initialization information
+	AppInfo    ds.AppInfo                // combined application information
 }
 
 func MakeController(config ds.Config) (*ControllerImpl, error) {
 	c := &ControllerImpl{}
 
-	c.AppRunId = uuid.New().String()
+	// Initialize AppInfo
+	c.AppInfo.AppRunId = uuid.New().String()
 
 	if config.AppName == "" {
 		config.AppName = c.determineAppName()
 	}
-	c.AppName = config.AppName
+	c.AppInfo.AppName = config.AppName
 
 	if config.ModuleName == "" {
-		c.ModuleName = c.determineModuleName()
+		config.ModuleName = c.determineModuleName()
 	}
-	c.ModuleName = config.ModuleName
+	c.AppInfo.ModuleName = config.ModuleName
 
 	c.configPtr.Store(&config)
 
-	// Initialize the init info
-	c.InitInfo = ds.InitInfoType{
-		StartTime: time.Now().UnixMilli(),
-		Args:      utilfn.CopyStrArr(os.Args),
-	}
-	c.InitInfo.Executable, _ = os.Executable()
-	c.InitInfo.Env = utilfn.CopyStrArr(os.Environ())
-	c.InitInfo.Pid = os.Getpid()
+	// Initialize the rest of AppInfo
+	c.AppInfo.StartTime = time.Now().UnixMilli()
+	c.AppInfo.Args = utilfn.CopyStrArr(os.Args)
+	c.AppInfo.Executable, _ = os.Executable()
+	c.AppInfo.Env = utilfn.CopyStrArr(os.Environ())
+	c.AppInfo.Pid = os.Getpid()
 	user, err := user.Current()
 	if err == nil {
-		c.InitInfo.User = user.Username
+		c.AppInfo.User = user.Username
 	}
 	hostname, err := os.Hostname()
 	if err == nil {
-		c.InitInfo.Hostname = hostname
+		c.AppInfo.Hostname = hostname
 	}
 
 	go c.runConnPoller()
@@ -204,14 +200,10 @@ func (c *ControllerImpl) SendPacket(pk *ds.PacketType) (bool, error) {
 }
 
 func (c *ControllerImpl) sendAppInfo() {
-	// Send AppInfoPacket as the first packet
+	// Send AppInfo as the first packet
 	appInfoPacket := &ds.PacketType{
 		Type: ds.PacketTypeAppInfo,
-		Data: &ds.AppInfoPacket{
-			AppRunId:   c.AppRunId,
-			AppName:    c.AppName,
-			ModuleName: c.ModuleName,
-		},
+		Data: &c.AppInfo,
 	}
 	c.sendPacketInternal(appInfoPacket)
 }

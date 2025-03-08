@@ -6,7 +6,7 @@ import (
 
 // Transport packet types
 const (
-	PacketTypeLog    = "log"
+	PacketTypeLog     = "log"
 	PacketTypeAppInfo = "appinfo"
 )
 
@@ -42,16 +42,6 @@ type ClientType struct {
 	ClientAddr string
 }
 
-type InitInfoType struct {
-	Executable string   `json:"executable"`
-	Args       []string `json:"args"`
-	Env        []string `json:"env"`
-	StartTime  int64    `json:"starttime"`
-	Pid        int      `json:"pid"`
-	User       string   `json:"user,omitempty"`
-	Hostname   string   `json:"hostname,omitempty"`
-}
-
 type LogLine struct {
 	LineNum int64  `json:"linenum"`
 	Ts      int64  `json:"ts"`
@@ -59,8 +49,15 @@ type LogLine struct {
 	Source  string `json:"source,omitempty"`
 }
 
-type AppInfoPacket struct {
-	AppRunId   string `json:"apprunid"`
-	AppName    string `json:"appname"`
-	ModuleName string `json:"modulename"`
+type AppInfo struct {
+	AppRunId   string   `json:"apprunid"`
+	AppName    string   `json:"appname"`
+	ModuleName string   `json:"modulename"`
+	Executable string   `json:"executable"`
+	Args       []string `json:"args"`
+	Env        []string `json:"env"`
+	StartTime  int64    `json:"starttime"`
+	Pid        int      `json:"pid"`
+	User       string   `json:"user,omitempty"`
+	Hostname   string   `json:"hostname,omitempty"`
 }
