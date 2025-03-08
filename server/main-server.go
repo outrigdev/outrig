@@ -40,8 +40,8 @@ type LogLine struct {
 	Source  string `json:"source,omitempty"`
 }
 
-// handleConn reads packets from the connection and prints log packets.
-func handleConn(conn net.Conn) {
+// handleDomainSocketConn reads packets from the connection and prints log packets.
+func handleDomainSocketConn(conn net.Conn) {
 	defer conn.Close()
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
@@ -99,7 +99,7 @@ func runDomainSocketServer() error {
 				continue
 			}
 			log.Printf("accepted domain socket connection\n")
-			go handleConn(conn)
+			go handleDomainSocketConn(conn)
 		}
 	}()
 	return nil

@@ -41,3 +41,20 @@ func (sm *SyncMap[T]) Delete(key string) {
 	defer sm.lock.Unlock()
 	delete(sm.m, key)
 }
+
+// GetOrCreate gets a value by key. If the key doesn't exist, it calls the provided
+// function to create a new value, sets it in the map, and returns it.
+// Returns the value and a boolean indicating if the key was found (true) or created (false).
+func (sm *SyncMap[T]) GetOrCreate(key string, createFn func() T) (T, bool) {
+	sm.lock.Lock()
+	defer sm.lock.Unlock()
+	
+	if val, ok := sm.m[key]; ok {
+		return val, true
+	}
+	
+	// Key doesn't exist, create new value
+	newVal := createFn()
+	sm.m[key] = newVal
+	return newVal, false
+}
