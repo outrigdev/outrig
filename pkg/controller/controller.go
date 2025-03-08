@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/outrigdev/outrig/pkg/collector/logprocess"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
-	"github.com/outrigdev/outrig/pkg/logprocess"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 

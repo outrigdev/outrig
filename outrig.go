@@ -2,10 +2,10 @@ package outrig
 
 import (
 	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/collector/logprocess"
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
-	"github.com/outrigdev/outrig/pkg/logprocess"
 )
 
 // Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:

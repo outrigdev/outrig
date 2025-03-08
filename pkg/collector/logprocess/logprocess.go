@@ -7,7 +7,6 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
-	"github.com/outrigdev/outrig/pkg/loginit/loginitimpl"
 )
 
 const LogBufferSize = 2000
@@ -22,13 +21,13 @@ var (
 func InitLogProcess() {
 	initOnce.Do(func() {
 		logChan = make(chan *ds.LogLine, LogBufferSize)
-		loginitimpl.InitLogWrap(nil)
+		InitLogWrap(nil)
 	})
 }
 
 func OnFirstConnect() {
 	firstConnectOnce.Do(func() {
-		loginitimpl.InitLogWrap(LogCallback)
+		InitLogWrap(LogCallback)
 		go ConsumeLogLines()
 	})
 }

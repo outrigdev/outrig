@@ -1,6 +1,6 @@
 //go:build windows
 
-package loginitimpl
+package logprocess
 
 import (
 	"fmt"
