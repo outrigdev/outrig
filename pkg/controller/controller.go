@@ -21,21 +21,17 @@ import (
 const ConnPollTime = 1 * time.Second
 
 type ControllerImpl struct {
-	Lock       sync.Mutex // lock for this struct
-	Conn       net.Conn   // connection to server
-	ClientAddr string     // client address
-	pollerOnce sync.Once  // ensures poller is started only once
-	AppRunId   string     // unique ID for this app run (UUID)
-	AppName    string     // name of the application
-	ModuleName string     // name of the Go module
+	Lock       sync.Mutex               // lock for this struct
+	conn       atomic.Pointer[net.Conn] // connection to server (atomic pointer for lock-free access)
+	ClientAddr string                   // client address
+	pollerOnce sync.Once                // ensures poller is started only once
+	AppRunId   string                   // unique ID for this app run (UUID)
+	AppName    string                   // name of the application
+	ModuleName string                   // name of the Go module
 }
 
 func NewController() *ControllerImpl {
 	return &ControllerImpl{}
-}
-
-func (c *ControllerImpl) SetAsGlobal() {
-	global.GlobalController = c
 }
 
 // Connection management methods
@@ -66,12 +62,8 @@ func (c *ControllerImpl) Connect() bool {
 			conn, err = net.DialTimeout("unix", dsPath, 2*time.Second)
 			if err == nil {
 				fmt.Println("Outrig connected via domain socket:", dsPath)
-				c.Conn = conn
+				c.conn.Store(&conn)
 				c.ClientAddr = cfg.DomainSocketPath
-				global.ClientPtr.Store(&ds.ClientType{
-					Conn:       conn,
-					ClientAddr: cfg.DomainSocketPath,
-				})
 				c.sendAppInfo()
 				atomic.StoreInt32(&global.OutrigEnabled, 1)
 				go c.onConnect()
@@ -85,12 +77,8 @@ func (c *ControllerImpl) Connect() bool {
 		conn, err = net.DialTimeout("tcp", cfg.ServerAddr, 2*time.Second)
 		if err == nil {
 			fmt.Println("Outrig connected via TCP:", cfg.ServerAddr)
-			c.Conn = conn
+			c.conn.Store(&conn)
 			c.ClientAddr = cfg.ServerAddr
-			global.ClientPtr.Store(&ds.ClientType{
-				Conn:       conn,
-				ClientAddr: cfg.ServerAddr,
-			})
 			c.sendAppInfo()
 			atomic.StoreInt32(&global.OutrigEnabled, 1)
 			go c.onConnect()
@@ -108,13 +96,13 @@ func (c *ControllerImpl) Disconnect() {
 	atomic.StoreInt32(&global.OutrigConnected, 0)
 	atomic.StoreInt32(&global.OutrigEnabled, 0)
 
-	if c.Conn == nil {
+	connPtr := c.conn.Load()
+	if connPtr == nil {
 		return
 	}
 
-	conn := c.Conn
-	c.Conn = nil
-	global.ClientPtr.Store(nil)
+	conn := *connPtr
+	c.conn.Store(nil)
 	time.Sleep(100 * time.Millisecond)
 	conn.Close()
 }
@@ -159,10 +147,12 @@ func (c *ControllerImpl) SetConfig(cfg *ds.Config) {
 // Transport methods
 
 func (c *ControllerImpl) sendPacketInternal(pk *ds.PacketType) (bool, error) {
-	client := global.ClientPtr.Load()
-	if client == nil {
+	// No lock needed - using atomic pointer
+	connPtr := c.conn.Load()
+	if connPtr == nil {
 		return false, nil
 	}
+	conn := *connPtr
 
 	barr, err := json.Marshal(pk)
 	if err != nil {
@@ -170,7 +160,7 @@ func (c *ControllerImpl) sendPacketInternal(pk *ds.PacketType) (bool, error) {
 	}
 
 	barr = append(barr, '\n')
-	_, err = client.Conn.Write(barr)
+	_, err = conn.Write(barr)
 	if err != nil {
 		atomic.AddInt64(&global.TransportErrors, 1) // this will force a disconnect later
 		return false, nil

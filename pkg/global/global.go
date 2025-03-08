@@ -12,7 +12,6 @@ var OutrigConnected int32 = 0
 
 var LineNum int64 = 0
 
-var ClientPtr atomic.Pointer[ds.ClientType]
 var ConfigPtr atomic.Pointer[ds.Config]
 
 var TransportErrors int64 = 0
@@ -28,15 +27,15 @@ type Controller interface {
 	IsEnabled() bool
 	Enable()
 	Disable(disconnect bool)
-	
+
 	// Configuration
 	GetConfig() *ds.Config
 	SetConfig(cfg *ds.Config)
-	
+
 	// Transport
 	SendPacket(pk *ds.PacketType) (bool, error)
 	GetTransportStats() (int64, int64) // errors, packets sent
-	
+
 	// Initialization
 	Init(cfg *ds.Config) error
 	Shutdown()
