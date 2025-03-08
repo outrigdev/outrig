@@ -125,14 +125,6 @@ func (c *ControllerImpl) Disconnect() {
 	conn.Close()
 }
 
-func (c *ControllerImpl) IsConnected() bool {
-	return atomic.LoadInt32(&global.OutrigConnected) != 0
-}
-
-func (c *ControllerImpl) IsEnabled() bool {
-	return atomic.LoadInt32(&global.OutrigEnabled) != 0
-}
-
 func (c *ControllerImpl) Enable() {
 	atomic.StoreInt32(&global.OutrigForceDisabled, 0)
 
@@ -203,10 +195,6 @@ func (c *ControllerImpl) sendAppInfo() {
 		},
 	}
 	c.sendPacketInternal(appInfoPacket)
-}
-
-func (c *ControllerImpl) GetTransportStats() (int64, int64) {
-	return atomic.LoadInt64(&global.TransportErrors), atomic.LoadInt64(&global.TransportPacketsSent)
 }
 
 // Initialization methods
