@@ -11,13 +11,14 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/apppeer"
 	"github.com/outrigdev/outrig/server/pkg/rpcserver"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/web"
@@ -26,47 +27,58 @@ import (
 const WebServerPort = 5005
 const WebSocketPort = 5006
 
-// Packet is the envelope for incoming JSON packets.
-type Packet struct {
+// PacketUnmarshalHelper is the envelope for incoming JSON packets.
+type PacketUnmarshalHelper struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`
 }
 
-// LogLine represents a log message.
-type LogLine struct {
-	LineNum int64  `json:"linenum"`
-	Ts      int64  `json:"ts"`
-	Msg     string `json:"msg"`
-	Source  string `json:"source,omitempty"`
-}
-
-// handleDomainSocketConn reads packets from the connection and prints log packets.
+// handleDomainSocketConn reads packets from the connection and routes them to the appropriate AppRunPeer.
 func handleDomainSocketConn(conn net.Conn) {
 	defer conn.Close()
+
+	var peer *apppeer.AppRunPeer
+	var appRunId string
+
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		line := scanner.Text()
-		var pkt Packet
+		var pkt PacketUnmarshalHelper
 		if err := json.Unmarshal([]byte(line), &pkt); err != nil {
 			fmt.Printf("failed to unmarshal packet: %v\n", err)
 			continue
 		}
-		if pkt.Type == "log" {
-			var logLine LogLine
-			if err := json.Unmarshal(pkt.Data, &logLine); err != nil {
-				fmt.Printf("failed to unmarshal log line: %v\n", err)
+
+		// If we haven't identified the app run yet, look for an AppInfo packet
+		if peer == nil {
+			if pkt.Type == ds.PacketTypeAppInfo {
+				var appInfo ds.AppInfo
+				if err := json.Unmarshal(pkt.Data, &appInfo); err != nil {
+					fmt.Printf("failed to unmarshal AppInfo: %v\n", err)
+					continue
+				}
+
+				// Get the AppRunId from the AppInfo packet
+				appRunId = appInfo.AppRunId
+				log.Printf("Identified app run ID: %s\n", appRunId)
+
+				// Get or create the AppRunPeer for this connection
+				peer = apppeer.GetAppRunPeer(appRunId)
+
+				// fallthrough to HandlePacket
+			} else {
+				// Drop packets until we get an AppInfo packet
+				log.Printf("Dropping packet of type %s until AppInfo is received\n", pkt.Type)
 				continue
 			}
-			// POC: just print the log line.
-			optNewLine := ""
-			if !strings.HasSuffix(logLine.Msg, "\n") {
-				optNewLine = "\n"
-			}
-			fmt.Printf("logline: %s %d %s%s", logLine.Source, logLine.LineNum, logLine.Msg, optNewLine)
-		} else {
-			fmt.Printf("unknown packet type: %s\n", pkt.Type)
+		}
+
+		// Route the packet to the AppRunPeer
+		if err := peer.HandlePacket(pkt.Type, pkt.Data); err != nil {
+			fmt.Printf("error handling packet: %v\n", err)
 		}
 	}
+
 	if err := scanner.Err(); err != nil {
 		fmt.Printf("error reading from connection: %v\n", err)
 	}

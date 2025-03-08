@@ -11,7 +11,7 @@ import (
 func main() {
 	fmt.Printf("log before init\n")
 	config := outrig.DefaultConfig()
-	// config.WrapStderr = false
+	config.WrapStderr = false
 	outrig.Init(config)
 	defer outrig.Shutdown()
 	fmt.Fprintf(os.Stderr, "[stderr] stdout is %T\n", os.Stdout)
@@ -22,5 +22,6 @@ func main() {
 	time.Sleep(100 * time.Millisecond)
 	outrig.Enable()
 	fmt.Printf("after enable\n")
+	fmt.Printf("again\n")
 	time.Sleep(200 * time.Millisecond)
 }
