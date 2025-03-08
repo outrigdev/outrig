@@ -1,8 +1,6 @@
 package global
 
 import (
-	"sync/atomic"
-
 	"github.com/outrigdev/outrig/pkg/ds"
 )
 
@@ -14,8 +12,6 @@ var LineNum int64 = 0
 
 var TransportErrors int64 = 0
 var TransportPacketsSent int64 = 0
-
-var InitInfo atomic.Pointer[ds.InitInfoType]
 
 type Controller interface {
 	Enable()

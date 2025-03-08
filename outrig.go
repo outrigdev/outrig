@@ -1,16 +1,11 @@
 package outrig
 
 import (
-	"os"
-	"os/user"
-	"time"
-
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/logprocess"
-	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 // Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:
@@ -64,24 +59,6 @@ func Init(cfgParam *ds.Config) error {
 		return err
 	}
 	global.GlobalController = ctrl
-
-	// Initialize the init info
-	initInfo := ds.InitInfoType{
-		StartTime: time.Now().UnixMilli(),
-		Args:      utilfn.CopyStrArr(os.Args),
-	}
-	initInfo.Executable, _ = os.Executable()
-	initInfo.Env = utilfn.CopyStrArr(os.Environ())
-	initInfo.Pid = os.Getpid()
-	user, err := user.Current()
-	if err == nil {
-		initInfo.User = user.Username
-	}
-	hostname, err := os.Hostname()
-	if err == nil {
-		initInfo.Hostname = hostname
-	}
-	global.InitInfo.Store(&initInfo)
 
 	// Initialize log processing
 	logprocess.InitLogProcess()

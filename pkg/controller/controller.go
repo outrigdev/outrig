@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -29,6 +30,7 @@ type ControllerImpl struct {
 	AppRunId   string                    // unique ID for this app run (UUID)
 	AppName    string                    // name of the application
 	ModuleName string                    // name of the Go module
+	InitInfo   ds.InitInfoType           // initialization information
 }
 
 func MakeController(config ds.Config) (*ControllerImpl, error) {
@@ -47,6 +49,23 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	c.ModuleName = config.ModuleName
 
 	c.configPtr.Store(&config)
+
+	// Initialize the init info
+	c.InitInfo = ds.InitInfoType{
+		StartTime: time.Now().UnixMilli(),
+		Args:      utilfn.CopyStrArr(os.Args),
+	}
+	c.InitInfo.Executable, _ = os.Executable()
+	c.InitInfo.Env = utilfn.CopyStrArr(os.Environ())
+	c.InitInfo.Pid = os.Getpid()
+	user, err := user.Current()
+	if err == nil {
+		c.InitInfo.User = user.Username
+	}
+	hostname, err := os.Hostname()
+	if err == nil {
+		c.InitInfo.Hostname = hostname
+	}
 
 	go c.runConnPoller()
 	return c, nil
