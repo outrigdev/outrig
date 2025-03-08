@@ -23,6 +23,14 @@ type Config struct {
 	// If "-" => disable TCP.
 	ServerAddr string
 
+	// AppName is the name of the application. If not specified, it will be determined
+	// from the executable name.
+	AppName string
+
+	// ModuleName is the name of the Go module. If not specified, it will be determined
+	// from the go.mod file.
+	ModuleName string
+
 	WrapStdout bool
 	WrapStderr bool
 }

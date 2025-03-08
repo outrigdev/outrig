@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/logprocess"
@@ -18,10 +21,13 @@ import (
 const ConnPollTime = 1 * time.Second
 
 type ControllerImpl struct {
-	Lock          sync.Mutex // lock for this struct
-	Conn          net.Conn   // connection to server
-	ClientAddr    string     // client address
-	pollerOnce    sync.Once  // ensures poller is started only once
+	Lock       sync.Mutex // lock for this struct
+	Conn       net.Conn   // connection to server
+	ClientAddr string     // client address
+	pollerOnce sync.Once  // ensures poller is started only once
+	AppRunId   string     // unique ID for this app run (UUID)
+	AppName    string     // name of the application
+	ModuleName string     // name of the Go module
 }
 
 func NewController() *ControllerImpl {
@@ -187,8 +193,74 @@ func (c *ControllerImpl) Init(cfgParam *ds.Config) error {
 		c.SetConfig(cfgParam)
 	}
 
+	c.AppRunId = uuid.New().String()
+
+	cfg := c.GetConfig()
+	if cfg != nil && cfg.AppName != "" {
+		c.AppName = cfg.AppName
+	} else {
+		c.AppName = c.determineAppName()
+	}
+
+	if cfg != nil && cfg.ModuleName != "" {
+		c.ModuleName = cfg.ModuleName
+	} else {
+		c.ModuleName = c.determineModuleName()
+	}
+
 	go c.runConnPoller()
 	return nil
+}
+
+func (c *ControllerImpl) determineModuleName() string {
+	// Start from current directory
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	// Keep going up until we find go.mod or hit the filesystem root
+	for {
+		goModPath := filepath.Join(dir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			// Found the go.mod file, now parse it
+			content, err := os.ReadFile(goModPath)
+			if err != nil {
+				return ""
+			}
+
+			// Look for the module line
+			lines := strings.Split(string(content), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "module ") {
+					// Extract the module name
+					moduleName := strings.TrimSpace(strings.TrimPrefix(line, "module"))
+					return moduleName
+				}
+			}
+			return "" // Module declaration not found
+		}
+
+		// Move up to parent directory
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// We've reached the root without finding go.mod
+			break
+		}
+		dir = parent
+	}
+
+	return "" // No go.mod found
+}
+
+func (c *ControllerImpl) determineAppName() string {
+	execPath, err := os.Executable()
+	if err != nil {
+		return "unknown"
+	}
+
+	return filepath.Base(execPath)
 }
 
 func (c *ControllerImpl) Shutdown() {

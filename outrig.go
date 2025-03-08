@@ -37,6 +37,8 @@ func DefaultConfig() *ds.Config {
 	return &ds.Config{
 		DomainSocketPath: base.DefaultDomainSocketName,
 		ServerAddr:       base.DefaultTCPAddr,
+		AppName:          "",
+		ModuleName:       "",
 		WrapStdout:       true,
 		WrapStderr:       true,
 	}
