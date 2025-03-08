@@ -1,7 +1,10 @@
 package loginit
 
-import "github.com/outrigdev/outrig/pkg/collector/logprocess"
+import (
+	"github.com/outrigdev/outrig/pkg/collector/logprocess"
+)
 
 func init() {
-	logprocess.InitLogWrap(nil)
+	collector := logprocess.GetInstance()
+	collector.InitCollector(nil)
 }

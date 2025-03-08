@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 var MaxInitBufferSize = 64 * 1024
@@ -30,10 +30,16 @@ type FileWrap interface {
 	GetOrigFile() *os.File
 }
 
-func InitLogWrap(callbackFn LogCallbackFnType) error {
+func InitLogWrap(controller ds.Controller, callbackFn LogCallbackFnType) error {
 	var wrapStdout bool = true
 	var wrapStderr bool = true
-	config := global.GlobalController.GetConfig()
+
+	// Get controller from the LogCollector instance if available
+	var config *ds.Config
+	if controller != nil {
+		config = controller.GetConfig()
+	}
+
 	if config != nil {
 		wrapStdout = config.WrapStdout
 		wrapStderr = config.WrapStderr

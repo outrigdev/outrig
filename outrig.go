@@ -61,7 +61,8 @@ func Init(cfgParam *ds.Config) error {
 	global.GlobalController = ctrl
 
 	// Initialize log processing
-	logprocess.InitLogProcess()
+	logCollector := logprocess.GetInstance()
+	logCollector.InitCollector(ctrl)
 
 	return nil
 }

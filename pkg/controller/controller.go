@@ -271,7 +271,9 @@ func (c *ControllerImpl) Shutdown() {
 
 func (c *ControllerImpl) onConnect() {
 	atomic.StoreInt32(&global.OutrigConnected, 1)
-	logprocess.OnFirstConnect()
+
+	collector := logprocess.GetInstance()
+	collector.OnFirstConnect()
 }
 
 func (c *ControllerImpl) runConnPoller() {

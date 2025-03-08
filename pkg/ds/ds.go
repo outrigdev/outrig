@@ -61,3 +61,19 @@ type AppInfo struct {
 	User       string   `json:"user,omitempty"`
 	Hostname   string   `json:"hostname,omitempty"`
 }
+
+type Controller interface {
+	Enable()
+	Disable(disconnect bool)
+
+	Connect() bool
+	Disconnect()
+
+	// Configuration
+	GetConfig() *Config
+
+	// Transport
+	SendPacket(pk *PacketType) (bool, error)
+
+	Shutdown()
+}
