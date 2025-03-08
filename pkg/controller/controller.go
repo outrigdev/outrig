@@ -72,6 +72,7 @@ func (c *ControllerImpl) Connect() bool {
 					Conn:       conn,
 					ClientAddr: cfg.DomainSocketPath,
 				})
+				c.sendAppInfo()
 				atomic.StoreInt32(&global.OutrigEnabled, 1)
 				go c.onConnect()
 				return true
@@ -90,6 +91,7 @@ func (c *ControllerImpl) Connect() bool {
 				Conn:       conn,
 				ClientAddr: cfg.ServerAddr,
 			})
+			c.sendAppInfo()
 			atomic.StoreInt32(&global.OutrigEnabled, 1)
 			go c.onConnect()
 			return true
@@ -156,11 +158,7 @@ func (c *ControllerImpl) SetConfig(cfg *ds.Config) {
 
 // Transport methods
 
-func (c *ControllerImpl) SendPacket(pk *ds.PacketType) (bool, error) {
-	if atomic.LoadInt32(&global.OutrigEnabled) == 0 {
-		return false, nil
-	}
-
+func (c *ControllerImpl) sendPacketInternal(pk *ds.PacketType) (bool, error) {
 	client := global.ClientPtr.Load()
 	if client == nil {
 		return false, nil
@@ -180,6 +178,27 @@ func (c *ControllerImpl) SendPacket(pk *ds.PacketType) (bool, error) {
 
 	atomic.AddInt64(&global.TransportPacketsSent, 1)
 	return true, nil
+}
+
+func (c *ControllerImpl) SendPacket(pk *ds.PacketType) (bool, error) {
+	if atomic.LoadInt32(&global.OutrigEnabled) == 0 {
+		return false, nil
+	}
+
+	return c.sendPacketInternal(pk)
+}
+
+func (c *ControllerImpl) sendAppInfo() {
+	// Send AppInfoPacket as the first packet
+	appInfoPacket := &ds.PacketType{
+		Type: ds.PacketTypeAppInfo,
+		Data: &ds.AppInfoPacket{
+			AppRunId:   c.AppRunId,
+			AppName:    c.AppName,
+			ModuleName: c.ModuleName,
+		},
+	}
+	c.sendPacketInternal(appInfoPacket)
 }
 
 func (c *ControllerImpl) GetTransportStats() (int64, int64) {

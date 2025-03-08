@@ -6,7 +6,8 @@ import (
 
 // Transport packet types
 const (
-	PacketTypeLog = "log"
+	PacketTypeLog    = "log"
+	PacketTypeAppInfo = "appinfo"
 )
 
 type PacketType struct {
@@ -56,4 +57,10 @@ type LogLine struct {
 	Ts      int64  `json:"ts"`
 	Msg     string `json:"msg"`
 	Source  string `json:"source,omitempty"`
+}
+
+type AppInfoPacket struct {
+	AppRunId   string `json:"apprunid"`
+	AppName    string `json:"appname"`
+	ModuleName string `json:"modulename"`
 }
