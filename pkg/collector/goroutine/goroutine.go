@@ -19,6 +19,11 @@ type GoroutineCollector struct {
 	controller       ds.Controller
 }
 
+// CollectorName returns the unique name of the collector
+func (gc *GoroutineCollector) CollectorName() string {
+	return "goroutine"
+}
+
 // singleton instance
 var instance *GoroutineCollector
 var instanceOnce sync.Once

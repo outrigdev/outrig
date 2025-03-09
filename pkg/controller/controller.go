@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -33,10 +34,13 @@ type ControllerImpl struct {
 	TransportPacketsSent int64                     // count of packets sent
 	OutrigConnected      bool                      // whether outrig is connected
 	OutrigForceDisabled  bool                      // whether outrig is force disabled
+	Collectors           map[string]collector.Collector // map of collectors by name
 }
 
 func MakeController(config ds.Config) (*ControllerImpl, error) {
-	c := &ControllerImpl{}
+	c := &ControllerImpl{
+		Collectors: make(map[string]collector.Collector),
+	}
 
 	// Initialize AppInfo
 	c.AppInfo.AppRunId = uuid.New().String()
@@ -67,6 +71,15 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	if err == nil {
 		c.AppInfo.Hostname = hostname
 	}
+
+	// Initialize collectors
+	logCollector := logprocess.GetInstance()
+	logCollector.InitCollector(c)
+	c.Collectors[logCollector.CollectorName()] = logCollector
+
+	goroutineCollector := goroutine.GetInstance()
+	goroutineCollector.InitCollector(c)
+	c.Collectors[goroutineCollector.CollectorName()] = goroutineCollector
 
 	go c.runConnPoller()
 	return c, nil
@@ -281,13 +294,10 @@ func (c *ControllerImpl) onConnect() {
 	c.OutrigConnected = true
 	c.Lock.Unlock()
 
-	// Initialize log collector
-	logCollector := logprocess.GetInstance()
-	logCollector.OnFirstConnect()
-
-	// Initialize goroutine collector
-	goroutineCollector := goroutine.GetInstance()
-	goroutineCollector.OnFirstConnect()
+	// Call OnFirstConnect for all collectors
+	for _, col := range c.Collectors {
+		col.OnFirstConnect()
+	}
 }
 
 func (c *ControllerImpl) runConnPoller() {

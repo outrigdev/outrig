@@ -19,6 +19,11 @@ type LogCollector struct {
 	LineNum          int64
 }
 
+// CollectorName returns the unique name of the collector
+func (lc *LogCollector) CollectorName() string {
+	return "logprocess"
+}
+
 // singleton instance
 var instance *LogCollector
 var instanceOnce sync.Once

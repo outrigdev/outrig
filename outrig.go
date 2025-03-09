@@ -2,8 +2,6 @@ package outrig
 
 import (
 	"github.com/outrigdev/outrig/pkg/base"
-	"github.com/outrigdev/outrig/pkg/collector/goroutine"
-	"github.com/outrigdev/outrig/pkg/collector/logprocess"
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
@@ -56,20 +54,13 @@ func Init(cfgParam *ds.Config) error {
 	}
 
 	// Create and initialize the controller
+	// (collectors are now initialized inside MakeController)
 	var err error
 	ctrl, err = controller.MakeController(finalCfg)
 	if err != nil {
 		return err
 	}
 	global.GlobalController = ctrl
-
-	// Initialize log processing
-	logCollector := logprocess.GetInstance()
-	logCollector.InitCollector(ctrl)
-
-	// Initialize goroutine collector
-	goroutineCollector := goroutine.GetInstance()
-	goroutineCollector.InitCollector(ctrl)
 
 	return nil
 }
