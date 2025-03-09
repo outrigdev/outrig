@@ -15,8 +15,10 @@ import (
 
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
 type GoroutineCollector struct {
+	lock             sync.Mutex
 	firstConnectOnce sync.Once
 	controller       ds.Controller
+	ticker           *time.Ticker
 }
 
 // CollectorName returns the unique name of the collector
@@ -43,11 +45,29 @@ func (gc *GoroutineCollector) InitCollector(controller ds.Controller) error {
 }
 
 // OnFirstConnect is called when the first connection is established
-func (gc *GoroutineCollector) OnFirstConnect() {
-	gc.firstConnectOnce.Do(func() {
-		// Immediately dump goroutines
-		gc.DumpGoroutines()
-	})
+func (gc *GoroutineCollector) Enable() {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	if gc.ticker != nil {
+		return
+	}
+	gc.DumpGoroutines()
+	gc.ticker = time.NewTicker(1 * time.Second)
+	go func() {
+		for range gc.ticker.C {
+			gc.DumpGoroutines()
+		}
+	}()
+}
+
+func (gc *GoroutineCollector) Disable() {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	if gc.ticker == nil {
+		return
+	}
+	gc.ticker.Stop()
+	gc.ticker = nil
 }
 
 // DumpGoroutines dumps all goroutines and sends the information
@@ -98,7 +118,7 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.Gorouti
 		}
 
 		state := matches[2]
-		
+
 		goroutineStacks = append(goroutineStacks, ds.GoroutineStack{
 			ID:         id,
 			State:      state,

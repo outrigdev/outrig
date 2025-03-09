@@ -45,11 +45,14 @@ func (lc *LogCollector) InitCollector(controller ds.Controller) error {
 	return nil
 }
 
-// OnFirstConnect is called when the first connection is established
-func (lc *LogCollector) OnFirstConnect() {
+func (lc *LogCollector) Enable() {
 	lc.firstConnectOnce.Do(func() {
 		go lc.ConsumeLogLines()
 	})
+}
+
+func (lc *LogCollector) Disable() {
+
 }
 
 // LogCallback is called when a log line is received

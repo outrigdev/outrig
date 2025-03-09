@@ -120,8 +120,8 @@ func (c *ControllerImpl) Connect() bool {
 				c.conn.Store(&conn)
 				c.ClientAddr = cfg.DomainSocketPath
 				c.sendAppInfo()
-				global.OutrigEnabled.Store(true)
-				go c.onConnect()
+				c.setEnabled(true)
+				c.OutrigConnected = true
 				return true
 			}
 		}
@@ -135,8 +135,8 @@ func (c *ControllerImpl) Connect() bool {
 			c.conn.Store(&conn)
 			c.ClientAddr = cfg.ServerAddr
 			c.sendAppInfo()
-			global.OutrigEnabled.Store(true)
-			go c.onConnect()
+			c.setEnabled(true)
+			c.OutrigConnected = true
 			return true
 		}
 	}
@@ -149,7 +149,7 @@ func (c *ControllerImpl) Disconnect() {
 	defer c.Lock.Unlock()
 
 	c.OutrigConnected = false
-	global.OutrigEnabled.Store(false)
+	c.setEnabled(false)
 
 	connPtr := c.conn.Load()
 	if connPtr == nil {
@@ -166,7 +166,7 @@ func (c *ControllerImpl) Enable() {
 	c.Lock.Lock()
 	c.OutrigForceDisabled = false
 	if c.OutrigConnected {
-		global.OutrigEnabled.Store(true)
+		c.setEnabled(true)
 	}
 	c.Lock.Unlock()
 	c.Connect()
@@ -176,7 +176,7 @@ func (c *ControllerImpl) Disable(disconnect bool) {
 	c.Lock.Lock()
 	c.OutrigForceDisabled = true
 	c.Lock.Unlock()
-	global.OutrigEnabled.Store(false)
+	c.setEnabled(false)
 
 	if disconnect {
 		c.Disconnect()
@@ -293,17 +293,6 @@ func (c *ControllerImpl) Shutdown() {
 
 // Private methods
 
-func (c *ControllerImpl) onConnect() {
-	c.Lock.Lock()
-	c.OutrigConnected = true
-	c.Lock.Unlock()
-
-	// Call OnFirstConnect for all collectors
-	for _, col := range c.Collectors {
-		col.OnFirstConnect()
-	}
-}
-
 func (c *ControllerImpl) runConnPoller() {
 	c.pollerOnce.Do(func() {
 		for {
@@ -324,5 +313,27 @@ func (c *ControllerImpl) pollConn() {
 		return
 	} else {
 		c.Connect()
+	}
+}
+
+func (c *ControllerImpl) setEnabled(enabled bool) {
+	oldEnabled := global.OutrigEnabled.Load()
+	if enabled == oldEnabled {
+		return
+	}
+	if enabled {
+		global.OutrigEnabled.Store(true)
+		go func() {
+			for _, collector := range c.Collectors {
+				collector.Enable()
+			}
+		}()
+	} else {
+		go func() {
+			for _, collector := range c.Collectors {
+				collector.Disable()
+			}
+		}()
+		global.OutrigEnabled.Store(false)
 	}
 }

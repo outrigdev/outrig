@@ -11,6 +11,6 @@ type Collector interface {
 	// The controller can be nil during early initialization
 	InitCollector(controller ds.Controller) error
 
-	// OnFirstConnect is called when the first connection is established
-	OnFirstConnect()
+	Enable()
+	Disable()
 }
