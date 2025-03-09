@@ -34,14 +34,12 @@ func (lc *LogCollector) initInternal(controller ds.Controller) error {
 	var wrapStderr bool = true
 
 	// Get controller from the LogCollector instance if available
-	var config *ds.Config
 	if controller != nil {
-		config = controller.GetConfig()
-	}
-
-	if config != nil && config.LogProcessorConfig != nil {
-		wrapStdout = config.LogProcessorConfig.WrapStdout
-		wrapStderr = config.LogProcessorConfig.WrapStderr
+		config := controller.GetConfig()
+		if config.LogProcessorConfig != nil {
+			wrapStdout = config.LogProcessorConfig.WrapStdout
+			wrapStderr = config.LogProcessorConfig.WrapStderr
+		}
 	}
 	InitLock.Lock()
 	defer InitLock.Unlock()

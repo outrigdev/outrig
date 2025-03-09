@@ -89,7 +89,7 @@ type Controller interface {
 	Disconnect()
 
 	// Configuration
-	GetConfig() *Config
+	GetConfig() Config
 
 	// Transport
 	SendPacket(pk *PacketType) (bool, error)

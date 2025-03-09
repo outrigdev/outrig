@@ -24,9 +24,9 @@ import (
 const ConnPollTime = 1 * time.Second
 
 type ControllerImpl struct {
-	Lock                 sync.Mutex                     // lock for this struct
-	conn                 atomic.Pointer[net.Conn]       // connection to server (atomic pointer for lock-free access)
-	configPtr            atomic.Pointer[ds.Config]      // configuration (atomic pointer for lock-free access)
+	Lock                 sync.Mutex               // lock for this struct
+	conn                 atomic.Pointer[net.Conn] // connection to server (atomic pointer for lock-free access)
+	config               *ds.Config
 	ClientAddr           string                         // client address
 	pollerOnce           sync.Once                      // ensures poller is started only once
 	AppInfo              ds.AppInfo                     // combined application information
@@ -54,8 +54,7 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 		config.ModuleName = c.determineModuleName()
 	}
 	c.AppInfo.ModuleName = config.ModuleName
-
-	c.configPtr.Store(&config)
+	c.config = &config
 
 	// Initialize the rest of AppInfo
 	c.AppInfo.StartTime = time.Now().UnixMilli()
@@ -105,20 +104,16 @@ func (c *ControllerImpl) Connect() bool {
 	atomic.StoreInt64(&c.TransportErrors, 0)
 	var conn net.Conn
 	var err error
-	cfg := c.configPtr.Load()
-	if cfg == nil {
-		return false
-	}
 
 	// Attempt domain socket if not disabled
-	if cfg.DomainSocketPath != "-" {
-		dsPath := utilfn.ExpandHomeDir(cfg.DomainSocketPath)
+	if c.config.DomainSocketPath != "-" {
+		dsPath := utilfn.ExpandHomeDir(c.config.DomainSocketPath)
 		if _, errStat := os.Stat(dsPath); errStat == nil {
 			conn, err = net.DialTimeout("unix", dsPath, 2*time.Second)
 			if err == nil {
 				fmt.Println("Outrig connected via domain socket:", dsPath)
 				c.conn.Store(&conn)
-				c.ClientAddr = cfg.DomainSocketPath
+				c.ClientAddr = c.config.DomainSocketPath
 				c.sendAppInfo()
 				c.setEnabled(true)
 				c.OutrigConnected = true
@@ -128,12 +123,12 @@ func (c *ControllerImpl) Connect() bool {
 	}
 
 	// Fall back to TCP if not disabled
-	if cfg.ServerAddr != "-" {
-		conn, err = net.DialTimeout("tcp", cfg.ServerAddr, 2*time.Second)
+	if c.config.ServerAddr != "-" {
+		conn, err = net.DialTimeout("tcp", c.config.ServerAddr, 2*time.Second)
 		if err == nil {
-			fmt.Println("Outrig connected via TCP:", cfg.ServerAddr)
+			fmt.Println("Outrig connected via TCP:", c.config.ServerAddr)
 			c.conn.Store(&conn)
-			c.ClientAddr = cfg.ServerAddr
+			c.ClientAddr = c.config.ServerAddr
 			c.sendAppInfo()
 			c.setEnabled(true)
 			c.OutrigConnected = true
@@ -185,8 +180,10 @@ func (c *ControllerImpl) Disable(disconnect bool) {
 
 // Configuration methods
 
-func (c *ControllerImpl) GetConfig() *ds.Config {
-	return c.configPtr.Load()
+func (c *ControllerImpl) GetConfig() ds.Config {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	return *c.config
 }
 
 // Transport methods
