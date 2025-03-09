@@ -2,6 +2,7 @@ package outrig
 
 import (
 	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -65,6 +66,10 @@ func Init(cfgParam *ds.Config) error {
 	// Initialize log processing
 	logCollector := logprocess.GetInstance()
 	logCollector.InitCollector(ctrl)
+
+	// Initialize goroutine collector
+	goroutineCollector := goroutine.GetInstance()
+	goroutineCollector.InitCollector(ctrl)
 
 	return nil
 }

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
@@ -22,12 +23,16 @@ import (
 const ConnPollTime = 1 * time.Second
 
 type ControllerImpl struct {
-	Lock       sync.Mutex                // lock for this struct
-	conn       atomic.Pointer[net.Conn]  // connection to server (atomic pointer for lock-free access)
-	configPtr  atomic.Pointer[ds.Config] // configuration (atomic pointer for lock-free access)
-	ClientAddr string                    // client address
-	pollerOnce sync.Once                 // ensures poller is started only once
-	AppInfo    ds.AppInfo                // combined application information
+	Lock                 sync.Mutex                // lock for this struct
+	conn                 atomic.Pointer[net.Conn]  // connection to server (atomic pointer for lock-free access)
+	configPtr            atomic.Pointer[ds.Config] // configuration (atomic pointer for lock-free access)
+	ClientAddr           string                    // client address
+	pollerOnce           sync.Once                 // ensures poller is started only once
+	AppInfo              ds.AppInfo                // combined application information
+	TransportErrors      int64                     // count of transport errors
+	TransportPacketsSent int64                     // count of packets sent
+	OutrigConnected      bool                      // whether outrig is connected
+	OutrigForceDisabled  bool                      // whether outrig is force disabled
 }
 
 func MakeController(config ds.Config) (*ControllerImpl, error) {
@@ -73,14 +78,14 @@ func (c *ControllerImpl) Connect() bool {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 
-	if global.OutrigForceDisabled.Load() {
+	if c.OutrigForceDisabled {
 		return false
 	}
 	if global.OutrigEnabled.Load() {
 		return false
 	}
 
-	atomic.StoreInt64(&global.TransportErrors, 0)
+	atomic.StoreInt64(&c.TransportErrors, 0)
 	var conn net.Conn
 	var err error
 	cfg := c.configPtr.Load()
@@ -126,7 +131,7 @@ func (c *ControllerImpl) Disconnect() {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 
-	global.OutrigConnected.Store(false)
+	c.OutrigConnected = false
 	global.OutrigEnabled.Store(false)
 
 	connPtr := c.conn.Load()
@@ -136,22 +141,24 @@ func (c *ControllerImpl) Disconnect() {
 
 	conn := *connPtr
 	c.conn.Store(nil)
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	conn.Close()
 }
 
 func (c *ControllerImpl) Enable() {
-	global.OutrigForceDisabled.Store(false)
-
-	if global.OutrigConnected.Load() {
+	c.Lock.Lock()
+	c.OutrigForceDisabled = false
+	if c.OutrigConnected {
 		global.OutrigEnabled.Store(true)
 	}
-
+	c.Lock.Unlock()
 	c.Connect()
 }
 
 func (c *ControllerImpl) Disable(disconnect bool) {
-	global.OutrigForceDisabled.Store(true)
+	c.Lock.Lock()
+	c.OutrigForceDisabled = true
+	c.Lock.Unlock()
 	global.OutrigEnabled.Store(false)
 
 	if disconnect {
@@ -183,11 +190,11 @@ func (c *ControllerImpl) sendPacketInternal(pk *ds.PacketType) (bool, error) {
 	barr = append(barr, '\n')
 	_, err = conn.Write(barr)
 	if err != nil {
-		atomic.AddInt64(&global.TransportErrors, 1) // this will force a disconnect later
+		atomic.AddInt64(&c.TransportErrors, 1) // this will force a disconnect later
 		return false, nil
 	}
 
-	atomic.AddInt64(&global.TransportPacketsSent, 1)
+	atomic.AddInt64(&c.TransportPacketsSent, 1)
 	return true, nil
 }
 
@@ -270,10 +277,17 @@ func (c *ControllerImpl) Shutdown() {
 // Private methods
 
 func (c *ControllerImpl) onConnect() {
-	global.OutrigConnected.Store(true)
+	c.Lock.Lock()
+	c.OutrigConnected = true
+	c.Lock.Unlock()
 
-	collector := logprocess.GetInstance()
-	collector.OnFirstConnect()
+	// Initialize log collector
+	logCollector := logprocess.GetInstance()
+	logCollector.OnFirstConnect()
+
+	// Initialize goroutine collector
+	goroutineCollector := goroutine.GetInstance()
+	goroutineCollector.OnFirstConnect()
 }
 
 func (c *ControllerImpl) runConnPoller() {
@@ -289,7 +303,7 @@ func (c *ControllerImpl) pollConn() {
 	enabled := global.OutrigEnabled.Load()
 	if enabled {
 		// check for errors
-		if atomic.LoadInt64(&global.TransportErrors) > 0 {
+		if atomic.LoadInt64(&c.TransportErrors) > 0 {
 			c.Disconnect()
 			return
 		}

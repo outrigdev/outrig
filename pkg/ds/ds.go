@@ -6,8 +6,9 @@ import (
 
 // Transport packet types
 const (
-	PacketTypeLog     = "log"
-	PacketTypeAppInfo = "appinfo"
+	PacketTypeLog       = "log"
+	PacketTypeAppInfo   = "appinfo"
+	PacketTypeGoroutine = "goroutine"
 )
 
 type PacketType struct {
@@ -64,6 +65,18 @@ type AppInfo struct {
 	Pid        int      `json:"pid"`
 	User       string   `json:"user,omitempty"`
 	Hostname   string   `json:"hostname,omitempty"`
+}
+
+type GoroutineInfo struct {
+	Timestamp int64             `json:"timestamp"`
+	Count     int               `json:"count"`
+	Stacks    []GoroutineStack  `json:"stacks"`
+}
+
+type GoroutineStack struct {
+	ID         int64  `json:"id"`
+	State      string `json:"state"`
+	StackTrace string `json:"stacktrace"`
 }
 
 type Controller interface {

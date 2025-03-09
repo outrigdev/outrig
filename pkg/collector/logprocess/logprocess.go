@@ -16,6 +16,7 @@ type LogCollector struct {
 	firstConnectOnce sync.Once
 	logChan          chan *ds.LogLine
 	controller       ds.Controller
+	LineNum          int64
 }
 
 // singleton instance
@@ -60,7 +61,7 @@ func (lc *LogCollector) addLogLine(line string, source string) {
 	if !global.OutrigEnabled.Load() {
 		return
 	}
-	nextNum := atomic.AddInt64(&global.LineNum, 1)
+	nextNum := atomic.AddInt64(&lc.LineNum, 1)
 	logLine := &ds.LogLine{
 		LineNum: nextNum,
 		Ts:      time.Now().UnixMilli(),
