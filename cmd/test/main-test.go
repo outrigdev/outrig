@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/outrigdev/outrig"
@@ -14,7 +13,6 @@ func main() {
 	config.LogProcessorConfig.WrapStderr = false
 	outrig.Init(config)
 	defer outrig.Shutdown()
-	fmt.Fprintf(os.Stderr, "[stderr] stdout is %T\n", os.Stdout)
 	fmt.Printf("hello outrig!\n")
 	time.Sleep(200 * time.Millisecond)
 	outrig.Disable(false)

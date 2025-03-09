@@ -7,6 +7,6 @@ import (
 	"os"
 )
 
-func MakeFileWrap(origFile *os.File, source string, callbackFn LogCallbackFnType) (FileWrap, error) {
+func MakeFileWrap(origFile *os.File, source string, callbackFn LogCallbackFnType, shouldBuffer bool) (FileWrap, error) {
 	return nil, fmt.Errorf("MakeDupWrap not implemented on windows")
 }

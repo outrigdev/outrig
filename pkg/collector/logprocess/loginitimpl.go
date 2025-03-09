@@ -9,7 +9,7 @@ import (
 )
 
 var MaxInitBufferSize = 64 * 1024
-var InitWaitTimeMs = 5000
+var InitWaitTimeMs = 2000
 var Initialized bool
 var InitLock = &sync.Mutex{}
 
@@ -25,12 +25,11 @@ type LogCallbackFnType = func(string, string)
 type FileWrap interface {
 	Run()
 	Restore() (*os.File, error)
-	SetCallback(callbackFn LogCallbackFnType)
 	StopBuffering()
 	GetOrigFile() *os.File
 }
 
-func InitLogWrap(controller ds.Controller, callbackFn LogCallbackFnType) error {
+func (lc *LogCollector) initInternal(controller ds.Controller) error {
 	var wrapStdout bool = true
 	var wrapStderr bool = true
 
@@ -47,21 +46,11 @@ func InitLogWrap(controller ds.Controller, callbackFn LogCallbackFnType) error {
 	InitLock.Lock()
 	defer InitLock.Unlock()
 	if Initialized {
-		if callbackFn != nil {
-			if StdoutFileWrap != nil {
-				StdoutFileWrap.SetCallback(callbackFn)
-				StdoutFileWrap.StopBuffering()
-			}
-			if StderrFileWrap != nil {
-				StderrFileWrap.SetCallback(callbackFn)
-				StderrFileWrap.StopBuffering()
-			}
-		}
 		return nil
 	}
 	Initialized = true
 	if wrapStdout {
-		dw, err := MakeFileWrap(os.Stdout, "/dev/stdout", callbackFn)
+		dw, err := MakeFileWrap(os.Stdout, "/dev/stdout", lc.LogCallback, true)
 		if err != nil {
 			return err
 		}
@@ -73,7 +62,7 @@ func InitLogWrap(controller ds.Controller, callbackFn LogCallbackFnType) error {
 		})
 	}
 	if wrapStderr {
-		dw, err := MakeFileWrap(os.Stderr, "/dev/stderr", callbackFn)
+		dw, err := MakeFileWrap(os.Stderr, "/dev/stderr", lc.LogCallback, true)
 		if err != nil {
 			return err
 		}

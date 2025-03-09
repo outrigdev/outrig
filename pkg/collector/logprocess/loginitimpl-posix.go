@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
+	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -19,13 +20,13 @@ type DupWrap struct {
 
 	PipeR, PipeW   *os.File
 	BufferedOutput []byte
-	CallbackFn     atomic.Pointer[LogCallbackFnType]
+	CallbackFn     LogCallbackFnType
 	ShouldBuffer   atomic.Bool
 
 	Buffer *utilfn.LineBuf
 }
 
-func MakeFileWrap(origFile *os.File, source string, callbackFn LogCallbackFnType) (FileWrap, error) {
+func MakeFileWrap(origFile *os.File, source string, callbackFn LogCallbackFnType, shouldBuffer bool) (FileWrap, error) {
 	fd := int(origFile.Fd())
 	pipeR, pipeW, err := os.Pipe()
 	if err != nil {
@@ -51,11 +52,9 @@ func MakeFileWrap(origFile *os.File, source string, callbackFn LogCallbackFnType
 		PipeR:         pipeR,
 		PipeW:         pipeW,
 		Source:        source,
+		CallbackFn:    callbackFn,
 	}
-	if callbackFn != nil {
-		rtn.CallbackFn.Store(&callbackFn)
-	}
-	rtn.ShouldBuffer.Store(callbackFn == nil)
+	rtn.ShouldBuffer.Store(shouldBuffer)
 	return rtn, nil
 }
 
@@ -75,10 +74,11 @@ func (d *DupWrap) Restore() (*os.File, error) {
 }
 
 func (d *DupWrap) handleData(data []byte) {
-	callbackFnPtr := d.CallbackFn.Load()
-	if callbackFnPtr != nil && *callbackFnPtr != nil {
+	enabled := global.OutrigEnabled.Load()
+	if enabled {
 		if d.Buffer == nil {
 			d.Buffer = utilfn.MakeLineBuf()
+			d.StopBuffering()
 		}
 		var lines []string
 		if len(d.BufferedOutput) > 0 {
@@ -87,7 +87,7 @@ func (d *DupWrap) handleData(data []byte) {
 		}
 		lines = append(lines, d.Buffer.ProcessBuf(data)...)
 		for _, line := range lines {
-			(*callbackFnPtr)(line, d.Source)
+			d.CallbackFn(line, d.Source)
 		}
 	} else {
 		if !d.ShouldBuffer.Load() {
@@ -116,10 +116,6 @@ func (d *DupWrap) Run() {
 			break
 		}
 	}
-}
-
-func (d *DupWrap) SetCallback(callbackFn LogCallbackFnType) {
-	d.CallbackFn.Store(&callbackFn)
 }
 
 func (d *DupWrap) StopBuffering() {

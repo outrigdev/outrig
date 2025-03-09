@@ -41,11 +41,7 @@ func GetInstance() *LogCollector {
 // InitCollector initializes the log collector with a controller
 func (lc *LogCollector) InitCollector(controller ds.Controller) error {
 	lc.controller = controller
-	if controller != nil {
-		InitLogWrap(controller, lc.LogCallback)
-	} else {
-		InitLogWrap(nil, nil)
-	}
+	lc.initInternal(controller)
 	return nil
 }
 
