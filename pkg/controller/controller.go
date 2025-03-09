@@ -24,16 +24,16 @@ import (
 const ConnPollTime = 1 * time.Second
 
 type ControllerImpl struct {
-	Lock                 sync.Mutex                // lock for this struct
-	conn                 atomic.Pointer[net.Conn]  // connection to server (atomic pointer for lock-free access)
-	configPtr            atomic.Pointer[ds.Config] // configuration (atomic pointer for lock-free access)
-	ClientAddr           string                    // client address
-	pollerOnce           sync.Once                 // ensures poller is started only once
-	AppInfo              ds.AppInfo                // combined application information
-	TransportErrors      int64                     // count of transport errors
-	TransportPacketsSent int64                     // count of packets sent
-	OutrigConnected      bool                      // whether outrig is connected
-	OutrigForceDisabled  bool                      // whether outrig is force disabled
+	Lock                 sync.Mutex                     // lock for this struct
+	conn                 atomic.Pointer[net.Conn]       // connection to server (atomic pointer for lock-free access)
+	configPtr            atomic.Pointer[ds.Config]      // configuration (atomic pointer for lock-free access)
+	ClientAddr           string                         // client address
+	pollerOnce           sync.Once                      // ensures poller is started only once
+	AppInfo              ds.AppInfo                     // combined application information
+	TransportErrors      int64                          // count of transport errors
+	TransportPacketsSent int64                          // count of packets sent
+	OutrigConnected      bool                           // whether outrig is connected
+	OutrigForceDisabled  bool                           // whether outrig is force disabled
 	Collectors           map[string]collector.Collector // map of collectors by name
 }
 
@@ -70,6 +70,10 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	hostname, err := os.Hostname()
 	if err == nil {
 		c.AppInfo.Hostname = hostname
+	}
+
+	if !config.StartAsync {
+		c.Connect()
 	}
 
 	// Initialize collectors

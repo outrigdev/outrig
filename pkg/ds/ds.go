@@ -38,6 +38,8 @@ type Config struct {
 	// from the go.mod file.
 	ModuleName string
 
+	StartAsync bool
+
 	LogProcessorConfig *LogProcessorConfig
 }
 
@@ -68,9 +70,9 @@ type AppInfo struct {
 }
 
 type GoroutineInfo struct {
-	Timestamp int64             `json:"timestamp"`
-	Count     int               `json:"count"`
-	Stacks    []GoroutineStack  `json:"stacks"`
+	Timestamp int64            `json:"timestamp"`
+	Count     int              `json:"count"`
+	Stacks    []GoroutineStack `json:"stacks"`
 }
 
 type GoroutineStack struct {
