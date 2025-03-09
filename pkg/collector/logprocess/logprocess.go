@@ -57,7 +57,7 @@ func (lc *LogCollector) LogCallback(line string, source string) {
 
 // addLogLine adds a log line to be processed
 func (lc *LogCollector) addLogLine(line string, source string) {
-	if atomic.LoadInt32(&global.OutrigEnabled) == 0 {
+	if !global.OutrigEnabled.Load() {
 		return
 	}
 	nextNum := atomic.AddInt64(&global.LineNum, 1)

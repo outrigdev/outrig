@@ -73,10 +73,10 @@ func (c *ControllerImpl) Connect() bool {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 
-	if atomic.LoadInt32(&global.OutrigForceDisabled) != 0 {
+	if global.OutrigForceDisabled.Load() {
 		return false
 	}
-	if atomic.LoadInt32(&global.OutrigEnabled) != 0 {
+	if global.OutrigEnabled.Load() {
 		return false
 	}
 
@@ -98,7 +98,7 @@ func (c *ControllerImpl) Connect() bool {
 				c.conn.Store(&conn)
 				c.ClientAddr = cfg.DomainSocketPath
 				c.sendAppInfo()
-				atomic.StoreInt32(&global.OutrigEnabled, 1)
+				global.OutrigEnabled.Store(true)
 				go c.onConnect()
 				return true
 			}
@@ -113,7 +113,7 @@ func (c *ControllerImpl) Connect() bool {
 			c.conn.Store(&conn)
 			c.ClientAddr = cfg.ServerAddr
 			c.sendAppInfo()
-			atomic.StoreInt32(&global.OutrigEnabled, 1)
+			global.OutrigEnabled.Store(true)
 			go c.onConnect()
 			return true
 		}
@@ -126,8 +126,8 @@ func (c *ControllerImpl) Disconnect() {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 
-	atomic.StoreInt32(&global.OutrigConnected, 0)
-	atomic.StoreInt32(&global.OutrigEnabled, 0)
+	global.OutrigConnected.Store(false)
+	global.OutrigEnabled.Store(false)
 
 	connPtr := c.conn.Load()
 	if connPtr == nil {
@@ -141,18 +141,18 @@ func (c *ControllerImpl) Disconnect() {
 }
 
 func (c *ControllerImpl) Enable() {
-	atomic.StoreInt32(&global.OutrigForceDisabled, 0)
+	global.OutrigForceDisabled.Store(false)
 
-	if atomic.LoadInt32(&global.OutrigConnected) != 0 {
-		atomic.StoreInt32(&global.OutrigEnabled, 1)
+	if global.OutrigConnected.Load() {
+		global.OutrigEnabled.Store(true)
 	}
 
 	c.Connect()
 }
 
 func (c *ControllerImpl) Disable(disconnect bool) {
-	atomic.StoreInt32(&global.OutrigForceDisabled, 1)
-	atomic.StoreInt32(&global.OutrigEnabled, 0)
+	global.OutrigForceDisabled.Store(true)
+	global.OutrigEnabled.Store(false)
 
 	if disconnect {
 		c.Disconnect()
@@ -192,7 +192,7 @@ func (c *ControllerImpl) sendPacketInternal(pk *ds.PacketType) (bool, error) {
 }
 
 func (c *ControllerImpl) SendPacket(pk *ds.PacketType) (bool, error) {
-	if atomic.LoadInt32(&global.OutrigEnabled) == 0 {
+	if !global.OutrigEnabled.Load() {
 		return false, nil
 	}
 
@@ -270,7 +270,7 @@ func (c *ControllerImpl) Shutdown() {
 // Private methods
 
 func (c *ControllerImpl) onConnect() {
-	atomic.StoreInt32(&global.OutrigConnected, 1)
+	global.OutrigConnected.Store(true)
 
 	collector := logprocess.GetInstance()
 	collector.OnFirstConnect()
@@ -286,8 +286,8 @@ func (c *ControllerImpl) runConnPoller() {
 }
 
 func (c *ControllerImpl) pollConn() {
-	enabled := atomic.LoadInt32(&global.OutrigEnabled)
-	if enabled != 0 {
+	enabled := global.OutrigEnabled.Load()
+	if enabled {
 		// check for errors
 		if atomic.LoadInt64(&global.TransportErrors) > 0 {
 			c.Disconnect()

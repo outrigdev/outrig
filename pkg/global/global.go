@@ -1,10 +1,14 @@
 package global
 
-import "github.com/outrigdev/outrig/pkg/ds"
+import (
+	"sync/atomic"
 
-var OutrigEnabled int32 = 0
-var OutrigForceDisabled int32 = 0
-var OutrigConnected int32 = 0
+	"github.com/outrigdev/outrig/pkg/ds"
+)
+
+var OutrigEnabled atomic.Bool
+var OutrigConnected atomic.Bool
+var OutrigForceDisabled atomic.Bool
 
 var LineNum int64 = 0
 

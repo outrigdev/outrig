@@ -34,8 +34,10 @@ func DefaultConfig() *ds.Config {
 		ServerAddr:       base.DefaultTCPAddr,
 		AppName:          "",
 		ModuleName:       "",
-		WrapStdout:       true,
-		WrapStderr:       true,
+		LogProcessorConfig: &ds.LogProcessorConfig{
+			WrapStdout: true,
+			WrapStderr: true,
+		},
 	}
 }
 

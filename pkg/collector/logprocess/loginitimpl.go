@@ -40,9 +40,9 @@ func InitLogWrap(controller ds.Controller, callbackFn LogCallbackFnType) error {
 		config = controller.GetConfig()
 	}
 
-	if config != nil {
-		wrapStdout = config.WrapStdout
-		wrapStderr = config.WrapStderr
+	if config != nil && config.LogProcessorConfig != nil {
+		wrapStdout = config.LogProcessorConfig.WrapStdout
+		wrapStderr = config.LogProcessorConfig.WrapStderr
 	}
 	InitLock.Lock()
 	defer InitLock.Unlock()

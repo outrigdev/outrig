@@ -11,7 +11,7 @@ import (
 func main() {
 	fmt.Printf("log before init\n")
 	config := outrig.DefaultConfig()
-	config.WrapStderr = false
+	config.LogProcessorConfig.WrapStderr = false
 	outrig.Init(config)
 	defer outrig.Shutdown()
 	fmt.Fprintf(os.Stderr, "[stderr] stdout is %T\n", os.Stdout)

@@ -15,6 +15,11 @@ type PacketType struct {
 	Data any    `json:"data"`
 }
 
+type LogProcessorConfig struct {
+	WrapStdout bool
+	WrapStderr bool
+}
+
 type Config struct {
 	// DomainSocketPath is the path to the Unix domain socket. If "" => use default.
 	// If "-" => disable domain socket.
@@ -32,8 +37,7 @@ type Config struct {
 	// from the go.mod file.
 	ModuleName string
 
-	WrapStdout bool
-	WrapStderr bool
+	LogProcessorConfig *LogProcessorConfig
 }
 
 // ClientType represents our active connection client
