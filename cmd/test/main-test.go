@@ -12,7 +12,7 @@ func main() {
 	config := outrig.DefaultConfig()
 	config.LogProcessorConfig.WrapStderr = false
 	outrig.Init(config)
-	defer outrig.Shutdown()
+	defer outrig.AppDone()
 	fmt.Printf("hello outrig!\n")
 	time.Sleep(200 * time.Millisecond)
 	outrig.Disable(false)
@@ -21,5 +21,12 @@ func main() {
 	outrig.Enable()
 	fmt.Printf("after enable\n")
 	fmt.Printf("again\n")
-	time.Sleep(200 * time.Millisecond)
+
+	// Loop that outputs a new log line every second until program is terminated
+	counter := 0
+	for {
+		fmt.Printf("Counter: %d\n", counter)
+		counter++
+		time.Sleep(1 * time.Second)
+	}
 }
