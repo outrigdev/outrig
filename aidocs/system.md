@@ -40,7 +40,27 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Frontend Architecture
 
-- The application uses Jotai for state management. The main app state is defined in `web/appmodel.ts`.
+- The application uses Jotai for state management. The main app state is defined in `web/appmodel.ts`. For detailed information on state management, refer to `aidocs/state-management.md`.
 - When working with Jotai atoms that need to be updated, define them as `PrimitiveAtom<Type>` rather than just `atom<Type>`.
 - The frontend is organized into components for different views (LogViewer, AppRunList, etc.) that use the AppModel to access shared state.
 - The app uses a tab-based navigation system where the selected tab determines which component is displayed.
+
+### Data Flow
+
+```
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│                 │      │                 │      │                 │
+│  Go Application │◄────►│  Outrig Server  │◄────►│  Web Frontend   │
+│                 │      │                 │      │                 │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
+       │                        │                        │
+       │                        │                        │
+       ▼                        ▼                        ▼
+  Sends logs,             Collects and              Displays data
+  goroutines,             processes data            and provides
+  app info                                          user interface
+```
+
+- **Go Application**: Monitored application that sends logs, goroutine information, and app info to the Outrig server.
+- **Outrig Server**: Collects and processes data from the monitored application, stores it in appropriate data structures (CirBuf, SyncMap), and makes it available via RPC.
+- **Web Frontend**: Retrieves data from the server via RPC calls, manages state with Jotai, and renders the UI components.
