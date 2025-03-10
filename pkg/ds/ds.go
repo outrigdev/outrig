@@ -9,6 +9,7 @@ const (
 	PacketTypeLog       = "log"
 	PacketTypeAppInfo   = "appinfo"
 	PacketTypeGoroutine = "goroutine"
+	PacketTypeAppDone   = "appdone"
 )
 
 type PacketType struct {

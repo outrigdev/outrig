@@ -70,9 +70,8 @@ func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context) (rpctypes.AppRunsDa
 			continue
 		}
 
-		// Determine if the app is still running (this is a simple heuristic)
-		// In a real implementation, you might want to check if the process is still alive
-		isRunning := true
+		// Determine if the app is still running based on its status
+		isRunning := peer.Status == apppeer.AppStatusRunning
 
 		// Create AppRunInfo
 		appRun := rpctypes.AppRunInfo{
@@ -80,6 +79,7 @@ func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context) (rpctypes.AppRunsDa
 			AppName:   peer.AppInfo.AppName,
 			StartTime: peer.AppInfo.StartTime,
 			IsRunning: isRunning,
+			Status:    peer.Status,
 			NumLogs:   peer.Logs.Size(),
 		}
 

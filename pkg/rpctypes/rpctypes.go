@@ -103,6 +103,7 @@ type AppRunInfo struct {
 	AppName   string `json:"appname"`
 	StartTime int64  `json:"starttime"`
 	IsRunning bool   `json:"isrunning"`
+	Status    string `json:"status"`
 	NumLogs   int    `json:"numlogs"`
 }
 

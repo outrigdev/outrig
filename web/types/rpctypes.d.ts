@@ -18,6 +18,7 @@ declare global {
         appname: string;
         starttime: number;
         isrunning: boolean;
+        status: string;
         numlogs: number;
     };
 
@@ -64,9 +65,9 @@ declare global {
 
     // EventType union (rpctypes.EventToTypeMap)
     type EventType = 
+        | (EventCommonFields & { event: "route:down"; data?: null })
         | (EventCommonFields & { event: "route:up"; data?: null })
         | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
-        | (EventCommonFields & { event: "route:down"; data?: null })
     ;
 
     // rpctypes.GoroutineData

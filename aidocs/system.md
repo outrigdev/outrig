@@ -21,6 +21,12 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - In TypeScript for Jotai atoms, if we want to write, we need to type the atom as a PrimitiveAtom<Type>
 - Jotai has a bug with strick null checks off where if you create a null atom, e.g. atom(null) it does not "type" correctly. That's no issue, just cast it to the proper PrimitiveAtom type (no "| null") and it will work fine.
 
+### Code Generation
+
+- **TypeScript Types**: TypeScript types are automatically generated from Go types. After modifying Go types in `pkg/rpctypes/rpctypes.go`, run `task generate` to update the TypeScript type definitions in `web/types/rpctypes.d.ts`.
+- **RPC Client API**: The RPC client API is also generated from Go types. The `task generate` command updates both the TypeScript types and the RPC client API.
+- **Manual Edits**: Do not manually edit generated files like `web/types/rpctypes.d.ts` or `web/rpc/rpcclientapi.ts`. Instead, modify the source Go types and run `task generate`.
+
 ### Documentation References
 
 - Creating a new RPC API: Refer to `aidocs/newrpcapi.md`

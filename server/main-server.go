@@ -35,10 +35,16 @@ type PacketUnmarshalHelper struct {
 
 // handleDomainSocketConn reads packets from the connection and routes them to the appropriate AppRunPeer.
 func handleDomainSocketConn(conn net.Conn) {
-	defer conn.Close()
-
 	var peer *apppeer.AppRunPeer
 	var appRunId string
+
+	defer func() {
+		conn.Close()
+		// If we have a peer, mark the connection as closed
+		if peer != nil {
+			peer.SetConnectionClosed()
+		}
+	}()
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {

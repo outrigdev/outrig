@@ -1,6 +1,8 @@
 package outrig
 
 import (
+	"time"
+
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -70,5 +72,21 @@ func Init(cfgParam *ds.Config) error {
 func Shutdown() {
 	if ctrl != nil {
 		ctrl.Shutdown()
+	}
+}
+
+// AppDone signals that the application is done
+// This should be deferred in the program's main function
+func AppDone() {
+	if ctrl != nil {
+		// Send an AppDone packet
+		packet := &ds.PacketType{
+			Type: ds.PacketTypeAppDone,
+			Data: nil, // No data needed for AppDone
+		}
+		ctrl.SendPacket(packet)
+		
+		// Give a small delay to allow the packet to be sent
+		time.Sleep(50 * time.Millisecond)
 	}
 }
