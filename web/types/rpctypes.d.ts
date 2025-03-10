@@ -20,6 +20,8 @@ declare global {
         isrunning: boolean;
         status: string;
         numlogs: number;
+        numactivegoroutines: number;
+        numtotalgoroutines: number;
     };
 
     // rpctypes.AppRunLogsData

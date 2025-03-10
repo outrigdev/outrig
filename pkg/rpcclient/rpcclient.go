@@ -10,12 +10,6 @@ import (
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 )
 
-// command "droprequest", rpctypes.DropRequestCommand
-func DropRequestCommand(w *rpc.RpcClient, data rpctypes.DropRequestData, opts *rpc.RpcOpts) error {
-	_, err := SendRpcRequestCallHelper[any](w, "droprequest", data, opts)
-	return err
-}
-
 // command "eventpublish", rpctypes.EventPublishCommand
 func EventPublishCommand(w *rpc.RpcClient, data rpctypes.EventType, opts *rpc.RpcOpts) error {
 	_, err := SendRpcRequestCallHelper[any](w, "eventpublish", data, opts)
@@ -64,21 +58,27 @@ func GetAppRunsCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) (rpctypes.AppRunsDat
 	return resp, err
 }
 
-// command "message", rpctypes.MessageCommand
-func MessageCommand(w *rpc.RpcClient, data rpctypes.CommandMessageData, opts *rpc.RpcOpts) error {
-	_, err := SendRpcRequestCallHelper[any](w, "message", data, opts)
+// command "logdroprequest", rpctypes.LogDropRequestCommand
+func LogDropRequestCommand(w *rpc.RpcClient, data rpctypes.DropRequestData, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "logdroprequest", data, opts)
 	return err
 }
 
-// command "searchrequest", rpctypes.SearchRequestCommand
-func SearchRequestCommand(w *rpc.RpcClient, data rpctypes.SearchRequestData, opts *rpc.RpcOpts) (rpctypes.SearchResultData, error) {
-	resp, err := SendRpcRequestCallHelper[rpctypes.SearchResultData](w, "searchrequest", data, opts)
+// command "logsearchrequest", rpctypes.LogSearchRequestCommand
+func LogSearchRequestCommand(w *rpc.RpcClient, data rpctypes.SearchRequestData, opts *rpc.RpcOpts) (rpctypes.SearchResultData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.SearchResultData](w, "logsearchrequest", data, opts)
 	return resp, err
 }
 
-// command "streamupdate", rpctypes.StreamUpdateCommand
-func StreamUpdateCommand(w *rpc.RpcClient, data rpctypes.StreamUpdateData, opts *rpc.RpcOpts) error {
-	_, err := SendRpcRequestCallHelper[any](w, "streamupdate", data, opts)
+// command "logstreamupdate", rpctypes.LogStreamUpdateCommand
+func LogStreamUpdateCommand(w *rpc.RpcClient, data rpctypes.StreamUpdateData, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "logstreamupdate", data, opts)
+	return err
+}
+
+// command "message", rpctypes.MessageCommand
+func MessageCommand(w *rpc.RpcClient, data rpctypes.CommandMessageData, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "message", data, opts)
 	return err
 }
 

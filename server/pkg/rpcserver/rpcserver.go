@@ -73,14 +73,20 @@ func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context) (rpctypes.AppRunsDa
 		// Determine if the app is still running based on its status
 		isRunning := peer.Status == apppeer.AppStatusRunning
 
+		// Get the number of active and total goroutines
+		numActiveGoRoutines := len(peer.ActiveGoRoutines)
+		numTotalGoRoutines := len(peer.GoRoutines.Keys())
+
 		// Create AppRunInfo
 		appRun := rpctypes.AppRunInfo{
-			AppRunId:  peer.AppRunId,
-			AppName:   peer.AppInfo.AppName,
-			StartTime: peer.AppInfo.StartTime,
-			IsRunning: isRunning,
-			Status:    peer.Status,
-			NumLogs:   peer.Logs.Size(),
+			AppRunId:            peer.AppRunId,
+			AppName:             peer.AppInfo.AppName,
+			StartTime:           peer.AppInfo.StartTime,
+			IsRunning:           isRunning,
+			Status:              peer.Status,
+			NumLogs:             peer.Logs.Size(),
+			NumActiveGoRoutines: numActiveGoRoutines,
+			NumTotalGoRoutines:  numTotalGoRoutines,
 		}
 
 		appRuns = append(appRuns, appRun)
@@ -136,7 +142,7 @@ func (*RpcServerImpl) GetAppRunGoroutinesCommand(ctx context.Context, data rpcty
 
 		// Use the most recent stack trace
 		latestStack := stackTraces[len(stackTraces)-1]
-		
+
 		goroutines = append(goroutines, rpctypes.GoroutineData{
 			GoId:       latestStack.GoId,
 			State:      latestStack.State,

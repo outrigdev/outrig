@@ -6,11 +6,6 @@
 import { RpcClient } from "./rpc";
 
 class RpcApiType {
-    // command "droprequest" [call]
-    DropRequestCommand(client: RpcClient, data: DropRequestData, opts?: RpcOpts): Promise<void> {
-        return client.rpcCall("droprequest", data, opts);
-    }
-
     // command "eventpublish" [call]
     EventPublishCommand(client: RpcClient, data: EventType, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("eventpublish", data, opts);
@@ -51,19 +46,24 @@ class RpcApiType {
         return client.rpcCall("getappruns", null, opts);
     }
 
+    // command "logdroprequest" [call]
+    LogDropRequestCommand(client: RpcClient, data: DropRequestData, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("logdroprequest", data, opts);
+    }
+
+    // command "logsearchrequest" [call]
+    LogSearchRequestCommand(client: RpcClient, data: SearchRequestData, opts?: RpcOpts): Promise<SearchResultData> {
+        return client.rpcCall("logsearchrequest", data, opts);
+    }
+
+    // command "logstreamupdate" [call]
+    LogStreamUpdateCommand(client: RpcClient, data: StreamUpdateData, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("logstreamupdate", data, opts);
+    }
+
     // command "message" [call]
     MessageCommand(client: RpcClient, data: CommandMessageData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("message", data, opts);
-    }
-
-    // command "searchrequest" [call]
-    SearchRequestCommand(client: RpcClient, data: SearchRequestData, opts?: RpcOpts): Promise<SearchResultData> {
-        return client.rpcCall("searchrequest", data, opts);
-    }
-
-    // command "streamupdate" [call]
-    StreamUpdateCommand(client: RpcClient, data: StreamUpdateData, opts?: RpcOpts): Promise<void> {
-        return client.rpcCall("streamupdate", data, opts);
     }
 
     // command "updatestatus" [call]

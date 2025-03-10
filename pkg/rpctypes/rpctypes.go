@@ -29,10 +29,9 @@ var EventToTypeMap = map[string]reflect.Type{
 type FullRpcInterface interface {
 	MessageCommand(ctx context.Context, data CommandMessageData) error
 
-	SearchRequestCommand(ctx context.Context, data SearchRequestData) (SearchResultData, error)
-	DropRequestCommand(ctx context.Context, data DropRequestData) error
-
-	StreamUpdateCommand(ctx context.Context, data StreamUpdateData) error
+	LogSearchRequestCommand(ctx context.Context, data SearchRequestData) (SearchResultData, error)
+	LogDropRequestCommand(ctx context.Context, data DropRequestData) error
+	LogStreamUpdateCommand(ctx context.Context, data StreamUpdateData) error
 
 	UpdateStatusCommand(ctx context.Context, data StatusUpdateData) error
 
@@ -99,12 +98,14 @@ type StatusUpdateData struct {
 
 // App run data types
 type AppRunInfo struct {
-	AppRunId  string `json:"apprunid"`
-	AppName   string `json:"appname"`
-	StartTime int64  `json:"starttime"`
-	IsRunning bool   `json:"isrunning"`
-	Status    string `json:"status"`
-	NumLogs   int    `json:"numlogs"`
+	AppRunId            string `json:"apprunid"`
+	AppName             string `json:"appname"`
+	StartTime           int64  `json:"starttime"`
+	IsRunning           bool   `json:"isrunning"`
+	Status              string `json:"status"`
+	NumLogs             int    `json:"numlogs"`
+	NumActiveGoRoutines int    `json:"numactivegoroutines"`
+	NumTotalGoRoutines  int    `json:"numtotalgoroutines"`
 }
 
 type AppRunsData struct {

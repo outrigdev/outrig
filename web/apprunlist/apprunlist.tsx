@@ -1,6 +1,7 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo } from "react";
 import { AppModel } from "../appmodel";
+import { Tag } from "../elements/tag";
 
 export const AppRunList: React.FC = () => {
     const unsortedAppRuns = useAtomValue(AppModel.appRuns);
@@ -59,17 +60,23 @@ export const AppRunList: React.FC = () => {
                                     <div className="font-medium text-primary">{appRun.appname}</div>
                                     <div className="text-xs text-secondary">
                                         {appRun.status === "running" ? (
-                                            <span className="px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                                Running
-                                            </span>
+                                            <Tag 
+                                                label="Running" 
+                                                variant="success" 
+                                                isSelected={true} 
+                                            />
                                         ) : appRun.status === "done" ? (
-                                            <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                                Done
-                                            </span>
+                                            <Tag 
+                                                label="Done" 
+                                                variant="info" 
+                                                isSelected={true} 
+                                            />
                                         ) : (
-                                            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                                                Disconnected
-                                            </span>
+                                            <Tag 
+                                                label="Disconnected" 
+                                                variant="secondary" 
+                                                isSelected={true} 
+                                            />
                                         )}
                                     </div>
                                 </div>
