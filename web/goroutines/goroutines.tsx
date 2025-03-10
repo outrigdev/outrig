@@ -27,32 +27,29 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine }) => {
     );
 };
 
-export const GoRoutines: React.FC = () => {
-    const model = useRef(new GoRoutinesModel()).current;
+interface GoRoutinesProps {
+    appRunId: string;
+}
+
+export const GoRoutines: React.FC<GoRoutinesProps> = ({ appRunId }) => {
+    const model = useRef(new GoRoutinesModel(appRunId)).current;
     const [search, setSearch] = useAtom(model.searchTerm);
     const [showAll, setShowAll] = useAtom(model.showAll);
     const [selectedStates, setSelectedStates] = useAtom(model.selectedStates);
     const filteredGoroutines = useAtomValue(model.filteredGoroutines);
     const availableStates = useAtomValue(model.availableStates);
-    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
-    const appRuns = useAtomValue(AppModel.appRuns);
-    const isLoading = useAtomValue(AppModel.isLoadingGoRoutines);
+    const isRefreshing = useAtomValue(model.isRefreshing);
     const searchRef = useRef<HTMLInputElement>(null);
-
-    // Find the selected app run
-    const selectedAppRun = appRuns.find((run) => run.apprunid === selectedAppRunId);
+    const appRunAtom = useRef(AppModel.getAppRunInfoAtom(appRunId));
+    const appRun = useAtomValue(appRunAtom.current);
 
     useEffect(() => {
-        // Load goroutines when the component mounts if an app run is selected
-        if (selectedAppRunId) {
-            AppModel.loadAppRunGoroutines(selectedAppRunId);
-        }
-    }, [selectedAppRunId]);
+        // Load goroutines when the component mounts
+        model.loadAppRunGoroutines();
+    }, [model]);
 
     const handleRefresh = () => {
-        if (selectedAppRunId) {
-            AppModel.loadAppRunGoroutines(selectedAppRunId);
-        }
+        model.refresh();
     };
 
     const handleToggleShowAll = () => {
@@ -68,16 +65,16 @@ export const GoRoutines: React.FC = () => {
             <div className="py-2 px-4 border-b border-border">
                 <div className="flex justify-between items-center">
                     <h2 className="text-lg font-semibold text-primary">
-                        {selectedAppRun ? `Goroutines: ${selectedAppRun.appname}` : "Goroutines"}
+                        {appRun ? `Goroutines: ${appRun.appname}` : "Goroutines"}
                     </h2>
                     <div className="flex items-center space-x-2">
-                        {selectedAppRun && <div className="text-xs text-muted">ID: {selectedAppRun.apprunid}</div>}
+                        {appRun && <div className="text-xs text-muted">ID: {appRun.apprunid}</div>}
                         <button
                             onClick={handleRefresh}
                             className="p-1.5 border border-border rounded-md text-primary hover:bg-buttonhover transition-colors cursor-pointer"
-                            disabled={isLoading}
+                            disabled={isRefreshing}
                         >
-                            <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+                            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
                         </button>
                     </div>
                 </div>
@@ -124,8 +121,12 @@ export const GoRoutines: React.FC = () => {
 
             {/* Goroutines content */}
             <div className="w-full h-full overflow-auto flex-1 p-4">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-full text-secondary">Loading goroutines...</div>
+                {isRefreshing ? (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center gap-2 text-primary">
+                            <span>Refreshing goroutines...</span>
+                        </div>
+                    </div>
                 ) : filteredGoroutines.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-secondary">
                         {search || !showAll ? "No goroutines match the filter" : "No goroutines found"}

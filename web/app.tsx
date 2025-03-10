@@ -28,7 +28,7 @@ function MainTab() {
     } else if (selectedTab === "appruns") {
         return <AppRunList />;
     } else if (selectedTab === "goroutines") {
-        return <GoRoutines />;
+        return <GoRoutines key={selectedAppRunId} appRunId={selectedAppRunId} />;
     }
 
     return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;

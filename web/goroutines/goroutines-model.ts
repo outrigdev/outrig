@@ -1,16 +1,26 @@
-import { Atom, atom, PrimitiveAtom } from "jotai";
+import { Atom, atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { AppModel } from "../appmodel";
+import { RpcApi } from "../rpc/rpcclientapi";
 
 class GoRoutinesModel {
+    widgetId: string;
+    appRunId: string;
+    appRunGoRoutines: PrimitiveAtom<GoroutineData[]> = atom<GoroutineData[]>([]);
     searchTerm: PrimitiveAtom<string> = atom("");
+    isRefreshing: PrimitiveAtom<boolean> = atom(false);
 
     // State filters
     showAll: PrimitiveAtom<boolean> = atom(true);
     selectedStates: PrimitiveAtom<Set<string>> = atom(new Set<string>());
 
+    constructor(appRunId: string) {
+        this.widgetId = crypto.randomUUID();
+        this.appRunId = appRunId;
+    }
+
     // Derived atom for all available states
     availableStates: Atom<string[]> = atom((get) => {
-        const goroutines = get(AppModel.appRunGoRoutines);
+        const goroutines = get(this.appRunGoRoutines);
         const statesSet = new Set<string>();
 
         goroutines.forEach((goroutine) => {
@@ -25,7 +35,7 @@ class GoRoutinesModel {
         const search = get(this.searchTerm);
         const showAll = get(this.showAll);
         const selectedStates = get(this.selectedStates);
-        const goroutines = get(AppModel.appRunGoRoutines);
+        const goroutines = get(this.appRunGoRoutines);
 
         // First sort by goroutine ID
         const sortedGoroutines = [...goroutines].sort((a, b) => a.goid - b.goid);
@@ -51,7 +61,7 @@ class GoRoutinesModel {
 
     // Toggle a state filter
     toggleStateFilter(state: string): void {
-        const store = window.jotaiStore;
+        const store = getDefaultStore();
         const selectedStates = store.get(this.selectedStates);
         const newSelectedStates = new Set(selectedStates);
 
@@ -74,7 +84,7 @@ class GoRoutinesModel {
 
     // Toggle "show all" filter
     toggleShowAll(): void {
-        const store = window.jotaiStore;
+        const store = getDefaultStore();
         const showAll = store.get(this.showAll);
 
         if (!showAll) {
@@ -83,6 +93,65 @@ class GoRoutinesModel {
         }
 
         store.set(this.showAll, !showAll);
+    }
+
+    async fetchAppRunGoroutines() {
+        if (!AppModel.rpcClient) return;
+
+        try {
+            const result = await RpcApi.GetAppRunGoroutinesCommand(AppModel.rpcClient, { apprunid: this.appRunId });
+            return result.goroutines;
+        } catch (error) {
+            console.error(`Failed to load goroutines for app run ${this.appRunId}:`, error);
+            return [];
+        }
+    }
+
+    // Load goroutines with a minimum time to show the refreshing state
+    async loadAppRunGoroutines(minTime: number = 0) {
+        if (!AppModel.rpcClient) return;
+
+        const startTime = new Date().getTime();
+        
+        try {
+            const goroutines = await this.fetchAppRunGoroutines();
+            
+            // If minTime is specified, ensure we wait at least that long
+            if (minTime > 0) {
+                const curTime = new Date().getTime();
+                if (curTime - startTime < minTime) {
+                    await new Promise((r) => setTimeout(r, minTime - (curTime - startTime)));
+                }
+            }
+            
+            getDefaultStore().set(this.appRunGoRoutines, goroutines);
+        } catch (error) {
+            console.error(`Failed to load goroutines for app run ${this.appRunId}:`, error);
+        }
+    }
+
+    // Refresh goroutines with a minimum time to show the refreshing state
+    async refresh() {
+        const store = getDefaultStore();
+
+        // If already refreshing, don't do anything
+        if (store.get(this.isRefreshing)) {
+            return;
+        }
+
+        // Set refreshing state to true
+        store.set(this.isRefreshing, true);
+
+        // Clear goroutines immediately
+        store.set(this.appRunGoRoutines, []);
+
+        try {
+            // Load new goroutines with a minimum time of 500ms to show the refreshing state
+            await this.loadAppRunGoroutines(500);
+        } finally {
+            // Set refreshing state to false
+            store.set(this.isRefreshing, false);
+        }
     }
 }
 

@@ -250,21 +250,16 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
             {isRefreshing && (
                 <div className="w-full h-full flex items-center justify-center">
                     <div className="flex items-center gap-2 text-primary">
-                        <RefreshCw size={16} className="animate-spin" />
                         <span>Refreshing logs...</span>
                     </div>
                 </div>
             )}
-            
+
             {!isRefreshing && filteredLogLines.length === 0 && (
-                <div className="w-full h-full flex items-center justify-center text-muted">
-                    No logs found
-                </div>
+                <div className="w-full h-full flex items-center justify-center text-muted">No logs found</div>
             )}
-            
-            {!isRefreshing && filteredLogLines.length > 0 && (
-                <LogList model={model} containerRef={containerRef} />
-            )}
+
+            {!isRefreshing && filteredLogLines.length > 0 && <LogList model={model} containerRef={containerRef} />}
         </div>
     );
 });
