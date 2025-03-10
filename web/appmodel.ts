@@ -175,9 +175,21 @@ class AppModel {
 
     selectAppRun(appRunId: string) {
         getDefaultStore().set(this.selectedAppRunId, appRunId);
-        this.loadAppRunLogs(appRunId);
+        this.selectLogsTab();
+    }
+
+    selectLogsTab() {
+        const appRunId = getDefaultStore().get(this.selectedAppRunId);
+        if (appRunId) {
+            this.loadAppRunLogs(appRunId);
+        }
         getDefaultStore().set(this.selectedTab, "logs");
-        this.updateUrl({ tab: "logs", appRunId });
+        this.updateUrl({ tab: "logs" });
+    }
+
+    selectAppRunsTab() {
+        getDefaultStore().set(this.selectedTab, "appruns");
+        this.updateUrl({ tab: "appruns" });
     }
 
     selectGoRoutinesTab() {

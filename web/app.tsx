@@ -50,13 +50,14 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
         if (TABS_REQUIRING_APP_RUN_ID.includes(name) && !selectedAppRunId) {
             return;
         }
-
         if (name === "goroutines") {
             AppModel.selectGoRoutinesTab();
+        } else if (name == "logs") {
+            AppModel.selectLogsTab();
+        } else if (name == "appruns") {
+            AppModel.selectAppRunsTab();
         } else {
-            setSelectedTab(name);
-            // Update URL when tab changes
-            AppModel.updateUrl({ tab: name });
+            console.log("unknown tab selected", name);
         }
     };
 
