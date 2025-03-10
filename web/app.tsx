@@ -4,12 +4,22 @@ import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
 import { GoRoutines } from "./goroutines/goroutines";
+import { DefaultRpcClient } from "./init";
 import { LogViewer } from "./logviewer/logviewer";
 import { StatusBar } from "./statusbar";
-import { DefaultRpcClient } from "./init";
+
+// Define tabs that require an app run ID to be selected
+// Add new tabs that require an app run ID to this array
+const TABS_REQUIRING_APP_RUN_ID = ["logs", "goroutines"];
 
 function MainTab() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
+    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
+
+    // If a tab requiring an app run ID is selected but no app run is selected, show app runs list
+    if (TABS_REQUIRING_APP_RUN_ID.includes(selectedTab) && !selectedAppRunId) {
+        return <AppRunList />;
+    }
 
     if (selectedTab === "logs") {
         return <LogViewer />;
@@ -32,8 +42,15 @@ function AppLogo() {
 
 function Tab({ name, displayName }: { name: string; displayName: string }) {
     const [selectedTab, setSelectedTab] = useAtom(AppModel.selectedTab);
+    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
     const handleTabClick = () => {
+        // If trying to navigate to a tab requiring an app run ID but no app run is selected,
+        // don't change the tab (the tabs won't be visible anyway due to conditional rendering)
+        if (TABS_REQUIRING_APP_RUN_ID.includes(name) && !selectedAppRunId) {
+            return;
+        }
+
         if (name === "goroutines") {
             AppModel.selectGoroutinesTab();
         } else {
@@ -70,14 +87,14 @@ function App() {
 
     useEffect(() => {
         AppModel.applyTheme();
-        
+
         // Set the default RPC client
         AppModel.setRpcClient(DefaultRpcClient);
-        
+
         // Load app runs after setting the RPC client
         AppModel.loadAppRuns();
     }, []);
-    
+
     // We no longer need this effect as URL updates are handled directly in the AppModel methods
 
     return (
@@ -87,8 +104,23 @@ function App() {
                     <AppLogo />
                     <div className="ml-3 flex">
                         <Tab name="appruns" displayName="App Runs" />
-                        <Tab name="logs" displayName="Logs" />
-                        <Tab name="goroutines" displayName="GoRoutines" />
+                        {selectedAppRunId && (
+                            <>
+                                {TABS_REQUIRING_APP_RUN_ID.map((tabName) => {
+                                    const displayNames: Record<string, string> = {
+                                        logs: "Logs",
+                                        goroutines: "GoRoutines",
+                                    };
+                                    return (
+                                        <Tab
+                                            key={tabName}
+                                            name={tabName}
+                                            displayName={displayNames[tabName] || tabName}
+                                        />
+                                    );
+                                })}
+                            </>
+                        )}
                     </div>
                 </div>
                 <button
