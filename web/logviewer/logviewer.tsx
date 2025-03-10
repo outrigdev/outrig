@@ -55,7 +55,14 @@ export const LogViewer: React.FC<object> = () => {
     const searchRef = useRef<HTMLInputElement>(null);
 
     // Find the selected app run
-    const selectedAppRun = appRuns.find(run => run.apprunid === selectedAppRunId);
+    const selectedAppRun = appRuns.find((run) => run.apprunid === selectedAppRunId);
+
+    useEffect(() => {
+        // Load logs when the component mounts if an app run is selected
+        if (selectedAppRunId) {
+            AppModel.loadAppRunLogs(selectedAppRunId);
+        }
+    }, [selectedAppRunId]);
 
     useEffect(() => {
         // on window focus, focus the search input
@@ -73,13 +80,9 @@ export const LogViewer: React.FC<object> = () => {
             <div className="py-2 px-4 border-b border-border">
                 <div className="flex justify-between items-center">
                     <h2 className="text-lg font-semibold text-primary">
-                        {selectedAppRun ? `Logs: ${selectedAppRun.appname}` : 'Logs'}
+                        {selectedAppRun ? `Logs: ${selectedAppRun.appname}` : "Logs"}
                     </h2>
-                    {selectedAppRun && (
-                        <div className="text-xs text-muted">
-                            ID: {selectedAppRun.apprunid}
-                        </div>
-                    )}
+                    {selectedAppRun && <div className="text-xs text-muted">ID: {selectedAppRun.apprunid}</div>}
                 </div>
             </div>
 

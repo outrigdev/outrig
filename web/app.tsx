@@ -38,6 +38,8 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
             AppModel.selectGoroutinesTab();
         } else {
             setSelectedTab(name);
+            // Update URL when tab changes
+            AppModel.updateUrl({ tab: name });
         }
     };
 
@@ -63,13 +65,20 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
 
 function App() {
     const darkMode = useAtomValue(AppModel.darkMode);
+    const selectedTab = useAtomValue(AppModel.selectedTab);
+    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
     useEffect(() => {
         AppModel.applyTheme();
         
         // Set the default RPC client
         AppModel.setRpcClient(DefaultRpcClient);
+        
+        // Load app runs after setting the RPC client
+        AppModel.loadAppRuns();
     }, []);
+    
+    // We no longer need this effect as URL updates are handled directly in the AppModel methods
 
     return (
         <div className="h-screen w-screen flex flex-col bg-panel">
