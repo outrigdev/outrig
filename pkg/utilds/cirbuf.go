@@ -13,9 +13,9 @@ type CirBuf[T any] struct {
 	Tail    int
 }
 
-// NewCirBuf creates a new circular buffer with the specified maximum size.
+// MakeCirBuf creates a new circular buffer with the specified maximum size.
 // The buffer is initially empty and will grow dynamically as elements are added.
-func NewCirBuf[T any](maxSize int) *CirBuf[T] {
+func MakeCirBuf[T any](maxSize int) *CirBuf[T] {
 	return &CirBuf[T]{
 		Lock:    &sync.Mutex{},
 		MaxSize: maxSize,

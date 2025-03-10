@@ -7,7 +7,7 @@ import (
 
 func TestCirBufBasicOperations(t *testing.T) {
 	// Create a new circular buffer with max size 5
-	cb := NewCirBuf[int](5)
+	cb := MakeCirBuf[int](5)
 
 	// Check initial state
 	if !cb.IsEmpty() {
@@ -71,7 +71,7 @@ func TestCirBufBasicOperations(t *testing.T) {
 
 func TestCirBufOverwrite(t *testing.T) {
 	// Create a new circular buffer with max size 3
-	cb := NewCirBuf[string](3)
+	cb := MakeCirBuf[string](3)
 
 	// Write more elements than the max size
 	kicked := cb.Write("A")
@@ -137,7 +137,7 @@ func TestCirBufOverwrite(t *testing.T) {
 
 func TestCirBufConcurrency(t *testing.T) {
 	// Create a new circular buffer with max size 100
-	cb := NewCirBuf[int](100)
+	cb := MakeCirBuf[int](100)
 
 	// Number of goroutines and operations
 	numGoroutines := 10

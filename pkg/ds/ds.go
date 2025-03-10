@@ -70,13 +70,13 @@ type AppInfo struct {
 }
 
 type GoroutineInfo struct {
-	Timestamp int64            `json:"timestamp"`
-	Count     int              `json:"count"`
-	Stacks    []GoroutineStack `json:"stacks"`
+	Ts     int64            `json:"ts"`
+	Count  int              `json:"count"`
+	Stacks []GoRoutineStack `json:"stacks"`
 }
 
-type GoroutineStack struct {
-	ID         int64  `json:"id"`
+type GoRoutineStack struct {
+	GoId       int64  `json:"goid"`
 	State      string `json:"state"`
 	StackTrace string `json:"stacktrace"`
 }

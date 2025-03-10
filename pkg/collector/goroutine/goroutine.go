@@ -96,7 +96,7 @@ func (gc *GoroutineCollector) DumpGoroutines() {
 // parseGoroutineStacks parses the output of runtime.Stack()
 func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.GoroutineInfo {
 	stacks := bytes.Split(stackData, []byte("\n\n"))
-	goroutineStacks := make([]ds.GoroutineStack, 0, len(stacks))
+	goroutineStacks := make([]ds.GoRoutineStack, 0, len(stacks))
 
 	// Regular expression to extract goroutine ID and state
 	re := regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\]`)
@@ -119,16 +119,16 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.Gorouti
 
 		state := matches[2]
 
-		goroutineStacks = append(goroutineStacks, ds.GoroutineStack{
-			ID:         id,
+		goroutineStacks = append(goroutineStacks, ds.GoRoutineStack{
+			GoId:       id,
 			State:      state,
 			StackTrace: strings.TrimSpace(stackStr),
 		})
 	}
 
 	return &ds.GoroutineInfo{
-		Timestamp: time.Now().UnixMilli(),
-		Count:     len(goroutineStacks),
-		Stacks:    goroutineStacks,
+		Ts:     time.Now().UnixMilli(),
+		Count:  len(goroutineStacks),
+		Stacks: goroutineStacks,
 	}
 }
