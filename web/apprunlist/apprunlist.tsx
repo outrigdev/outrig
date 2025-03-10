@@ -1,9 +1,21 @@
 import { useAtomValue } from "jotai";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { AppModel } from "../appmodel";
 
 export const AppRunList: React.FC = () => {
-    const appRuns = useAtomValue(AppModel.appRuns);
+    const unsortedAppRuns = useAtomValue(AppModel.appRuns);
+    
+    // Sort app runs: running apps at the top, then by start time (newest first)
+    const appRuns = useMemo(() => {
+        return [...unsortedAppRuns].sort((a, b) => {
+            // First sort by status (running at the top)
+            if (a.status === "running" && b.status !== "running") return -1;
+            if (a.status !== "running" && b.status === "running") return 1;
+            
+            // Then sort by start time (newest first)
+            return b.starttime - a.starttime;
+        });
+    }, [unsortedAppRuns]);
     
     useEffect(() => {
         // Load app runs when the component mounts
