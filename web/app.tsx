@@ -108,7 +108,7 @@ function App() {
 
     return (
         <div className="h-screen w-screen flex flex-col bg-panel">
-            <nav className="bg-panel px-4 border-b border-border flex justify-between items-center">
+            <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
                 <div className="flex items-center">
                     <AppLogo />
                     <div className="ml-3 flex">
@@ -134,9 +134,9 @@ function App() {
                 </div>
                 <button
                     onClick={() => AppModel.setDarkMode(!darkMode)}
-                    className="p-1.5 border border-border rounded-md text-primary hover:bg-buttonhover transition-colors cursor-pointer"
+                    className="p-1 border-none text-secondary hover:bg-buttonhover transition-colors cursor-pointer"
                 >
-                    {darkMode ? <Moon size={14} /> : <Sun size={14} />}
+                    {darkMode ? <Moon size={16} /> : <Sun size={16} />}
                 </button>
             </nav>
 

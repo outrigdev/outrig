@@ -82,6 +82,7 @@ export function StatusBar() {
                         <div className="flex items-center space-x-1">
                             <Box size={12} />
                             <span>{selectedAppRun.appname}</span>
+                            <span className="text-muted">({selectedAppRun.apprunid.substring(0, 8)})</span>
                         </div>
                         <ConnectionStatus status={selectedAppRun.status} />
                     </>

@@ -2,7 +2,6 @@ import { useAtom, useAtomValue } from "jotai";
 import { Filter, RefreshCw } from "lucide-react";
 import React, { JSX, useEffect, useRef, useState } from "react";
 import { VariableSizeList as List } from "react-window";
-import { AppModel } from "../appmodel";
 import { LogViewerModel } from "./logviewer-model";
 
 // Utility functions
@@ -78,36 +77,12 @@ const RefreshButton = React.memo<RefreshButtonProps>(({ model }) => {
     return (
         <button
             onClick={handleRefresh}
-            className={`p-1 rounded hover:bg-buttonhover text-muted hover:text-primary cursor-pointer ${isAnimating ? "refresh-spin" : ""}`}
+            className={`p-1 mr-1 rounded hover:bg-buttonhover text-muted hover:text-primary cursor-pointer ${isAnimating ? "refresh-spin" : ""}`}
             title="Refresh logs"
             disabled={isRefreshing || isAnimating}
         >
             <RefreshCw size={16} />
         </button>
-    );
-});
-
-// Header component
-interface LogViewerHeaderProps {
-    model: LogViewerModel;
-    appRunId: string;
-    className?: string;
-}
-
-const LogViewerHeader = React.memo<LogViewerHeaderProps>(({ model, appRunId, className }) => {
-    const appRunAtom = useRef(AppModel.getAppRunInfoAtom(appRunId));
-    const appRun = useAtomValue(appRunAtom.current);
-
-    return (
-        <div className={`py-2 px-4 border-b border-border ${className || ""}`}>
-            <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-primary">{appRun ? `Logs: ${appRun.appname}` : "Logs"}</h2>
-                <div className="flex items-center gap-4">
-                    {appRun && <div className="text-xs text-muted">ID: {appRun.apprunid}</div>}
-                    <RefreshButton model={model} />
-                </div>
-            </div>
-        </div>
     );
 });
 
@@ -123,28 +98,31 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
 
     return (
         <div className={`py-1 px-1 border-b border-border ${className || ""}`}>
-            <div className="flex items-center">
-                {/* Line number space - 6 characters wide with right-aligned filter icon */}
-                <div className="select-none pr-2 text-muted w-12 text-right font-mono flex justify-end items-center">
-                    <Filter
-                        size={16}
-                        className="text-muted"
-                        fill="currentColor"
-                        stroke="currentColor"
-                        strokeWidth={1}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center flex-grow">
+                    {/* Line number space - 6 characters wide with right-aligned filter icon */}
+                    <div className="select-none pr-2 text-muted w-12 text-right font-mono flex justify-end items-center">
+                        <Filter
+                            size={16}
+                            className="text-muted"
+                            fill="currentColor"
+                            stroke="currentColor"
+                            strokeWidth={1}
+                        />
+                    </div>
+
+                    {/* Filter input */}
+                    <input
+                        ref={searchRef}
+                        type="text"
+                        placeholder="filter..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
+                                border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
-
-                {/* Filter input */}
-                <input
-                    ref={searchRef}
-                    type="text"
-                    placeholder="filter..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
-                               border-none ring-0 outline-none focus:outline-none focus:ring-0"
-                />
+                <RefreshButton model={model} />
             </div>
         </div>
     );
@@ -290,7 +268,6 @@ export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
 
     return (
         <div className="w-full h-full flex flex-col overflow-hidden">
-            <LogViewerHeader model={model} appRunId={appRunId} className="flex-shrink-0" />
             <LogViewerFilter model={model} searchRef={searchRef} className="flex-shrink-0" />
 
             {/* Subtle divider */}
