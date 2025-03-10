@@ -28,22 +28,25 @@ function formatSource(source: string): JSX.Element {
     return <span className={srcStr === "stderr" ? "text-error" : "text-muted"}>[{padded}]</span>;
 }
 
-// Individual log line component
+// Individual log line component that also serves as a row for react-window
 interface LogLineViewProps {
     line: LogLine;
+    style?: React.CSSProperties;
 }
 
-const LogLineView = React.memo<LogLineViewProps>(({ line }) => {
+const LogLineView = React.memo<LogLineViewProps>(({ line, style }) => {
     if (line == null) {
         return null;
     }
 
     return (
-        <div className="flex whitespace-nowrap hover:bg-buttonhover">
-            <div className="select-none pr-2 text-muted w-12 text-right">{formatLineNumber(line.linenum, 4)}</div>
-            <div>
-                <span className="text-secondary">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
-                {formatSource(line.source)} <span className="text-primary">{line.msg}</span>
+        <div style={style}>
+            <div className="flex whitespace-nowrap hover:bg-buttonhover">
+                <div className="select-none pr-2 text-muted w-12 text-right">{formatLineNumber(line.linenum, 4)}</div>
+                <div>
+                    <span className="text-secondary">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
+                    {formatSource(line.source)} <span className="text-primary">{line.msg}</span>
+                </div>
             </div>
         </div>
     );
@@ -153,13 +156,12 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
         updateDimensions();
 
         // Set up resize observer
+        const observedElement = containerRef.current;
         const resizeObserver = new ResizeObserver(updateDimensions);
-        resizeObserver.observe(containerRef.current);
+        resizeObserver.observe(observedElement);
 
         return () => {
-            if (containerRef.current) {
-                resizeObserver.unobserve(containerRef.current);
-            }
+            resizeObserver.unobserve(observedElement);
             resizeObserver.disconnect();
         };
     }, []);
@@ -171,19 +173,12 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
         }
     }, [filteredLogLines]);
 
-    // Row renderer function
-    const Row = React.memo(({ index, style }: { index: number; style: React.CSSProperties }) => {
+    // Row renderer function that directly uses LogLineView
+    const rowRenderer = ({ index, style }: { index: number; style: React.CSSProperties }) => {
         const line = filteredLogLines[index];
         if (!line) return null;
-
-        console.log("render", line.linenum);
-
-        return (
-            <div style={style}>
-                <LogLineView key={line.linenum} line={line} />
-            </div>
-        );
-    });
+        return <LogLineView line={line} style={style} />;
+    };
 
     return (
         <div ref={containerRef} className="w-full h-full overflow-hidden flex-1">
@@ -198,7 +193,7 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
                         overscanCount={20}
                         itemKey={(index) => filteredLogLines[index]?.linenum.toString() || index.toString()}
                     >
-                        {Row}
+                        {rowRenderer}
                     </List>
                 </div>
             )}
