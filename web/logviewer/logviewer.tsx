@@ -1,6 +1,7 @@
 import { useAtom, useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
-import React, { JSX, useEffect, useRef } from "react";
+import React, { JSX, useEffect, useRef, useState } from "react";
+import { VariableSizeList as List } from "react-window";
 import { AppModel } from "../appmodel";
 import { LogViewerModel } from "./logviewer-model";
 
@@ -51,17 +52,18 @@ const LogLineView = React.memo<LogLineViewProps>(({ line }) => {
 // Header component
 interface LogViewerHeaderProps {
     model: LogViewerModel;
+    className?: string;
 }
 
-const LogViewerHeader = React.memo<LogViewerHeaderProps>(({ model }) => {
+const LogViewerHeader = React.memo<LogViewerHeaderProps>(({ model, className }) => {
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const appRuns = useAtomValue(AppModel.appRuns);
-    
+
     // Find the selected app run
     const selectedAppRun = appRuns.find((run) => run.apprunid === selectedAppRunId);
-    
+
     return (
-        <div className="py-2 px-4 border-b border-border">
+        <div className={`py-2 px-4 border-b border-border ${className || ""}`}>
             <div className="flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-primary">
                     {selectedAppRun ? `Logs: ${selectedAppRun.appname}` : "Logs"}
@@ -76,13 +78,14 @@ const LogViewerHeader = React.memo<LogViewerHeaderProps>(({ model }) => {
 interface LogViewerFilterProps {
     model: LogViewerModel;
     searchRef: React.RefObject<HTMLInputElement>;
+    className?: string;
 }
 
-const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef }) => {
+const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, className }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
-    
+
     return (
-        <div className="py-1 px-1 border-b border-border">
+        <div className={`py-1 px-1 border-b border-border ${className || ""}`}>
             <div className="flex items-center">
                 {/* Line number space - 6 characters wide with right-aligned filter icon */}
                 <div className="select-none pr-2 text-muted w-12 text-right font-mono flex justify-end items-center">
@@ -117,14 +120,88 @@ interface LogViewerContentProps {
 
 const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
     const filteredLogLines = useAtomValue(model.filteredLogLines);
-    
-    return (
-        <div className="w-full h-full overflow-auto flex-1 px-1 pt-2">
-            <div className="w-full min-w-[1200px] h-full font-mono text-xs leading-tight">
-                {filteredLogLines.map((line) => {
-                    return <LogLineView key={line.linenum} line={line} />;
-                })}
+    const containerRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<List>(null);
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    // Default line height (for single-line logs)
+    const DEFAULT_LINE_HEIGHT = 20;
+
+    // Function to calculate item height - currently all items have the same height
+    // but in the future this could vary based on content (stack traces, wrapping, etc.)
+    const getItemHeight = (index: number) => {
+        // For now, all items have the same height
+        // In the future, this could analyze the log line to determine if it's a stack trace
+        // or calculate height based on content length if wrapping is enabled
+        return DEFAULT_LINE_HEIGHT;
+    };
+
+    // Update dimensions when the container is resized
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const updateDimensions = () => {
+            if (containerRef.current) {
+                setDimensions({
+                    width: containerRef.current.offsetWidth,
+                    height: containerRef.current.offsetHeight,
+                });
+            }
+        };
+
+        // Initial dimensions
+        updateDimensions();
+
+        // Set up resize observer
+        const resizeObserver = new ResizeObserver(updateDimensions);
+        resizeObserver.observe(containerRef.current);
+
+        return () => {
+            if (containerRef.current) {
+                resizeObserver.unobserve(containerRef.current);
+            }
+            resizeObserver.disconnect();
+        };
+    }, []);
+
+    // Reset list item size cache when filtered logs change
+    useEffect(() => {
+        if (listRef.current) {
+            listRef.current.resetAfterIndex(0);
+        }
+    }, [filteredLogLines]);
+
+    // Row renderer function
+    const Row = React.memo(({ index, style }: { index: number; style: React.CSSProperties }) => {
+        const line = filteredLogLines[index];
+        if (!line) return null;
+
+        console.log("render", line.linenum);
+
+        return (
+            <div style={style}>
+                <LogLineView key={line.linenum} line={line} />
             </div>
+        );
+    });
+
+    return (
+        <div ref={containerRef} className="w-full h-full overflow-hidden flex-1">
+            {dimensions.height > 0 && filteredLogLines.length > 0 && (
+                <div className="w-full min-w-[1200px] h-full font-mono text-xs leading-tight px-1 pt-2">
+                    <List
+                        ref={listRef}
+                        height={dimensions.height}
+                        width="100%"
+                        itemCount={filteredLogLines.length}
+                        itemSize={getItemHeight}
+                        overscanCount={20}
+                        itemKey={(index) => filteredLogLines[index]?.linenum.toString() || index.toString()}
+                    >
+                        {Row}
+                    </List>
+                </div>
+            )}
         </div>
     );
 });
@@ -154,13 +231,13 @@ export const LogViewer = React.memo<object>(() => {
     }, []);
 
     return (
-        <div className="w-full h-full flex flex-col">
-            <LogViewerHeader model={model} />
-            <LogViewerFilter model={model} searchRef={searchRef} />
-            
+        <div className="w-full h-full flex flex-col overflow-hidden">
+            <LogViewerHeader model={model} className="flex-shrink-0" />
+            <LogViewerFilter model={model} searchRef={searchRef} className="flex-shrink-0" />
+
             {/* Subtle divider */}
-            <div className="h-px bg-border"></div>
-            
+            <div className="h-px bg-border flex-shrink-0"></div>
+
             <LogViewerContent model={model} />
         </div>
     );
