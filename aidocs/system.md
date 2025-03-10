@@ -29,3 +29,18 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 - Use the Outrig RPC system to communicate between the TypeScript frontend and Go backend. Methods are defined in `rpctypes.go` and exposed through generated code in `rpcclientapi.ts`. Refer to `aidocs/rpc.md` for details on usage and options.
 - RPC calls are highly performant, typically running over WebSockets locally on the same machine.
+- The RPC system is initialized in `web/init.ts` which creates a global `DefaultRpcClient` that should be used throughout the application. Don't create new RPC clients in components.
+- To use the RPC client in a component, import `DefaultRpcClient` from `./init` and set it in the AppModel using `AppModel.setRpcClient(DefaultRpcClient)`.
+
+### Data Structures
+
+- **AppRunPeer**: Represents a connection to a running Go application. Each app run has a unique ID and contains information about the app, logs, and goroutines.
+- **CirBuf**: A generic circular buffer implementation used for storing logs and other data. Use the `GetAll()` method to retrieve all items in the buffer.
+- **SyncMap**: A thread-safe map implementation. Use the `Keys()` method to get all keys and `GetEx()` to safely retrieve values.
+
+### Frontend Architecture
+
+- The application uses Jotai for state management. The main app state is defined in `web/appmodel.ts`.
+- When working with Jotai atoms that need to be updated, define them as `PrimitiveAtom<Type>` rather than just `atom<Type>`.
+- The frontend is organized into components for different views (LogViewer, AppRunList, etc.) that use the AppModel to access shared state.
+- The app uses a tab-based navigation system where the selected tab determines which component is displayed.

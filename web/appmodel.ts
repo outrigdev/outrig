@@ -18,6 +18,8 @@ class AppModel {
     appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);
     selectedAppRunId: PrimitiveAtom<string> = atom<string>("");
     appRunLogs: PrimitiveAtom<LogLine[]> = atom<LogLine[]>([]);
+    appRunGoroutines: PrimitiveAtom<GoroutineData[]> = atom<GoroutineData[]>([]);
+    isLoadingGoroutines: PrimitiveAtom<boolean> = atom<boolean>(false);
     
     // RPC client
     rpcClient: RpcClient | null = null;
@@ -53,10 +55,33 @@ class AppModel {
         }
     }
 
+    async loadAppRunGoroutines(appRunId: string) {
+        if (!this.rpcClient) return;
+        
+        try {
+            getDefaultStore().set(this.isLoadingGoroutines, true);
+            const result = await RpcApi.GetAppRunGoroutinesCommand(this.rpcClient, { apprunid: appRunId });
+            getDefaultStore().set(this.appRunGoroutines, result.goroutines);
+            getDefaultStore().set(this.selectedAppRunId, appRunId);
+        } catch (error) {
+            console.error(`Failed to load goroutines for app run ${appRunId}:`, error);
+        } finally {
+            getDefaultStore().set(this.isLoadingGoroutines, false);
+        }
+    }
+
     selectAppRun(appRunId: string) {
         getDefaultStore().set(this.selectedAppRunId, appRunId);
         this.loadAppRunLogs(appRunId);
         getDefaultStore().set(this.selectedTab, "logs");
+    }
+
+    selectGoroutinesTab() {
+        const appRunId = getDefaultStore().get(this.selectedAppRunId);
+        if (appRunId) {
+            this.loadAppRunGoroutines(appRunId);
+        }
+        getDefaultStore().set(this.selectedTab, "goroutines");
     }
 
     applyTheme(): void {

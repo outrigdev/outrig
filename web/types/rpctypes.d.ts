@@ -5,6 +5,13 @@
 
 declare global {
 
+    // rpctypes.AppRunGoroutinesData
+    type AppRunGoroutinesData = {
+        apprunid: string;
+        appname: string;
+        goroutines: GoroutineData[];
+    };
+
     // rpctypes.AppRunInfo
     type AppRunInfo = {
         apprunid: string;
@@ -57,10 +64,17 @@ declare global {
 
     // EventType union (rpctypes.EventToTypeMap)
     type EventType = 
-        | (EventCommonFields & { event: "route:down"; data?: null })
         | (EventCommonFields & { event: "route:up"; data?: null })
         | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
+        | (EventCommonFields & { event: "route:down"; data?: null })
     ;
+
+    // rpctypes.GoroutineData
+    type GoroutineData = {
+        goid: number;
+        state: string;
+        stacktrace: string;
+    };
 
     // ds.LogLine
     type LogLine = {

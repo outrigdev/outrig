@@ -39,6 +39,7 @@ type FullRpcInterface interface {
 	// app run commands
 	GetAppRunsCommand(ctx context.Context) (AppRunsData, error)
 	GetAppRunLogsCommand(ctx context.Context, data AppRunRequest) (AppRunLogsData, error)
+	GetAppRunGoroutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoroutinesData, error)
 
 	// event commands
 	EventPublishCommand(ctx context.Context, data EventType) error
@@ -117,6 +118,18 @@ type AppRunLogsData struct {
 	AppRunId string       `json:"apprunid"`
 	AppName  string       `json:"appname"`
 	Logs     []ds.LogLine `json:"logs"`
+}
+
+type GoroutineData struct {
+	GoId       int64  `json:"goid"`
+	State      string `json:"state"`
+	StackTrace string `json:"stacktrace"`
+}
+
+type AppRunGoroutinesData struct {
+	AppRunId   string          `json:"apprunid"`
+	AppName    string          `json:"appname"`
+	Goroutines []GoroutineData `json:"goroutines"`
 }
 
 type EventReadHistoryData struct {

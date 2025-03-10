@@ -108,3 +108,45 @@ func (*RpcServerImpl) GetAppRunLogsCommand(ctx context.Context, data rpctypes.Ap
 		Logs:     logLines,
 	}, nil
 }
+
+// GetAppRunGoroutinesCommand returns goroutines for a specific app run
+func (*RpcServerImpl) GetAppRunGoroutinesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunGoroutinesData, error) {
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId)
+	if peer == nil || peer.AppInfo == nil {
+		return rpctypes.AppRunGoroutinesData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Get all goroutine keys
+	goroutineKeys := peer.GoRoutines.Keys()
+	goroutines := make([]rpctypes.GoroutineData, 0, len(goroutineKeys))
+
+	// For each goroutine, get the most recent stack trace
+	for _, key := range goroutineKeys {
+		goroutine, exists := peer.GoRoutines.GetEx(key)
+		if !exists || goroutine.StackTraces.IsEmpty() {
+			continue
+		}
+
+		// Get the most recent stack trace
+		stackTraces := goroutine.StackTraces.GetAll()
+		if len(stackTraces) == 0 {
+			continue
+		}
+
+		// Use the most recent stack trace
+		latestStack := stackTraces[len(stackTraces)-1]
+		
+		goroutines = append(goroutines, rpctypes.GoroutineData{
+			GoId:       latestStack.GoId,
+			State:      latestStack.State,
+			StackTrace: latestStack.StackTrace,
+		})
+	}
+
+	return rpctypes.AppRunGoroutinesData{
+		AppRunId:   peer.AppRunId,
+		AppName:    peer.AppInfo.AppName,
+		Goroutines: goroutines,
+	}, nil
+}

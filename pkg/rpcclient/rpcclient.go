@@ -46,6 +46,12 @@ func EventUnsubAllCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) error {
 	return err
 }
 
+// command "getapprungoroutines", rpctypes.GetAppRunGoroutinesCommand
+func GetAppRunGoroutinesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunGoroutinesData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunGoroutinesData](w, "getapprungoroutines", data, opts)
+	return resp, err
+}
+
 // command "getapprunlogs", rpctypes.GetAppRunLogsCommand
 func GetAppRunLogsCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunLogsData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunLogsData](w, "getapprunlogs", data, opts)

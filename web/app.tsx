@@ -3,6 +3,7 @@ import { Moon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
+import { GoRoutines } from "./goroutines/goroutines";
 import { LogViewer } from "./logviewer/logviewer";
 import { StatusBar } from "./statusbar";
 import { DefaultRpcClient } from "./init";
@@ -14,6 +15,8 @@ function MainTab() {
         return <LogViewer />;
     } else if (selectedTab === "appruns") {
         return <AppRunList />;
+    } else if (selectedTab === "goroutines") {
+        return <GoRoutines />;
     }
 
     return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;
@@ -30,9 +33,17 @@ function AppLogo() {
 function Tab({ name, displayName }: { name: string; displayName: string }) {
     const [selectedTab, setSelectedTab] = useAtom(AppModel.selectedTab);
 
+    const handleTabClick = () => {
+        if (name === "goroutines") {
+            AppModel.selectGoroutinesTab();
+        } else {
+            setSelectedTab(name);
+        }
+    };
+
     return (
         <button
-            onClick={() => setSelectedTab(name)}
+            onClick={handleTabClick}
             data-selected={selectedTab === name || undefined}
             className="relative px-4 py-2 text-secondary text-sm data-[selected]:text-primary
                 data-[selected]:after:content-[''] data-[selected]:after:absolute 

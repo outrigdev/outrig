@@ -1,6 +1,15 @@
+import { getDefaultStore } from "jotai";
 import { RpcClient } from "./rpc/rpc";
 import { RpcRouter } from "./rpc/rpcrouter";
 import { addWSReconnectHandler, WebSocketController } from "./websocket/client";
+
+// Make the jotai store available globally
+declare global {
+    interface Window {
+        jotaiStore: any;
+    }
+}
+window.jotaiStore = getDefaultStore();
 
 const WebSocketEndpoint = "ws://localhost:5006/ws";
 const RouteIdStorageKey = "outrig:routeid";
