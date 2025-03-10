@@ -2,6 +2,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { Filter, RefreshCw } from "lucide-react";
 import React, { useEffect, useRef } from "react";
 import { AppModel } from "../appmodel";
+import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
 
 interface GoroutineViewProps {
@@ -16,38 +17,13 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine }) => {
     return (
         <div className="mb-4 p-3 border border-border rounded-md hover:bg-buttonhover">
             <div className="flex justify-between items-center mb-2">
-                <div className="font-semibold text-primary">
-                    Goroutine {goroutine.goid}
-                </div>
-                <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">
-                    {goroutine.state}
-                </div>
+                <div className="font-semibold text-primary">Goroutine {goroutine.goid}</div>
+                <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">{goroutine.state}</div>
             </div>
             <pre className="text-xs text-primary overflow-auto whitespace-pre-wrap bg-panel p-2 rounded max-h-60">
                 {goroutine.stacktrace}
             </pre>
         </div>
-    );
-};
-
-interface StateFilterProps {
-    state: string;
-    isSelected: boolean;
-    onToggle: () => void;
-}
-
-const StateFilter: React.FC<StateFilterProps> = ({ state, isSelected, onToggle }) => {
-    return (
-        <button
-            onClick={onToggle}
-            className={`px-2 py-1 text-xs rounded-full mr-2 mb-2 transition-colors ${
-                isSelected 
-                    ? 'bg-primary/20 text-primary border border-primary/30' 
-                    : 'bg-secondary/10 text-secondary border border-secondary/20 hover:bg-secondary/20'
-            }`}
-        >
-            {state}
-        </button>
     );
 };
 
@@ -60,11 +36,11 @@ export const GoRoutines: React.FC = () => {
     const availableStates = useAtomValue(model.availableStates);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const appRuns = useAtomValue(AppModel.appRuns);
-    const isLoading = useAtomValue(AppModel.isLoadingGoroutines);
+    const isLoading = useAtomValue(AppModel.isLoadingGoRoutines);
     const searchRef = useRef<HTMLInputElement>(null);
 
     // Find the selected app run
-    const selectedAppRun = appRuns.find(run => run.apprunid === selectedAppRunId);
+    const selectedAppRun = appRuns.find((run) => run.apprunid === selectedAppRunId);
 
     useEffect(() => {
         // Load goroutines when the component mounts if an app run is selected
@@ -92,15 +68,11 @@ export const GoRoutines: React.FC = () => {
             <div className="py-2 px-4 border-b border-border">
                 <div className="flex justify-between items-center">
                     <h2 className="text-lg font-semibold text-primary">
-                        {selectedAppRun ? `Goroutines: ${selectedAppRun.appname}` : 'Goroutines'}
+                        {selectedAppRun ? `Goroutines: ${selectedAppRun.appname}` : "Goroutines"}
                     </h2>
                     <div className="flex items-center space-x-2">
-                        {selectedAppRun && (
-                            <div className="text-xs text-muted">
-                                ID: {selectedAppRun.apprunid}
-                            </div>
-                        )}
-                        <button 
+                        {selectedAppRun && <div className="text-xs text-muted">ID: {selectedAppRun.apprunid}</div>}
+                        <button
                             onClick={handleRefresh}
                             className="p-1.5 border border-border rounded-md text-primary hover:bg-buttonhover transition-colors cursor-pointer"
                             disabled={isLoading}
@@ -138,15 +110,11 @@ export const GoRoutines: React.FC = () => {
             {/* State filters */}
             <div className="px-4 py-2 border-b border-border">
                 <div className="flex flex-wrap items-center">
-                    <StateFilter 
-                        state="Show All" 
-                        isSelected={showAll} 
-                        onToggle={handleToggleShowAll} 
-                    />
-                    {availableStates.map(state => (
-                        <StateFilter 
+                    <Tag label="Show All" isSelected={showAll} onToggle={handleToggleShowAll} />
+                    {availableStates.map((state) => (
+                        <Tag
                             key={state}
-                            state={state}
+                            label={state}
                             isSelected={selectedStates.has(state)}
                             onToggle={() => handleToggleState(state)}
                         />
@@ -157,18 +125,14 @@ export const GoRoutines: React.FC = () => {
             {/* Goroutines content */}
             <div className="w-full h-full overflow-auto flex-1 p-4">
                 {isLoading ? (
-                    <div className="flex items-center justify-center h-full text-secondary">
-                        Loading goroutines...
-                    </div>
+                    <div className="flex items-center justify-center h-full text-secondary">Loading goroutines...</div>
                 ) : filteredGoroutines.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-secondary">
                         {search || !showAll ? "No goroutines match the filter" : "No goroutines found"}
                     </div>
                 ) : (
                     <div>
-                        <div className="mb-2 text-sm text-secondary">
-                            {filteredGoroutines.length} goroutines
-                        </div>
+                        <div className="mb-2 text-sm text-secondary">{filteredGoroutines.length} goroutines</div>
                         {filteredGoroutines.map((goroutine) => (
                             <GoroutineView key={goroutine.goid} goroutine={goroutine} />
                         ))}

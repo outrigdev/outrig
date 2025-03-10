@@ -26,8 +26,8 @@ class AppModel {
     appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);
     selectedAppRunId: PrimitiveAtom<string> = atom<string>("");
     appRunLogs: PrimitiveAtom<LogLine[]> = atom<LogLine[]>([]);
-    appRunGoroutines: PrimitiveAtom<GoroutineData[]> = atom<GoroutineData[]>([]);
-    isLoadingGoroutines: PrimitiveAtom<boolean> = atom<boolean>(false);
+    appRunGoRoutines: PrimitiveAtom<GoroutineData[]> = atom<GoroutineData[]>([]);
+    isLoadingGoRoutines: PrimitiveAtom<boolean> = atom<boolean>(false);
 
     // Flag to prevent URL updates during initialization
     private _isInitializing: boolean = true;
@@ -56,7 +56,7 @@ class AppModel {
         // Store the appRunId from URL to be set after we verify it exists
         if (appRunIdParam) {
             this._pendingAppRunId = appRunIdParam;
-            
+
             // Also store the tab we're on, so we can load the right data
             if (tabParam === "logs" || tabParam === "goroutines") {
                 this._pendingTab = tabParam;
@@ -118,10 +118,10 @@ class AppModel {
 
                 if (appRunExists) {
                     const appRunId = this._pendingAppRunId as string;
-                    
+
                     // Set the appRunId
                     getDefaultStore().set(this.selectedAppRunId, appRunId);
-                    
+
                     // Load the appropriate data based on the tab
                     if (this._pendingTab === "goroutines") {
                         this.loadAppRunGoroutines(appRunId);
@@ -161,14 +161,14 @@ class AppModel {
         if (!this.rpcClient) return;
 
         try {
-            getDefaultStore().set(this.isLoadingGoroutines, true);
+            getDefaultStore().set(this.isLoadingGoRoutines, true);
             const result = await RpcApi.GetAppRunGoroutinesCommand(this.rpcClient, { apprunid: appRunId });
-            getDefaultStore().set(this.appRunGoroutines, result.goroutines);
+            getDefaultStore().set(this.appRunGoRoutines, result.goroutines);
             getDefaultStore().set(this.selectedAppRunId, appRunId);
         } catch (error) {
             console.error(`Failed to load goroutines for app run ${appRunId}:`, error);
         } finally {
-            getDefaultStore().set(this.isLoadingGoroutines, false);
+            getDefaultStore().set(this.isLoadingGoRoutines, false);
         }
     }
 
@@ -179,7 +179,7 @@ class AppModel {
         this.updateUrl({ tab: "logs", appRunId });
     }
 
-    selectGoroutinesTab() {
+    selectGoRoutinesTab() {
         const appRunId = getDefaultStore().get(this.selectedAppRunId);
         if (appRunId) {
             this.loadAppRunGoroutines(appRunId);

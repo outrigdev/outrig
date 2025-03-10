@@ -21,6 +21,10 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - In TypeScript for Jotai atoms, if we want to write, we need to type the atom as a PrimitiveAtom<Type>
 - Jotai has a bug with strick null checks off where if you create a null atom, e.g. atom(null) it does not "type" correctly. That's no issue, just cast it to the proper PrimitiveAtom type (no "| null") and it will work fine.
 
+### Styling
+
+- We use tailwind v4 to style. Custom stuff is defined in app.css. We have both light/dark mode styles that are defined via CSS variables.
+
 ### Code Generation
 
 - **TypeScript Types**: TypeScript types are automatically generated from Go types. After modifying Go types in `pkg/rpctypes/rpctypes.go`, run `task generate` to update the TypeScript type definitions in `web/types/rpctypes.d.ts`.

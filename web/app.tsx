@@ -52,7 +52,7 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
         }
 
         if (name === "goroutines") {
-            AppModel.selectGoroutinesTab();
+            AppModel.selectGoRoutinesTab();
         } else {
             setSelectedTab(name);
             // Update URL when tab changes
