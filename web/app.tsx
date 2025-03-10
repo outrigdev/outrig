@@ -1,3 +1,4 @@
+import { keydownWrapper } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
 import { Moon, Sun } from "lucide-react";
 import { useEffect } from "react";
@@ -5,6 +6,7 @@ import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
 import { GoRoutines } from "./goroutines/goroutines";
 import { DefaultRpcClient } from "./init";
+import { appHandleKeyDown } from "./keymodel";
 import { LogViewer } from "./logviewer/logviewer";
 import { StatusBar } from "./statusbar";
 
@@ -94,6 +96,12 @@ function App() {
 
         // Load app runs after setting the RPC client
         AppModel.loadAppRuns();
+
+        const staticKeyDownHandler = keydownWrapper(appHandleKeyDown);
+        document.addEventListener("keydown", staticKeyDownHandler);
+        return () => {
+            document.removeEventListener("keydown", staticKeyDownHandler);
+        };
     }, []);
 
     // We no longer need this effect as URL updates are handled directly in the AppModel methods

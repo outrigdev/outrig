@@ -175,6 +175,7 @@ class AppModel {
 
     selectAppRun(appRunId: string) {
         getDefaultStore().set(this.selectedAppRunId, appRunId);
+        this.updateUrl({ appRunId: appRunId });
         this.selectLogsTab();
     }
 

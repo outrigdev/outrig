@@ -1,3 +1,4 @@
+import { registerGlobalKeys } from "@/keymodel";
 import { getDefaultStore } from "jotai";
 import { RpcClient } from "./rpc/rpc";
 import { RpcRouter } from "./rpc/rpcrouter";
@@ -45,6 +46,7 @@ function initRpcSystem() {
             DefaultRouter.recvRpcMessage(msg);
         },
     });
+    registerGlobalKeys();
     window.addEventListener("focus", () => GlobalWS._handleWindowFocus());
     DefaultRouter = new RpcRouter(new UpstreamWshRpcProxy());
     DefaultRpcClient = new RpcClient(DefaultRouter, routeId);
