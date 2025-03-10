@@ -64,48 +64,17 @@ const GoRoutinesHeader: React.FC<GoRoutinesHeaderProps> = ({ appRunId, model }) 
     );
 };
 
-// Search filter component
-interface GoRoutinesFilterProps {
+// Combined filters component for both search and state filters
+interface GoRoutinesFiltersProps {
     model: GoRoutinesModel;
 }
 
-const GoRoutinesFilter: React.FC<GoRoutinesFilterProps> = ({ model }) => {
+const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
-    const searchRef = useRef<HTMLInputElement>(null);
-
-    return (
-        <div className="py-1 px-4 border-b border-border">
-            <div className="flex items-center">
-                <Filter
-                    size={16}
-                    className="text-muted mr-2"
-                    fill="currentColor"
-                    stroke="currentColor"
-                    strokeWidth={1}
-                />
-                <input
-                    ref={searchRef}
-                    type="text"
-                    placeholder="Filter goroutines..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
-                               border-none ring-0 outline-none focus:outline-none focus:ring-0"
-                />
-            </div>
-        </div>
-    );
-};
-
-// State filters component
-interface GoRoutinesStateFiltersProps {
-    model: GoRoutinesModel;
-}
-
-const GoRoutinesStateFilters: React.FC<GoRoutinesStateFiltersProps> = ({ model }) => {
     const [showAll, setShowAll] = useAtom(model.showAll);
     const [selectedStates, setSelectedStates] = useAtom(model.selectedStates);
     const availableStates = useAtomValue(model.availableStates);
+    const searchRef = useRef<HTMLInputElement>(null);
 
     const handleToggleShowAll = () => {
         model.toggleShowAll();
@@ -116,19 +85,47 @@ const GoRoutinesStateFilters: React.FC<GoRoutinesStateFiltersProps> = ({ model }
     };
 
     return (
-        <div className="px-4 py-2 border-b border-border">
-            <div className="flex flex-wrap items-center">
-                <Tag label="Show All" isSelected={showAll} onToggle={handleToggleShowAll} />
-                {availableStates.map((state) => (
-                    <Tag
-                        key={state}
-                        label={state}
-                        isSelected={selectedStates.has(state)}
-                        onToggle={() => handleToggleState(state)}
+        <>
+            {/* Search filter */}
+            <div className="py-1 px-4 border-b border-border">
+                <div className="flex items-center">
+                    <Filter
+                        size={16}
+                        className="text-muted mr-2"
+                        fill="currentColor"
+                        stroke="currentColor"
+                        strokeWidth={1}
                     />
-                ))}
+                    <input
+                        ref={searchRef}
+                        type="text"
+                        placeholder="Filter goroutines..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
+                                border-none ring-0 outline-none focus:outline-none focus:ring-0"
+                    />
+                </div>
             </div>
-        </div>
+
+            {/* Subtle divider */}
+            <div className="h-px bg-border"></div>
+
+            {/* State filters */}
+            <div className="px-4 py-2 border-b border-border">
+                <div className="flex flex-wrap items-center">
+                    <Tag label="Show All" isSelected={showAll} onToggle={handleToggleShowAll} />
+                    {availableStates.map((state) => (
+                        <Tag
+                            key={state}
+                            label={state}
+                            isSelected={selectedStates.has(state)}
+                            onToggle={() => handleToggleState(state)}
+                        />
+                    ))}
+                </div>
+            </div>
+        </>
     );
 };
 
@@ -183,12 +180,7 @@ export const GoRoutines: React.FC<GoRoutinesProps> = ({ appRunId }) => {
     return (
         <div className="w-full h-full flex flex-col">
             <GoRoutinesHeader appRunId={appRunId} model={model} />
-            <GoRoutinesFilter model={model} />
-            
-            {/* Subtle divider */}
-            <div className="h-px bg-border"></div>
-            
-            <GoRoutinesStateFilters model={model} />
+            <GoRoutinesFilters model={model} />
             <GoRoutinesContent model={model} />
         </div>
     );
