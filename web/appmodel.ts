@@ -1,5 +1,5 @@
 // AppModel.ts
-import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
+import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcClient } from "./rpc/rpc";
 import { RpcApi } from "./rpc/rpcclientapi";
 
@@ -26,7 +26,6 @@ class AppModel {
     // App runs data
     appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);
     selectedAppRunId: PrimitiveAtom<string> = atom<string>("");
-    appRunLogs: PrimitiveAtom<LogLine[]> = atom<LogLine[]>([]);
     appRunGoRoutines: PrimitiveAtom<GoroutineData[]> = atom<GoroutineData[]>([]);
     isLoadingGoRoutines: PrimitiveAtom<boolean> = atom<boolean>(false);
 
@@ -126,10 +125,8 @@ class AppModel {
                     // Load the appropriate data based on the tab
                     if (this._pendingTab === "goroutines") {
                         this.loadAppRunGoroutines(appRunId);
-                    } else if (this._pendingTab === "logs") {
-                        // Load logs only if we're on the logs tab
-                        this.loadAppRunLogs(appRunId);
                     }
+                    // Note: Logs are loaded by the LogViewer component when it mounts
                     // Note: We don't load any data if we're on the appruns tab
                 } else {
                     // If appRunId is invalid, switch to appruns tab and remove appRunId from URL
@@ -143,18 +140,6 @@ class AppModel {
             }
         } catch (error) {
             console.error("Failed to load app runs:", error);
-        }
-    }
-
-    async loadAppRunLogs(appRunId: string) {
-        if (!this.rpcClient) return;
-
-        try {
-            const result = await RpcApi.GetAppRunLogsCommand(this.rpcClient, { apprunid: appRunId });
-            getDefaultStore().set(this.appRunLogs, result.logs);
-            getDefaultStore().set(this.selectedAppRunId, appRunId);
-        } catch (error) {
-            console.error(`Failed to load logs for app run ${appRunId}:`, error);
         }
     }
 
@@ -180,10 +165,7 @@ class AppModel {
     }
 
     selectLogsTab() {
-        const appRunId = getDefaultStore().get(this.selectedAppRunId);
-        if (appRunId) {
-            this.loadAppRunLogs(appRunId);
-        }
+        // Note: Logs are loaded by the LogViewer component when it mounts
         getDefaultStore().set(this.selectedTab, "logs");
         this.updateUrl({ tab: "logs" });
     }
@@ -218,6 +200,13 @@ class AppModel {
         }
         this.applyTheme();
         getDefaultStore().set(this.darkMode, update);
+    }
+
+    getAppRunInfoAtom(appRunId: string): Atom<AppRunInfo> {
+        return atom((get) => {
+            const appRuns = get(this.appRuns);
+            return appRuns.find((run) => run.apprunid === appRunId);
+        });
     }
 }
 

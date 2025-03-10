@@ -24,7 +24,7 @@ function MainTab() {
     }
 
     if (selectedTab === "logs") {
-        return <LogViewer />;
+        return <LogViewer key={selectedAppRunId} appRunId={selectedAppRunId} />;
     } else if (selectedTab === "appruns") {
         return <AppRunList />;
     } else if (selectedTab === "goroutines") {

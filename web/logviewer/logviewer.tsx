@@ -55,23 +55,19 @@ const LogLineView = React.memo<LogLineViewProps>(({ line, style }) => {
 // Header component
 interface LogViewerHeaderProps {
     model: LogViewerModel;
+    appRunId: string;
     className?: string;
 }
 
-const LogViewerHeader = React.memo<LogViewerHeaderProps>(({ model, className }) => {
-    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
-    const appRuns = useAtomValue(AppModel.appRuns);
-
-    // Find the selected app run
-    const selectedAppRun = appRuns.find((run) => run.apprunid === selectedAppRunId);
+const LogViewerHeader = React.memo<LogViewerHeaderProps>(({ model, appRunId, className }) => {
+    const appRunAtom = useRef(AppModel.getAppRunInfoAtom(appRunId));
+    const appRun = useAtomValue(appRunAtom.current);
 
     return (
         <div className={`py-2 px-4 border-b border-border ${className || ""}`}>
             <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-primary">
-                    {selectedAppRun ? `Logs: ${selectedAppRun.appname}` : "Logs"}
-                </h2>
-                {selectedAppRun && <div className="text-xs text-muted">ID: {selectedAppRun.apprunid}</div>}
+                <h2 className="text-lg font-semibold text-primary">{appRun ? `Logs: ${appRun.appname}` : "Logs"}</h2>
+                {appRun && <div className="text-xs text-muted">ID: {appRun.apprunid}</div>}
             </div>
         </div>
     );
@@ -201,18 +197,18 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
     );
 });
 
-// Main LogViewer component
-export const LogViewer = React.memo<object>(() => {
-    const model = useRef(new LogViewerModel()).current;
-    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
+interface LogViewerProps {
+    appRunId: string;
+}
+
+export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
+    const { appRunId } = props;
+    const model = useRef(new LogViewerModel(appRunId)).current;
     const searchRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        // Load logs when the component mounts if an app run is selected
-        if (selectedAppRunId) {
-            AppModel.loadAppRunLogs(selectedAppRunId);
-        }
-    }, [selectedAppRunId]);
+        model.loadAppRunLogs();
+    }, [model]);
 
     useEffect(() => {
         // on window focus, focus the search input
@@ -227,7 +223,7 @@ export const LogViewer = React.memo<object>(() => {
 
     return (
         <div className="w-full h-full flex flex-col overflow-hidden">
-            <LogViewerHeader model={model} className="flex-shrink-0" />
+            <LogViewerHeader model={model} appRunId={appRunId} className="flex-shrink-0" />
             <LogViewerFilter model={model} searchRef={searchRef} className="flex-shrink-0" />
 
             {/* Subtle divider */}
