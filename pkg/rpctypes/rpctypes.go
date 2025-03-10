@@ -36,6 +36,10 @@ type FullRpcInterface interface {
 
 	UpdateStatusCommand(ctx context.Context, data StatusUpdateData) error
 
+	// app run commands
+	GetAppRunsCommand(ctx context.Context) (AppRunsData, error)
+	GetAppRunLogsCommand(ctx context.Context, data AppRunRequest) (AppRunLogsData, error)
+
 	// event commands
 	EventPublishCommand(ctx context.Context, data EventType) error
 	EventSubCommand(ctx context.Context, data SubscriptionRequest) error
@@ -90,6 +94,29 @@ type StatusUpdateData struct {
 	Status        string `json:"status"`
 	NumLogLines   int    `json:"numloglines"`
 	NumGoRoutines int    `json:"numgoroutines"`
+}
+
+// App run data types
+type AppRunInfo struct {
+	AppRunId  string `json:"apprunid"`
+	AppName   string `json:"appname"`
+	StartTime int64  `json:"starttime"`
+	IsRunning bool   `json:"isrunning"`
+	NumLogs   int    `json:"numlogs"`
+}
+
+type AppRunsData struct {
+	AppRuns []AppRunInfo `json:"appruns"`
+}
+
+type AppRunRequest struct {
+	AppRunId string `json:"apprunid"`
+}
+
+type AppRunLogsData struct {
+	AppRunId string       `json:"apprunid"`
+	AppName  string       `json:"appname"`
+	Logs     []ds.LogLine `json:"logs"`
 }
 
 type EventReadHistoryData struct {

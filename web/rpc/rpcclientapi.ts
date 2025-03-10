@@ -36,6 +36,16 @@ class RpcApiType {
         return client.rpcCall("eventunsuball", null, opts);
     }
 
+    // command "getapprunlogs" [call]
+    GetAppRunLogsCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunLogsData> {
+        return client.rpcCall("getapprunlogs", data, opts);
+    }
+
+    // command "getappruns" [call]
+    GetAppRunsCommand(client: RpcClient, opts?: RpcOpts): Promise<AppRunsData> {
+        return client.rpcCall("getappruns", null, opts);
+    }
+
     // command "message" [call]
     MessageCommand(client: RpcClient, data: CommandMessageData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("message", data, opts);

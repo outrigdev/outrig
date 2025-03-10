@@ -115,3 +115,33 @@ func (cb *CirBuf[T]) IsFull() bool {
 	defer cb.Lock.Unlock()
 	return cb.size_nolock() == cb.MaxSize
 }
+
+// GetAll returns a slice containing all elements in the buffer in order from oldest to newest.
+// This does not remove elements from the buffer.
+func (cb *CirBuf[T]) GetAll() []T {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+	
+	size := cb.size_nolock()
+	if size == 0 {
+		return []T{}
+	}
+	
+	result := make([]T, size)
+	
+	if cb.Buf == nil {
+		return result
+	}
+	
+	// Copy elements from head to end of buffer
+	if cb.Head < cb.Tail {
+		copy(result, cb.Buf[cb.Head:cb.Tail])
+	} else {
+		// Copy elements from head to end of underlying array
+		n := copy(result, cb.Buf[cb.Head:])
+		// Copy elements from start of underlying array to tail
+		copy(result[n:], cb.Buf[:cb.Tail])
+	}
+	
+	return result
+}

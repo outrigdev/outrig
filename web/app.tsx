@@ -2,14 +2,18 @@ import { useAtom, useAtomValue } from "jotai";
 import { Moon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
+import { AppRunList } from "./apprunlist/apprunlist";
 import { LogViewer } from "./logviewer/logviewer";
 import { StatusBar } from "./statusbar";
+import { DefaultRpcClient } from "./init";
 
 function MainTab() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
 
     if (selectedTab === "logs") {
         return <LogViewer />;
+    } else if (selectedTab === "appruns") {
+        return <AppRunList />;
     }
 
     return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;
@@ -51,6 +55,9 @@ function App() {
 
     useEffect(() => {
         AppModel.applyTheme();
+        
+        // Set the default RPC client
+        AppModel.setRpcClient(DefaultRpcClient);
     }, []);
 
     return (
@@ -59,6 +66,7 @@ function App() {
                 <div className="flex items-center">
                     <AppLogo />
                     <div className="ml-3 flex">
+                        <Tab name="appruns" displayName="App Runs" />
                         <Tab name="logs" displayName="Logs" />
                         <Tab name="goroutines" displayName="GoRoutines" />
                     </div>

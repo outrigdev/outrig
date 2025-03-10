@@ -58,3 +58,16 @@ func (sm *SyncMap[T]) GetOrCreate(key string, createFn func() T) (T, bool) {
 	sm.m[key] = newVal
 	return newVal, false
 }
+
+// Keys returns a slice of all keys in the map
+func (sm *SyncMap[T]) Keys() []string {
+	sm.lock.Lock()
+	defer sm.lock.Unlock()
+	
+	keys := make([]string, 0, len(sm.m))
+	for k := range sm.m {
+		keys = append(keys, k)
+	}
+	
+	return keys
+}

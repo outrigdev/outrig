@@ -1,6 +1,7 @@
 import { useAtom, useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
 import React, { JSX, useEffect, useRef } from "react";
+import { AppModel } from "../appmodel";
 import { LogViewerModel } from "./logviewer-model";
 
 interface LogLineViewProps {
@@ -49,7 +50,12 @@ export const LogViewer: React.FC<object> = () => {
     const model = useRef(new LogViewerModel()).current;
     const [search, setSearch] = useAtom(model.searchTerm);
     const filteredLogLines = useAtomValue(model.filteredLogLines);
+    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
+    const appRuns = useAtomValue(AppModel.appRuns);
     const searchRef = useRef<HTMLInputElement>(null);
+
+    // Find the selected app run
+    const selectedAppRun = appRuns.find(run => run.apprunid === selectedAppRunId);
 
     useEffect(() => {
         // on window focus, focus the search input
@@ -64,7 +70,20 @@ export const LogViewer: React.FC<object> = () => {
 
     return (
         <div className="w-full h-full flex flex-col">
-            <div className="py-1 px-1">
+            <div className="py-2 px-4 border-b border-border">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold text-primary">
+                        {selectedAppRun ? `Logs: ${selectedAppRun.appname}` : 'Logs'}
+                    </h2>
+                    {selectedAppRun && (
+                        <div className="text-xs text-muted">
+                            ID: {selectedAppRun.apprunid}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="py-1 px-1 border-b border-border">
                 <div className="flex items-center">
                     {/* Line number space - 6 characters wide with right-aligned filter icon */}
                     <div className="select-none pr-2 text-muted w-12 text-right font-mono flex justify-end items-center">

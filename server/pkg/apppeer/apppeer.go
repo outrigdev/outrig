@@ -46,6 +46,24 @@ func GetAppRunPeer(appRunId string) *AppRunPeer {
 	return peer
 }
 
+// GetAllAppRunPeers returns all AppRunPeers
+func GetAllAppRunPeers() []*AppRunPeer {
+	// Get all keys from the sync map
+	keys := appRunPeers.Keys()
+	
+	// Create a slice to hold all peers
+	peers := make([]*AppRunPeer, 0, len(keys))
+	
+	// Get each peer and add it to the slice
+	for _, key := range keys {
+		if peer, exists := appRunPeers.GetEx(key); exists {
+			peers = append(peers, peer)
+		}
+	}
+	
+	return peers
+}
+
 // HandlePacket processes a packet received from the domain socket connection
 func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage) error {
 	switch packetType {

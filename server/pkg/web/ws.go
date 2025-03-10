@@ -203,17 +203,24 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 		close(outputCh)
 	}()
 
-	wproxy := rpc.MakeRpcProxy()
-	rpc.DefaultRouter.RegisterRoute(routeId, wproxy, true)
+	proxy := rpc.MakeRpcProxy()
+	rpc.DefaultRouter.RegisterRoute(routeId, proxy, true)
 	defer rpc.DefaultRouter.UnregisterRoute(routeId)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 
 	go func() {
+		for msg := range proxy.ToRemoteCh {
+			rawMsg := json.RawMessage(msg)
+			outputCh <- WSEventType{Type: EventType_Rpc, Ts: time.Now().UnixMilli(), Data: rawMsg}
+		}
+	}()
+
+	go func() {
 		// read loop
 		defer wg.Done()
-		ReadLoop(conn, outputCh, closeCh, connId, wproxy.FromRemoteCh)
+		ReadLoop(conn, outputCh, closeCh, connId, proxy.FromRemoteCh)
 	}()
 
 	go func() {

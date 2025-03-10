@@ -14,6 +14,9 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - Prefer relative imports (`"./name"`) within the same or child directories.
     - Use named exports exclusively; avoid default exports. It's acceptable to export functions directly (e.g., React Components).
 - **JSON Field Naming**: All fields must be lowercase, without underscores.
+- In TypeScript we have strict null checks off, so no need to add "| null" to all the types.
+- In TypeScript for Jotai atoms, if we want to write, we need to type the atom as a PrimitiveAtom<Type>
+- Jotai has a bug with strick null checks off where if you create a null atom, e.g. atom(null) it does not "type" correctly. That's no issue, just cast it to the proper PrimitiveAtom type (no "| null") and it will work fine.
 
 ### Documentation References
 
