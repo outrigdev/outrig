@@ -9,6 +9,9 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 ### Coding Guidelines
 
 - **Comments**: Avoid redundant comments (e.g., don't comment `runTask()` with `// runs the task`).
+- **Go Conventions**:
+    - Don't use custom enum types in Go. Instead, use string constants (e.g., `const StatusRunning = "running"` rather than creating a custom type like `type Status string`).
+    - Use string constants for status values, packet types, and other string-based enumerations.
 - **TypeScript Imports**:
     - Use `@/init` for imports from different parts of the project (configured in `tsconfig.json` as `"@/*": ["web/*"]`).
     - Prefer relative imports (`"./name"`) within the same or child directories.
@@ -34,7 +37,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Data Structures
 
-- **AppRunPeer**: Represents a connection to a running Go application. Each app run has a unique ID and contains information about the app, logs, and goroutines.
+- **AppRunPeer**: Represents a connection to a running Go application. Each app run has a unique ID and contains information about the app, logs, and goroutines. For detailed information about AppRunPeer and application lifecycle management, refer to `aidocs/apppeer.md`.
 - **CirBuf**: A generic circular buffer implementation used for storing logs and other data. Use the `GetAll()` method to retrieve all items in the buffer.
 - **SyncMap**: A thread-safe map implementation. Use the `Keys()` method to get all keys and `GetEx()` to safely retrieve values.
 
