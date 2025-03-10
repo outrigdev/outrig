@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue } from "jotai";
-import { Filter } from "lucide-react";
+import { Filter, RefreshCw } from "lucide-react";
 import React, { JSX, useEffect, useRef, useState } from "react";
 import { VariableSizeList as List } from "react-window";
 import { AppModel } from "../appmodel";
@@ -36,11 +36,10 @@ interface LogLineViewProps {
 
 const LogLineView = React.memo<LogLineViewProps>(({ line, style }) => {
     if (line == null) {
-        return null;
+        return <div key="main" style={style}></div>;
     }
-
     return (
-        <div style={style}>
+        <div key="main" style={style}>
             <div className="flex whitespace-nowrap hover:bg-buttonhover">
                 <div className="select-none pr-2 text-muted w-12 text-right">{formatLineNumber(line.linenum, 4)}</div>
                 <div>
@@ -49,6 +48,42 @@ const LogLineView = React.memo<LogLineViewProps>(({ line, style }) => {
                 </div>
             </div>
         </div>
+    );
+});
+
+// Refresh Button component
+interface RefreshButtonProps {
+    model: LogViewerModel;
+}
+
+const RefreshButton = React.memo<RefreshButtonProps>(({ model }) => {
+    const isRefreshing = useAtomValue(model.isRefreshing);
+    const [isAnimating, setIsAnimating] = useState(false);
+
+    const handleRefresh = () => {
+        if (isRefreshing || isAnimating) return;
+
+        // Start animation
+        setIsAnimating(true);
+
+        // Start refresh
+        model.refresh();
+
+        // End animation after 500ms
+        setTimeout(() => {
+            setIsAnimating(false);
+        }, 500);
+    };
+
+    return (
+        <button
+            onClick={handleRefresh}
+            className={`p-1 rounded hover:bg-buttonhover text-muted hover:text-primary cursor-pointer ${isAnimating ? "refresh-spin" : ""}`}
+            title="Refresh logs"
+            disabled={isRefreshing || isAnimating}
+        >
+            <RefreshCw size={16} />
+        </button>
     );
 });
 
@@ -67,7 +102,10 @@ const LogViewerHeader = React.memo<LogViewerHeaderProps>(({ model, appRunId, cla
         <div className={`py-2 px-4 border-b border-border ${className || ""}`}>
             <div className="flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-primary">{appRun ? `Logs: ${appRun.appname}` : "Logs"}</h2>
-                {appRun && <div className="text-xs text-muted">ID: {appRun.apprunid}</div>}
+                <div className="flex items-center gap-4">
+                    {appRun && <div className="text-xs text-muted">ID: {appRun.apprunid}</div>}
+                    <RefreshButton model={model} />
+                </div>
             </div>
         </div>
     );
@@ -112,14 +150,14 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
     );
 });
 
-// Log content component
-interface LogViewerContentProps {
+// LogList component for rendering the virtualized list of logs
+interface LogListProps {
     model: LogViewerModel;
+    containerRef: React.RefObject<HTMLDivElement>;
 }
 
-const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
+const LogList = React.memo<LogListProps>(({ model, containerRef }) => {
     const filteredLogLines = useAtomValue(model.filteredLogLines);
-    const containerRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<List>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
@@ -160,7 +198,7 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
             resizeObserver.unobserve(observedElement);
             resizeObserver.disconnect();
         };
-    }, []);
+    }, [containerRef]);
 
     // Reset list item size cache when filtered logs change
     useEffect(() => {
@@ -176,22 +214,56 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
         return <LogLineView line={line} style={style} />;
     };
 
+    if (dimensions.height === 0) {
+        return null;
+    }
+
+    return (
+        <div className="w-full min-w-[1200px] h-full font-mono text-xs leading-tight px-1 pt-2">
+            <List
+                ref={listRef}
+                height={dimensions.height}
+                width="100%"
+                itemCount={filteredLogLines.length}
+                itemSize={getItemHeight}
+                overscanCount={20}
+                itemKey={(index) => filteredLogLines[index]?.linenum.toString() || index.toString()}
+            >
+                {rowRenderer}
+            </List>
+        </div>
+    );
+});
+
+// Log content component
+interface LogViewerContentProps {
+    model: LogViewerModel;
+}
+
+const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
+    const isRefreshing = useAtomValue(model.isRefreshing);
+    const filteredLogLines = useAtomValue(model.filteredLogLines);
+    const containerRef = useRef<HTMLDivElement>(null);
+
     return (
         <div ref={containerRef} className="w-full h-full overflow-hidden flex-1">
-            {dimensions.height > 0 && filteredLogLines.length > 0 && (
-                <div className="w-full min-w-[1200px] h-full font-mono text-xs leading-tight px-1 pt-2">
-                    <List
-                        ref={listRef}
-                        height={dimensions.height}
-                        width="100%"
-                        itemCount={filteredLogLines.length}
-                        itemSize={getItemHeight}
-                        overscanCount={20}
-                        itemKey={(index) => filteredLogLines[index]?.linenum.toString() || index.toString()}
-                    >
-                        {rowRenderer}
-                    </List>
+            {isRefreshing && (
+                <div className="w-full h-full flex items-center justify-center">
+                    <div className="flex items-center gap-2 text-primary">
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>Refreshing logs...</span>
+                    </div>
                 </div>
+            )}
+            
+            {!isRefreshing && filteredLogLines.length === 0 && (
+                <div className="w-full h-full flex items-center justify-center text-muted">
+                    No logs found
+                </div>
+            )}
+            
+            {!isRefreshing && filteredLogLines.length > 0 && (
+                <LogList model={model} containerRef={containerRef} />
             )}
         </div>
     );

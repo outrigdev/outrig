@@ -122,3 +122,17 @@ body {
     font-weight: bold;
     font-style: italic;
 }
+
+/* Animation for refresh button */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.refresh-spin {
+    animation: spin 500ms ease-in-out;
+}
