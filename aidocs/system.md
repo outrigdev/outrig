@@ -8,7 +8,11 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Coding Guidelines
 
-- **Comments**: Avoid redundant comments (e.g., don't comment `runTask()` with `// runs the task`).
+- **Comments**:
+    - Avoid all redundant comments that merely restate what is obvious from the code itself
+    - Do not add comments that simply repeat the component/function name (e.g., don't comment `AppRunListHeader` with "Header component for app run list")
+    - Do not add comments that describe what a function does when the function name already clearly indicates its purpose
+    - Only add comments for complex logic, non-obvious behavior, or to explain "why" something is done a certain way
 - **Go Conventions**:
     - Don't use custom enum types in Go. Instead, use string constants (e.g., `const StatusRunning = "running"` rather than creating a custom type like `type Status string`).
     - Use string constants for status values, packet types, and other string-based enumerations.
@@ -57,6 +61,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - When working with Jotai atoms that need to be updated, define them as `PrimitiveAtom<Type>` rather than just `atom<Type>`.
 - The frontend is organized into components for different views (LogViewer, AppRunList, etc.) that use the AppModel to access shared state.
 - The app uses a tab-based navigation system where the selected tab determines which component is displayed.
+- To handle keyboard events, use keymodel.ts. Regsiter global keys in registerGlobalKeys() and hook them up to the appropriate handlers.
 
 ### Data Flow
 
