@@ -2,12 +2,14 @@ package logsearch
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
 )
 
@@ -117,11 +119,37 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	// Update the LastUsed timestamp when a search request is made
 	m.LastUsed = time.Now()
 
-	// TODO: Implement actual search functionality
-	// For now, return an empty result
+	// Check if the AppPeer is valid
+	if m.AppPeer == nil {
+		return rpctypes.SearchResultData{
+			FilteredCount: 0,
+			TotalCount:    0,
+			Lines:         []ds.LogLine{},
+		}, fmt.Errorf("app peer not found for app run ID: %s", data.AppRunId)
+	}
+
+	// Get all log lines from the AppPeer
+	allLogs := m.AppPeer.Logs.GetAll()
+	totalCount := len(allLogs)
+
+	// Since we're not filtering by search term yet, filteredCount equals totalCount
+	filteredCount := totalCount
+
+	// Apply view offset and limit with bounds checking
+	startIndex := utilfn.BoundValue(data.ViewOffset, 0, totalCount)
+	endIndex := utilfn.BoundValue(startIndex+data.ViewLimit, startIndex, totalCount)
+
+	// Get the subset of logs based on offset and limit
+	var resultLogs []ds.LogLine
+	if startIndex < endIndex {
+		resultLogs = allLogs[startIndex:endIndex]
+	} else {
+		resultLogs = []ds.LogLine{}
+	}
+
 	return rpctypes.SearchResultData{
-		FilteredCount: 0,
-		TotalCount:    0,
-		Lines:         []ds.LogLine{},
+		FilteredCount: filteredCount,
+		TotalCount:    totalCount,
+		Lines:         resultLogs,
 	}, nil
 }

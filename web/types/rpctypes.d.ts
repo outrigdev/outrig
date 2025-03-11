@@ -119,7 +119,6 @@ declare global {
         searchterm: string;
         offset: number;
         limit: number;
-        buffer: number;
         stream: boolean;
     };
 

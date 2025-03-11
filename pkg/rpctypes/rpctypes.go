@@ -63,13 +63,12 @@ type ServerCommandMeta struct {
 }
 
 type SearchRequestData struct {
-	WidgetId     string `json:"widgetid"`
-	AppRunId     string `json:"apprunid"`
-	SearchTerm   string `json:"searchterm"`
-	ViewOffset   int    `json:"offset"`
-	ViewLimit    int    `json:"limit"`
-	ScrollBuffer int    `json:"buffer"`
-	Stream       bool   `json:"stream"`
+	WidgetId   string `json:"widgetid"`
+	AppRunId   string `json:"apprunid"`
+	SearchTerm string `json:"searchterm"`
+	ViewOffset int    `json:"offset"`
+	ViewLimit  int    `json:"limit"`
+	Stream     bool   `json:"stream"`
 }
 
 type SearchResultData struct {
