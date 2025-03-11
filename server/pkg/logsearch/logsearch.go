@@ -12,14 +12,9 @@ import (
 )
 
 const (
-	// MaxSearchManagers is the maximum number of search managers to keep
 	MaxSearchManagers = 5
-
-	// CleanupInterval is how often to run the cleanup routine
-	CleanupInterval = 10 * time.Second
-
-	// MaxIdleTime is how long a search manager can be idle before being removed
-	MaxIdleTime = 1 * time.Minute
+	CleanupInterval   = 10 * time.Second
+	MaxIdleTime       = 1 * time.Minute
 )
 
 // SearchManager handles search functionality for a specific widget
@@ -39,7 +34,7 @@ func NewSearchManager(widgetId string, appPeer *apppeer.AppRunPeer) *SearchManag
 	}
 }
 
-// Global map of widget IDs to search managers
+// WidgetId => SearchManager
 var widgetManagers = utilds.MakeSyncMap[*SearchManager]()
 
 // init starts the background cleanup routine
@@ -51,7 +46,6 @@ func init() {
 func cleanupRoutine() {
 	ticker := time.NewTicker(CleanupInterval)
 	defer ticker.Stop()
-
 	for range ticker.C {
 		cleanupSearchManagers()
 	}
@@ -62,31 +56,19 @@ func cleanupRoutine() {
 func cleanupSearchManagers() {
 	now := time.Now()
 	keys := widgetManagers.Keys()
-	
-	// Collect managers that aren't too old
 	managers := make([]*SearchManager, 0, len(keys))
-	
-	// First pass: remove idle managers and collect the rest
 	for _, key := range keys {
 		manager := widgetManagers.Get(key)
-		
-		// Remove if it hasn't been used for MaxIdleTime
 		if now.Sub(manager.LastUsed) > MaxIdleTime {
 			widgetManagers.Delete(key)
 		} else {
-			// Not too old, add to our collection
 			managers = append(managers, manager)
 		}
 	}
-	
-	// If we still have more than MaxSearchManagers, remove the oldest ones
 	if len(managers) > MaxSearchManagers {
-		// Sort by last used time (oldest first)
 		sort.Slice(managers, func(i, j int) bool {
 			return managers[i].LastUsed.Before(managers[j].LastUsed)
 		})
-		
-		// Remove oldest managers until we're at MaxSearchManagers
 		for _, manager := range managers[:len(managers)-MaxSearchManagers] {
 			widgetManagers.Delete(manager.WidgetId)
 		}
@@ -120,6 +102,14 @@ func GetManager(widgetId string, appRunId string) *SearchManager {
 // DropManager removes a SearchManager for the given widget ID
 func DropManager(widgetId string) {
 	widgetManagers.Delete(widgetId)
+}
+
+// UpdateLastUsed updates the LastUsed timestamp for a SearchManager
+func UpdateLastUsed(widgetId string) {
+	manager := widgetManagers.Get(widgetId)
+	if manager != nil {
+		manager.LastUsed = time.Now()
+	}
 }
 
 // SearchRequest handles a search request for logs

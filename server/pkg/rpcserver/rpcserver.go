@@ -167,9 +167,16 @@ func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes
 	return manager.SearchRequest(ctx, data)
 }
 
-// LogDropRequestCommand handles requests to drop a search widget
-func (*RpcServerImpl) LogDropRequestCommand(ctx context.Context, data rpctypes.DropRequestData) error {
-	// Remove the search manager for this widget
-	logsearch.DropManager(data.WidgetId)
+// LogWidgetAdminCommand handles widget administration requests
+func (*RpcServerImpl) LogWidgetAdminCommand(ctx context.Context, data rpctypes.LogWidgetAdminData) error {
+	// Drop takes precedence over KeepAlive
+	if data.Drop {
+		// Remove the search manager for this widget
+		logsearch.DropManager(data.WidgetId)
+	} else if data.KeepAlive {
+		// Update the last used timestamp
+		logsearch.UpdateLastUsed(data.WidgetId)
+	}
+	
 	return nil
 }

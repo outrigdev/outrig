@@ -46,11 +46,6 @@ declare global {
         message: string;
     };
 
-    // rpctypes.DropRequestData
-    type DropRequestData = {
-        widgetid: string;
-    };
-
     // rpctypes.EventCommonFields
     type EventCommonFields = {
         scopes?: string[];
@@ -87,6 +82,13 @@ declare global {
         source?: string;
     };
 
+    // rpctypes.LogWidgetAdminData
+    type LogWidgetAdminData = {
+        widgetid: string;
+        drop?: boolean;
+        keepalive?: boolean;
+    };
+
     // rpc.RpcMessage
     type RpcMessage = {
         command?: string;
@@ -113,6 +115,7 @@ declare global {
     // rpctypes.SearchRequestData
     type SearchRequestData = {
         widgetid: string;
+        apprunid: string;
         searchterm: string;
         offset: number;
         limit: number;
@@ -122,7 +125,6 @@ declare global {
 
     // rpctypes.SearchResultData
     type SearchResultData = {
-        widgetid: string;
         filteredcount: number;
         totalcount: number;
         lines: LogLine[];
@@ -143,7 +145,6 @@ declare global {
 
     // rpctypes.StreamUpdateData
     type StreamUpdateData = {
-        widgetid: string;
         filteredcount: number;
         totalcount: number;
         lines: LogLine[];

@@ -46,11 +46,6 @@ class RpcApiType {
         return client.rpcCall("getappruns", null, opts);
     }
 
-    // command "logdroprequest" [call]
-    LogDropRequestCommand(client: RpcClient, data: DropRequestData, opts?: RpcOpts): Promise<void> {
-        return client.rpcCall("logdroprequest", data, opts);
-    }
-
     // command "logsearchrequest" [call]
     LogSearchRequestCommand(client: RpcClient, data: SearchRequestData, opts?: RpcOpts): Promise<SearchResultData> {
         return client.rpcCall("logsearchrequest", data, opts);
@@ -59,6 +54,11 @@ class RpcApiType {
     // command "logstreamupdate" [call]
     LogStreamUpdateCommand(client: RpcClient, data: StreamUpdateData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("logstreamupdate", data, opts);
+    }
+
+    // command "logwidgetadmin" [call]
+    LogWidgetAdminCommand(client: RpcClient, data: LogWidgetAdminData, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("logwidgetadmin", data, opts);
     }
 
     // command "message" [call]

@@ -30,7 +30,7 @@ type FullRpcInterface interface {
 	MessageCommand(ctx context.Context, data CommandMessageData) error
 
 	LogSearchRequestCommand(ctx context.Context, data SearchRequestData) (SearchResultData, error)
-	LogDropRequestCommand(ctx context.Context, data DropRequestData) error
+	LogWidgetAdminCommand(ctx context.Context, data LogWidgetAdminData) error
 	LogStreamUpdateCommand(ctx context.Context, data StreamUpdateData) error
 
 	UpdateStatusCommand(ctx context.Context, data StatusUpdateData) error
@@ -86,6 +86,12 @@ type StreamUpdateData struct {
 
 type DropRequestData struct {
 	WidgetId string `json:"widgetid"`
+}
+
+type LogWidgetAdminData struct {
+	WidgetId  string `json:"widgetid"`
+	Drop      bool   `json:"drop,omitempty"`
+	KeepAlive bool   `json:"keepalive,omitempty"`
 }
 
 type StatusUpdateData struct {

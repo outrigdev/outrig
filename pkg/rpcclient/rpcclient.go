@@ -58,12 +58,6 @@ func GetAppRunsCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) (rpctypes.AppRunsDat
 	return resp, err
 }
 
-// command "logdroprequest", rpctypes.LogDropRequestCommand
-func LogDropRequestCommand(w *rpc.RpcClient, data rpctypes.DropRequestData, opts *rpc.RpcOpts) error {
-	_, err := SendRpcRequestCallHelper[any](w, "logdroprequest", data, opts)
-	return err
-}
-
 // command "logsearchrequest", rpctypes.LogSearchRequestCommand
 func LogSearchRequestCommand(w *rpc.RpcClient, data rpctypes.SearchRequestData, opts *rpc.RpcOpts) (rpctypes.SearchResultData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.SearchResultData](w, "logsearchrequest", data, opts)
@@ -73,6 +67,12 @@ func LogSearchRequestCommand(w *rpc.RpcClient, data rpctypes.SearchRequestData, 
 // command "logstreamupdate", rpctypes.LogStreamUpdateCommand
 func LogStreamUpdateCommand(w *rpc.RpcClient, data rpctypes.StreamUpdateData, opts *rpc.RpcOpts) error {
 	_, err := SendRpcRequestCallHelper[any](w, "logstreamupdate", data, opts)
+	return err
+}
+
+// command "logwidgetadmin", rpctypes.LogWidgetAdminCommand
+func LogWidgetAdminCommand(w *rpc.RpcClient, data rpctypes.LogWidgetAdminData, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "logwidgetadmin", data, opts)
 	return err
 }
 
