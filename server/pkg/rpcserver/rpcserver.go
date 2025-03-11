@@ -7,6 +7,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
+	"github.com/outrigdev/outrig/server/pkg/logsearch"
 )
 
 type RpcServerImpl struct{}
@@ -155,4 +156,20 @@ func (*RpcServerImpl) GetAppRunGoroutinesCommand(ctx context.Context, data rpcty
 		AppName:    peer.AppInfo.AppName,
 		Goroutines: goroutines,
 	}, nil
+}
+
+// LogSearchRequestCommand handles search requests for logs
+func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
+	// Get or create a search manager for this widget
+	manager := logsearch.GetManager(data.WidgetId, data.AppRunId)
+
+	// Delegate the search request to the manager
+	return manager.SearchRequest(ctx, data)
+}
+
+// LogDropRequestCommand handles requests to drop a search widget
+func (*RpcServerImpl) LogDropRequestCommand(ctx context.Context, data rpctypes.DropRequestData) error {
+	// Remove the search manager for this widget
+	logsearch.DropManager(data.WidgetId)
+	return nil
 }

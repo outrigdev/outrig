@@ -63,7 +63,8 @@ type ServerCommandMeta struct {
 }
 
 type SearchRequestData struct {
-	WidgetID     string `json:"widgetid"`
+	WidgetId     string `json:"widgetid"`
+	AppRunId     string `json:"apprunid"`
 	SearchTerm   string `json:"searchterm"`
 	ViewOffset   int    `json:"offset"`
 	ViewLimit    int    `json:"limit"`
@@ -72,21 +73,19 @@ type SearchRequestData struct {
 }
 
 type SearchResultData struct {
-	WidgetID      string       `json:"widgetid"`
 	FilteredCount int          `json:"filteredcount"`
 	TotalCount    int          `json:"totalcount"`
 	Lines         []ds.LogLine `json:"lines"`
 }
 
 type StreamUpdateData struct {
-	WidgetID      string       `json:"widgetid"`
 	FilteredCount int          `json:"filteredcount"`
 	TotalCount    int          `json:"totalcount"`
 	Lines         []ds.LogLine `json:"lines"`
 }
 
 type DropRequestData struct {
-	WidgetID string `json:"widgetid"`
+	WidgetId string `json:"widgetid"`
 }
 
 type StatusUpdateData struct {

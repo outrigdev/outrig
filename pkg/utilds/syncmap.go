@@ -71,3 +71,11 @@ func (sm *SyncMap[T]) Keys() []string {
 	
 	return keys
 }
+
+// Len returns the number of items in the map
+func (sm *SyncMap[T]) Len() int {
+	sm.lock.Lock()
+	defer sm.lock.Unlock()
+	
+	return len(sm.m)
+}
