@@ -1,27 +1,33 @@
 package utilds
 
-import "sync"
+import (
+	"sync"
+)
 
 // CirBuf is a generic circular buffer implementation that is thread-safe.
 // It dynamically grows until it reaches MaxSize and can reclaim memory
 // when emptied.
 type CirBuf[T any] struct {
-	Lock    *sync.Mutex
-	MaxSize int
-	Buf     []T
-	Head    int
-	Tail    int
+	Lock       *sync.Mutex
+	MaxSize    int
+	TotalCount int
+	HeadOffset int
+	Buf        []T
+	Head       int
+	Tail       int
 }
 
 // MakeCirBuf creates a new circular buffer with the specified maximum size.
 // The buffer is initially empty and will grow dynamically as elements are added.
 func MakeCirBuf[T any](maxSize int) *CirBuf[T] {
 	return &CirBuf[T]{
-		Lock:    &sync.Mutex{},
-		MaxSize: maxSize,
-		Buf:     nil,
-		Head:    0,
-		Tail:    0,
+		Lock:       &sync.Mutex{},
+		MaxSize:    maxSize,
+		TotalCount: 0,
+		HeadOffset: 0,
+		Buf:        nil,
+		Head:       0,
+		Tail:       0,
 	}
 }
 
@@ -32,11 +38,13 @@ func (cb *CirBuf[T]) Write(element T) *T {
 	cb.Lock.Lock()
 	defer cb.Lock.Unlock()
 
+	cb.TotalCount++
 	if cb.Head == cb.Tail {
 		// buffer is full (this also correctly handles the case when the buffer is nil, and size == 0)
 		curSize := cb.size_nolock()
 		if curSize == cb.MaxSize {
 			// kick out the oldest element
+			cb.HeadOffset++
 			kickedOut := cb.Buf[cb.Head]
 			cb.Buf[cb.Head] = element
 			cb.Head = (cb.Head + 1) % len(cb.Buf)
@@ -69,6 +77,7 @@ func (cb *CirBuf[T]) Read() (T, bool) {
 		return zero, false
 	}
 
+	cb.HeadOffset++
 	elem := cb.Buf[cb.Head]
 	if size == 1 {
 		cb.Buf = nil
@@ -121,18 +130,18 @@ func (cb *CirBuf[T]) IsFull() bool {
 func (cb *CirBuf[T]) GetAll() []T {
 	cb.Lock.Lock()
 	defer cb.Lock.Unlock()
-	
+
 	size := cb.size_nolock()
 	if size == 0 {
 		return []T{}
 	}
-	
+
 	result := make([]T, size)
-	
+
 	if cb.Buf == nil {
 		return result
 	}
-	
+
 	// Copy elements from head to end of buffer
 	if cb.Head < cb.Tail {
 		copy(result, cb.Buf[cb.Head:cb.Tail])
@@ -142,6 +151,40 @@ func (cb *CirBuf[T]) GetAll() []T {
 		// Copy elements from start of underlying array to tail
 		copy(result[n:], cb.Buf[:cb.Tail])
 	}
-	
+
 	return result
+}
+
+func (cb *CirBuf[T]) GetTotalCountAndHeadOffset() (int, int) {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+
+	return cb.TotalCount, cb.HeadOffset
+}
+
+// returns items, true-offset, eof
+func (cb *CirBuf[T]) GetRange(start int, end int) ([]T, int, bool) {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+	if start < cb.HeadOffset {
+		start = cb.HeadOffset
+	}
+	var eof bool
+	if end >= cb.TotalCount {
+		end = cb.TotalCount
+		eof = true
+	}
+	realStartOffset := start - cb.HeadOffset
+	realEndOffset := end - cb.HeadOffset
+	rtnCount := realEndOffset - realStartOffset
+	if rtnCount == 0 {
+		return nil, start, eof
+	}
+	startPos := (cb.Head + realStartOffset) % len(cb.Buf)
+	rtn := make([]T, rtnCount)
+	for i := 0; i < rtnCount; i++ {
+		offset := (startPos + i) % len(cb.Buf)
+		rtn[i] = cb.Buf[offset]
+	}
+	return rtn, start, eof
 }
