@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "./app.css";
+// CSS is now loaded via link tag in index.html
 import { App } from "./app.tsx";
 import { initRpcSystem } from "./init.ts";
 
@@ -9,12 +9,24 @@ initRpcSystem();
 const params = new URLSearchParams(window.location.search);
 const isStrict = params.get("strict") != "0";
 
-createRoot(document.getElementById("root")!).render(
-    isStrict ? (
-        <StrictMode>
+// Function to render the app
+const renderApp = () => {
+    createRoot(document.getElementById("root")!).render(
+        isStrict ? (
+            <StrictMode>
+                <App />
+            </StrictMode>
+        ) : (
             <App />
-        </StrictMode>
-    ) : (
-        <App />
-    )
-);
+        )
+    );
+};
+
+// Check if CSS is already loaded or wait for it
+if (window.outrigCssLoaded) {
+    // CSS already loaded, render immediately
+    renderApp();
+} else {
+    // Wait for CSS to load before rendering
+    document.addEventListener("outrig-css-loaded", renderApp);
+}

@@ -1,12 +1,21 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Outrig</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/web/main.tsx"></script>
-  </body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Outrig</title>
+        <link rel="stylesheet" href="/web/app.css" id="main-stylesheet" onload="window.outrigCssLoaded = true; document.dispatchEvent(new Event('outrig-css-loaded'));" />
+        <script>
+            // Set the initial background color based on theme to prevent flash
+            (function() {
+                const isDarkMode = localStorage.getItem('theme') === 'dark';
+                document.documentElement.dataset.theme = isDarkMode ? 'dark' : 'light';
+                document.body.style.backgroundColor = isDarkMode ? '#0c0c0c' : '#f9fafb';
+            })();
+        </script>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/web/main.tsx"></script>
+    </body>
 </html>

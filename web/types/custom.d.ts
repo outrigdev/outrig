@@ -37,6 +37,12 @@ declare global {
         key: string;
         keyType: string;
     };
+
+    // Add outrigCssLoaded property to Window interface
+    interface Window {
+        outrigCssLoaded?: boolean;
+        jotaiStore: any;
+    }
 }
 
 export {};
