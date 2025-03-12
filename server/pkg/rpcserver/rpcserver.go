@@ -60,38 +60,8 @@ func (*RpcServerImpl) EventReadHistoryCommand(ctx context.Context, data rpctypes
 
 // GetAppRunsCommand returns a list of all app runs
 func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context) (rpctypes.AppRunsData, error) {
-	// Get all app run peers from the apppeer package
-	appRunPeers := apppeer.GetAllAppRunPeers()
-
-	// Convert to AppRunInfo slice
-	appRuns := make([]rpctypes.AppRunInfo, 0, len(appRunPeers))
-	for _, peer := range appRunPeers {
-		// Skip peers with no AppInfo
-		if peer.AppInfo == nil {
-			continue
-		}
-
-		// Determine if the app is still running based on its status
-		isRunning := peer.Status == apppeer.AppStatusRunning
-
-		// Get the number of active and total goroutines
-		numActiveGoRoutines := len(peer.ActiveGoRoutines)
-		numTotalGoRoutines := len(peer.GoRoutines.Keys())
-
-		// Create AppRunInfo
-		appRun := rpctypes.AppRunInfo{
-			AppRunId:            peer.AppRunId,
-			AppName:             peer.AppInfo.AppName,
-			StartTime:           peer.AppInfo.StartTime,
-			IsRunning:           isRunning,
-			Status:              peer.Status,
-			NumLogs:             peer.Logs.Size(),
-			NumActiveGoRoutines: numActiveGoRoutines,
-			NumTotalGoRoutines:  numTotalGoRoutines,
-		}
-
-		appRuns = append(appRuns, appRun)
-	}
+	// Get all app run infos directly from the apppeer package
+	appRuns := apppeer.GetAllAppRunPeerInfos()
 
 	return rpctypes.AppRunsData{
 		AppRuns: appRuns,

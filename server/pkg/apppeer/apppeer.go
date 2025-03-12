@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/outrigdev/outrig/pkg/ds"
+	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
 )
 
@@ -71,6 +72,27 @@ func GetAllAppRunPeers() []*AppRunPeer {
 	}
 
 	return peers
+}
+
+// GetAllAppRunPeerInfos returns AppRunInfo for all valid app run peers
+func GetAllAppRunPeerInfos() []rpctypes.AppRunInfo {
+	// Get all app run peers
+	appRunPeers := GetAllAppRunPeers()
+
+	// Convert to AppRunInfo slice
+	appRuns := make([]rpctypes.AppRunInfo, 0, len(appRunPeers))
+	for _, peer := range appRunPeers {
+		// Skip peers with no AppInfo
+		if peer.AppInfo == nil {
+			continue
+		}
+
+		// Get AppRunInfo from the peer
+		appRun := peer.GetAppRunInfo()
+		appRuns = append(appRuns, appRun)
+	}
+
+	return appRuns
 }
 
 // HandlePacket processes a packet received from the domain socket connection
@@ -148,5 +170,32 @@ func (p *AppRunPeer) SetConnectionClosed() {
 	if p.Status != AppStatusDone {
 		p.Status = AppStatusDisconnected
 		log.Printf("Connection closed for app run ID: %s, marked as disconnected", p.AppRunId)
+	}
+}
+
+// GetAppRunInfo constructs and returns an AppRunInfo struct for this peer
+func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
+	// Skip peers with no AppInfo
+	if p.AppInfo == nil {
+		return rpctypes.AppRunInfo{}
+	}
+
+	// Determine if the app is still running based on its status
+	isRunning := p.Status == AppStatusRunning
+
+	// Get the number of active and total goroutines
+	numActiveGoRoutines := len(p.ActiveGoRoutines)
+	numTotalGoRoutines := len(p.GoRoutines.Keys())
+
+	// Create and return AppRunInfo
+	return rpctypes.AppRunInfo{
+		AppRunId:            p.AppRunId,
+		AppName:             p.AppInfo.AppName,
+		StartTime:           p.AppInfo.StartTime,
+		IsRunning:           isRunning,
+		Status:              p.Status,
+		NumLogs:             p.Logs.Size(),
+		NumActiveGoRoutines: numActiveGoRoutines,
+		NumTotalGoRoutines:  numTotalGoRoutines,
 	}
 }
