@@ -3,7 +3,6 @@ package logsearch
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -161,7 +160,6 @@ func (lc *LogCache) RunSearch(updateFn func()) context.CancelFunc {
 			}
 			chunkNum++
 		}
-		log.Printf("searching done\n")
 	}()
 	return cancelFn
 }
@@ -219,7 +217,7 @@ func (ls *AppPeerLogSource) SearchNextChunk() ([]ds.LogLine, bool, error) {
 	lines, _, eof := ls.AppPeer.Logs.GetRange(ls.Offset, ls.Offset+ls.ChunkSize)
 	ls.Offset += len(lines)
 	var filteredLines []ds.LogLine
-	
+
 	if ls.SearchTerm == "" {
 		filteredLines = lines
 	} else {
@@ -231,14 +229,14 @@ func (ls *AppPeerLogSource) SearchNextChunk() ([]ds.LogLine, bool, error) {
 				return nil, false, fmt.Errorf("failed to create searcher: %w", err)
 			}
 		}
-		
+
 		for _, line := range lines {
 			if ls.Searcher.Match(line) {
 				filteredLines = append(filteredLines, line)
 			}
 		}
 	}
-	
+
 	if eof {
 		ls.Reset()
 	}

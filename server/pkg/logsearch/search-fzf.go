@@ -4,6 +4,8 @@
 package logsearch
 
 import (
+	"strings"
+
 	"github.com/junegunn/fzf/src/algo"
 	"github.com/junegunn/fzf/src/util"
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -20,7 +22,7 @@ type FzfSearcher struct {
 func MakeFzfSearcher(searchTerm string) (*FzfSearcher, error) {
 	pattern := []rune(searchTerm)
 	slab := util.MakeSlab(64, 4096)
-	
+
 	return &FzfSearcher{
 		searchTerm: searchTerm,
 		pattern:    pattern,
@@ -33,13 +35,14 @@ func (s *FzfSearcher) Match(line ds.LogLine) bool {
 	if s.searchTerm == "" {
 		return true
 	}
-	
+
 	// Convert the message to the format expected by fzf
-	chars := util.ToChars([]byte(line.Msg))
-	
+	msg := strings.ToLower(line.Msg)
+	chars := util.ToChars([]byte(msg))
+
 	// Perform fuzzy matching
 	result, _ := algo.FuzzyMatchV2(false, true, true, &chars, s.pattern, true, s.slab)
-	
+
 	// If the score is positive, we have a match
 	return result.Score > 0
 }

@@ -9,6 +9,7 @@ const PAGESIZE = 100;
 type LogCacheEntry = {
     status: "init" | "loading" | "loaded";
     lines: LogLine[];
+    version: number;
 };
 
 export type SearchType = "exact" | "exactcase" | "regexp" | "fzf";
@@ -78,10 +79,10 @@ class LogViewerModel {
         try {
             this.setLogCacheEntry(0, "loading", []);
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
+            this.logItemCache = [];
             getDefaultStore().set(this.totalItemCount, results.totalcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
             getDefaultStore().set(this.logItemCacheVersion, (version) => version + 1);
-            this.logItemCache = [];
             this.setLogCacheEntry(0, "loaded", results.lines);
         } catch (e) {
             this.setLogCacheEntry(0, "loaded", []);
@@ -90,7 +91,7 @@ class LogViewerModel {
             clearTimeout(quickSearchTimeoutId);
             getDefaultStore().set(this.isLoading, false);
             const endTime = performance.now();
-            console.log("Log search took", endTime - startTime, "ms");
+            console.log("Log search took", endTime - startTime, "ms", getDefaultStore().get(this.logItemCacheVersion));
         }
     }
 
@@ -105,7 +106,7 @@ class LogViewerModel {
     getLogItemCacheChunkAtom(page: number, getFn: Getter): PrimitiveAtom<LogCacheEntry> {
         const version = getFn(this.logItemCacheVersion);
         if (!this.logItemCache[page]) {
-            const cacheEntry: LogCacheEntry = { status: "init", lines: [] };
+            const cacheEntry: LogCacheEntry = { status: "init", lines: [], version: version };
             this.logItemCache[page] = atom(cacheEntry);
         }
         return this.logItemCache[page];
@@ -123,9 +124,11 @@ class LogViewerModel {
 
     setLogCacheEntry(page: number, status: "init" | "loading" | "loaded", lines: LogLine[]) {
         const chunkAtom = this.getLogItemCacheChunkAtom(page, getDefaultStore().get);
+        const version = getDefaultStore().get(this.logItemCacheVersion);
         const cacheEntry: LogCacheEntry = {
             status: status,
             lines: lines ?? [],
+            version: version,
         };
         getDefaultStore().set(chunkAtom, cacheEntry);
     }
@@ -174,8 +177,8 @@ class LogViewerModel {
         }
 
         store.set(this.isRefreshing, true);
-        getDefaultStore().set(this.logItemCacheVersion, (version) => version + 1);
         this.logItemCache = [];
+        getDefaultStore().set(this.logItemCacheVersion, (version) => version + 1);
         try {
             await this.onSearchTermUpdate(store.get(this.searchTerm), store.get(this.searchType));
         } finally {
