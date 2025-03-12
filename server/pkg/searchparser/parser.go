@@ -92,6 +92,31 @@ func (p *Parser) readQuotedToken() string {
 	return token
 }
 
+// readSingleQuotedToken reads a token enclosed in single quotes
+// If the closing quote is missing, it reads until the end of the input
+// Single quoted tokens preserve case (exactcase)
+func (p *Parser) readSingleQuotedToken() string {
+	// Skip the opening quote
+	p.readChar()
+	
+	position := p.position
+	
+	// Read until closing quote or EOF
+	for p.ch != '\'' && p.ch != 0 {
+		p.readChar()
+	}
+	
+	// Store the token content
+	token := p.input[position:p.position]
+	
+	// Skip the closing quote if present
+	if p.ch == '\'' {
+		p.readChar()
+	}
+	
+	return token
+}
+
 // Parse parses the input string into a slice of tokens
 func (p *Parser) Parse(searchType string) []SearchToken {
 	var tokens []SearchToken
@@ -106,17 +131,22 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 		}
 
 		var token string
+		var tokenType string = searchType
 		
-		// Check if this is a quoted token
+		// Check if this is a double quoted token
 		if p.ch == '"' {
 			token = p.readQuotedToken()
+		} else if p.ch == '\'' {
+			// Single quoted tokens are exactcase
+			token = p.readSingleQuotedToken()
+			tokenType = "exactcase"
 		} else {
 			token = p.readToken()
 		}
 
 		// Add the token to the result
 		tokens = append(tokens, SearchToken{
-			Type:       searchType,
+			Type:       tokenType,
 			SearchTerm: token,
 		})
 	}
