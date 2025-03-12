@@ -32,10 +32,6 @@ func MakeFzfSearcher(searchTerm string) (*FzfSearcher, error) {
 
 // Match checks if the log line matches the fuzzy search pattern
 func (s *FzfSearcher) Match(line ds.LogLine) bool {
-	if s.searchTerm == "" {
-		return true
-	}
-
 	// Convert the message to the format expected by fzf
 	msg := strings.ToLower(line.Msg)
 	chars := util.ToChars([]byte(msg))

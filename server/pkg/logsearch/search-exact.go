@@ -28,10 +28,6 @@ func MakeExactSearcher(searchTerm string, caseSensitive bool) *ExactSearcher {
 
 // Match checks if the log line contains the search term
 func (s *ExactSearcher) Match(line ds.LogLine) bool {
-	if s.searchTerm == "" {
-		return true
-	}
-	
 	msg := line.Msg
 	if !s.caseSensitive {
 		msg = strings.ToLower(msg)

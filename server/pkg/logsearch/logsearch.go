@@ -130,7 +130,11 @@ func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string, searchType st
 	m.SearchTerm = searchTerm
 	m.SearchType = searchType
 	rawSource := MakeAppPeerLogSource(m.AppPeer)
-	rawSource.InitSourceWithType(searchTerm, searchType, 0, DefaultBackendChunkSize)
+	searcher, err := GetSearcher(searchType, searchTerm)
+	if err != nil {
+		return fmt.Errorf("failed to create searcher: %w", err)
+	}
+	rawSource.InitSource(searcher, 0, DefaultBackendChunkSize)
 	logCache, err := MakeLogCache(rawSource)
 	if err != nil {
 		m.SearchTerm = uuid.New().String() // set to random value to prevent using cache
@@ -156,7 +160,7 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 		return rpctypes.SearchResultData{}, fmt.Errorf("app peer not found for app run ID: %s", data.AppRunId)
 	}
 	m.LastUsed = time.Now()
-	
+
 	// If either the search term or search type has changed, create a new cache
 	if data.SearchTerm != m.SearchTerm || data.SearchType != m.SearchType {
 		err := m.setUpNewLogCache_nolock(data.SearchTerm, data.SearchType)
@@ -164,7 +168,7 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 			return rpctypes.SearchResultData{}, err
 		}
 	}
-	
+
 	return rpctypes.SearchResultData{
 		FilteredCount: m.Cache.GetFilteredSize(),
 		TotalCount:    m.Cache.GetTotalSize(),

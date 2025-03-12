@@ -18,13 +18,6 @@ type RegexpSearcher struct {
 
 // MakeRegexpSearcher creates a new regexp searcher
 func MakeRegexpSearcher(searchTerm string) (*RegexpSearcher, error) {
-	if searchTerm == "" {
-		return &RegexpSearcher{
-			searchTerm: "",
-			regex:      nil,
-		}, nil
-	}
-	
 	// Compile the regex and return error if it fails
 	regex, err := regexp.Compile(searchTerm)
 	if err != nil {
@@ -39,10 +32,6 @@ func MakeRegexpSearcher(searchTerm string) (*RegexpSearcher, error) {
 
 // Match checks if the log line matches the regular expression
 func (s *RegexpSearcher) Match(line ds.LogLine) bool {
-	if s.searchTerm == "" || s.regex == nil {
-		return true
-	}
-	
 	return s.regex.MatchString(line.Msg)
 }
 

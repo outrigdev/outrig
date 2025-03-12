@@ -15,7 +15,7 @@ const DefaultBackendChunkSize = 500
 
 type RawLogSource interface {
 	TotalSize() (int, error)
-	InitSource(searchTerm string, startOffset int, chunkSize int)
+	InitSource(searcher LogSearcher, startOffset int, chunkSize int)
 	GetPageSize() int
 
 	// returns (results, window, eof, error)
@@ -165,37 +165,27 @@ func (lc *LogCache) RunSearch(updateFn func()) context.CancelFunc {
 }
 
 type AppPeerLogSource struct {
-	AppPeer    *apppeer.AppRunPeer
-	IsActive   bool
-	SearchTerm string
-	SearchType string
-	Searcher   LogSearcher
-	Offset     int
-	ChunkSize  int
+	AppPeer   *apppeer.AppRunPeer
+	IsActive  bool
+	Searcher  LogSearcher
+	Offset    int
+	ChunkSize int
 }
 
-func MakeAppPeerLogSource(appPeer *apppeer.AppRunPeer) *AppPeerLogSource {
+func MakeAppPeerLogSource(appPeer *apppeer.AppRunPeer) RawLogSource {
 	return &AppPeerLogSource{
 		AppPeer: appPeer,
 	}
 }
 
-func (ls *AppPeerLogSource) InitSource(searchTerm string, startOffset int, chunkSize int) {
-	ls.InitSourceWithType(searchTerm, "", startOffset, chunkSize)
-}
-
-func (ls *AppPeerLogSource) InitSourceWithType(searchTerm string, searchType string, startOffset int, chunkSize int) {
-	ls.SearchTerm = searchTerm
-	ls.SearchType = searchType
-	ls.Searcher, _ = GetSearcher(searchType, searchTerm)
+func (ls *AppPeerLogSource) InitSource(searcher LogSearcher, startOffset int, chunkSize int) {
+	ls.Searcher = searcher
 	ls.Offset = startOffset
 	ls.ChunkSize = chunkSize
 	ls.IsActive = true
 }
 
 func (ls *AppPeerLogSource) Reset() {
-	ls.SearchTerm = ""
-	ls.SearchType = ""
 	ls.Searcher = nil
 	ls.Offset = 0
 	ls.IsActive = false
@@ -218,22 +208,9 @@ func (ls *AppPeerLogSource) SearchNextChunk() ([]ds.LogLine, bool, error) {
 	ls.Offset += len(lines)
 	var filteredLines []ds.LogLine
 
-	if ls.SearchTerm == "" {
-		filteredLines = lines
-	} else {
-		// If we don't have a searcher (shouldn't happen), create a default one
-		if ls.Searcher == nil {
-			var err error
-			ls.Searcher, err = GetSearcher(ls.SearchType, ls.SearchTerm)
-			if err != nil {
-				return nil, false, fmt.Errorf("failed to create searcher: %w", err)
-			}
-		}
-
-		for _, line := range lines {
-			if ls.Searcher.Match(line) {
-				filteredLines = append(filteredLines, line)
-			}
+	for _, line := range lines {
+		if ls.Searcher == nil || ls.Searcher.Match(line) {
+			filteredLines = append(filteredLines, line)
 		}
 	}
 
