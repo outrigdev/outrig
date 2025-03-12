@@ -13,6 +13,7 @@
     "@floating-ui/react": "^0.27.5",
     "@types/react-window": "^1.8.8",
     "base64-js": "^1.5.1",
+    "clsx": "^2.1.1",
     "jotai": "^2.12.1",
     "lucide-react": "^0.475.0",
     "prettier": "^3.5.2",
@@ -20,7 +21,8 @@
     "prettier-plugin-organize-imports": "^4.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-window": "^1.8.11"
+    "react-window": "^1.8.11",
+    "tailwind-merge": "^3.0.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",

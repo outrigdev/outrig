@@ -2,6 +2,7 @@ import { useAtomValue } from "jotai";
 import { useMemo } from "react";
 import { AppModel } from "../appmodel";
 import { Tag } from "../elements/tag";
+import { cn } from "../util/util";
 
 const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
@@ -33,11 +34,18 @@ const AppRunStatusTag: React.FC<AppRunStatusTagProps> = ({ status }) => {
 interface AppRunItemProps {
     appRun: AppRunInfo;
     onClick: (appRunId: string) => void;
+    isSelected: boolean;
 }
 
-const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick }) => {
+const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) => {
     return (
-        <div className="p-4 hover:bg-buttonhover cursor-pointer" onClick={() => onClick(appRun.apprunid)}>
+        <div 
+            className={cn(
+                "p-4 hover:bg-buttonhover cursor-pointer",
+                isSelected && "bg-buttonhover border-l-4 border-l-accent"
+            )} 
+            onClick={() => onClick(appRun.apprunid)}
+        >
             <div className="flex justify-between items-center">
                 <div className="font-medium text-primary">{appRun.appname}</div>
                 <div className="text-xs text-secondary">
@@ -57,6 +65,7 @@ const NoAppRunsFound: React.FC = () => {
 
 export const AppRunList: React.FC = () => {
     const unsortedAppRuns = useAtomValue(AppModel.appRuns);
+    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
     // Sort app runs: running apps at the top, then by start time (newest first)
     const appRuns = useMemo(() => {
@@ -84,7 +93,12 @@ export const AppRunList: React.FC = () => {
                 ) : (
                     <div className="divide-y divide-border">
                         {appRuns.map((appRun) => (
-                            <AppRunItem key={appRun.apprunid} appRun={appRun} onClick={handleAppRunClick} />
+                            <AppRunItem 
+                                key={appRun.apprunid} 
+                                appRun={appRun} 
+                                onClick={handleAppRunClick} 
+                                isSelected={appRun.apprunid === selectedAppRunId}
+                            />
                         ))}
                     </div>
                 )}

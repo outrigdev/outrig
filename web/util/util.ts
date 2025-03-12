@@ -1,4 +1,6 @@
 import base64 from "base64-js";
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function isBlank(str: string | null | undefined): str is null | undefined {
     return str == null || str === "";
@@ -48,4 +50,8 @@ export async function consumeGenerator(gen: AsyncGenerator<any, any, any>) {
     } catch (e) {
         console.log("gen error", e);
     }
+}
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
