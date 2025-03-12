@@ -37,7 +37,6 @@ let lastHandledEvent: KeyboardEvent | null = null;
 // returns [keymatch, T]
 function checkKeyMap<T>(keyEvent: OutrigKeyboardEvent, keyMap: Map<string, T>): [string, T] {
     for (const key of keyMap.keys()) {
-        console.log("checkKeyPressed", keyEvent, key);
         if (keyutil.checkKeyPressed(keyEvent, key)) {
             const val = keyMap.get(key);
             return [key, val];
@@ -47,7 +46,6 @@ function checkKeyMap<T>(keyEvent: OutrigKeyboardEvent, keyMap: Map<string, T>): 
 }
 
 function appHandleKeyDown(keyEvent: OutrigKeyboardEvent): boolean {
-    console.log("appHandleKeyDown", keyEvent);
     const nativeEvent = (keyEvent as any).nativeEvent;
     if (lastHandledEvent != null && nativeEvent != null && lastHandledEvent === nativeEvent) {
         return false;
@@ -74,7 +72,6 @@ function appHandleKeyDown(keyEvent: OutrigKeyboardEvent): boolean {
     }
 
     const [, globalHandler] = checkKeyMap(keyEvent, globalKeyMap);
-    console.log("globalHandler", globalHandler);
     if (globalHandler) {
         const handled = globalHandler(keyEvent);
         if (handled) {
