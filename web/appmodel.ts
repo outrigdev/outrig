@@ -2,8 +2,7 @@
 import { DefaultRpcClient } from "@/init";
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcApi } from "./rpc/rpcclientapi";
-import { mergeArraysByKey } from "./util/util";
-import { addWSReconnectHandler } from "./websocket/client";
+import { AppRunModel } from "./apprunlist/apprunlist-model";
 
 // Define URL state type
 interface UrlState {
@@ -17,39 +16,21 @@ class AppModel {
     selectedTab: PrimitiveAtom<string> = atom("appruns"); // Default to app runs list view
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
 
-    // App runs data
-    appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);
+    // App run selection
     selectedAppRunId: PrimitiveAtom<string> = atom<string>("");
+
+    // App run model
+    appRunModel: AppRunModel;
 
     // Flag to prevent URL updates during initialization
     private _isInitializing: boolean = true;
 
-    // Track the last time we fetched app run updates (in milliseconds)
-    appRunsInfoLastUpdateTime: number = 0;
-
-    // Flag to indicate we need a full refresh of app runs data after reconnection
-    needsFullAppRunsRefresh: boolean = false;
-
-    appRunsTimeoutId: NodeJS.Timeout = null;
-
     constructor() {
+        this.appRunModel = new AppRunModel();
         this.applyTheme();
         this.initFromUrl();
         // Mark initialization as complete
         this._isInitializing = false;
-
-        this.appRunsTimeoutId = setInterval(() => {
-            this.loadAppRuns();
-        }, 1000);
-
-        // Register a WebSocket reconnect handler to force a full refresh when connection is reestablished
-        addWSReconnectHandler(this.handleServerReconnect.bind(this));
-    }
-
-    // Handle server reconnection by forcing a full refresh of app runs
-    handleServerReconnect() {
-        console.log("[AppModel] WebSocket reconnected, will perform full refresh of app runs");
-        this.needsFullAppRunsRefresh = true;
     }
 
     // Initialize state from URL parameters
@@ -111,40 +92,12 @@ class AppModel {
 
     async loadAppRuns() {
         try {
-            // If we need a full refresh, reset the lastUpdateTime to 0
-            if (this.needsFullAppRunsRefresh) {
-                console.log("[AppModel] Performing full refresh of app runs after reconnection");
-                this.appRunsInfoLastUpdateTime = 0;
-            }
-
-            // Get app runs with incremental updates (or full list if since=0)
-            const result = await RpcApi.GetAppRunsCommand(DefaultRpcClient, { since: this.appRunsInfoLastUpdateTime });
-
-            if (this.needsFullAppRunsRefresh) {
-                // For a full refresh, completely replace the app runs list
-                getDefaultStore().set(this.appRuns, result.appruns);
-                this.needsFullAppRunsRefresh = false;
-            } else {
-                // For incremental updates, merge with existing app runs
-                const currentAppRuns = getDefaultStore().get(this.appRuns);
-                const updatedAppRuns = mergeArraysByKey(currentAppRuns, result.appruns, (run) => run.apprunid);
-                getDefaultStore().set(this.appRuns, updatedAppRuns);
-            }
-
-            // Update the last update time to the maximum lastmodtime from all app runs
-            // This is more robust than using the client's time (avoids clock skew issues)
-            if (result.appruns.length > 0) {
-                const maxLastModTime = Math.max(...result.appruns.map((run) => run.lastmodtime));
-                // Only update if the new max time is greater than the current value
-                if (maxLastModTime > this.appRunsInfoLastUpdateTime) {
-                    this.appRunsInfoLastUpdateTime = maxLastModTime;
-                }
-            }
-            // If there are no app runs or no newer timestamps, keep the previous lastUpdateTime value
-
+            await this.appRunModel.loadAppRuns();
+            
             // If we have a pending appRunId from URL, verify it exists and set it
             if (this._pendingAppRunId) {
-                const appRunExists = result.appruns.some((run) => run.apprunid === this._pendingAppRunId);
+                const appRuns = getDefaultStore().get(this.appRunModel.appRuns);
+                const appRunExists = appRuns.some((run) => run.apprunid === this._pendingAppRunId);
 
                 if (appRunExists) {
                     const appRunId = this._pendingAppRunId as string;
@@ -216,7 +169,7 @@ class AppModel {
 
     getAppRunInfoAtom(appRunId: string): Atom<AppRunInfo> {
         return atom((get) => {
-            const appRuns = get(this.appRuns);
+            const appRuns = get(this.appRunModel.appRuns);
             return appRuns.find((run) => run.apprunid === appRunId);
         });
     }

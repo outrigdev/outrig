@@ -64,7 +64,7 @@ const NoAppRunsFound: React.FC = () => {
 };
 
 export const AppRunList: React.FC = () => {
-    const unsortedAppRuns = useAtomValue(AppModel.appRuns);
+    const unsortedAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
     // Sort app runs: running apps at the top, then by start time (newest first)
