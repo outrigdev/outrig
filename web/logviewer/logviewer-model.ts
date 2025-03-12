@@ -74,6 +74,7 @@ class LogViewerModel {
             });
         };
         try {
+            console.log("searchtermupdate, loading page 0 for search term", searchTerm);
             this.setLogCacheEntry(0, "loading", []);
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
             this.logItemCache = [];
@@ -153,6 +154,7 @@ class LogViewerModel {
             });
         };
         try {
+            console.log("fetchlogpage, loading page " + page + " for search term", searchTerm);
             this.setLogCacheEntry(page, "loading", []);
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
             getDefaultStore().set(this.totalItemCount, results.totalcount);
@@ -188,23 +190,23 @@ class LogViewerModel {
 
     pageUp() {
         if (!this.virtuosoRef?.current) return;
-        
+
         // Virtuoso doesn't have a direct pageUp method, but we can approximate it
         // by scrolling up by a fixed amount
         this.virtuosoRef.current.scrollBy({
             top: -500,
-            behavior: 'auto'
+            behavior: "auto",
         });
     }
 
     pageDown() {
         if (!this.virtuosoRef?.current) return;
-        
+
         // Virtuoso doesn't have a direct pageDown method, but we can approximate it
         // by scrolling down by a fixed amount
         this.virtuosoRef.current.scrollBy({
             top: 500,
-            behavior: 'auto'
+            behavior: "auto",
         });
     }
 
@@ -215,17 +217,17 @@ class LogViewerModel {
 
     scrollToBottom() {
         if (!this.virtuosoRef?.current) return;
-        
+
         const filteredCount = getDefaultStore().get(this.filteredItemCount);
         if (filteredCount <= 0) return;
-        
+
         // First scroll to the last item to ensure immediate scroll to bottom
         this.virtuosoRef.current.scrollToIndex({
             index: filteredCount,
-            align: 'end',
-            behavior: 'auto'
+            align: "end",
+            behavior: "auto",
         });
-        
+
         // Then set up autoscroll for future updates
         this.virtuosoRef.current.autoscrollToBottom();
     }

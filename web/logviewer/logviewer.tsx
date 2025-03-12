@@ -75,6 +75,46 @@ const LogLineEofView = React.memo<LogLineViewProps>(({ lineIndex, model, style }
     );
 });
 
+// LogLineItem component for rendering individual log lines
+interface LogLineItemProps {
+    index: number;
+    model: LogViewerModel;
+}
+
+const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
+    const logLineAtom = useRef(model.getLogIndexAtom(index)).current;
+    const line = useAtomValue(logLineAtom);
+
+    if (line == null) {
+        return (
+            <div className="flex whitespace-nowrap hover:bg-buttonhover">
+                <div className="select-none pr-2 text-muted w-12 text-right"></div>
+                <div>
+                    <span className="text-secondary">...</span>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex whitespace-nowrap hover:bg-buttonhover">
+            <div className="select-none pr-2 text-muted w-12 text-right">{formatLineNumber(line.linenum, 4)}</div>
+            <div>
+                <span className="text-secondary">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
+                {formatSource(line.source)} <span className="text-primary">{line.msg}</span>
+            </div>
+        </div>
+    );
+});
+
+// EOF component
+const EofItem = React.memo(() => (
+    <div className="flex whitespace-nowrap hover:bg-buttonhover">
+        <div className="select-none pr-2 text-muted w-12 text-right"></div>
+        <div className="text-secondary">-- EOF --</div>
+    </div>
+));
+
 // Follow Button component
 interface FollowButtonProps {
     model: LogViewerModel;
@@ -145,7 +185,6 @@ const RefreshButton = React.memo<RefreshButtonProps>(({ model }) => {
         </Tooltip>
     );
 });
-
 
 // Filter component
 interface LogViewerFilterProps {
@@ -317,39 +356,9 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     const itemRenderer = useCallback(
         (index: number) => {
             if (index === filteredItemCount) {
-                return (
-                    <div className="flex whitespace-nowrap hover:bg-buttonhover">
-                        <div className="select-none pr-2 text-muted w-12 text-right"></div>
-                        <div className="text-secondary">-- EOF --</div>
-                    </div>
-                );
+                return <EofItem />;
             }
-
-            const logLineAtom = model.getLogIndexAtom(index);
-            const line = getDefaultStore().get(logLineAtom);
-
-            if (line == null) {
-                return (
-                    <div className="flex whitespace-nowrap hover:bg-buttonhover">
-                        <div className="select-none pr-2 text-muted w-12 text-right"></div>
-                        <div>
-                            <span className="text-secondary">...</span>
-                        </div>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="flex whitespace-nowrap hover:bg-buttonhover">
-                    <div className="select-none pr-2 text-muted w-12 text-right">
-                        {formatLineNumber(line.linenum, 4)}
-                    </div>
-                    <div>
-                        <span className="text-secondary">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
-                        {formatSource(line.source)} <span className="text-primary">{line.msg}</span>
-                    </div>
-                </div>
-            );
+            return <LogLineItem index={index} model={model} />;
         },
         [filteredItemCount, model]
     );
