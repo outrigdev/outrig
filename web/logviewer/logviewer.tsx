@@ -36,45 +36,6 @@ interface LogLineViewProps {
     model: LogViewerModel;
 }
 
-const LogLineView = React.memo<LogLineViewProps>(({ lineIndex, model, style }) => {
-    const logLineAtom = useRef(model.getLogIndexAtom(lineIndex)).current;
-    const line = useAtomValue(logLineAtom);
-    if (line == null) {
-        return (
-            <div key="main" style={style}>
-                <div className="flex whitespace-nowrap hover:bg-buttonhover">
-                    <div className="select-none pr-2 text-muted w-12 text-right"></div>
-                    <div>
-                        <span className="text-secondary">...</span>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-    return (
-        <div key="main" style={style}>
-            <div className="flex whitespace-nowrap hover:bg-buttonhover">
-                <div className="select-none pr-2 text-muted w-12 text-right">{formatLineNumber(line.linenum, 4)}</div>
-                <div>
-                    <span className="text-secondary">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
-                    {formatSource(line.source)} <span className="text-primary">{line.msg}</span>
-                </div>
-            </div>
-        </div>
-    );
-});
-
-const LogLineEofView = React.memo<LogLineViewProps>(({ lineIndex, model, style }) => {
-    return (
-        <div key="main" style={style}>
-            <div className="flex whitespace-nowrap hover:bg-buttonhover">
-                <div className="select-none pr-2 text-muted w-12 text-right"></div>
-                <div className="text-secondary">-- EOF --</div>
-            </div>
-        </div>
-    );
-});
-
 // LogLineItem component for rendering individual log lines
 interface LogLineItemProps {
     index: number;
@@ -109,9 +70,11 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
 
 // EOF component
 const EofItem = React.memo(() => (
-    <div className="flex whitespace-nowrap hover:bg-buttonhover">
+    <div className="flex whitespace-nowrap hover:bg-buttonhover py-3">
         <div className="select-none pr-2 text-muted w-12 text-right"></div>
-        <div className="text-secondary">-- EOF --</div>
+        <div>
+            <span className="text-muted">(end of log stream)</span>
+        </div>
     </div>
 ));
 
