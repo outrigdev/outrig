@@ -1,8 +1,8 @@
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
-import { useAtom, useAtomValue } from "jotai";
-import { CaseSensitive, Code, Filter, RefreshCw, Search, Sparkles } from "lucide-react";
+import { getDefaultStore, useAtom, useAtomValue } from "jotai";
+import { ArrowDown, CaseSensitive, Code, Filter, RefreshCw, Search, Sparkles } from "lucide-react";
 import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
-import { VariableSizeList as List, ListOnItemsRenderedProps } from "react-window";
+import { ListRange, Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { LogViewerModel, SearchType } from "./logviewer-model";
 
 // Utility functions
@@ -71,6 +71,37 @@ const LogLineEofView = React.memo<LogLineViewProps>(({ lineIndex, model, style }
                 <div className="text-secondary">-- EOF --</div>
             </div>
         </div>
+    );
+});
+
+// Follow Button component
+interface FollowButtonProps {
+    model: LogViewerModel;
+}
+
+const FollowButton = React.memo<FollowButtonProps>(({ model }) => {
+    const [followOutput, setFollowOutput] = useAtom(model.followOutput);
+
+    const toggleFollow = useCallback(() => {
+        const newFollowState = !followOutput;
+        setFollowOutput(newFollowState);
+
+        // If enabling follow mode, immediately scroll to bottom using Virtuoso's built-in method
+        if (newFollowState && model.virtuosoRef?.current) {
+            model.virtuosoRef.current.autoscrollToBottom();
+        }
+    }, [followOutput, model, setFollowOutput]);
+
+    return (
+        <button
+            onClick={toggleFollow}
+            className={`p-1 mr-1 rounded hover:bg-buttonhover ${
+                followOutput ? "text-primary" : "text-muted hover:text-primary"
+            } cursor-pointer`}
+            title={followOutput ? "Disable auto-scroll" : "Enable auto-scroll"}
+        >
+            <ArrowDown size={16} />
+        </button>
     );
 });
 
@@ -237,6 +268,7 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                     {filteredCount}/{totalCount}
                 </div>
 
+                <FollowButton model={model} />
                 <RefreshButton model={model} />
             </div>
         </div>
@@ -249,28 +281,40 @@ interface LogListProps {
 }
 
 const LogList = React.memo<LogListProps>(({ model }) => {
-    // Create a ref for the List component
-    const listRef = useRef<List>(null);
+    // Create a ref for the Virtuoso component
+    const virtuosoRef = useRef<VirtuosoHandle>(null);
 
-    // Set the list ref in the model when it changes
-    useEffect(() => {
-        model.setListRef(listRef);
-    }, [model]);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const filteredItemCount = useAtomValue(model.filteredItemCount);
+    const followOutput = useAtomValue(model.followOutput);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Default line height (for single-line logs)
-    const DEFAULT_LINE_HEIGHT = 15;
+    // Set the virtuoso ref in the model when it changes
+    useEffect(() => {
+        model.setVirtuosoRef(virtuosoRef);
+    }, [model]);
 
-    // Function to calculate item height - currently all items have the same height
-    // but in the future this could vary based on content (stack traces, wrapping, etc.)
-    const getItemHeight = (index: number) => {
-        // For now, all items have the same height
-        // In the future, this could analyze the log line to determine if it's a stack trace
-        // or calculate height based on content length if wrapping is enabled
-        return DEFAULT_LINE_HEIGHT;
-    };
+    // Handle followOutput changes
+    useEffect(() => {
+        if (followOutput && virtuosoRef.current) {
+            virtuosoRef.current.autoscrollToBottom();
+        }
+    }, [followOutput]);
+
+    // Handle visibility changes (when switching tabs)
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden && followOutput && virtuosoRef.current) {
+                // When tab becomes visible and follow mode is enabled, let Virtuoso know to follow
+                virtuosoRef.current.autoscrollToBottom();
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [followOutput]);
 
     // Update dimensions when the container is resized
     useEffect(() => {
@@ -299,33 +343,65 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         };
     }, [containerRef]);
 
-    const onRenderedCallback = useCallback(
-        ({ overscanStartIndex, overscanStopIndex }: ListOnItemsRenderedProps) => {
-            model.setRenderedRange(overscanStartIndex, overscanStopIndex);
+    const onRangeChanged = useCallback(
+        (range: ListRange) => {
+            model.setRenderedRange(range.startIndex, range.endIndex);
         },
         [model]
     );
 
-    // Row renderer function that directly uses LogLineView
-    const rowRenderer = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-        if (index === filteredItemCount) {
-            return <LogLineEofView key={index} lineIndex={index} model={model} style={style} />;
-        }
-        return <LogLineView key={index} lineIndex={index} model={model} style={style} />;
-    };
+    // Item renderer function for Virtuoso
+    const itemRenderer = useCallback(
+        (index: number) => {
+            if (index === filteredItemCount) {
+                return (
+                    <div className="flex whitespace-nowrap hover:bg-buttonhover">
+                        <div className="select-none pr-2 text-muted w-12 text-right"></div>
+                        <div className="text-secondary">-- EOF --</div>
+                    </div>
+                );
+            }
+
+            const logLineAtom = model.getLogIndexAtom(index);
+            const line = getDefaultStore().get(logLineAtom);
+
+            if (line == null) {
+                return (
+                    <div className="flex whitespace-nowrap hover:bg-buttonhover">
+                        <div className="select-none pr-2 text-muted w-12 text-right"></div>
+                        <div>
+                            <span className="text-secondary">...</span>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="flex whitespace-nowrap hover:bg-buttonhover">
+                    <div className="select-none pr-2 text-muted w-12 text-right">
+                        {formatLineNumber(line.linenum, 4)}
+                    </div>
+                    <div>
+                        <span className="text-secondary">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
+                        {formatSource(line.source)} <span className="text-primary">{line.msg}</span>
+                    </div>
+                </div>
+            );
+        },
+        [filteredItemCount, model]
+    );
 
     let listElem = (
-        <List
-            ref={listRef}
-            height={dimensions.height}
-            width="100%"
-            itemCount={filteredItemCount + 1}
-            itemSize={getItemHeight}
-            overscanCount={20}
-            onItemsRendered={onRenderedCallback}
-        >
-            {rowRenderer}
-        </List>
+        <Virtuoso
+            ref={virtuosoRef}
+            style={{ height: dimensions.height, width: "100%" }}
+            totalCount={filteredItemCount + 1}
+            itemContent={itemRenderer}
+            followOutput={followOutput}
+            initialTopMostItemIndex={followOutput ? filteredItemCount : undefined}
+            overscan={20}
+            rangeChanged={onRangeChanged}
+        />
     );
 
     return (

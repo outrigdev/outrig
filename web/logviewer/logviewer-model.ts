@@ -1,7 +1,7 @@
 import { DefaultRpcClient } from "@/init";
 import { PromiseQueue } from "@/util/promisequeue";
 import { Atom, atom, getDefaultStore, Getter, PrimitiveAtom } from "jotai";
-import { VariableSizeList as List } from "react-window";
+import { VirtuosoHandle } from "react-virtuoso";
 import { RpcApi } from "../rpc/rpcclientapi";
 
 const PAGESIZE = 100;
@@ -21,7 +21,8 @@ class LogViewerModel {
     searchType: PrimitiveAtom<SearchType> = atom<SearchType>("exact");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     isLoading: PrimitiveAtom<boolean> = atom(false);
-    listRef: React.RefObject<List> = null;
+    followOutput: PrimitiveAtom<boolean> = atom(true);
+    virtuosoRef: React.RefObject<VirtuosoHandle> = null;
 
     totalItemCount: PrimitiveAtom<number> = atom(0);
     filteredItemCount: PrimitiveAtom<number> = atom(0);
@@ -187,43 +188,45 @@ class LogViewerModel {
         }
     }
 
-    setListRef(ref: React.RefObject<List>) {
-        this.listRef = ref;
+    setVirtuosoRef(ref: React.RefObject<VirtuosoHandle>) {
+        this.virtuosoRef = ref;
     }
 
     pageUp() {
-        if (!this.listRef?.current) return;
-
-        // Access scrollOffset using type assertion
-        const currentScrollOffset = (this.listRef.current.state as any).scrollOffset || 0;
-        const scrollHeight = this.listRef.current.props.height as number;
-        this.listRef.current.scrollTo(Math.max(0, currentScrollOffset - scrollHeight));
+        if (!this.virtuosoRef?.current) return;
+        
+        // Virtuoso doesn't have a direct pageUp method, but we can approximate it
+        // by scrolling up by a fixed amount
+        this.virtuosoRef.current.scrollBy({
+            top: -500,
+            behavior: 'auto'
+        });
     }
 
     pageDown() {
-        if (!this.listRef?.current) return;
-
-        // Access scrollOffset using type assertion
-        const currentScrollOffset = (this.listRef.current.state as any).scrollOffset || 0;
-        const scrollHeight = this.listRef.current.props.height as number;
-        this.listRef.current.scrollTo(currentScrollOffset + scrollHeight);
+        if (!this.virtuosoRef?.current) return;
+        
+        // Virtuoso doesn't have a direct pageDown method, but we can approximate it
+        // by scrolling down by a fixed amount
+        this.virtuosoRef.current.scrollBy({
+            top: 500,
+            behavior: 'auto'
+        });
     }
 
     scrollToTop() {
-        if (!this.listRef?.current) return;
-        this.listRef.current.scrollTo(0);
+        if (!this.virtuosoRef?.current) return;
+        this.virtuosoRef.current.scrollToIndex(0);
     }
 
     scrollToBottom() {
-        if (!this.listRef?.current) return;
-
-        // Get the total height of all items
+        if (!this.virtuosoRef?.current) return;
+        
         const filteredCount = getDefaultStore().get(this.filteredItemCount);
         if (filteredCount <= 0) return;
-
-        // Scroll to a very large number to ensure we reach the bottom
-        // react-window will clamp this to the maximum scroll offset
-        this.listRef.current.scrollTo(Number.MAX_SAFE_INTEGER);
+        
+        // Use Virtuoso's built-in method for scrolling to bottom
+        this.virtuosoRef.current.autoscrollToBottom();
     }
 }
 

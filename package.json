@@ -21,6 +21,7 @@
     "prettier-plugin-organize-imports": "^4.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-virtuoso": "^4.12.5",
     "react-window": "^1.8.11",
     "tailwind-merge": "^3.0.2"
   },
