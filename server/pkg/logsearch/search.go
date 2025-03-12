@@ -26,8 +26,15 @@ type LogSearcher interface {
 	GetType() string
 }
 
-// GetSearcher returns the appropriate searcher based on the search type and term
+// GetSearcher returns the appropriate searcher based on the search term
+// If searchType is provided, it will be used as the default type for all tokens
+// Otherwise, "exact" will be used as the default type
 func GetSearcher(searchType string, searchTerm string) (LogSearcher, error) {
+	// If searchType is empty, default to "exact"
+	if searchType == "" {
+		searchType = SearchTypeExact
+	}
+	
 	tokens := searchparser.TokenizeSearch(searchType, searchTerm)
 	if len(tokens) == 0 {
 		return MakeAllSearcher(), nil

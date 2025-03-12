@@ -161,8 +161,9 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	}
 	m.LastUsed = time.Now()
 
-	// If either the search term or search type has changed, create a new cache
-	if data.SearchTerm != m.SearchTerm || data.SearchType != m.SearchType {
+	// If the search term has changed, create a new cache
+	// Note: searchType is now optional and will be determined by the parser
+	if data.SearchTerm != m.SearchTerm {
 		err := m.setUpNewLogCache_nolock(data.SearchTerm, data.SearchType)
 		if err != nil {
 			return rpctypes.SearchResultData{}, err

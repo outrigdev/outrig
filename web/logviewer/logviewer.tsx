@@ -1,10 +1,10 @@
 import { Tooltip } from "@/elements/tooltip";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { ArrowDown, ArrowDownCircle, CaseSensitive, Code, Filter, RefreshCw, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowDownCircle, Filter, RefreshCw } from "lucide-react";
 import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
 import { ListRange, Virtuoso, VirtuosoHandle } from "react-virtuoso";
-import { LogViewerModel, SearchType } from "./logviewer-model";
+import { LogViewerModel } from "./logviewer-model";
 
 // Utility functions
 function formatLineNumber(num: number, width = 4) {
@@ -146,57 +146,6 @@ const RefreshButton = React.memo<RefreshButtonProps>(({ model }) => {
     );
 });
 
-// Search Type Selector component
-interface SearchTypeSelectorProps {
-    model: LogViewerModel;
-}
-
-const SearchTypeSelector = React.memo<SearchTypeSelectorProps>(({ model }) => {
-    const [searchType, setSearchType] = useAtom(model.searchType);
-
-    const searchTypes: { value: SearchType; label: string; icon: JSX.Element }[] = [
-        {
-            value: "exact",
-            label: "Exact Match (case-insensitive)",
-            icon: <Search size={14} className="mr-1" />,
-        },
-        {
-            value: "exactcase",
-            label: "Exact Match (case-sensitive)",
-            icon: <CaseSensitive size={14} className="mr-1" />,
-        },
-        {
-            value: "regexp",
-            label: "Regular Expression",
-            icon: <Code size={14} className="mr-1" />,
-        },
-        {
-            value: "fzf",
-            label: "Fuzzy Search",
-            icon: <Sparkles size={14} className="mr-1" />,
-        },
-    ];
-
-    const handleSearchTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setSearchType(e.target.value as SearchType);
-    };
-
-    return (
-        <div className="flex items-center mr-2">
-            <select
-                value={searchType}
-                onChange={handleSearchTypeChange}
-                className="bg-transparent text-primary text-xs border border-border rounded px-1 py-0.5"
-            >
-                {searchTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                        {type.label}
-                    </option>
-                ))}
-            </select>
-        </div>
-    );
-});
 
 // Filter component
 interface LogViewerFilterProps {
@@ -264,9 +213,6 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
-
-                {/* Search type selector */}
-                <SearchTypeSelector model={model} />
 
                 {/* Search stats */}
                 <div className="text-xs text-muted mr-2 select-none">
@@ -465,11 +411,10 @@ interface LogViewerInternalProps {
 const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
     const searchRef = useRef<HTMLInputElement>(null);
     const searchTerm = useAtomValue(model.searchTerm);
-    const searchType = useAtomValue(model.searchType);
 
     useEffect(() => {
-        model.onSearchTermUpdate(searchTerm, searchType);
-    }, [model, searchTerm, searchType]);
+        model.onSearchTermUpdate(searchTerm);
+    }, [model, searchTerm]);
 
     useEffect(() => {
         // on window focus, focus the search input
