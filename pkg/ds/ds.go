@@ -57,6 +57,15 @@ type LogLine struct {
 	Source  string `json:"source,omitempty"`
 }
 
+type ViewWindow struct {
+	Start int `json:"start"`
+	Size  int `json:"size"`
+}
+
+func (vw ViewWindow) End() int {
+	return vw.Start + vw.Size
+}
+
 type AppInfo struct {
 	AppRunId   string   `json:"apprunid"`
 	AppName    string   `json:"appname"`
