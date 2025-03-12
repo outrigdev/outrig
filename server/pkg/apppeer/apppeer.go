@@ -94,8 +94,6 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		// Add log line to circular buffer
 		p.Logs.Write(logLine)
 
-		fmt.Printf("got logline: %s %d %q\n", logLine.Source, logLine.LineNum, logLine.Msg)
-
 	case ds.PacketTypeGoroutine:
 		var goroutineInfo ds.GoroutineInfo
 		if err := json.Unmarshal(packetData, &goroutineInfo); err != nil {
