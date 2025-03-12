@@ -118,6 +118,8 @@ interface LogViewerFilterProps {
 
 const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, className }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
+    const filteredCount = useAtomValue(model.filteredItemCount);
+    const totalCount = useAtomValue(model.totalItemCount);
 
     // Handle PageUp/PageDown when filter input is focused
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -157,6 +159,12 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
+                
+                {/* Search stats */}
+                <div className="text-xs text-muted mr-2 select-none">
+                    {filteredCount}/{totalCount}
+                </div>
+                
                 <RefreshButton model={model} />
             </div>
         </div>
