@@ -3,6 +3,7 @@ import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcClient } from "./rpc/rpc";
 import { RpcApi } from "./rpc/rpcclientapi";
 import { mergeArraysByKey } from "./util/util";
+import { addWSReconnectHandler } from "./websocket/client";
 
 // Define URL state type
 interface UrlState {
@@ -37,6 +38,9 @@ class AppModel {
     // Track the last time we fetched app run updates (in milliseconds)
     appRunsInfoLastUpdateTime: number = 0;
 
+    // Flag to indicate we need a full refresh of app runs data after reconnection
+    needsFullAppRunsRefresh: boolean = false;
+
     appRunsTimeoutId: NodeJS.Timeout = null;
 
     constructor() {
@@ -48,6 +52,15 @@ class AppModel {
         this.appRunsTimeoutId = setInterval(() => {
             this.loadAppRuns();
         }, 1000);
+
+        // Register a WebSocket reconnect handler to force a full refresh when connection is reestablished
+        addWSReconnectHandler(this.handleServerReconnect.bind(this));
+    }
+
+    // Handle server reconnection by forcing a full refresh of app runs
+    handleServerReconnect() {
+        console.log("[AppModel] WebSocket reconnected, will perform full refresh of app runs");
+        this.needsFullAppRunsRefresh = true;
     }
 
     // Initialize state from URL parameters
@@ -117,15 +130,25 @@ class AppModel {
         }
 
         try {
-            // Get app runs with incremental updates
+            // If we need a full refresh, reset the lastUpdateTime to 0
+            if (this.needsFullAppRunsRefresh) {
+                console.log("[AppModel] Performing full refresh of app runs after reconnection");
+                this.appRunsInfoLastUpdateTime = 0;
+            }
+
+            // Get app runs with incremental updates (or full list if since=0)
             const result = await RpcApi.GetAppRunsCommand(this.rpcClient, { since: this.appRunsInfoLastUpdateTime });
 
-            // Merge the new app runs with existing ones using our utility function
-            const currentAppRuns = getDefaultStore().get(this.appRuns);
-            const updatedAppRuns = mergeArraysByKey(currentAppRuns, result.appruns, (run) => run.apprunid);
-
-            // Update the app runs state with the merged array
-            getDefaultStore().set(this.appRuns, updatedAppRuns);
+            if (this.needsFullAppRunsRefresh) {
+                // For a full refresh, completely replace the app runs list
+                getDefaultStore().set(this.appRuns, result.appruns);
+                this.needsFullAppRunsRefresh = false;
+            } else {
+                // For incremental updates, merge with existing app runs
+                const currentAppRuns = getDefaultStore().get(this.appRuns);
+                const updatedAppRuns = mergeArraysByKey(currentAppRuns, result.appruns, (run) => run.apprunid);
+                getDefaultStore().set(this.appRuns, updatedAppRuns);
+            }
 
             // Update the last update time to the maximum lastmodtime from all app runs
             // This is more robust than using the client's time (avoids clock skew issues)
