@@ -162,7 +162,7 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Default line height (for single-line logs)
-    const DEFAULT_LINE_HEIGHT = 20;
+    const DEFAULT_LINE_HEIGHT = 15;
 
     // Function to calculate item height - currently all items have the same height
     // but in the future this could vary based on content (stack traces, wrapping, etc.)
@@ -256,7 +256,7 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
             )}
 
             {!isRefreshing && filteredLinesCount === 0 && (
-                <div className="w-full h-full flex items-center justify-center text-muted">No logs found</div>
+                <div className="w-full h-full flex items-center justify-center text-muted">no matching lines</div>
             )}
 
             {!isRefreshing && filteredLinesCount > 0 && <LogList model={model} />}
