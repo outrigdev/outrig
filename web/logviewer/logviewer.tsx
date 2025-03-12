@@ -355,6 +355,18 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         [model]
     );
 
+    // Handle scroll position changes to update follow mode
+    const handleAtBottomStateChange = useCallback(
+        (isAtBottom: boolean) => {
+            // Only update follow mode if it's different from current state
+            const currentFollowMode = getDefaultStore().get(model.followOutput);
+            if (currentFollowMode !== isAtBottom) {
+                getDefaultStore().set(model.followOutput, isAtBottom);
+            }
+        },
+        [model]
+    );
+
     // Item renderer function for Virtuoso
     const itemRenderer = useCallback(
         (index: number) => {
@@ -406,6 +418,7 @@ const LogList = React.memo<LogListProps>(({ model }) => {
             initialTopMostItemIndex={followOutput ? filteredItemCount : undefined}
             overscan={20}
             rangeChanged={onRangeChanged}
+            atBottomStateChange={handleAtBottomStateChange}
         />
     );
 
