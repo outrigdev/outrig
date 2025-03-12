@@ -11,10 +11,13 @@ type LogCacheEntry = {
     lines: LogLine[];
 };
 
+export type SearchType = "exact" | "exactcase" | "regexp" | "fzf";
+
 class LogViewerModel {
     widgetId: string;
     appRunId: string;
     searchTerm: PrimitiveAtom<string> = atom("");
+    searchType: PrimitiveAtom<SearchType> = atom<SearchType>("exact");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     isLoading: PrimitiveAtom<boolean> = atom(false);
     listRef: React.RefObject<List> = null;
@@ -55,17 +58,19 @@ class LogViewerModel {
         );
     }
 
-    async onSearchTermUpdate(searchTerm: string) {
+    async onSearchTermUpdate(searchTerm: string, searchType: SearchType) {
         const startTime = performance.now();
         this.requestQueue.clearQueue();
         const quickSearchTimeoutId = setTimeout(() => {
             getDefaultStore().set(this.isLoading, true);
         }, 200);
+
         const cmdPromiseFn = () => {
             return RpcApi.LogSearchRequestCommand(DefaultRpcClient, {
                 widgetid: this.widgetId,
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
+                searchtype: searchType,
                 requestwindow: { start: 0, size: PAGESIZE },
                 stream: false,
             });
@@ -137,11 +142,14 @@ class LogViewerModel {
         }
         const start = page * PAGESIZE;
         const searchTerm = getDefaultStore().get(this.searchTerm);
+        const searchType = getDefaultStore().get(this.searchType);
+
         const cmdPromiseFn = () => {
             return RpcApi.LogSearchRequestCommand(DefaultRpcClient, {
                 widgetid: this.widgetId,
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
+                searchtype: searchType,
                 requestwindow: { start, size: PAGESIZE },
                 stream: false,
             });
@@ -169,7 +177,7 @@ class LogViewerModel {
         getDefaultStore().set(this.logItemCacheVersion, (version) => version + 1);
         this.logItemCache = [];
         try {
-            await this.onSearchTermUpdate(store.get(this.searchTerm));
+            await this.onSearchTermUpdate(store.get(this.searchTerm), store.get(this.searchType));
         } finally {
             // Set refreshing state to false
             store.set(this.isRefreshing, false);
