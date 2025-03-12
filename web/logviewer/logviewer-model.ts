@@ -225,7 +225,14 @@ class LogViewerModel {
         const filteredCount = getDefaultStore().get(this.filteredItemCount);
         if (filteredCount <= 0) return;
         
-        // Use Virtuoso's built-in method for scrolling to bottom
+        // First scroll to the last item to ensure immediate scroll to bottom
+        this.virtuosoRef.current.scrollToIndex({
+            index: filteredCount,
+            align: 'end',
+            behavior: 'auto'
+        });
+        
+        // Then set up autoscroll for future updates
         this.virtuosoRef.current.autoscrollToBottom();
     }
 }

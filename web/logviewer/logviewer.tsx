@@ -1,6 +1,7 @@
+import { Tooltip } from "@/elements/tooltip";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { ArrowDown, CaseSensitive, Code, Filter, RefreshCw, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowDownCircle, CaseSensitive, Code, Filter, RefreshCw, Search, Sparkles } from "lucide-react";
 import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
 import { ListRange, Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { LogViewerModel, SearchType } from "./logviewer-model";
@@ -86,22 +87,25 @@ const FollowButton = React.memo<FollowButtonProps>(({ model }) => {
         const newFollowState = !followOutput;
         setFollowOutput(newFollowState);
 
-        // If enabling follow mode, immediately scroll to bottom using Virtuoso's built-in method
-        if (newFollowState && model.virtuosoRef?.current) {
-            model.virtuosoRef.current.autoscrollToBottom();
+        if (newFollowState) {
+            model.scrollToBottom();
         }
     }, [followOutput, model, setFollowOutput]);
 
     return (
-        <button
-            onClick={toggleFollow}
-            className={`p-1 mr-1 rounded hover:bg-buttonhover ${
-                followOutput ? "text-primary" : "text-muted hover:text-primary"
-            } cursor-pointer`}
-            title={followOutput ? "Disable auto-scroll" : "Enable auto-scroll"}
-        >
-            <ArrowDown size={16} />
-        </button>
+        <Tooltip content={followOutput ? "Tailing Log (Click to Disable)" : "Not Tailing Log (Click to Enable)"}>
+            <button
+                onClick={toggleFollow}
+                className={`p-1 mr-1 rounded ${
+                    followOutput
+                        ? "bg-primary/20 text-primary hover:bg-primary/30"
+                        : "text-muted hover:bg-buttonhover hover:text-primary"
+                } cursor-pointer transition-colors`}
+                aria-pressed={followOutput}
+            >
+                {followOutput ? <ArrowDownCircle size={16} /> : <ArrowDown size={16} />}
+            </button>
+        </Tooltip>
     );
 });
 
@@ -130,14 +134,15 @@ const RefreshButton = React.memo<RefreshButtonProps>(({ model }) => {
     };
 
     return (
-        <button
-            onClick={handleRefresh}
-            className={`p-1 mr-1 rounded hover:bg-buttonhover text-muted hover:text-primary cursor-pointer ${isAnimating ? "refresh-spin" : ""}`}
-            title="Refresh logs"
-            disabled={isRefreshing || isAnimating}
-        >
-            <RefreshCw size={16} />
-        </button>
+        <Tooltip content="Refresh logs">
+            <button
+                onClick={handleRefresh}
+                className={`p-1 mr-1 rounded hover:bg-buttonhover text-muted hover:text-primary cursor-pointer ${isAnimating ? "refresh-spin" : ""}`}
+                disabled={isRefreshing || isAnimating}
+            >
+                <RefreshCw size={16} />
+            </button>
+        </Tooltip>
     );
 });
 
@@ -296,17 +301,17 @@ const LogList = React.memo<LogListProps>(({ model }) => {
 
     // Handle followOutput changes
     useEffect(() => {
-        if (followOutput && virtuosoRef.current) {
-            virtuosoRef.current.autoscrollToBottom();
+        if (followOutput) {
+            model.scrollToBottom();
         }
-    }, [followOutput]);
+    }, [followOutput, model]);
 
     // Handle visibility changes (when switching tabs)
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (!document.hidden && followOutput && virtuosoRef.current) {
-                // When tab becomes visible and follow mode is enabled, let Virtuoso know to follow
-                virtuosoRef.current.autoscrollToBottom();
+            if (!document.hidden && followOutput) {
+                // When tab becomes visible and follow mode is enabled, scroll to bottom
+                model.scrollToBottom();
             }
         };
 
@@ -314,7 +319,7 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
-    }, [followOutput]);
+    }, [followOutput, model]);
 
     // Update dimensions when the container is resized
     useEffect(() => {
