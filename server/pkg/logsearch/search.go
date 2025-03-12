@@ -4,9 +4,8 @@
 package logsearch
 
 import (
-	"strings"
-
 	"github.com/outrigdev/outrig/pkg/ds"
+	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
 const (
@@ -29,11 +28,7 @@ type LogSearcher interface {
 
 // GetSearcher returns the appropriate searcher based on the search type and term
 func GetSearcher(searchType string, searchTerm string) (LogSearcher, error) {
-	searchTerm = strings.TrimSpace(searchTerm)
-	if searchTerm == "" {
-		return MakeAllSearcher(), nil
-	}
-	tokens := TokenizeSearch(searchType, searchTerm)
+	tokens := searchparser.TokenizeSearch(searchType, searchTerm)
 	if len(tokens) == 0 {
 		return MakeAllSearcher(), nil
 	}

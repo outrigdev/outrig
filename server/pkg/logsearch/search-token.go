@@ -4,35 +4,11 @@
 package logsearch
 
 import (
-	"strings"
+	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
-// SearchToken represents a single token in a search query
-type SearchToken struct {
-	Type       string // The search type (exact, regexp, fzf, etc.)
-	SearchTerm string // The actual search term
-}
-
-// TokenizeSearch splits a search string into tokens based on whitespace
-func TokenizeSearch(searchType string, searchString string) []SearchToken {
-	if searchString == "" {
-		return []SearchToken{}
-	}
-
-	// Split the search string by whitespace
-	terms := strings.Fields(searchString)
-	tokens := make([]SearchToken, len(terms))
-
-	// Create a token for each term with the specified search type
-	for i, term := range terms {
-		tokens[i] = SearchToken{
-			Type:       searchType,
-			SearchTerm: term,
-		}
-	}
-
-	return tokens
-}
+// Use SearchToken from searchparser package
+type SearchToken = searchparser.SearchToken
 
 // MakeSearcherFromToken creates a searcher from a single token
 func MakeSearcherFromToken(token SearchToken) (LogSearcher, error) {
