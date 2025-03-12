@@ -1,7 +1,4 @@
-// AppModel.ts
-import { DefaultRpcClient } from "@/init";
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
-import { RpcApi } from "./rpc/rpcclientapi";
 import { AppRunModel } from "./apprunlist/apprunlist-model";
 
 // Define URL state type
@@ -91,36 +88,33 @@ class AppModel {
     private _pendingTab: string | null = null;
 
     async loadAppRuns() {
-        try {
-            await this.appRunModel.loadAppRuns();
-            
-            // If we have a pending appRunId from URL, verify it exists and set it
-            if (this._pendingAppRunId) {
-                const appRuns = getDefaultStore().get(this.appRunModel.appRuns);
-                const appRunExists = appRuns.some((run) => run.apprunid === this._pendingAppRunId);
+        // Let errors propagate to the caller
+        await this.appRunModel.loadAppRuns();
 
-                if (appRunExists) {
-                    const appRunId = this._pendingAppRunId as string;
+        // If we have a pending appRunId from URL, verify it exists and set it
+        if (this._pendingAppRunId) {
+            const appRuns = getDefaultStore().get(this.appRunModel.appRuns);
+            const appRunExists = appRuns.some((run) => run.apprunid === this._pendingAppRunId);
 
-                    // Set the appRunId
-                    getDefaultStore().set(this.selectedAppRunId, appRunId);
+            if (appRunExists) {
+                const appRunId = this._pendingAppRunId as string;
 
-                    // Note: Goroutines are loaded by the GoRoutines component when it mounts
-                    // No need to preload data here
-                    // Note: Logs are loaded by the LogViewer component when it mounts
-                    // Note: We don't load any data if we're on the appruns tab
-                } else {
-                    // If appRunId is invalid, switch to appruns tab and remove appRunId from URL
-                    getDefaultStore().set(this.selectedTab, "appruns");
-                    this.updateUrl({ tab: "appruns", appRunId: null });
-                }
+                // Set the appRunId
+                getDefaultStore().set(this.selectedAppRunId, appRunId);
 
-                // Clear the pending state
-                this._pendingAppRunId = null;
-                this._pendingTab = null;
+                // Note: Goroutines are loaded by the GoRoutines component when it mounts
+                // No need to preload data here
+                // Note: Logs are loaded by the LogViewer component when it mounts
+                // Note: We don't load any data if we're on the appruns tab
+            } else {
+                // If appRunId is invalid, switch to appruns tab and remove appRunId from URL
+                getDefaultStore().set(this.selectedTab, "appruns");
+                this.updateUrl({ tab: "appruns", appRunId: null });
             }
-        } catch (error) {
-            console.error("Failed to load app runs:", error);
+
+            // Clear the pending state
+            this._pendingAppRunId = null;
+            this._pendingTab = null;
         }
     }
 

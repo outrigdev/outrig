@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 // CSS is now loaded via link tag in index.html
-import { App } from "./app.tsx";
+import { AppLoader } from "./apploader";
 import { initRpcSystem } from "./init.ts";
 
 initRpcSystem();
@@ -14,10 +14,10 @@ const renderApp = () => {
     createRoot(document.getElementById("root")!).render(
         isStrict ? (
             <StrictMode>
-                <App />
+                <AppLoader />
             </StrictMode>
         ) : (
-            <App />
+            <AppLoader />
         )
     );
 };

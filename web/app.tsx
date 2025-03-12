@@ -90,9 +90,6 @@ function App() {
     useEffect(() => {
         AppModel.applyTheme();
 
-        // Load app runs after setting the RPC client
-        AppModel.loadAppRuns();
-
         const staticKeyDownHandler = keydownWrapper(appHandleKeyDown);
         document.addEventListener("keydown", staticKeyDownHandler);
         return () => {
