@@ -2,6 +2,7 @@
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcClient } from "./rpc/rpc";
 import { RpcApi } from "./rpc/rpcclientapi";
+import { mergeArraysByKey } from "./util/util";
 
 // Define URL state type
 interface UrlState {
@@ -119,13 +120,17 @@ class AppModel {
             // Get app runs with incremental updates
             const result = await RpcApi.GetAppRunsCommand(this.rpcClient, { since: this.appRunsInfoLastUpdateTime });
 
-            // Update the app runs state
-            getDefaultStore().set(this.appRuns, result.appruns);
-            
+            // Merge the new app runs with existing ones using our utility function
+            const currentAppRuns = getDefaultStore().get(this.appRuns);
+            const updatedAppRuns = mergeArraysByKey(currentAppRuns, result.appruns, (run) => run.apprunid);
+
+            // Update the app runs state with the merged array
+            getDefaultStore().set(this.appRuns, updatedAppRuns);
+
             // Update the last update time to the maximum lastmodtime from all app runs
             // This is more robust than using the client's time (avoids clock skew issues)
             if (result.appruns.length > 0) {
-                const maxLastModTime = Math.max(...result.appruns.map(run => run.lastmodtime));
+                const maxLastModTime = Math.max(...result.appruns.map((run) => run.lastmodtime));
                 // Only update if the new max time is greater than the current value
                 if (maxLastModTime > this.appRunsInfoLastUpdateTime) {
                     this.appRunsInfoLastUpdateTime = maxLastModTime;
