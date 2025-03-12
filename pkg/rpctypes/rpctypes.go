@@ -36,7 +36,7 @@ type FullRpcInterface interface {
 	UpdateStatusCommand(ctx context.Context, data StatusUpdateData) error
 
 	// app run commands
-	GetAppRunsCommand(ctx context.Context) (AppRunsData, error)
+	GetAppRunsCommand(ctx context.Context, data AppRunUpdatesRequest) (AppRunsData, error)
 	GetAppRunLogsCommand(ctx context.Context, data AppRunRequest) (AppRunLogsData, error)
 	GetAppRunGoroutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoroutinesData, error)
 
@@ -110,14 +110,20 @@ type AppRunInfo struct {
 	NumLogs             int    `json:"numlogs"`
 	NumActiveGoRoutines int    `json:"numactivegoroutines"`
 	NumTotalGoRoutines  int    `json:"numtotalgoroutines"`
+	LastModTime         int64  `json:"lastmodtime"`
 }
 
 type AppRunsData struct {
 	AppRuns []AppRunInfo `json:"appruns"`
 }
 
+type AppRunUpdatesRequest struct {
+	Since int64 `json:"since"`
+}
+
 type AppRunRequest struct {
 	AppRunId string `json:"apprunid"`
+	Since    int64  `json:"since,omitempty"`
 }
 
 type AppRunLogsData struct {

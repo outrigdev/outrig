@@ -42,8 +42,8 @@ class RpcApiType {
     }
 
     // command "getappruns" [call]
-    GetAppRunsCommand(client: RpcClient, opts?: RpcOpts): Promise<AppRunsData> {
-        return client.rpcCall("getappruns", null, opts);
+    GetAppRunsCommand(client: RpcClient, data: AppRunUpdatesRequest, opts?: RpcOpts): Promise<AppRunsData> {
+        return client.rpcCall("getappruns", data, opts);
     }
 
     // command "logsearchrequest" [call]

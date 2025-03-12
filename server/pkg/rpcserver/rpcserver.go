@@ -58,10 +58,11 @@ func (*RpcServerImpl) EventReadHistoryCommand(ctx context.Context, data rpctypes
 	return events, nil
 }
 
-// GetAppRunsCommand returns a list of all app runs
-func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context) (rpctypes.AppRunsData, error) {
-	// Get all app run infos directly from the apppeer package
-	appRuns := apppeer.GetAllAppRunPeerInfos()
+// GetAppRunsCommand returns a list of app runs
+// If since > 0, only returns app runs that have been updated since the given timestamp
+func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context, data rpctypes.AppRunUpdatesRequest) (rpctypes.AppRunsData, error) {
+	// Get app run infos directly from the apppeer package
+	appRuns := apppeer.GetAllAppRunPeerInfos(data.Since)
 
 	return rpctypes.AppRunsData{
 		AppRuns: appRuns,

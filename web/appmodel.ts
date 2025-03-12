@@ -33,6 +33,9 @@ class AppModel {
     // RPC client
     rpcClient: RpcClient | null = null;
 
+    // Track the last time we fetched app run updates (in milliseconds)
+    appRunsInfoLastUpdateTime: number = 0;
+
     appRunsTimeoutId: NodeJS.Timeout = null;
 
     constructor() {
@@ -113,8 +116,22 @@ class AppModel {
         }
 
         try {
-            const result = await RpcApi.GetAppRunsCommand(this.rpcClient);
+            // Get app runs with incremental updates
+            const result = await RpcApi.GetAppRunsCommand(this.rpcClient, { since: this.appRunsInfoLastUpdateTime });
+
+            // Update the app runs state
             getDefaultStore().set(this.appRuns, result.appruns);
+            
+            // Update the last update time to the maximum lastmodtime from all app runs
+            // This is more robust than using the client's time (avoids clock skew issues)
+            if (result.appruns.length > 0) {
+                const maxLastModTime = Math.max(...result.appruns.map(run => run.lastmodtime));
+                // Only update if the new max time is greater than the current value
+                if (maxLastModTime > this.appRunsInfoLastUpdateTime) {
+                    this.appRunsInfoLastUpdateTime = maxLastModTime;
+                }
+            }
+            // If there are no app runs or no newer timestamps, keep the previous lastUpdateTime value
 
             // If we have a pending appRunId from URL, verify it exists and set it
             if (this._pendingAppRunId) {

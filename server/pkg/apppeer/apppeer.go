@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
@@ -32,6 +33,7 @@ type AppRunPeer struct {
 	GoRoutines       *utilds.SyncMap[GoRoutine]
 	ActiveGoRoutines map[int]bool // Tracks currently running goroutines
 	Status           string       // Current status of the application
+	LastModTime      int64        // Last modification time in milliseconds
 }
 
 type GoRoutine struct {
@@ -46,10 +48,11 @@ var appRunPeers = utilds.MakeSyncMap[*AppRunPeer]()
 func GetAppRunPeer(appRunId string) *AppRunPeer {
 	peer, _ := appRunPeers.GetOrCreate(appRunId, func() *AppRunPeer {
 		return &AppRunPeer{
-			AppRunId:   appRunId,
-			Logs:       utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
-			GoRoutines: utilds.MakeSyncMap[GoRoutine](),
-			Status:     AppStatusRunning,
+			AppRunId:    appRunId,
+			Logs:        utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
+			GoRoutines:  utilds.MakeSyncMap[GoRoutine](),
+			Status:      AppStatusRunning,
+			LastModTime: time.Now().UnixMilli(),
 		}
 	})
 
@@ -75,7 +78,8 @@ func GetAllAppRunPeers() []*AppRunPeer {
 }
 
 // GetAllAppRunPeerInfos returns AppRunInfo for all valid app run peers
-func GetAllAppRunPeerInfos() []rpctypes.AppRunInfo {
+// If since > 0, only returns peers that have been modified since the given timestamp
+func GetAllAppRunPeerInfos(since int64) []rpctypes.AppRunInfo {
 	// Get all app run peers
 	appRunPeers := GetAllAppRunPeers()
 
@@ -84,6 +88,11 @@ func GetAllAppRunPeerInfos() []rpctypes.AppRunInfo {
 	for _, peer := range appRunPeers {
 		// Skip peers with no AppInfo
 		if peer.AppInfo == nil {
+			continue
+		}
+
+		// Skip peers that haven't been modified since the given timestamp
+		if peer.LastModTime <= since {
 			continue
 		}
 
@@ -97,6 +106,9 @@ func GetAllAppRunPeerInfos() []rpctypes.AppRunInfo {
 
 // HandlePacket processes a packet received from the domain socket connection
 func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage) error {
+	// Update the last modification time to the current time in milliseconds
+	p.LastModTime = time.Now().UnixMilli()
+
 	switch packetType {
 	case ds.PacketTypeAppInfo:
 		var appInfo ds.AppInfo
@@ -169,6 +181,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 func (p *AppRunPeer) SetConnectionClosed() {
 	if p.Status != AppStatusDone {
 		p.Status = AppStatusDisconnected
+		p.LastModTime = time.Now().UnixMilli()
 		log.Printf("Connection closed for app run ID: %s, marked as disconnected", p.AppRunId)
 	}
 }
@@ -197,5 +210,6 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 		NumLogs:             p.Logs.Size(),
 		NumActiveGoRoutines: numActiveGoRoutines,
 		NumTotalGoRoutines:  numTotalGoRoutines,
+		LastModTime:         p.LastModTime,
 	}
 }

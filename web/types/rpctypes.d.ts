@@ -22,6 +22,7 @@ declare global {
         numlogs: number;
         numactivegoroutines: number;
         numtotalgoroutines: number;
+        lastmodtime: number;
     };
 
     // rpctypes.AppRunLogsData
@@ -34,6 +35,12 @@ declare global {
     // rpctypes.AppRunRequest
     type AppRunRequest = {
         apprunid: string;
+        since?: number;
+    };
+
+    // rpctypes.AppRunUpdatesRequest
+    type AppRunUpdatesRequest = {
+        since: number;
     };
 
     // rpctypes.AppRunsData
