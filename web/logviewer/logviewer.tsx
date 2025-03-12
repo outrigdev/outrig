@@ -119,6 +119,17 @@ interface LogViewerFilterProps {
 const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, className }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
 
+    // Handle PageUp/PageDown when filter input is focused
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'PageUp') {
+            e.preventDefault();
+            model.pageUp();
+        } else if (e.key === 'PageDown') {
+            e.preventDefault();
+            model.pageDown();
+        }
+    }, [model]);
+
     return (
         <div className={`py-1 px-1 border-b border-border ${className || ""}`}>
             <div className="flex items-center justify-between">
@@ -141,6 +152,7 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                         placeholder="filter..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={handleKeyDown}
                         className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
@@ -157,6 +169,13 @@ interface LogListProps {
 }
 
 const LogList = React.memo<LogListProps>(({ model }) => {
+    // Create a ref for the List component
+    const listRef = useRef<List>(null);
+    
+    // Set the list ref in the model when it changes
+    useEffect(() => {
+        model.setListRef(listRef);
+    }, [model]);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const filteredItemCount = useAtomValue(model.filteredItemCount);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -217,6 +236,7 @@ const LogList = React.memo<LogListProps>(({ model }) => {
 
     let listElem = (
         <List
+            ref={listRef}
             height={dimensions.height}
             width="100%"
             itemCount={filteredItemCount + 1}

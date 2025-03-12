@@ -1,6 +1,7 @@
 import { DefaultRpcClient } from "@/init";
 import { PromiseQueue } from "@/util/promisequeue";
 import { Atom, atom, getDefaultStore, Getter, PrimitiveAtom } from "jotai";
+import { VariableSizeList as List } from "react-window";
 import { RpcApi } from "../rpc/rpcclientapi";
 
 const PAGESIZE = 100;
@@ -16,6 +17,7 @@ class LogViewerModel {
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     isLoading: PrimitiveAtom<boolean> = atom(false);
+    listRef: React.RefObject<List> = null;
 
     totalItemCount: PrimitiveAtom<number> = atom(0);
     filteredItemCount: PrimitiveAtom<number> = atom(0);
@@ -172,6 +174,28 @@ class LogViewerModel {
             // Set refreshing state to false
             store.set(this.isRefreshing, false);
         }
+    }
+
+    setListRef(ref: React.RefObject<List>) {
+        this.listRef = ref;
+    }
+
+    pageUp() {
+        if (!this.listRef?.current) return;
+        
+        // Access scrollOffset using type assertion
+        const currentScrollOffset = (this.listRef.current.state as any).scrollOffset || 0;
+        const scrollHeight = this.listRef.current.props.height as number;
+        this.listRef.current.scrollTo(Math.max(0, currentScrollOffset - scrollHeight));
+    }
+
+    pageDown() {
+        if (!this.listRef?.current) return;
+        
+        // Access scrollOffset using type assertion
+        const currentScrollOffset = (this.listRef.current.state as any).scrollOffset || 0;
+        const scrollHeight = this.listRef.current.props.height as number;
+        this.listRef.current.scrollTo(currentScrollOffset + scrollHeight);
     }
 }
 

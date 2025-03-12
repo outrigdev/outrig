@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { AppModel } from "../appmodel";
 import { Tag } from "../elements/tag";
 
@@ -69,18 +69,6 @@ export const AppRunList: React.FC = () => {
             return b.starttime - a.starttime;
         });
     }, [unsortedAppRuns]);
-
-    useEffect(() => {
-        // Load app runs when the component mounts
-        AppModel.loadAppRuns();
-
-        // Set up a refresh interval
-        const intervalId = setInterval(() => {
-            AppModel.loadAppRuns();
-        }, 1000); // Refresh every 5 seconds
-
-        return () => clearInterval(intervalId);
-    }, []);
 
     const handleAppRunClick = (appRunId: string) => {
         AppModel.selectAppRun(appRunId);

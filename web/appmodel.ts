@@ -33,11 +33,17 @@ class AppModel {
     // RPC client
     rpcClient: RpcClient | null = null;
 
+    appRunsTimeoutId: NodeJS.Timeout = null;
+
     constructor() {
         this.applyTheme();
         this.initFromUrl();
         // Mark initialization as complete
         this._isInitializing = false;
+
+        this.appRunsTimeoutId = setInterval(() => {
+            this.loadAppRuns();
+        }, 1000);
     }
 
     // Initialize state from URL parameters
