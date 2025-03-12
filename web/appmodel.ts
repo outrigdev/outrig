@@ -17,14 +17,6 @@ class AppModel {
     selectedTab: PrimitiveAtom<string> = atom("appruns"); // Default to app runs list view
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
 
-    // These are no longer needed as we use the data from the selected app run
-    // Keeping them for backward compatibility but they're not used in the statusbar anymore
-    numGoRoutines: PrimitiveAtom<number> = atom<number>(0);
-    numLogLines: PrimitiveAtom<number> = atom<number>(0);
-    appStatus: PrimitiveAtom<"connected" | "disconnected" | "paused"> = atom<"connected" | "disconnected" | "paused">(
-        "connected"
-    );
-
     // App runs data
     appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);
     selectedAppRunId: PrimitiveAtom<string> = atom<string>("");
