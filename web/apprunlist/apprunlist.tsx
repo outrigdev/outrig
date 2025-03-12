@@ -37,19 +37,14 @@ interface AppRunItemProps {
 
 const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick }) => {
     return (
-        <div
-            className="p-4 hover:bg-buttonhover cursor-pointer"
-            onClick={() => onClick(appRun.apprunid)}
-        >
+        <div className="p-4 hover:bg-buttonhover cursor-pointer" onClick={() => onClick(appRun.apprunid)}>
             <div className="flex justify-between items-center">
                 <div className="font-medium text-primary">{appRun.appname}</div>
                 <div className="text-xs text-secondary">
                     <AppRunStatusTag status={appRun.status} />
                 </div>
             </div>
-            <div className="mt-1 text-sm text-secondary">
-                Started: {formatTimestamp(appRun.starttime)}
-            </div>
+            <div className="mt-1 text-sm text-secondary">Started: {formatTimestamp(appRun.starttime)}</div>
             <div className="mt-1 text-xs text-muted">ID: {appRun.apprunid}</div>
             <div className="mt-1 text-xs text-muted">Logs: {appRun.numlogs}</div>
         </div>
@@ -57,11 +52,7 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick }) => {
 };
 
 const NoAppRunsFound: React.FC = () => {
-    return (
-        <div className="flex items-center justify-center h-full text-secondary">
-            No app runs found
-        </div>
-    );
+    return <div className="flex items-center justify-center h-full text-secondary">No app runs found</div>;
 };
 
 export const AppRunList: React.FC = () => {
@@ -86,7 +77,7 @@ export const AppRunList: React.FC = () => {
         // Set up a refresh interval
         const intervalId = setInterval(() => {
             AppModel.loadAppRuns();
-        }, 5000); // Refresh every 5 seconds
+        }, 1000); // Refresh every 5 seconds
 
         return () => clearInterval(intervalId);
     }, []);
@@ -105,11 +96,7 @@ export const AppRunList: React.FC = () => {
                 ) : (
                     <div className="divide-y divide-border">
                         {appRuns.map((appRun) => (
-                            <AppRunItem 
-                                key={appRun.apprunid}
-                                appRun={appRun}
-                                onClick={handleAppRunClick}
-                            />
+                            <AppRunItem key={appRun.apprunid} appRun={appRun} onClick={handleAppRunClick} />
                         ))}
                     </div>
                 )}

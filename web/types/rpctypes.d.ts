@@ -117,8 +117,8 @@ declare global {
         widgetid: string;
         apprunid: string;
         searchterm: string;
-        offset: number;
-        limit: number;
+        viewwindow?: ViewWindow;
+        requestwindow: ViewWindow;
         stream: boolean;
     };
 
@@ -154,6 +154,12 @@ declare global {
         event: string;
         scopes?: string[];
         allscopes?: boolean;
+    };
+
+    // ds.ViewWindow
+    type ViewWindow = {
+        start: number;
+        size: number;
     };
 
 }

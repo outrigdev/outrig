@@ -1,7 +1,7 @@
 import { useAtom, useAtomValue } from "jotai";
 import { Filter, RefreshCw } from "lucide-react";
-import React, { JSX, useEffect, useRef, useState } from "react";
-import { VariableSizeList as List } from "react-window";
+import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
+import { VariableSizeList as List, ListOnItemsRenderedProps } from "react-window";
 import { LogViewerModel } from "./logviewer-model";
 
 // Utility functions
@@ -29,13 +29,25 @@ function formatSource(source: string): JSX.Element {
 
 // Individual log line component that also serves as a row for react-window
 interface LogLineViewProps {
-    line: LogLine;
-    style?: React.CSSProperties;
+    lineIndex: number;
+    style: React.CSSProperties;
+    model: LogViewerModel;
 }
 
-const LogLineView = React.memo<LogLineViewProps>(({ line, style }) => {
+const LogLineView = React.memo<LogLineViewProps>(({ lineIndex, model, style }) => {
+    const logLineAtom = useRef(model.getLogIndexAtom(lineIndex)).current;
+    const line = useAtomValue(logLineAtom);
     if (line == null) {
-        return <div key="main" style={style}></div>;
+        return (
+            <div key="main" style={style}>
+                <div className="flex whitespace-nowrap hover:bg-buttonhover">
+                    <div className="select-none pr-2 text-muted w-12 text-right"></div>
+                    <div>
+                        <span className="text-secondary">...</span>
+                    </div>
+                </div>
+            </div>
+        );
     }
     return (
         <div key="main" style={style}>
@@ -45,6 +57,17 @@ const LogLineView = React.memo<LogLineViewProps>(({ line, style }) => {
                     <span className="text-secondary">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
                     {formatSource(line.source)} <span className="text-primary">{line.msg}</span>
                 </div>
+            </div>
+        </div>
+    );
+});
+
+const LogLineEofView = React.memo<LogLineViewProps>(({ lineIndex, model, style }) => {
+    return (
+        <div key="main" style={style}>
+            <div className="flex whitespace-nowrap hover:bg-buttonhover">
+                <div className="select-none pr-2 text-muted w-12 text-right"></div>
+                <div className="text-secondary">-- EOF --</div>
             </div>
         </div>
     );
@@ -131,13 +154,12 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
 // LogList component for rendering the virtualized list of logs
 interface LogListProps {
     model: LogViewerModel;
-    containerRef: React.RefObject<HTMLDivElement>;
 }
 
-const LogList = React.memo<LogListProps>(({ model, containerRef }) => {
-    const filteredLogLines = useAtomValue(model.filteredLogLines);
-    const listRef = useRef<List>(null);
+const LogList = React.memo<LogListProps>(({ model }) => {
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+    const filteredItemCount = useAtomValue(model.filteredItemCount);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Default line height (for single-line logs)
     const DEFAULT_LINE_HEIGHT = 20;
@@ -178,37 +200,37 @@ const LogList = React.memo<LogListProps>(({ model, containerRef }) => {
         };
     }, [containerRef]);
 
-    // Reset list item size cache when filtered logs change
-    useEffect(() => {
-        if (listRef.current) {
-            listRef.current.resetAfterIndex(0);
-        }
-    }, [filteredLogLines]);
+    const onRenderedCallback = useCallback(
+        ({ overscanStartIndex, overscanStopIndex }: ListOnItemsRenderedProps) => {
+            model.setRenderedRange(overscanStartIndex, overscanStopIndex);
+        },
+        [model]
+    );
 
     // Row renderer function that directly uses LogLineView
     const rowRenderer = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-        const line = filteredLogLines[index];
-        if (!line) return null;
-        return <LogLineView line={line} style={style} />;
+        if (index === filteredItemCount) {
+            return <LogLineEofView key={index} lineIndex={index} model={model} style={style} />;
+        }
+        return <LogLineView key={index} lineIndex={index} model={model} style={style} />;
     };
 
-    if (dimensions.height === 0) {
-        return null;
-    }
+    let listElem = (
+        <List
+            height={dimensions.height}
+            width="100%"
+            itemCount={filteredItemCount + 1}
+            itemSize={getItemHeight}
+            overscanCount={20}
+            onItemsRendered={onRenderedCallback}
+        >
+            {rowRenderer}
+        </List>
+    );
 
     return (
-        <div className="w-full min-w-[1200px] h-full font-mono text-xs leading-tight px-1 pt-2">
-            <List
-                ref={listRef}
-                height={dimensions.height}
-                width="100%"
-                itemCount={filteredLogLines.length}
-                itemSize={getItemHeight}
-                overscanCount={20}
-                itemKey={(index) => filteredLogLines[index]?.linenum.toString() || index.toString()}
-            >
-                {rowRenderer}
-            </List>
+        <div ref={containerRef} className="w-full min-w-[1200px] h-full font-mono text-xs leading-tight">
+            {dimensions.height > 0 ? listElem : null}
         </div>
     );
 });
@@ -220,11 +242,11 @@ interface LogViewerContentProps {
 
 const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
     const isRefreshing = useAtomValue(model.isRefreshing);
-    const filteredLogLines = useAtomValue(model.filteredLogLines);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const isLoading = useAtomValue(model.isLoading);
+    const filteredLinesCount = useAtomValue(model.filteredItemCount);
 
     return (
-        <div ref={containerRef} className="w-full h-full overflow-hidden flex-1">
+        <div className="w-full h-full overflow-hidden flex-1 pt-2 px-1">
             {isRefreshing && (
                 <div className="w-full h-full flex items-center justify-center">
                     <div className="flex items-center gap-2 text-primary">
@@ -233,28 +255,25 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
                 </div>
             )}
 
-            {!isRefreshing && filteredLogLines.length === 0 && (
+            {!isRefreshing && filteredLinesCount === 0 && (
                 <div className="w-full h-full flex items-center justify-center text-muted">No logs found</div>
             )}
 
-            {!isRefreshing && filteredLogLines.length > 0 && <LogList model={model} containerRef={containerRef} />}
+            {!isRefreshing && filteredLinesCount > 0 && <LogList model={model} />}
         </div>
     );
 });
 
-interface LogViewerProps {
-    appRunId: string;
+interface LogViewerInternalProps {
+    model: LogViewerModel;
 }
 
-export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
-    const { appRunId } = props;
-    const model = useRef(new LogViewerModel(appRunId)).current;
+const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
     const searchRef = useRef<HTMLInputElement>(null);
-
+    const searchTerm = useAtomValue(model.searchTerm);
     useEffect(() => {
-        model.loadAppRunLogs();
-    }, [model]);
-
+        model.onSearchTermUpdate(searchTerm);
+    }, [model, searchTerm]);
     useEffect(() => {
         // on window focus, focus the search input
         const onFocus = () => {
@@ -265,15 +284,30 @@ export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
             window.removeEventListener("focus", onFocus);
         };
     }, []);
-
     return (
         <div className="w-full h-full flex flex-col overflow-hidden">
             <LogViewerFilter model={model} searchRef={searchRef} className="flex-shrink-0" />
-
-            {/* Subtle divider */}
             <div className="h-px bg-border flex-shrink-0"></div>
-
             <LogViewerContent model={model} />
         </div>
     );
+});
+
+interface LogViewerProps {
+    appRunId: string;
+}
+
+export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
+    const [model, setModel] = useState<LogViewerModel>(null);
+    useEffect(() => {
+        const model = new LogViewerModel(props.appRunId);
+        setModel(model);
+        return () => {
+            model.dispose();
+        };
+    }, [props.appRunId]);
+    if (!model) {
+        return null;
+    }
+    return <LogViewerInternal key={props.appRunId} model={model} />;
 });

@@ -63,12 +63,12 @@ type ServerCommandMeta struct {
 }
 
 type SearchRequestData struct {
-	WidgetId   string `json:"widgetid"`
-	AppRunId   string `json:"apprunid"`
-	SearchTerm string `json:"searchterm"`
-	ViewOffset int    `json:"offset"`
-	ViewLimit  int    `json:"limit"`
-	Stream     bool   `json:"stream"`
+	WidgetId      string         `json:"widgetid"`
+	AppRunId      string         `json:"apprunid"`
+	SearchTerm    string         `json:"searchterm"`
+	ViewWindow    *ds.ViewWindow `json:"viewwindow,omitempty"`
+	RequestWindow ds.ViewWindow  `json:"requestwindow"`
+	Stream        bool           `json:"stream"`
 }
 
 type SearchResultData struct {

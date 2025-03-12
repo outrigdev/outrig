@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
-	"github.com/outrigdev/outrig/pkg/ds"
+	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
-	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
 )
 
@@ -21,18 +21,23 @@ const (
 
 // SearchManager handles search functionality for a specific widget
 type SearchManager struct {
-	WidgetId string
-	AppRunId string
-	AppPeer  *apppeer.AppRunPeer
-	LastUsed time.Time // Timestamp of when this manager was last used
+	Lock       *sync.Mutex
+	WidgetId   string
+	AppRunId   string
+	AppPeer    *apppeer.AppRunPeer
+	LastUsed   time.Time // Timestamp of when this manager was last used
+	SearchTerm string
+	Cache      *LogCache
 }
 
 // NewSearchManager creates a new SearchManager for a specific widget
 func NewSearchManager(widgetId string, appPeer *apppeer.AppRunPeer) *SearchManager {
 	return &SearchManager{
-		WidgetId: widgetId,
-		AppPeer:  appPeer,
-		LastUsed: time.Now(),
+		Lock:       &sync.Mutex{},
+		WidgetId:   widgetId,
+		AppPeer:    appPeer,
+		LastUsed:   time.Now(),
+		SearchTerm: uuid.New().String(), // pick a random value that will never match a real search term
 	}
 }
 
@@ -61,7 +66,7 @@ func cleanupSearchManagers() {
 	managers := make([]*SearchManager, 0, len(keys))
 	for _, key := range keys {
 		manager := widgetManagers.Get(key)
-		if now.Sub(manager.LastUsed) > MaxIdleTime {
+		if now.Sub(manager.GetLastUsed()) > MaxIdleTime {
 			widgetManagers.Delete(key)
 		} else {
 			managers = append(managers, manager)
@@ -69,7 +74,7 @@ func cleanupSearchManagers() {
 	}
 	if len(managers) > MaxSearchManagers {
 		sort.Slice(managers, func(i, j int) bool {
-			return managers[i].LastUsed.Before(managers[j].LastUsed)
+			return managers[i].GetLastUsed().Before(managers[j].GetLastUsed())
 		})
 		for _, manager := range managers[:len(managers)-MaxSearchManagers] {
 			widgetManagers.Delete(manager.WidgetId)
@@ -77,8 +82,12 @@ func cleanupSearchManagers() {
 	}
 }
 
-// GetManager gets or creates a SearchManager for the given widget ID and app peer
-func GetManager(widgetId string, appRunId string) *SearchManager {
+func GetManager(widgetId string) *SearchManager {
+	return widgetManagers.Get(widgetId)
+}
+
+// GetOrCreateManager gets or creates a SearchManager for the given widget ID and app peer
+func GetOrCreateManager(widgetId string, appRunId string) *SearchManager {
 	// Get the app peer
 	appPeer := apppeer.GetAppRunPeer(appRunId)
 
@@ -89,9 +98,6 @@ func GetManager(widgetId string, appRunId string) *SearchManager {
 	// Update the AppRunId and AppPeer in case they've changed
 	manager.AppRunId = appRunId
 	manager.AppPeer = appPeer
-
-	// Update the LastUsed timestamp
-	manager.LastUsed = time.Now()
 
 	// If we created a new manager or we're over the limit, run cleanup
 	if created || widgetManagers.Len() > MaxSearchManagers {
@@ -107,49 +113,56 @@ func DropManager(widgetId string) {
 }
 
 // UpdateLastUsed updates the LastUsed timestamp for a SearchManager
-func UpdateLastUsed(widgetId string) {
-	manager := widgetManagers.Get(widgetId)
-	if manager != nil {
-		manager.LastUsed = time.Now()
+func (m *SearchManager) UpdateLastUsed() {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+	m.LastUsed = time.Now()
+}
+
+func (m *SearchManager) GetLastUsed() time.Time {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+	return m.LastUsed
+}
+
+func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string) error {
+	m.SearchTerm = searchTerm
+	rawSource := MakeAppPeerLogSource(m.AppPeer)
+	rawSource.InitSource(searchTerm, 0, DefaultBackendChunkSize)
+	logCache, err := MakeLogCache(rawSource)
+	if err != nil {
+		m.SearchTerm = uuid.New().String() // set to random value to prevent using cache
+		return fmt.Errorf("failed to create log cache: %w", err)
 	}
+	m.Cache = logCache
+	doneCh := make(chan bool)
+	m.Cache.RunSearch(func() {
+		if m.Cache.IsDone() {
+			close(doneCh)
+		}
+	})
+	<-doneCh
+	return nil
 }
 
 // SearchRequest handles a search request for logs
 func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
-	// Update the LastUsed timestamp when a search request is made
-	m.LastUsed = time.Now()
-
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
 	// Check if the AppPeer is valid
 	if m.AppPeer == nil {
-		return rpctypes.SearchResultData{
-			FilteredCount: 0,
-			TotalCount:    0,
-			Lines:         []ds.LogLine{},
-		}, fmt.Errorf("app peer not found for app run ID: %s", data.AppRunId)
+		return rpctypes.SearchResultData{}, fmt.Errorf("app peer not found for app run ID: %s", data.AppRunId)
 	}
-
-	// Get all log lines from the AppPeer
-	allLogs := m.AppPeer.Logs.GetAll()
-	totalCount := len(allLogs)
-
-	// Since we're not filtering by search term yet, filteredCount equals totalCount
-	filteredCount := totalCount
-
-	// Apply view offset and limit with bounds checking
-	startIndex := utilfn.BoundValue(data.ViewOffset, 0, totalCount)
-	endIndex := utilfn.BoundValue(startIndex+data.ViewLimit, startIndex, totalCount)
-
-	// Get the subset of logs based on offset and limit
-	var resultLogs []ds.LogLine
-	if startIndex < endIndex {
-		resultLogs = allLogs[startIndex:endIndex]
-	} else {
-		resultLogs = []ds.LogLine{}
+	m.LastUsed = time.Now()
+	if data.SearchTerm != m.SearchTerm {
+		err := m.setUpNewLogCache_nolock(data.SearchTerm)
+		if err != nil {
+			return rpctypes.SearchResultData{}, err
+		}
 	}
-
 	return rpctypes.SearchResultData{
-		FilteredCount: filteredCount,
-		TotalCount:    totalCount,
-		Lines:         resultLogs,
+		FilteredCount: m.Cache.GetFilteredSize(),
+		TotalCount:    m.Cache.GetTotalSize(),
+		Lines:         m.Cache.GetRange(data.RequestWindow.Start, data.RequestWindow.End()),
 	}, nil
 }

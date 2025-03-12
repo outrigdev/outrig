@@ -6,8 +6,15 @@ import { initRpcSystem } from "./init.ts";
 
 initRpcSystem();
 
+const params = new URLSearchParams(window.location.search);
+const isStrict = params.get("strict") != "0";
+
 createRoot(document.getElementById("root")!).render(
-    <StrictMode>
+    isStrict ? (
+        <StrictMode>
+            <App />
+        </StrictMode>
+    ) : (
         <App />
-    </StrictMode>
+    )
 );

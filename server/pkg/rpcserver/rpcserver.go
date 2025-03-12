@@ -161,7 +161,7 @@ func (*RpcServerImpl) GetAppRunGoroutinesCommand(ctx context.Context, data rpcty
 // LogSearchRequestCommand handles search requests for logs
 func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
 	// Get or create a search manager for this widget
-	manager := logsearch.GetManager(data.WidgetId, data.AppRunId)
+	manager := logsearch.GetOrCreateManager(data.WidgetId, data.AppRunId)
 
 	// Delegate the search request to the manager
 	return manager.SearchRequest(ctx, data)
@@ -169,14 +169,15 @@ func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes
 
 // LogWidgetAdminCommand handles widget administration requests
 func (*RpcServerImpl) LogWidgetAdminCommand(ctx context.Context, data rpctypes.LogWidgetAdminData) error {
+	manager := logsearch.GetManager(data.WidgetId)
+	if manager == nil {
+		return nil
+	}
 	// Drop takes precedence over KeepAlive
 	if data.Drop {
-		// Remove the search manager for this widget
 		logsearch.DropManager(data.WidgetId)
 	} else if data.KeepAlive {
-		// Update the last used timestamp
-		logsearch.UpdateLastUsed(data.WidgetId)
+		manager.UpdateLastUsed()
 	}
-	
 	return nil
 }
