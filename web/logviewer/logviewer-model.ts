@@ -182,7 +182,7 @@ class LogViewerModel {
 
     pageUp() {
         if (!this.listRef?.current) return;
-        
+
         // Access scrollOffset using type assertion
         const currentScrollOffset = (this.listRef.current.state as any).scrollOffset || 0;
         const scrollHeight = this.listRef.current.props.height as number;
@@ -191,11 +191,28 @@ class LogViewerModel {
 
     pageDown() {
         if (!this.listRef?.current) return;
-        
+
         // Access scrollOffset using type assertion
         const currentScrollOffset = (this.listRef.current.state as any).scrollOffset || 0;
         const scrollHeight = this.listRef.current.props.height as number;
         this.listRef.current.scrollTo(currentScrollOffset + scrollHeight);
+    }
+
+    scrollToTop() {
+        if (!this.listRef?.current) return;
+        this.listRef.current.scrollTo(0);
+    }
+
+    scrollToBottom() {
+        if (!this.listRef?.current) return;
+
+        // Get the total height of all items
+        const filteredCount = getDefaultStore().get(this.filteredItemCount);
+        if (filteredCount <= 0) return;
+
+        // Scroll to a very large number to ensure we reach the bottom
+        // react-window will clamp this to the maximum scroll offset
+        this.listRef.current.scrollTo(Number.MAX_SAFE_INTEGER);
     }
 }
 

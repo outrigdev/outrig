@@ -1,3 +1,4 @@
+import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
 import { Filter, RefreshCw } from "lucide-react";
 import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
@@ -121,16 +122,32 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
     const filteredCount = useAtomValue(model.filteredItemCount);
     const totalCount = useAtomValue(model.totalItemCount);
 
-    // Handle PageUp/PageDown when filter input is focused
-    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'PageUp') {
-            e.preventDefault();
-            model.pageUp();
-        } else if (e.key === 'PageDown') {
-            e.preventDefault();
-            model.pageDown();
-        }
-    }, [model]);
+    const handleKeyDown = useCallback(
+        keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
+            if (checkKeyPressed(keyEvent, "Cmd:ArrowDown")) {
+                model.scrollToBottom();
+                return true;
+            }
+
+            if (checkKeyPressed(keyEvent, "Cmd:ArrowUp")) {
+                model.scrollToTop();
+                return true;
+            }
+
+            if (checkKeyPressed(keyEvent, "PageUp")) {
+                model.pageUp();
+                return true;
+            }
+
+            if (checkKeyPressed(keyEvent, "PageDown")) {
+                model.pageDown();
+                return true;
+            }
+
+            return false;
+        }),
+        [model]
+    );
 
     return (
         <div className={`py-1 px-1 border-b border-border ${className || ""}`}>
@@ -159,12 +176,12 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
-                
+
                 {/* Search stats */}
                 <div className="text-xs text-muted mr-2 select-none">
                     {filteredCount}/{totalCount}
                 </div>
-                
+
                 <RefreshButton model={model} />
             </div>
         </div>
@@ -179,7 +196,7 @@ interface LogListProps {
 const LogList = React.memo<LogListProps>(({ model }) => {
     // Create a ref for the List component
     const listRef = useRef<List>(null);
-    
+
     // Set the list ref in the model when it changes
     useEffect(() => {
         model.setListRef(listRef);
@@ -299,9 +316,11 @@ interface LogViewerInternalProps {
 const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
     const searchRef = useRef<HTMLInputElement>(null);
     const searchTerm = useAtomValue(model.searchTerm);
+
     useEffect(() => {
         model.onSearchTermUpdate(searchTerm);
     }, [model, searchTerm]);
+
     useEffect(() => {
         // on window focus, focus the search input
         const onFocus = () => {
@@ -312,6 +331,7 @@ const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
             window.removeEventListener("focus", onFocus);
         };
     }, []);
+
     return (
         <div className="w-full h-full flex flex-col overflow-hidden">
             <LogViewerFilter model={model} searchRef={searchRef} className="flex-shrink-0" />

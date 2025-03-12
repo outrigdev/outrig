@@ -41,6 +41,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - Creating a new Event: Refer to `aidocs/newevent.md`
 - Subscribing to Events on the Frontend: Refer to `aidocs/events.md`
 - General RPC documentation: Refer to `aidocs/rpc.md`
+- Keyboard event handling: Refer to `aidocs/keyboardevents.md`
 
 ### RPC Communication
 
