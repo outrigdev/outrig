@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -171,6 +170,8 @@ type AppPeerLogSource struct {
 	AppPeer    *apppeer.AppRunPeer
 	IsActive   bool
 	SearchTerm string
+	SearchType string
+	Searcher   LogSearcher
 	Offset     int
 	ChunkSize  int
 }
@@ -182,7 +183,13 @@ func MakeAppPeerLogSource(appPeer *apppeer.AppRunPeer) *AppPeerLogSource {
 }
 
 func (ls *AppPeerLogSource) InitSource(searchTerm string, startOffset int, chunkSize int) {
+	ls.InitSourceWithType(searchTerm, "", startOffset, chunkSize)
+}
+
+func (ls *AppPeerLogSource) InitSourceWithType(searchTerm string, searchType string, startOffset int, chunkSize int) {
 	ls.SearchTerm = searchTerm
+	ls.SearchType = searchType
+	ls.Searcher, _ = GetSearcher(searchType, searchTerm)
 	ls.Offset = startOffset
 	ls.ChunkSize = chunkSize
 	ls.IsActive = true
@@ -190,6 +197,8 @@ func (ls *AppPeerLogSource) InitSource(searchTerm string, startOffset int, chunk
 
 func (ls *AppPeerLogSource) Reset() {
 	ls.SearchTerm = ""
+	ls.SearchType = ""
+	ls.Searcher = nil
 	ls.Offset = 0
 	ls.IsActive = false
 }
@@ -210,15 +219,26 @@ func (ls *AppPeerLogSource) SearchNextChunk() ([]ds.LogLine, bool, error) {
 	lines, _, eof := ls.AppPeer.Logs.GetRange(ls.Offset, ls.Offset+ls.ChunkSize)
 	ls.Offset += len(lines)
 	var filteredLines []ds.LogLine
+	
 	if ls.SearchTerm == "" {
 		filteredLines = lines
 	} else {
+		// If we don't have a searcher (shouldn't happen), create a default one
+		if ls.Searcher == nil {
+			var err error
+			ls.Searcher, err = GetSearcher(ls.SearchType, ls.SearchTerm)
+			if err != nil {
+				return nil, false, fmt.Errorf("failed to create searcher: %w", err)
+			}
+		}
+		
 		for _, line := range lines {
-			if strings.Contains(line.Msg, ls.SearchTerm) {
+			if ls.Searcher.Match(line) {
 				filteredLines = append(filteredLines, line)
 			}
 		}
 	}
+	
 	if eof {
 		ls.Reset()
 	}

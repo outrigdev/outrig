@@ -27,6 +27,7 @@ type SearchManager struct {
 	AppPeer    *apppeer.AppRunPeer
 	LastUsed   time.Time // Timestamp of when this manager was last used
 	SearchTerm string
+	SearchType string
 	Cache      *LogCache
 }
 
@@ -125,10 +126,11 @@ func (m *SearchManager) GetLastUsed() time.Time {
 	return m.LastUsed
 }
 
-func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string) error {
+func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string, searchType string) error {
 	m.SearchTerm = searchTerm
+	m.SearchType = searchType
 	rawSource := MakeAppPeerLogSource(m.AppPeer)
-	rawSource.InitSource(searchTerm, 0, DefaultBackendChunkSize)
+	rawSource.InitSourceWithType(searchTerm, searchType, 0, DefaultBackendChunkSize)
 	logCache, err := MakeLogCache(rawSource)
 	if err != nil {
 		m.SearchTerm = uuid.New().String() // set to random value to prevent using cache
@@ -154,12 +156,15 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 		return rpctypes.SearchResultData{}, fmt.Errorf("app peer not found for app run ID: %s", data.AppRunId)
 	}
 	m.LastUsed = time.Now()
-	if data.SearchTerm != m.SearchTerm {
-		err := m.setUpNewLogCache_nolock(data.SearchTerm)
+	
+	// If either the search term or search type has changed, create a new cache
+	if data.SearchTerm != m.SearchTerm || data.SearchType != m.SearchType {
+		err := m.setUpNewLogCache_nolock(data.SearchTerm, data.SearchType)
 		if err != nil {
 			return rpctypes.SearchResultData{}, err
 		}
 	}
+	
 	return rpctypes.SearchResultData{
 		FilteredCount: m.Cache.GetFilteredSize(),
 		TotalCount:    m.Cache.GetTotalSize(),

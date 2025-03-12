@@ -124,6 +124,7 @@ declare global {
         widgetid: string;
         apprunid: string;
         searchterm: string;
+        searchtype?: string;
         viewwindow?: ViewWindow;
         requestwindow: ViewWindow;
         stream: boolean;
