@@ -1,5 +1,5 @@
+import { DefaultRpcClient } from "@/init";
 import { Atom, atom, getDefaultStore, PrimitiveAtom } from "jotai";
-import { AppModel } from "../appmodel";
 import { RpcApi } from "../rpc/rpcclientapi";
 
 class GoRoutinesModel {
@@ -96,10 +96,8 @@ class GoRoutinesModel {
     }
 
     async fetchAppRunGoroutines() {
-        if (!AppModel.rpcClient) return;
-
         try {
-            const result = await RpcApi.GetAppRunGoroutinesCommand(AppModel.rpcClient, { apprunid: this.appRunId });
+            const result = await RpcApi.GetAppRunGoroutinesCommand(DefaultRpcClient, { apprunid: this.appRunId });
             return result.goroutines;
         } catch (error) {
             console.error(`Failed to load goroutines for app run ${this.appRunId}:`, error);
@@ -109,13 +107,11 @@ class GoRoutinesModel {
 
     // Load goroutines with a minimum time to show the refreshing state
     async loadAppRunGoroutines(minTime: number = 0) {
-        if (!AppModel.rpcClient) return;
-
         const startTime = new Date().getTime();
-        
+
         try {
             const goroutines = await this.fetchAppRunGoroutines();
-            
+
             // If minTime is specified, ensure we wait at least that long
             if (minTime > 0) {
                 const curTime = new Date().getTime();
@@ -123,7 +119,7 @@ class GoRoutinesModel {
                     await new Promise((r) => setTimeout(r, minTime - (curTime - startTime)));
                 }
             }
-            
+
             getDefaultStore().set(this.appRunGoRoutines, goroutines);
         } catch (error) {
             console.error(`Failed to load goroutines for app run ${this.appRunId}:`, error);

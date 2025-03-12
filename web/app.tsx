@@ -5,7 +5,6 @@ import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
 import { GoRoutines } from "./goroutines/goroutines";
-import { DefaultRpcClient } from "./init";
 import { appHandleKeyDown } from "./keymodel";
 import { LogViewer } from "./logviewer/logviewer";
 import { StatusBar } from "./statusbar";
@@ -90,9 +89,6 @@ function App() {
 
     useEffect(() => {
         AppModel.applyTheme();
-
-        // Set the default RPC client
-        AppModel.setRpcClient(DefaultRpcClient);
 
         // Load app runs after setting the RPC client
         AppModel.loadAppRuns();

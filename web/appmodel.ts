@@ -1,6 +1,6 @@
 // AppModel.ts
+import { DefaultRpcClient } from "@/init";
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
-import { RpcClient } from "./rpc/rpc";
 import { RpcApi } from "./rpc/rpcclientapi";
 import { mergeArraysByKey } from "./util/util";
 import { addWSReconnectHandler } from "./websocket/client";
@@ -23,9 +23,6 @@ class AppModel {
 
     // Flag to prevent URL updates during initialization
     private _isInitializing: boolean = true;
-
-    // RPC client
-    rpcClient: RpcClient | null = null;
 
     // Track the last time we fetched app run updates (in milliseconds)
     appRunsInfoLastUpdateTime: number = 0;
@@ -112,15 +109,7 @@ class AppModel {
     private _pendingAppRunId: string | null = null;
     private _pendingTab: string | null = null;
 
-    setRpcClient(client: RpcClient) {
-        this.rpcClient = client;
-    }
-
     async loadAppRuns() {
-        if (!this.rpcClient) {
-            return;
-        }
-
         try {
             // If we need a full refresh, reset the lastUpdateTime to 0
             if (this.needsFullAppRunsRefresh) {
@@ -129,7 +118,7 @@ class AppModel {
             }
 
             // Get app runs with incremental updates (or full list if since=0)
-            const result = await RpcApi.GetAppRunsCommand(this.rpcClient, { since: this.appRunsInfoLastUpdateTime });
+            const result = await RpcApi.GetAppRunsCommand(DefaultRpcClient, { since: this.appRunsInfoLastUpdateTime });
 
             if (this.needsFullAppRunsRefresh) {
                 // For a full refresh, completely replace the app runs list
