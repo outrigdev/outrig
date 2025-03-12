@@ -1,4 +1,5 @@
 // WebSocket client for Outrig
+import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 
 // Constants
 const WarnWebSocketSendSize = 1024 * 1024; // 1MB
@@ -60,6 +61,9 @@ export class WebSocketController {
     noReconnect = false;
     onOpenTimeoutId: ReturnType<typeof setTimeout> | null = null;
     pingIntervalId: ReturnType<typeof setInterval> | null = null;
+    
+    // Connection state atom
+    connectionState: PrimitiveAtom<"connecting" | "connected" | "failed"> = atom<"connecting" | "connected" | "failed">("connecting");
 
     constructor(options: WebSocketOptions) {
         this.options = options;
@@ -106,6 +110,9 @@ export class WebSocketController {
         console.log("[websocket] connection established");
         this.isConnected = true;
         this.isOpening = false;
+
+        // Update connection state atom
+        getDefaultStore().set(this.connectionState, "connected");
 
         // Set a timeout to reset reconnect attempts if connection stays stable
         this.onOpenTimeoutId = setTimeout(() => {
@@ -215,6 +222,8 @@ export class WebSocketController {
         this.reconnectAttempts++;
         if (this.reconnectAttempts > MaxReconnectAttempts) {
             console.log("[websocket] max reconnect attempts reached, giving up");
+            // Update connection state atom to failed
+            getDefaultStore().set(this.connectionState, "failed");
             return;
         }
 

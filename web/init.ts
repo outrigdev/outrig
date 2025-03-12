@@ -56,4 +56,4 @@ function initRpcSystem() {
     });
 }
 
-export { DefaultRouter, DefaultRpcClient, initRpcSystem };
+export { DefaultRouter, DefaultRpcClient, GlobalWS, initRpcSystem };
