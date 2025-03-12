@@ -9,14 +9,6 @@ const formatTimestamp = (timestamp: number): string => {
     return date.toLocaleString();
 };
 
-const AppRunListHeader: React.FC = () => {
-    return (
-        <div className="py-2 px-4 border-b border-border">
-            <h2 className="text-lg font-semibold text-primary">App Runs</h2>
-        </div>
-    );
-};
-
 interface AppRunStatusTagProps {
     status: string;
 }
@@ -39,11 +31,11 @@ interface AppRunItemProps {
 
 const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) => {
     return (
-        <div 
+        <div
             className={cn(
                 "p-4 hover:bg-buttonhover cursor-pointer",
                 isSelected && "bg-buttonhover border-l-4 border-l-accent"
-            )} 
+            )}
             onClick={() => onClick(appRun.apprunid)}
         >
             <div className="flex justify-between items-center">
@@ -85,18 +77,16 @@ export const AppRunList: React.FC = () => {
 
     return (
         <div className="w-full h-full flex flex-col">
-            <AppRunListHeader />
-
             <div className="flex-1 overflow-auto">
                 {appRuns.length === 0 ? (
                     <NoAppRunsFound />
                 ) : (
                     <div className="divide-y divide-border">
                         {appRuns.map((appRun) => (
-                            <AppRunItem 
-                                key={appRun.apprunid} 
-                                appRun={appRun} 
-                                onClick={handleAppRunClick} 
+                            <AppRunItem
+                                key={appRun.apprunid}
+                                appRun={appRun}
+                                onClick={handleAppRunClick}
                                 isSelected={appRun.apprunid === selectedAppRunId}
                             />
                         ))}
