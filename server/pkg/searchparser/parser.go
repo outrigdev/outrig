@@ -68,6 +68,30 @@ func (p *Parser) readToken() string {
 	return p.input[position:p.position]
 }
 
+// readQuotedToken reads a token enclosed in double quotes
+// If the closing quote is missing, it reads until the end of the input
+func (p *Parser) readQuotedToken() string {
+	// Skip the opening quote
+	p.readChar()
+	
+	position := p.position
+	
+	// Read until closing quote or EOF
+	for p.ch != '"' && p.ch != 0 {
+		p.readChar()
+	}
+	
+	// Store the token content
+	token := p.input[position:p.position]
+	
+	// Skip the closing quote if present
+	if p.ch == '"' {
+		p.readChar()
+	}
+	
+	return token
+}
+
 // Parse parses the input string into a slice of tokens
 func (p *Parser) Parse(searchType string) []SearchToken {
 	var tokens []SearchToken
@@ -81,8 +105,14 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 			break
 		}
 
-		// Read a token
-		token := p.readToken()
+		var token string
+		
+		// Check if this is a quoted token
+		if p.ch == '"' {
+			token = p.readQuotedToken()
+		} else {
+			token = p.readToken()
+		}
 
 		// Add the token to the result
 		tokens = append(tokens, SearchToken{
