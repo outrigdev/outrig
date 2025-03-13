@@ -13,27 +13,37 @@ import (
 
 // FzfSearcher implements fuzzy matching using the fzf algorithm
 type FzfSearcher struct {
-	searchTerm string
-	pattern    []rune
-	slab       *util.Slab
+	searchTerm    string
+	pattern       []rune
+	slab          *util.Slab
+	caseSensitive bool
 }
 
 // MakeFzfSearcher creates a new FZF searcher
-func MakeFzfSearcher(searchTerm string) (*FzfSearcher, error) {
+func MakeFzfSearcher(searchTerm string, caseSensitive bool) (*FzfSearcher, error) {
 	pattern := []rune(searchTerm)
 	slab := util.MakeSlab(64, 4096)
 
 	return &FzfSearcher{
-		searchTerm: searchTerm,
-		pattern:    pattern,
-		slab:       slab,
+		searchTerm:    searchTerm,
+		pattern:       pattern,
+		slab:          slab,
+		caseSensitive: caseSensitive,
 	}, nil
 }
 
 // Match checks if the log line matches the fuzzy search pattern
 func (s *FzfSearcher) Match(line ds.LogLine) bool {
+	var msg string
+	
+	// Apply case sensitivity
+	if s.caseSensitive {
+		msg = line.Msg
+	} else {
+		msg = strings.ToLower(line.Msg)
+	}
+	
 	// Convert the message to the format expected by fzf
-	msg := strings.ToLower(line.Msg)
 	chars := util.ToChars([]byte(msg))
 
 	// Perform fuzzy matching
@@ -45,5 +55,8 @@ func (s *FzfSearcher) Match(line ds.LogLine) bool {
 
 // GetType returns the search type identifier
 func (s *FzfSearcher) GetType() string {
+	if s.caseSensitive {
+		return SearchTypeFzfCase
+	}
 	return SearchTypeFzf
 }

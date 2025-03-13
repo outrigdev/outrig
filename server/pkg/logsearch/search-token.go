@@ -26,7 +26,9 @@ func MakeSearcherFromToken(token SearchToken) (LogSearcher, error) {
 	case SearchTypeRegexp:
 		return MakeRegexpSearcher(token.SearchTerm)
 	case SearchTypeFzf:
-		return MakeFzfSearcher(token.SearchTerm)
+		return MakeFzfSearcher(token.SearchTerm, false)
+	case SearchTypeFzfCase:
+		return MakeFzfSearcher(token.SearchTerm, true)
 	default:
 		// Default to case-insensitive exact search
 		return MakeExactSearcher(token.SearchTerm, false), nil

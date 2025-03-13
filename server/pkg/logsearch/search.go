@@ -13,6 +13,7 @@ const (
 	SearchTypeExactCase = "exactcase"
 	SearchTypeRegexp    = "regexp"
 	SearchTypeFzf       = "fzf"
+	SearchTypeFzfCase   = "fzfcase"
 	SearchTypeAnd       = "and"
 	SearchTypeAll       = "all"
 )

@@ -73,22 +73,22 @@ func (p *Parser) readToken() string {
 func (p *Parser) readQuotedToken() string {
 	// Skip the opening quote
 	p.readChar()
-	
+
 	position := p.position
-	
+
 	// Read until closing quote or EOF
 	for p.ch != '"' && p.ch != 0 {
 		p.readChar()
 	}
-	
+
 	// Store the token content
 	token := p.input[position:p.position]
-	
+
 	// Skip the closing quote if present
 	if p.ch == '"' {
 		p.readChar()
 	}
-	
+
 	return token
 }
 
@@ -98,22 +98,22 @@ func (p *Parser) readQuotedToken() string {
 func (p *Parser) readSingleQuotedToken() string {
 	// Skip the opening quote
 	p.readChar()
-	
+
 	position := p.position
-	
+
 	// Read until closing quote or EOF
 	for p.ch != '\'' && p.ch != 0 {
 		p.readChar()
 	}
-	
+
 	// Store the token content
 	token := p.input[position:p.position]
-	
+
 	// Skip the closing quote if present
 	if p.ch == '\'' {
 		p.readChar()
 	}
-	
+
 	return token
 }
 
@@ -132,13 +132,50 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 
 		var token string
 		var tokenType string = searchType
-		
-		// Check if this is a double quoted token
-		if p.ch == '"' {
+
+		// Check for fuzzy search indicator (~)
+		if p.ch == '~' {
+			// Skip the ~ character
+			p.readChar()
+
+			// If we've reached the end of the input or whitespace, skip this token
+			if p.ch == 0 || unicode.IsSpace(p.ch) {
+				continue
+			}
+
+			// If the next character is another ~, treat it as a fuzzy search for ~
+			if p.ch == '~' {
+				// Skip the second ~ and read the token as a fuzzy search for ~+token
+				p.readChar()
+				token = "~" + p.readToken()
+				tokenType = "fzf"
+			} else if p.ch == '"' {
+				// Fuzzy search with double quotes
+				token = p.readQuotedToken()
+				tokenType = "fzf"
+			} else if p.ch == '\'' {
+				// Fuzzy search with single quotes (case sensitive)
+				token = p.readSingleQuotedToken()
+				tokenType = "fzfcase"
+			} else {
+				// Regular fuzzy search
+				token = p.readToken()
+				tokenType = "fzf"
+			}
+		} else if p.ch == '"' {
+			// Double quoted tokens
 			token = p.readQuotedToken()
+			// Skip empty quoted strings
+			if token == "" {
+				continue
+			}
 		} else if p.ch == '\'' {
 			// Single quoted tokens are exactcase
 			token = p.readSingleQuotedToken()
+			// Skip empty quoted strings
+			if token == "" {
+				continue
+			}
 			tokenType = "exactcase"
 		} else {
 			token = p.readToken()

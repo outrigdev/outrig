@@ -125,7 +125,6 @@ func TestTokenizeSearch(t *testing.T) {
 			searchInput: `hello "" world`,
 			want: []SearchToken{
 				{Type: "exact", SearchTerm: "hello"},
-				{Type: "exact", SearchTerm: ""},
 				{Type: "exact", SearchTerm: "world"},
 			},
 		},
@@ -135,8 +134,61 @@ func TestTokenizeSearch(t *testing.T) {
 			searchInput: `hello '' world`,
 			want: []SearchToken{
 				{Type: "exact", SearchTerm: "hello"},
-				{Type: "exactcase", SearchTerm: ""},
 				{Type: "exact", SearchTerm: "world"},
+			},
+		},
+		{
+			name:        "Fuzzy search token",
+			searchType:  "exact",
+			searchInput: `hello ~world`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello"},
+				{Type: "fzf", SearchTerm: "world"},
+			},
+		},
+		{
+			name:        "Fuzzy search with double quotes",
+			searchType:  "exact",
+			searchInput: `~"hello world"`,
+			want: []SearchToken{
+				{Type: "fzf", SearchTerm: "hello world"},
+			},
+		},
+		{
+			name:        "Fuzzy search with single quotes",
+			searchType:  "exact",
+			searchInput: `~'Hello World'`,
+			want: []SearchToken{
+				{Type: "fzfcase", SearchTerm: "Hello World"},
+			},
+		},
+		{
+			name:        "Double tilde",
+			searchType:  "exact",
+			searchInput: `hello ~~world`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello"},
+				{Type: "fzf", SearchTerm: "~world"},
+			},
+		},
+		{
+			name:        "Empty tilde",
+			searchType:  "exact",
+			searchInput: `hello ~ world`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello"},
+				{Type: "exact", SearchTerm: "world"},
+			},
+		},
+		{
+			name:        "Mixed fuzzy and regular tokens",
+			searchType:  "exact",
+			searchInput: `hello ~world "test" ~"fuzzy search"`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello"},
+				{Type: "fzf", SearchTerm: "world"},
+				{Type: "exact", SearchTerm: "test"},
+				{Type: "fzf", SearchTerm: "fuzzy search"},
 			},
 		},
 	}
