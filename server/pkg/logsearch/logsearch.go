@@ -3,6 +3,7 @@ package logsearch
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -277,7 +278,7 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 
 	m.Lock.Lock()
 	defer m.Lock.Unlock()
-	
+
 	// Check if the AppPeer is valid
 	if m.AppPeer == nil {
 		return rpctypes.SearchResultData{}, fmt.Errorf("app peer not found for app run ID: %s", data.AppRunId)
@@ -287,6 +288,7 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	// If the search term has changed, create a new cache
 	// Note: searchType is now optional and will be determined by the parser
 	if data.SearchTerm != m.SearchTerm {
+		log.Printf("running new search %q => %q\n", m.SearchTerm, data.SearchTerm)
 		err := m.setUpNewLogCache_nolock(data.SearchTerm, data.SearchType, searcher)
 		if err != nil {
 			return rpctypes.SearchResultData{}, err

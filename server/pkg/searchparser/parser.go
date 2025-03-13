@@ -274,7 +274,7 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 			// Handle case-sensitive regexp token (c/Foo/)
 			// Skip the 'c' character
 			p.readChar()
-			
+
 			token = p.readRegexpToken()
 
 			// Skip empty regexp
@@ -287,27 +287,28 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 			// Handle # special character
 			// Skip the # character
 			p.readChar()
-			
-			// If we've reached the end of the input or whitespace, skip this token
+
+			// If we've reached the end of the input or whitespace, create a token for just "#"
 			if p.ch == 0 || unicode.IsSpace(p.ch) {
-				continue
-			}
-			
-			// Read the token after #
-			position := p.position
-			for !unicode.IsSpace(p.ch) && p.ch != 0 {
-				p.readChar()
-			}
-			token = p.input[position:p.position]
-			
-			// Special case for #marked
-			if strings.ToLower(token) == "marked" {
-				tokenType = "marked"
-				token = ""  // The marked searcher doesn't need a search term
-			} else {
-				// For other cases, search for "#token" literally
 				tokenType = searchType
-				token = "#" + token
+				token = "#"
+			} else {
+				// Read the token after #
+				position := p.position
+				for !unicode.IsSpace(p.ch) && p.ch != 0 {
+					p.readChar()
+				}
+				token = p.input[position:p.position]
+
+				// Special case for #marked
+				if strings.ToLower(token) == "marked" {
+					tokenType = "marked"
+					token = "" // The marked searcher doesn't need a search term
+				} else {
+					// For other cases, search for "#token" literally
+					tokenType = searchType
+					token = "#" + token
+				}
 			}
 		} else {
 			// Parse a regular simple token

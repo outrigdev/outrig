@@ -3,6 +3,7 @@ package logsearch
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -73,6 +74,7 @@ func (lc *LogCache) searchChunk(chunkNum int) {
 	lc.FilteredSize += len(lines)
 	lc.ChunkSizes[chunkNum] = len(lines)
 	lc.Cache[chunkNum] = lines
+	log.Printf("search chunk: %d, size: %d, eof: %v\n", chunkNum, len(lines), eof)
 	if eof {
 		lc.Done = true
 	}

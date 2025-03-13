@@ -45,7 +45,7 @@ func TestTokenizeSearch(t *testing.T) {
 			want: []SearchToken{
 				{Type: "exact", SearchTerm: "hello world"},
 			},
-		},
+	},
 		{
 			name:        "Single quoted token",
 			searchType:  "exact",
@@ -314,8 +314,29 @@ func TestTokenizeSearch(t *testing.T) {
 			searchInput: `hello # world`,
 			want: []SearchToken{
 				{Type: "exact", SearchTerm: "hello"},
+				{Type: "exact", SearchTerm: "#"},
 				{Type: "exact", SearchTerm: "world"},
 			},
+		},
+		{
+			name:        "Single hash character",
+			searchType:  "exact",
+			searchInput: `#`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "#"},
+			},
+		},
+		{
+			name:        "Single double quote character",
+			searchType:  "exact",
+			searchInput: `"`,
+			want: []SearchToken{},
+		},
+		{
+			name:        "Single single quote character",
+			searchType:  "exact",
+			searchInput: `'`,
+			want: []SearchToken{},
 		},
 	}
 
