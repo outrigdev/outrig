@@ -4,9 +4,10 @@
 // Search Parser Grammar (EBNF):
 //
 // search           = { token } ;
-// token            = fuzzy_token | regexp_token | simple_token ;
+// token            = fuzzy_token | regexp_token | case_regexp_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
 // regexp_token     = "/" { any_char - "/" | "\/" } "/" ;
+// case_regexp_token = "c/" { any_char - "/" | "\/" } "/" ;
 // simple_token     = quoted_token | single_quoted_token | plain_token ;
 // quoted_token     = '"' { any_char - '"' } '"' ;
 // single_quoted_token = "'" { any_char - "'" } "'" ;
@@ -19,6 +20,8 @@
 // - Empty fuzzy prefix (~) followed by whitespace is ignored (no token)
 // - Single quoted tokens are treated as case-sensitive (exactcase)
 // - Fuzzy tokens with single quotes (~'...') are treated as case-sensitive fuzzy search (fzfcase)
+// - Regular expression tokens (/foo/) are case-insensitive by default
+// - Case-sensitive regular expression tokens (c/Foo/) are prefixed with 'c'
 
 package searchparser
 
@@ -254,7 +257,7 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 			}
 			token = simpleToken
 		} else if p.ch == '/' {
-			// Handle regexp token
+			// Handle regexp token (case-insensitive by default)
 			token = p.readRegexpToken()
 
 			// Skip empty regexp
@@ -263,6 +266,19 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 			}
 
 			tokenType = "regexp"
+		} else if p.ch == 'c' && p.readPosition < len(p.input) && p.input[p.readPosition] == '/' {
+			// Handle case-sensitive regexp token (c/Foo/)
+			// Skip the 'c' character
+			p.readChar()
+			
+			token = p.readRegexpToken()
+
+			// Skip empty regexp
+			if token == "" {
+				continue
+			}
+
+			tokenType = "regexpcase"
 		} else {
 			// Parse a regular simple token
 			var valid bool

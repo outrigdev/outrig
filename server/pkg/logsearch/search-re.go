@@ -14,12 +14,22 @@ import (
 type RegexpSearcher struct {
 	searchTerm string
 	regex      *regexp.Regexp
+	caseSensitive bool
 }
 
 // MakeRegexpSearcher creates a new regexp searcher
-func MakeRegexpSearcher(searchTerm string) (*RegexpSearcher, error) {
-	// Compile the regex and return error if it fails
-	regex, err := regexp.Compile(searchTerm)
+func MakeRegexpSearcher(searchTerm string, caseSensitive bool) (*RegexpSearcher, error) {
+	var regex *regexp.Regexp
+	var err error
+	
+	if caseSensitive {
+		// Case-sensitive regexp
+		regex, err = regexp.Compile(searchTerm)
+	} else {
+		// Case-insensitive regexp
+		regex, err = regexp.Compile("(?i)" + searchTerm)
+	}
+	
 	if err != nil {
 		return nil, fmt.Errorf("invalid regular expression: %w", err)
 	}
@@ -27,6 +37,7 @@ func MakeRegexpSearcher(searchTerm string) (*RegexpSearcher, error) {
 	return &RegexpSearcher{
 		searchTerm: searchTerm,
 		regex:      regex,
+		caseSensitive: caseSensitive,
 	}, nil
 }
 
@@ -37,5 +48,8 @@ func (s *RegexpSearcher) Match(line ds.LogLine) bool {
 
 // GetType returns the search type identifier
 func (s *RegexpSearcher) GetType() string {
+	if s.caseSensitive {
+		return SearchTypeRegexpCase
+	}
 	return SearchTypeRegexp
 }

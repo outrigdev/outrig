@@ -231,6 +231,39 @@ func TestTokenizeSearch(t *testing.T) {
 				{Type: "exact", SearchTerm: "quoted text"},
 			},
 		},
+		{
+			name:        "Case-sensitive regexp token",
+			searchType:  "exact",
+			searchInput: `c/CaseSensitive/`,
+			want: []SearchToken{
+				{Type: "regexpcase", SearchTerm: `CaseSensitive`},
+			},
+		},
+		{
+			name:        "Mixed case-sensitive and case-insensitive regexp tokens",
+			searchType:  "exact",
+			searchInput: `c/CaseSensitive/ /caseinsensitive/`,
+			want: []SearchToken{
+				{Type: "regexpcase", SearchTerm: `CaseSensitive`},
+				{Type: "regexp", SearchTerm: `caseinsensitive`},
+			},
+		},
+		{
+			name:        "Case-sensitive regexp token with escaped slashes",
+			searchType:  "exact",
+			searchInput: `c/Path\/To\/File/`,
+			want: []SearchToken{
+				{Type: "regexpcase", SearchTerm: `Path\/To\/File`},
+			},
+		},
+		{
+			name:        "Unclosed case-sensitive regexp token",
+			searchType:  "exact",
+			searchInput: `c/Unclosed`,
+			want: []SearchToken{
+				{Type: "regexpcase", SearchTerm: `Unclosed`},
+			},
+		},
 	}
 
 	for _, tt := range tests {
