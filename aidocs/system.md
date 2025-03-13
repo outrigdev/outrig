@@ -27,6 +27,8 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - generally never use "=== undefined" or "!== undefined". this is bad style. just use a "== null" or "!= null" unless it is a very specific case where we need to distinguish undefined from null.
 - use all lowercase filenames (except where case is actually important like Taskfile.yml)
 - import the "cn" function from "@/util/util" to do classname / clsx class merge (it uses twMerge underneath)
+- make sure to add cursor-pointer to buttons/links and clickable items
+- for element variants use class-variance-authority
 
 ### Styling
 

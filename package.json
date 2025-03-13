@@ -13,6 +13,7 @@
     "@floating-ui/react": "^0.27.5",
     "@types/react-window": "^1.8.8",
     "base64-js": "^1.5.1",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jotai": "^2.12.1",
     "lucide-react": "^0.475.0",

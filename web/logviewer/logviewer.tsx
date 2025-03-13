@@ -1,3 +1,4 @@
+import { CopyButton } from "@/elements/copybutton";
 import { Tooltip } from "@/elements/tooltip";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
@@ -412,14 +413,14 @@ const MarkedLinesIndicator = React.memo<MarkedLinesIndicatorProps>(({ model }) =
             <span className="font-medium">
                 {markedCount} {markedCount === 1 ? "line" : "lines"} marked
             </span>
-            <button
-                onClick={handleCopyMarkedLines}
-                className="ml-2 hover:text-black/70 cursor-pointer"
-                aria-label="Copy marked lines"
-                title="Copy marked lines"
-            >
-                <Copy size={14} />
-            </button>
+            <CopyButton
+                className="ml-2"
+                size={14}
+                tooltipText="Copy marked lines"
+                successTooltipText="Copied!"
+                variant="primary"
+                onCopy={handleCopyMarkedLines}
+            />
             <button
                 onClick={handleClearMarks}
                 className="ml-2 hover:text-black/70 cursor-pointer"

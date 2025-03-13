@@ -12,7 +12,7 @@ export default defineConfig({
     },
     server: {
         watch: {
-            ignored: ["**/*.go", "go.mod", "go.sum"],
+            ignored: ["**/*.go", "go.mod", "go.sum", "**/*.md"],
         },
         proxy: {
             "/api": "http://localhost:5005",
