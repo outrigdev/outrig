@@ -48,9 +48,9 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
 
     if (line == null) {
         return (
-            <div className="flex whitespace-nowrap hover:bg-buttonhover">
-                <div className="select-none pr-2 text-muted w-12 text-right"></div>
-                <div>
+            <div className="flex hover:bg-buttonhover">
+                <div className="select-none pr-2 text-muted w-12 text-right flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
                     <span className="text-secondary">...</span>
                 </div>
             </div>
@@ -58,11 +58,12 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
     }
 
     return (
-        <div className="flex whitespace-nowrap hover:bg-buttonhover">
-            <div className="select-none pr-2 text-muted w-12 text-right">{formatLineNumber(line.linenum, 4)}</div>
-            <div>
-                <span className="text-secondary">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
-                {formatSource(line.source)} <span className="text-primary">{line.msg}</span>
+        <div className="flex hover:bg-buttonhover">
+            <div className="select-none pr-2 text-muted w-12 text-right flex-shrink-0">{formatLineNumber(line.linenum, 4)}</div>
+            <div className="flex-1 min-w-0">
+                <span className="text-secondary whitespace-nowrap">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
+                {formatSource(line.source)}{" "}
+                <span className="text-primary break-words overflow-hidden">{line.msg}</span>
             </div>
         </div>
     );
