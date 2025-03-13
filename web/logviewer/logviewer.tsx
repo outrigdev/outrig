@@ -1,7 +1,8 @@
 import { Tooltip } from "@/elements/tooltip";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
+import { cn } from "@/util/util";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { ArrowDown, ArrowDownCircle, Filter, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowDownCircle, Copy, Filter, RefreshCw, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ListRange, Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { LogViewerModel } from "./logviewer-model";
@@ -9,6 +10,18 @@ import { LogViewerModel } from "./logviewer-model";
 // Utility functions
 function formatLineNumber(num: number, width = 4) {
     return String(num).padStart(width, " ");
+}
+
+function formatMarkedLineNumber(num: number, isMarked: boolean, width = 4): React.ReactNode {
+    const paddedNum = String(num).padStart(width, " ");
+    if (isMarked) {
+        return (
+            <span className="text-primary">
+                <span className="text-accent">•</span> {paddedNum}
+            </span>
+        );
+    }
+    return <> {paddedNum}</>;
 }
 
 function formatTimestamp(ts: number, format: string = "HH:mm:ss.SSS") {
@@ -45,6 +58,8 @@ interface LogLineItemProps {
 const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
     const logLineAtom = useRef(model.getLogIndexAtom(index)).current;
     const line = useAtomValue(logLineAtom);
+    // Subscribe to the version atom to trigger re-renders when marked lines change
+    useAtomValue(model.markedLinesVersion);
 
     if (line == null) {
         return (
@@ -57,9 +72,23 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
         );
     }
 
+    const isMarked = model.isLineMarked(line.linenum);
+
+    const handleLineNumberClick = () => {
+        model.toggleLineMarked(line.linenum);
+    };
+
     return (
-        <div className="flex hover:bg-buttonhover text-muted select-none">
-            <div className="w-12 text-right flex-shrink-0">{formatLineNumber(line.linenum, 4)}</div>
+        <div className={cn("flex text-muted select-none", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}>
+            <div
+                className={cn(
+                    "w-12 text-right flex-shrink-0 cursor-pointer",
+                    isMarked ? "text-accent" : "hover:text-primary"
+                )}
+                onClick={handleLineNumberClick}
+            >
+                {formatMarkedLineNumber(line.linenum, isMarked, 4)}
+            </div>
             <div className="text-secondary flex-shrink-0 pl-2">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</div>
             <div className="pl-2">{formatSource(line.source)}</div>
             <div className="flex-1 min-w-0 pl-2 select-text">
@@ -141,7 +170,10 @@ const RefreshButton = React.memo<RefreshButtonProps>(({ model }) => {
         <Tooltip content="Refresh logs">
             <button
                 onClick={handleRefresh}
-                className={`p-1 mr-1 rounded hover:bg-buttonhover text-muted hover:text-primary cursor-pointer ${isAnimating ? "refresh-spin" : ""}`}
+                className={cn(
+                    "p-1 mr-1 rounded hover:bg-buttonhover text-muted hover:text-primary cursor-pointer",
+                    isAnimating && "refresh-spin"
+                )}
                 disabled={isRefreshing || isAnimating}
             >
                 <RefreshCw size={16} />
@@ -353,6 +385,52 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     );
 });
 
+// Marked Lines Indicator component
+interface MarkedLinesIndicatorProps {
+    model: LogViewerModel;
+}
+
+const MarkedLinesIndicator = React.memo<MarkedLinesIndicatorProps>(({ model }) => {
+    // Subscribe to the version atom to trigger re-renders when marked lines change
+    useAtomValue(model.markedLinesVersion);
+    const markedCount = model.getMarkedLinesCount();
+
+    if (markedCount === 0) {
+        return null;
+    }
+
+    const handleClearMarks = () => {
+        model.clearMarkedLines();
+    };
+    
+    const handleCopyMarkedLines = async () => {
+        await model.copyMarkedLinesToClipboard();
+    };
+
+    return (
+        <div className="absolute top-0 right-0 flex items-center bg-accent text-black rounded-bl-md px-2 py-1 text-xs z-10">
+            <span className="font-medium">
+                {markedCount} {markedCount === 1 ? "line" : "lines"} marked
+            </span>
+            <button
+                onClick={handleCopyMarkedLines}
+                className="ml-2 hover:text-black/70 cursor-pointer"
+                aria-label="Copy marked lines"
+                title="Copy marked lines"
+            >
+                <Copy size={14} />
+            </button>
+            <button
+                onClick={handleClearMarks}
+                className="ml-2 hover:text-black/70 cursor-pointer"
+                aria-label="Clear marked lines"
+            >
+                <X size={14} />
+            </button>
+        </div>
+    );
+});
+
 // Log content component
 interface LogViewerContentProps {
     model: LogViewerModel;
@@ -364,7 +442,9 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
     const filteredLinesCount = useAtomValue(model.filteredItemCount);
 
     return (
-        <div className="w-full h-full overflow-hidden flex-1 pt-2 px-1">
+        <div className="w-full h-full overflow-hidden flex-1 pt-2 px-1 relative">
+            <MarkedLinesIndicator model={model} />
+
             {isRefreshing && (
                 <div className="w-full h-full flex items-center justify-center">
                     <div className="flex items-center gap-2 text-primary">

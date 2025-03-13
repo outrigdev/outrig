@@ -27,6 +27,11 @@ class LogViewerModel {
     logItemCacheVersion: PrimitiveAtom<number> = atom(0);
     logItemCache: PrimitiveAtom<LogCacheEntry>[] = [];
 
+    // Store marked lines in a regular Set
+    markedLines: Set<number> = new Set<number>();
+    // Version atom to trigger reactivity when the set changes
+    markedLinesVersion: PrimitiveAtom<number> = atom(0);
+
     requestQueue: PromiseQueue = new PromiseQueue();
     keepAliveTimeoutId: NodeJS.Timeout = null;
 
@@ -230,6 +235,64 @@ class LogViewerModel {
 
         // Then set up autoscroll for future updates
         this.virtuosoRef.current.autoscrollToBottom();
+    }
+
+    // Methods for managing marked lines
+    toggleLineMarked(lineNumber: number) {
+        if (this.markedLines.has(lineNumber)) {
+            this.markedLines.delete(lineNumber);
+        } else {
+            this.markedLines.add(lineNumber);
+        }
+        // Increment version to trigger reactivity
+        getDefaultStore().set(this.markedLinesVersion, (v) => v + 1);
+    }
+
+    isLineMarked(lineNumber: number): boolean {
+        return this.markedLines.has(lineNumber);
+    }
+
+    clearMarkedLines() {
+        this.markedLines.clear();
+        // Increment version to trigger reactivity
+        getDefaultStore().set(this.markedLinesVersion, (v) => v + 1);
+    }
+
+    getMarkedLinesCount(): number {
+        return this.markedLines.size;
+    }
+
+    // Get all marked lines and extract their messages
+    async copyMarkedLinesToClipboard() {
+        if (this.markedLines.size === 0) return;
+
+        // Collect all marked line numbers
+        const lineNumbers = Array.from(this.markedLines).sort((a, b) => a - b);
+        const messages: string[] = [];
+
+        // For each marked line, find the corresponding log line and extract the message
+        for (const lineNum of lineNumbers) {
+            // Find the page that contains this line
+            const page = Math.floor(lineNum / PAGESIZE);
+
+            // Check if we have this page in cache
+            if (this.logItemCache[page]) {
+                const cacheEntry = getDefaultStore().get(this.logItemCache[page]);
+                if (cacheEntry?.lines) {
+                    // Find the line in the page
+                    const line = cacheEntry.lines.find((l) => l.linenum === lineNum);
+                    if (line) {
+                        messages.push(line.msg);
+                    }
+                }
+            }
+        }
+
+        // Join messages with newlines and copy to clipboard
+        if (messages.length > 0) {
+            const text = messages.join("");
+            await navigator.clipboard.writeText(text);
+        }
     }
 }
 
