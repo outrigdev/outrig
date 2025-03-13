@@ -20,6 +20,10 @@ class LogViewerModel {
     followOutput: PrimitiveAtom<boolean> = atom(true);
     virtuosoRef: React.RefObject<VirtuosoHandle> = null;
 
+    // Store the last visible range
+    lastVisibleStartIndex: number = 0;
+    lastVisibleEndIndex: number = 0;
+
     totalItemCount: PrimitiveAtom<number> = atom(0);
     filteredItemCount: PrimitiveAtom<number> = atom(0);
 
@@ -85,6 +89,17 @@ class LogViewerModel {
             getDefaultStore().set(this.totalItemCount, results.totalcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
             this.setLogCacheEntry(0, "loaded", results.lines);
+            
+            // If following output, scroll to bottom
+            if (getDefaultStore().get(this.followOutput)) {
+                this.scrollToBottom();
+            }
+            
+            // Use setTimeout to allow any scrolling to complete
+            setTimeout(() => {
+                // Fetch the pages for the last visible range
+                this.fetchLastVisibleRange();
+            }, 10); // Very small delay to allow scrolling to complete
         } catch (e) {
             this.setLogCacheEntry(0, "loaded", []);
             console.error("Log search error", e);
@@ -98,10 +113,22 @@ class LogViewerModel {
     }
 
     setRenderedRange(start: number, end: number) {
+        // Cache the visible range
+        this.lastVisibleStartIndex = start;
+        this.lastVisibleEndIndex = end;
+
         const startPage = Math.floor(start / PAGESIZE);
         const endPage = Math.floor(end / PAGESIZE);
         for (let i = startPage; i <= endPage; i++) {
             this.fetchLogPage(i);
+        }
+    }
+
+    // Fetch pages for the last visible range
+    fetchLastVisibleRange() {
+        if (this.lastVisibleStartIndex >= 0 && this.lastVisibleEndIndex > 0) {
+            // Re-use setRenderedRange with the cached values
+            this.setRenderedRange(this.lastVisibleStartIndex, this.lastVisibleEndIndex);
         }
     }
 
