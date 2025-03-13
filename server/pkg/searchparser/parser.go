@@ -1,6 +1,24 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+// Search Parser Grammar (EBNF):
+//
+// search           = { token } ;
+// token            = fuzzy_token | non_fuzzy_token ;
+// fuzzy_token      = "~" non_fuzzy_token ;
+// non_fuzzy_token  = quoted_token | single_quoted_token | plain_token ;
+// quoted_token     = '"' { any_char - '"' } '"' ;
+// single_quoted_token = "'" { any_char - "'" } "'" ;
+// plain_token      = { any_char - whitespace } ;
+// any_char         = ? any Unicode character ? ;
+// whitespace       = ? Unicode whitespace character ? ;
+//
+// Notes:
+// - Empty quoted strings ("" or '') are ignored (no token)
+// - Empty fuzzy prefix (~) followed by whitespace is ignored (no token)
+// - Single quoted tokens are treated as case-sensitive (exactcase)
+// - Fuzzy tokens with single quotes (~'...') are treated as case-sensitive fuzzy search (fzfcase)
+
 package searchparser
 
 import (
@@ -117,6 +135,33 @@ func (p *Parser) readSingleQuotedToken() string {
 	return token
 }
 
+// parseNonFuzzyToken parses a non-fuzzy token (quoted, single-quoted, or plain)
+func (p *Parser) parseNonFuzzyToken(defaultType string) (string, string, bool) {
+	var token string
+	var tokenType string = defaultType
+
+	if p.ch == '"' {
+		// Double quoted tokens
+		token = p.readQuotedToken()
+		// Skip empty quoted strings
+		if token == "" {
+			return "", "", false
+		}
+	} else if p.ch == '\'' {
+		// Single quoted tokens are exactcase
+		token = p.readSingleQuotedToken()
+		// Skip empty quoted strings
+		if token == "" {
+			return "", "", false
+		}
+		tokenType = "exactcase"
+	} else {
+		token = p.readToken()
+	}
+
+	return token, tokenType, true
+}
+
 // Parse parses the input string into a slice of tokens
 func (p *Parser) Parse(searchType string) []SearchToken {
 	var tokens []SearchToken
@@ -131,7 +176,7 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 		}
 
 		var token string
-		var tokenType string = searchType
+		var tokenType string
 
 		// Check for fuzzy search indicator (~)
 		if p.ch == '~' {
@@ -143,42 +188,26 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 				continue
 			}
 
-			// If the next character is another ~, treat it as a fuzzy search for ~
-			if p.ch == '~' {
-				// Skip the second ~ and read the token as a fuzzy search for ~+token
-				p.readChar()
-				token = "~" + p.readToken()
-				tokenType = "fzf"
-			} else if p.ch == '"' {
-				// Fuzzy search with double quotes
-				token = p.readQuotedToken()
-				tokenType = "fzf"
-			} else if p.ch == '\'' {
-				// Fuzzy search with single quotes (case sensitive)
-				token = p.readSingleQuotedToken()
+			// Parse the non-fuzzy token
+			nonFuzzyToken, nonFuzzyType, valid := p.parseNonFuzzyToken(searchType)
+			if !valid {
+				continue
+			}
+
+			// Convert to fuzzy search type
+			if nonFuzzyType == "exactcase" {
 				tokenType = "fzfcase"
 			} else {
-				// Regular fuzzy search
-				token = p.readToken()
 				tokenType = "fzf"
 			}
-		} else if p.ch == '"' {
-			// Double quoted tokens
-			token = p.readQuotedToken()
-			// Skip empty quoted strings
-			if token == "" {
-				continue
-			}
-		} else if p.ch == '\'' {
-			// Single quoted tokens are exactcase
-			token = p.readSingleQuotedToken()
-			// Skip empty quoted strings
-			if token == "" {
-				continue
-			}
-			tokenType = "exactcase"
+			token = nonFuzzyToken
 		} else {
-			token = p.readToken()
+			// Parse a regular non-fuzzy token
+			var valid bool
+			token, tokenType, valid = p.parseNonFuzzyToken(searchType)
+			if !valid {
+				continue
+			}
 		}
 
 		// Add the token to the result
