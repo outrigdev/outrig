@@ -183,9 +183,14 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                 return true;
             }
 
+            if (checkKeyPressed(keyEvent, "Escape")) {
+                setSearch("");
+                return true;
+            }
+
             return false;
         }),
-        [model]
+        [model, setSearch]
     );
 
     return (
