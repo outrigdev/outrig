@@ -191,13 +191,56 @@ func TestTokenizeSearch(t *testing.T) {
 				{Type: "fzf", SearchTerm: "fuzzy search"},
 			},
 		},
+		{
+			name:        "Simple regexp token",
+			searchType:  "exact",
+			searchInput: `/test\d+/`,
+			want: []SearchToken{
+				{Type: "regexp", SearchTerm: `test\d+`},
+			},
+		},
+		{
+			name:        "Regexp token with escaped slashes",
+			searchType:  "exact",
+			searchInput: `/path\/to\/file/`,
+			want: []SearchToken{
+				{Type: "regexp", SearchTerm: `path\/to\/file`},
+			},
+		},
+		{
+			name:        "Unclosed regexp token",
+			searchType:  "exact",
+			searchInput: `/unclosed`,
+			want: []SearchToken{
+				{Type: "regexp", SearchTerm: `unclosed`},
+			},
+		},
+		{
+			name:        "Empty regexp token",
+			searchType:  "exact",
+			searchInput: `//`,
+			want: []SearchToken{},
+		},
+		{
+			name:        "Mixed regexp and other tokens",
+			searchType:  "exact",
+			searchInput: `hello /world\d+/ "quoted text"`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello"},
+				{Type: "regexp", SearchTerm: `world\d+`},
+				{Type: "exact", SearchTerm: "quoted text"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := TokenizeSearch(tt.searchType, tt.searchInput)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("TokenizeSearch() = %v, want %v", got, tt.want)
+			// For empty slices, just check the length
+			if len(got) == 0 && len(tt.want) == 0 {
+				// Both are empty, test passes
+			} else if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("TokenizeSearch() = %#v, want %#v", got, tt.want)
 			}
 		})
 	}

@@ -4,9 +4,10 @@
 // Search Parser Grammar (EBNF):
 //
 // search           = { token } ;
-// token            = fuzzy_token | non_fuzzy_token ;
-// fuzzy_token      = "~" non_fuzzy_token ;
-// non_fuzzy_token  = quoted_token | single_quoted_token | plain_token ;
+// token            = fuzzy_token | regexp_token | simple_token ;
+// fuzzy_token      = "~" simple_token ;
+// regexp_token     = "/" { any_char - "/" | "\/" } "/" ;
+// simple_token     = quoted_token | single_quoted_token | plain_token ;
 // quoted_token     = '"' { any_char - '"' } '"' ;
 // single_quoted_token = "'" { any_char - "'" } "'" ;
 // plain_token      = { any_char - whitespace } ;
@@ -135,8 +136,59 @@ func (p *Parser) readSingleQuotedToken() string {
 	return token
 }
 
-// parseNonFuzzyToken parses a non-fuzzy token (quoted, single-quoted, or plain)
-func (p *Parser) parseNonFuzzyToken(defaultType string) (string, string, bool) {
+// readRegexpToken reads a token enclosed in slashes (/)
+// Handles escaped slashes (\/) within the regexp
+// If the closing slash is missing, it reads until the end of the input
+func (p *Parser) readRegexpToken() string {
+	// Skip the opening slash
+	p.readChar()
+
+	position := p.position
+	escaped := false
+
+	// Read until closing slash or EOF, handling escaped slashes
+	for {
+		if p.ch == 0 {
+			// EOF
+			break
+		}
+
+		if escaped {
+			// Previous character was a backslash, so this character is escaped
+			escaped = false
+			p.readChar()
+			continue
+		}
+
+		if p.ch == '\\' {
+			// Backslash - next character will be escaped
+			escaped = true
+			p.readChar()
+			continue
+		}
+
+		if p.ch == '/' {
+			// Unescaped closing slash
+			break
+		}
+
+		// Regular character
+		p.readChar()
+	}
+
+	// Store the token content
+	token := p.input[position:p.position]
+
+	// Skip the closing slash if present
+	if p.ch == '/' {
+		p.readChar()
+	}
+
+	return token
+}
+
+// parseSimpleToken parses a simple token (quoted, single-quoted, or plain)
+func (p *Parser) parseSimpleToken(defaultType string) (string, string, bool) {
 	var token string
 	var tokenType string = defaultType
 
@@ -188,23 +240,33 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 				continue
 			}
 
-			// Parse the non-fuzzy token
-			nonFuzzyToken, nonFuzzyType, valid := p.parseNonFuzzyToken(searchType)
+			// Parse the simple token
+			simpleToken, simpleType, valid := p.parseSimpleToken(searchType)
 			if !valid {
 				continue
 			}
 
 			// Convert to fuzzy search type
-			if nonFuzzyType == "exactcase" {
+			if simpleType == "exactcase" {
 				tokenType = "fzfcase"
 			} else {
 				tokenType = "fzf"
 			}
-			token = nonFuzzyToken
+			token = simpleToken
+		} else if p.ch == '/' {
+			// Handle regexp token
+			token = p.readRegexpToken()
+
+			// Skip empty regexp
+			if token == "" {
+				continue
+			}
+
+			tokenType = "regexp"
 		} else {
-			// Parse a regular non-fuzzy token
+			// Parse a regular simple token
 			var valid bool
-			token, tokenType, valid = p.parseNonFuzzyToken(searchType)
+			token, tokenType, valid = p.parseSimpleToken(searchType)
 			if !valid {
 				continue
 			}
