@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"runtime/debug"
 	"time"
 
 	"github.com/outrigdev/outrig"
@@ -23,7 +24,7 @@ var (
 	verbs    = []string{"started", "stopped", "created", "deleted", "updated", "processed", "received", "sent", "loaded", "saved", "connected", "disconnected", "initialized", "terminated", "failed"}
 	objects  = []string{"data", "request", "response", "file", "connection", "session", "transaction", "record", "document", "message", "event", "task", "operation", "resource", "service"}
 	adverbs  = []string{"successfully", "quickly", "slowly", "unexpectedly", "partially", "completely", "temporarily", "permanently", "automatically", "manually", "correctly", "incorrectly", "efficiently", "poorly", "silently"}
-	
+
 	// Special patterns for testing search functionality
 	patterns = []string{
 		"ID: %s-%d",
@@ -37,7 +38,7 @@ var (
 		"key=%s value=%s",
 		"{\"type\": \"%s\", \"id\": %d, \"status\": \"%s\"}",
 	}
-	
+
 	// Sample IPs and endpoints for pattern substitution
 	ips       = []string{"192.168.1.1", "10.0.0.5", "172.16.0.10", "127.0.0.1", "8.8.8.8"}
 	endpoints = []string{"users", "products", "orders", "auth", "settings", "metrics", "health", "status", "config", "logs"}
@@ -45,8 +46,14 @@ var (
 	errorMsgs = []string{"not found", "permission denied", "timeout", "invalid input", "connection lost", "out of memory", "internal error", "bad request", "unauthorized", "service unavailable"}
 )
 
+var counter int
+
 // generateRandomWord returns a random word from the given slice
 func randomElement(slice []string) string {
+	counter++
+	if counter%5000 == 10 {
+		debug.PrintStack()
+	}
 	return slice[rand.Intn(len(slice))]
 }
 
@@ -56,7 +63,7 @@ func generateRandomSentence() string {
 	verb := randomElement(verbs)
 	object := randomElement(objects)
 	adverb := randomElement(adverbs)
-	
+
 	// Different sentence structures for variety
 	switch rand.Intn(4) {
 	case 0:
@@ -73,7 +80,7 @@ func generateRandomSentence() string {
 // generatePatternLog creates a log message using one of the predefined patterns
 func generatePatternLog() string {
 	pattern := randomElement(patterns)
-	
+
 	switch pattern {
 	case "ID: %s-%d":
 		return fmt.Sprintf(pattern, randomElement(subjects), rand.Intn(10000))
@@ -115,7 +122,7 @@ func generateStructuredLog() string {
 			"success": rand.Intn(2) == 1,
 		},
 	}
-	
+
 	jsonData, _ := json.Marshal(data)
 	return string(jsonData)
 }
@@ -123,10 +130,10 @@ func generateStructuredLog() string {
 func main() {
 	// Seed the random number generator
 	rand.Seed(time.Now().UnixNano())
-	
+
 	fmt.Printf("log before init\n")
 	config := outrig.DefaultConfig()
-	config.LogProcessorConfig.WrapStderr = false
+	// config.LogProcessorConfig.WrapStderr = false
 	outrig.Init(config)
 	defer outrig.AppDone()
 	fmt.Printf("hello outrig!\n")
@@ -143,7 +150,7 @@ func main() {
 	fmt.Printf("This test program generates various log formats to help test search functionality\n")
 	fmt.Printf("You can search for specific words, patterns, or JSON fields\n")
 	fmt.Printf("Counter logs are still included with format: 'Counter: X'\n")
-	
+
 	// Loop that outputs diverse log lines
 	counter := 0
 	for {
@@ -154,7 +161,7 @@ func main() {
 			// Choose a log type randomly
 			logType := rand.Intn(10)
 			level := ""
-			
+
 			// Assign a log level
 			switch rand.Intn(10) {
 			case 0:
@@ -166,7 +173,7 @@ func main() {
 			default:
 				level = LogLevelInfo + ": "
 			}
-			
+
 			// Generate different types of logs
 			switch logType {
 			case 0, 1, 2, 3: // 40% chance for random sentences
@@ -179,7 +186,7 @@ func main() {
 				fmt.Printf("%s%s | %s\n", level, generateRandomSentence(), generatePatternLog())
 			}
 		}
-		
+
 		counter++
 		time.Sleep(5 * time.Millisecond)
 	}

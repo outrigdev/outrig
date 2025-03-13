@@ -2,7 +2,7 @@ import { Tooltip } from "@/elements/tooltip";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
 import { ArrowDown, ArrowDownCircle, Filter, RefreshCw } from "lucide-react";
-import React, { JSX, useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ListRange, Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { LogViewerModel } from "./logviewer-model";
 
@@ -20,7 +20,7 @@ function formatTimestamp(ts: number, format: string = "HH:mm:ss.SSS") {
     return `${hh}:${mm}:${ss}.${sss}`;
 }
 
-function formatSource(source: string): JSX.Element {
+function formatSource(source: string): React.ReactNode {
     let srcStr = source || "";
     if (srcStr.startsWith("/dev/")) {
         srcStr = srcStr.slice(5);
@@ -48,8 +48,8 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
 
     if (line == null) {
         return (
-            <div className="flex hover:bg-buttonhover">
-                <div className="select-none pr-2 text-muted w-12 text-right flex-shrink-0"></div>
+            <div className="flex hover:bg-buttonhover select-none">
+                <div className="pr-2 text-muted w-12 text-right flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
                     <span className="text-secondary">...</span>
                 </div>
@@ -58,12 +58,12 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
     }
 
     return (
-        <div className="flex hover:bg-buttonhover">
-            <div className="select-none pr-2 text-muted w-12 text-right flex-shrink-0">{formatLineNumber(line.linenum, 4)}</div>
-            <div className="flex-1 min-w-0">
-                <span className="text-secondary whitespace-nowrap">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</span>{" "}
-                {formatSource(line.source)}{" "}
-                <span className="text-primary break-words overflow-hidden">{line.msg}</span>
+        <div className="flex hover:bg-buttonhover text-muted select-none">
+            <div className="w-12 text-right flex-shrink-0">{formatLineNumber(line.linenum, 4)}</div>
+            <div className="text-secondary flex-shrink-0 pl-2">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</div>
+            <div className="pl-2">{formatSource(line.source)}</div>
+            <div className="flex-1 min-w-0 pl-2 select-text">
+                <span className="text-primary break-all overflow-hidden whitespace-pre">{line.msg}</span>
             </div>
         </div>
     );
@@ -71,9 +71,9 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
 
 // EOF component
 const EofItem = React.memo(() => (
-    <div className="flex whitespace-nowrap hover:bg-buttonhover py-3">
-        <div className="select-none pr-2 text-muted w-12 text-right"></div>
-        <div>
+    <div className="flex py-3">
+        <div className="select-none pr-2 text-muted w-12 text-right flex-shrink-0"></div>
+        <div className="flex-1 min-w-0">
             <span className="text-muted">(end of log stream)</span>
         </div>
     </div>
