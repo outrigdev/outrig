@@ -9,7 +9,6 @@ const PAGESIZE = 100;
 type LogCacheEntry = {
     status: "init" | "loading" | "loaded";
     lines: LogLine[];
-    version: number;
 };
 
 class LogViewerModel {
@@ -85,7 +84,6 @@ class LogViewerModel {
             this.logItemCache = [];
             getDefaultStore().set(this.totalItemCount, results.totalcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
-            getDefaultStore().set(this.logItemCacheVersion, (version) => version + 1);
             this.setLogCacheEntry(0, "loaded", results.lines);
         } catch (e) {
             this.setLogCacheEntry(0, "loaded", []);
@@ -93,6 +91,7 @@ class LogViewerModel {
         } finally {
             clearTimeout(quickSearchTimeoutId);
             getDefaultStore().set(this.isLoading, false);
+            getDefaultStore().set(this.logItemCacheVersion, (version) => version + 1);
             const endTime = performance.now();
             console.log("Log search took", endTime - startTime, "ms", getDefaultStore().get(this.logItemCacheVersion));
         }
@@ -109,7 +108,7 @@ class LogViewerModel {
     getLogItemCacheChunkAtom(page: number, getFn: Getter): PrimitiveAtom<LogCacheEntry> {
         const version = getFn(this.logItemCacheVersion);
         if (!this.logItemCache[page]) {
-            const cacheEntry: LogCacheEntry = { status: "init", lines: [], version: version };
+            const cacheEntry: LogCacheEntry = { status: "init", lines: [] };
             this.logItemCache[page] = atom(cacheEntry);
         }
         return this.logItemCache[page];
@@ -127,11 +126,9 @@ class LogViewerModel {
 
     setLogCacheEntry(page: number, status: "init" | "loading" | "loaded", lines: LogLine[]) {
         const chunkAtom = this.getLogItemCacheChunkAtom(page, getDefaultStore().get);
-        const version = getDefaultStore().get(this.logItemCacheVersion);
         const cacheEntry: LogCacheEntry = {
             status: status,
             lines: lines ?? [],
-            version: version,
         };
         getDefaultStore().set(chunkAtom, cacheEntry);
     }
@@ -240,26 +237,26 @@ class LogViewerModel {
     // Methods for managing marked lines
     toggleLineMarked(lineNumber: number) {
         const isMarked = this.markedLines.has(lineNumber);
-        
+
         if (isMarked) {
             this.markedLines.delete(lineNumber);
         } else {
             this.markedLines.add(lineNumber);
         }
-        
+
         // Increment version to trigger reactivity
         getDefaultStore().set(this.markedLinesVersion, (v) => v + 1);
-        
+
         // Send just the delta to the backend
         const markedLinesMap: Record<string, boolean> = {};
         markedLinesMap[lineNumber.toString()] = !isMarked;
-        
+
         RpcApi.LogUpdateMarkedLinesCommand(
             DefaultRpcClient,
             {
                 widgetid: this.widgetId,
                 markedlines: markedLinesMap,
-                clear: false
+                clear: false,
             },
             { noresponse: true }
         );
@@ -273,14 +270,14 @@ class LogViewerModel {
         this.markedLines.clear();
         // Increment version to trigger reactivity
         getDefaultStore().set(this.markedLinesVersion, (v) => v + 1);
-        
+
         // Send clear command to the backend
         RpcApi.LogUpdateMarkedLinesCommand(
             DefaultRpcClient,
             {
                 widgetid: this.widgetId,
                 markedlines: {},
-                clear: true
+                clear: true,
             },
             { noresponse: true }
         );
@@ -297,7 +294,7 @@ class LogViewerModel {
         try {
             // Request marked lines from the backend
             const result = await RpcApi.LogGetMarkedLinesCommand(DefaultRpcClient, {
-                widgetid: this.widgetId
+                widgetid: this.widgetId,
             });
 
             if (!result.lines || result.lines.length === 0) {
