@@ -9,19 +9,23 @@ import (
 
 // MarkedSearcher is a searcher that matches lines that are marked
 type MarkedSearcher struct {
-	manager *SearchManager
+	markedLines map[int64]bool
 }
 
 // MakeMarkedSearcher creates a new MarkedSearcher
 func MakeMarkedSearcher(manager *SearchManager) LogSearcher {
+	// Get a copy of the marked lines map
+	markedLines := manager.GetMarkedLinesMap()
+
 	return &MarkedSearcher{
-		manager: manager,
+		markedLines: markedLines,
 	}
 }
 
 // Match checks if a log line is marked
 func (s *MarkedSearcher) Match(line ds.LogLine) bool {
-	return s.manager.IsLineMarked(line.LineNum)
+	_, exists := s.markedLines[line.LineNum]
+	return exists
 }
 
 // GetType returns the search type identifier

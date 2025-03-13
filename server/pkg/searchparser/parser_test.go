@@ -264,6 +264,59 @@ func TestTokenizeSearch(t *testing.T) {
 				{Type: "regexpcase", SearchTerm: `Unclosed`},
 			},
 		},
+		{
+			name:        "Hash token",
+			searchType:  "exact",
+			searchInput: `#foo`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: `#foo`},
+			},
+		},
+		{
+			name:        "Hash marked token",
+			searchType:  "exact",
+			searchInput: `#marked`,
+			want: []SearchToken{
+				{Type: "marked", SearchTerm: ``},
+			},
+		},
+		{
+			name:        "Hash marked token case-insensitive",
+			searchType:  "exact",
+			searchInput: `#MaRkEd`,
+			want: []SearchToken{
+				{Type: "marked", SearchTerm: ``},
+			},
+		},
+		{
+			name:        "Multiple hash tokens",
+			searchType:  "exact",
+			searchInput: `#foo #bar`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: `#foo`},
+				{Type: "exact", SearchTerm: `#bar`},
+			},
+		},
+		{
+			name:        "Mixed hash and other tokens",
+			searchType:  "exact",
+			searchInput: `hello #foo "quoted text" #marked`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello"},
+				{Type: "exact", SearchTerm: "#foo"},
+				{Type: "exact", SearchTerm: "quoted text"},
+				{Type: "marked", SearchTerm: ""},
+			},
+		},
+		{
+			name:        "Empty hash token",
+			searchType:  "exact",
+			searchInput: `hello # world`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello"},
+				{Type: "exact", SearchTerm: "world"},
+			},
+		},
 	}
 
 	for _, tt := range tests {

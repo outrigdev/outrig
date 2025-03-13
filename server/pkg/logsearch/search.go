@@ -4,21 +4,20 @@
 package logsearch
 
 import (
-	"fmt"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
 const (
-	SearchTypeExact     = "exact"
-	SearchTypeExactCase = "exactcase"
-	SearchTypeRegexp    = "regexp"
+	SearchTypeExact      = "exact"
+	SearchTypeExactCase  = "exactcase"
+	SearchTypeRegexp     = "regexp"
 	SearchTypeRegexpCase = "regexpcase"
-	SearchTypeFzf       = "fzf"
-	SearchTypeFzfCase   = "fzfcase"
-	SearchTypeAnd       = "and"
-	SearchTypeAll       = "all"
-	SearchTypeMarked    = "marked"
+	SearchTypeFzf        = "fzf"
+	SearchTypeFzfCase    = "fzfcase"
+	SearchTypeAnd        = "and"
+	SearchTypeAll        = "all"
+	SearchTypeMarked     = "marked"
 )
 
 // LogSearcher defines the interface for different search strategies
@@ -33,15 +32,8 @@ type LogSearcher interface {
 // GetSearcher returns the appropriate searcher based on the search term
 // If searchType is provided, it will be used as the default type for all tokens
 // Otherwise, "exact" will be used as the default type
-func GetSearcher(searchType string, searchTerm string) (LogSearcher, error) {
-	// Special case for marked searcher
-	if searchType == SearchTypeMarked {
-		// For marked searcher, we need to get the search manager from the widget ID
-		// This will be handled separately in the SearchManager.SearchRequest method
-		// Here we just return nil to indicate that a special case needs to be handled
-		return nil, fmt.Errorf("marked searcher requires a search manager")
-	}
-
+// The manager parameter is required for creating marked searchers
+func GetSearcher(searchType string, searchTerm string, manager *SearchManager) (LogSearcher, error) {
 	// If searchType is empty, default to "exact"
 	if searchType == "" {
 		searchType = SearchTypeExact
@@ -52,9 +44,9 @@ func GetSearcher(searchType string, searchTerm string) (LogSearcher, error) {
 		return MakeAllSearcher(), nil
 	}
 	if len(tokens) == 1 {
-		return MakeSearcherFromToken(tokens[0])
+		return MakeSearcherFromToken(tokens[0], manager)
 	}
-	searchers, err := CreateSearchersFromTokens(tokens)
+	searchers, err := CreateSearchersFromTokens(tokens, manager)
 	if err != nil {
 		return nil, err
 	}

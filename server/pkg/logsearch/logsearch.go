@@ -129,14 +129,10 @@ func (m *SearchManager) GetLastUsed() time.Time {
 	return m.LastUsed
 }
 
-func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string, searchType string) error {
+func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string, searchType string, searcher LogSearcher) error {
 	m.SearchTerm = searchTerm
 	m.SearchType = searchType
 	rawSource := MakeAppPeerLogSource(m.AppPeer)
-	searcher, err := GetSearcher(searchType, searchTerm)
-	if err != nil {
-		return fmt.Errorf("failed to create searcher: %w", err)
-	}
 	rawSource.InitSource(searcher, 0, DefaultBackendChunkSize)
 	logCache, err := MakeLogCache(rawSource)
 	if err != nil {
@@ -213,6 +209,19 @@ func (m *SearchManager) GetMarkedLines() []int64 {
 	return lines
 }
 
+// GetMarkedLinesMap returns a copy of the marked lines map
+func (m *SearchManager) GetMarkedLinesMap() map[int64]bool {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+
+	markedLinesCopy := make(map[int64]bool, len(m.MarkedLines))
+	for lineNum, isMarked := range m.MarkedLines {
+		markedLinesCopy[lineNum] = isMarked
+	}
+
+	return markedLinesCopy
+}
+
 // RunFullSearch performs a full search using the provided searcher and returns all matching log lines
 func (m *SearchManager) RunFullSearch(searcher LogSearcher) ([]ds.LogLine, error) {
 	// Create a log source
@@ -247,9 +256,7 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 	}
 
 	// Create a marked searcher
-	searcher := &MarkedSearcher{
-		manager: m,
-	}
+	searcher := MakeMarkedSearcher(m)
 
 	// Run the full search with the marked searcher
 	markedLines, err := m.RunFullSearch(searcher)
@@ -262,8 +269,15 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 
 // SearchRequest handles a search request for logs
 func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
+	// Create searcher before acquiring the lock
+	searcher, err := GetSearcher(data.SearchType, data.SearchTerm, m)
+	if err != nil {
+		return rpctypes.SearchResultData{}, fmt.Errorf("failed to create searcher: %w", err)
+	}
+
 	m.Lock.Lock()
 	defer m.Lock.Unlock()
+	
 	// Check if the AppPeer is valid
 	if m.AppPeer == nil {
 		return rpctypes.SearchResultData{}, fmt.Errorf("app peer not found for app run ID: %s", data.AppRunId)
@@ -273,7 +287,7 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	// If the search term has changed, create a new cache
 	// Note: searchType is now optional and will be determined by the parser
 	if data.SearchTerm != m.SearchTerm {
-		err := m.setUpNewLogCache_nolock(data.SearchTerm, data.SearchType)
+		err := m.setUpNewLogCache_nolock(data.SearchTerm, data.SearchType, searcher)
 		if err != nil {
 			return rpctypes.SearchResultData{}, err
 		}

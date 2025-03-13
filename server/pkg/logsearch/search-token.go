@@ -4,6 +4,7 @@
 package logsearch
 
 import (
+	"fmt"
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
@@ -11,7 +12,15 @@ import (
 type SearchToken = searchparser.SearchToken
 
 // MakeSearcherFromToken creates a searcher from a single token
-func MakeSearcherFromToken(token SearchToken) (LogSearcher, error) {
+func MakeSearcherFromToken(token SearchToken, manager *SearchManager) (LogSearcher, error) {
+	// Handle empty search term and special case for marked searcher
+	if token.Type == SearchTypeMarked {
+		if manager == nil {
+			return nil, fmt.Errorf("marked searcher requires a search manager")
+		}
+		return MakeMarkedSearcher(manager), nil
+	}
+
 	// Handle empty search term
 	if token.SearchTerm == "" {
 		return MakeAllSearcher(), nil
@@ -38,7 +47,7 @@ func MakeSearcherFromToken(token SearchToken) (LogSearcher, error) {
 }
 
 // CreateSearchersFromTokens creates a slice of searchers from tokens
-func CreateSearchersFromTokens(tokens []SearchToken) ([]LogSearcher, error) {
+func CreateSearchersFromTokens(tokens []SearchToken, manager *SearchManager) ([]LogSearcher, error) {
 	// Handle empty tokens list
 	if len(tokens) == 0 {
 		return []LogSearcher{MakeAllSearcher()}, nil
@@ -47,7 +56,7 @@ func CreateSearchersFromTokens(tokens []SearchToken) ([]LogSearcher, error) {
 	searchers := make([]LogSearcher, len(tokens))
 
 	for i, token := range tokens {
-		searcher, err := MakeSearcherFromToken(token)
+		searcher, err := MakeSearcherFromToken(token, manager)
 		if err != nil {
 			return nil, err
 		}

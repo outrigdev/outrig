@@ -3,7 +3,7 @@ import { Tooltip } from "@/elements/tooltip";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { ArrowDown, ArrowDownCircle, Copy, Filter, RefreshCw, X } from "lucide-react";
+import { ArrowDown, ArrowDownCircle, Filter, RefreshCw, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ListRange, Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { LogViewerModel } from "./logviewer-model";
@@ -403,7 +403,7 @@ const MarkedLinesIndicator = React.memo<MarkedLinesIndicatorProps>(({ model }) =
     const handleClearMarks = () => {
         model.clearMarkedLines();
     };
-    
+
     const handleCopyMarkedLines = async () => {
         await model.copyMarkedLinesToClipboard();
     };
