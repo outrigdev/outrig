@@ -3,6 +3,7 @@ package rpcserver
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
@@ -151,4 +152,48 @@ func (*RpcServerImpl) LogWidgetAdminCommand(ctx context.Context, data rpctypes.L
 		manager.UpdateLastUsed()
 	}
 	return nil
+}
+
+// LogUpdateMarkedLinesCommand handles updating marked lines for a widget
+func (*RpcServerImpl) LogUpdateMarkedLinesCommand(ctx context.Context, data rpctypes.MarkedLinesData) error {
+	manager := logsearch.GetManager(data.WidgetId)
+	if manager == nil {
+		return fmt.Errorf("widget not found: %s", data.WidgetId)
+	}
+
+	// If Clear flag is set, clear all marked lines
+	if data.Clear {
+		manager.ClearMarkedLines()
+		return nil
+	}
+
+	// Convert string keys to int64 keys
+	markedLines := make(map[int64]bool)
+	for lineNumStr, isMarked := range data.MarkedLines {
+		lineNum, err := strconv.ParseInt(lineNumStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid line number: %s", lineNumStr)
+		}
+		markedLines[lineNum] = isMarked
+	}
+
+	// Merge the converted marked lines
+	manager.MergeMarkedLines(markedLines)
+	return nil
+}
+
+// LogGetMarkedLinesCommand retrieves all marked log lines for a widget
+func (*RpcServerImpl) LogGetMarkedLinesCommand(ctx context.Context, data rpctypes.MarkedLinesRequestData) (rpctypes.MarkedLinesResultData, error) {
+	manager := logsearch.GetManager(data.WidgetId)
+	if manager == nil {
+		return rpctypes.MarkedLinesResultData{}, fmt.Errorf("widget not found: %s", data.WidgetId)
+	}
+	
+	// Get marked log lines from the search manager
+	markedLines, err := manager.GetMarkedLogLines()
+	if err != nil {
+		return rpctypes.MarkedLinesResultData{}, err
+	}
+	
+	return rpctypes.MarkedLinesResultData{Lines: markedLines}, nil
 }

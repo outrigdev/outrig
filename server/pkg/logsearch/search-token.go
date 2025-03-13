@@ -16,7 +16,7 @@ func MakeSearcherFromToken(token SearchToken) (LogSearcher, error) {
 	if token.SearchTerm == "" {
 		return MakeAllSearcher(), nil
 	}
-	
+
 	// Create searcher based on token type
 	switch token.Type {
 	case SearchTypeExact:
@@ -43,9 +43,9 @@ func CreateSearchersFromTokens(tokens []SearchToken) ([]LogSearcher, error) {
 	if len(tokens) == 0 {
 		return []LogSearcher{MakeAllSearcher()}, nil
 	}
-	
+
 	searchers := make([]LogSearcher, len(tokens))
-	
+
 	for i, token := range tokens {
 		searcher, err := MakeSearcherFromToken(token)
 		if err != nil {
@@ -53,6 +53,6 @@ func CreateSearchersFromTokens(tokens []SearchToken) ([]LogSearcher, error) {
 		}
 		searchers[i] = searcher
 	}
-	
+
 	return searchers, nil
 }

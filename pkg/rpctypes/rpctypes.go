@@ -32,6 +32,8 @@ type FullRpcInterface interface {
 	LogSearchRequestCommand(ctx context.Context, data SearchRequestData) (SearchResultData, error)
 	LogWidgetAdminCommand(ctx context.Context, data LogWidgetAdminData) error
 	LogStreamUpdateCommand(ctx context.Context, data StreamUpdateData) error
+	LogUpdateMarkedLinesCommand(ctx context.Context, data MarkedLinesData) error
+	LogGetMarkedLinesCommand(ctx context.Context, data MarkedLinesRequestData) (MarkedLinesResultData, error)
 
 	UpdateStatusCommand(ctx context.Context, data StatusUpdateData) error
 
@@ -92,6 +94,23 @@ type LogWidgetAdminData struct {
 	WidgetId  string `json:"widgetid"`
 	Drop      bool   `json:"drop,omitempty"`
 	KeepAlive bool   `json:"keepalive,omitempty"`
+}
+
+// MarkedLinesData represents the data for managing marked lines
+type MarkedLinesData struct {
+	WidgetId    string          `json:"widgetid"`
+	MarkedLines map[string]bool `json:"markedlines"`
+	Clear       bool            `json:"clear,omitempty"`
+}
+
+// MarkedLinesRequestData represents the request for getting marked lines
+type MarkedLinesRequestData struct {
+	WidgetId string `json:"widgetid"`
+}
+
+// MarkedLinesResultData represents the response with marked log lines
+type MarkedLinesResultData struct {
+	Lines []ds.LogLine `json:"lines"`
 }
 
 type StatusUpdateData struct {

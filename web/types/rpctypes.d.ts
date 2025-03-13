@@ -96,6 +96,23 @@ declare global {
         keepalive?: boolean;
     };
 
+    // rpctypes.MarkedLinesData
+    type MarkedLinesData = {
+        widgetid: string;
+        markedlines: {[key: string]: boolean};
+        clear?: boolean;
+    };
+
+    // rpctypes.MarkedLinesRequestData
+    type MarkedLinesRequestData = {
+        widgetid: string;
+    };
+
+    // rpctypes.MarkedLinesResultData
+    type MarkedLinesResultData = {
+        lines: LogLine[];
+    };
+
     // rpc.RpcMessage
     type RpcMessage = {
         command?: string;

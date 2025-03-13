@@ -239,13 +239,30 @@ class LogViewerModel {
 
     // Methods for managing marked lines
     toggleLineMarked(lineNumber: number) {
-        if (this.markedLines.has(lineNumber)) {
+        const isMarked = this.markedLines.has(lineNumber);
+        
+        if (isMarked) {
             this.markedLines.delete(lineNumber);
         } else {
             this.markedLines.add(lineNumber);
         }
+        
         // Increment version to trigger reactivity
         getDefaultStore().set(this.markedLinesVersion, (v) => v + 1);
+        
+        // Send just the delta to the backend
+        const markedLinesMap: Record<string, boolean> = {};
+        markedLinesMap[lineNumber.toString()] = !isMarked;
+        
+        RpcApi.LogUpdateMarkedLinesCommand(
+            DefaultRpcClient,
+            {
+                widgetid: this.widgetId,
+                markedlines: markedLinesMap,
+                clear: false
+            },
+            { noresponse: true }
+        );
     }
 
     isLineMarked(lineNumber: number): boolean {
@@ -256,42 +273,46 @@ class LogViewerModel {
         this.markedLines.clear();
         // Increment version to trigger reactivity
         getDefaultStore().set(this.markedLinesVersion, (v) => v + 1);
+        
+        // Send clear command to the backend
+        RpcApi.LogUpdateMarkedLinesCommand(
+            DefaultRpcClient,
+            {
+                widgetid: this.widgetId,
+                markedlines: {},
+                clear: true
+            },
+            { noresponse: true }
+        );
     }
 
     getMarkedLinesCount(): number {
         return this.markedLines.size;
     }
 
-    // Get all marked lines and extract their messages
+    // Get all marked lines from the backend and copy their messages to clipboard
     async copyMarkedLinesToClipboard() {
         if (this.markedLines.size === 0) return;
 
-        // Collect all marked line numbers
-        const lineNumbers = Array.from(this.markedLines).sort((a, b) => a - b);
-        const messages: string[] = [];
+        try {
+            // Request marked lines from the backend
+            const result = await RpcApi.LogGetMarkedLinesCommand(DefaultRpcClient, {
+                widgetid: this.widgetId
+            });
 
-        // For each marked line, find the corresponding log line and extract the message
-        for (const lineNum of lineNumbers) {
-            // Find the page that contains this line
-            const page = Math.floor(lineNum / PAGESIZE);
-
-            // Check if we have this page in cache
-            if (this.logItemCache[page]) {
-                const cacheEntry = getDefaultStore().get(this.logItemCache[page]);
-                if (cacheEntry?.lines) {
-                    // Find the line in the page
-                    const line = cacheEntry.lines.find((l) => l.linenum === lineNum);
-                    if (line) {
-                        messages.push(line.msg);
-                    }
-                }
+            if (!result.lines || result.lines.length === 0) {
+                console.log("No marked lines returned from backend");
+                return;
             }
-        }
 
-        // Join messages with newlines and copy to clipboard
-        if (messages.length > 0) {
+            // Extract messages
+            const messages = result.lines.map((line: LogLine) => line.msg);
+
+            // Join messages and copy to clipboard
             const text = messages.join("");
             await navigator.clipboard.writeText(text);
+        } catch (error) {
+            console.error("Failed to get marked lines from backend:", error);
         }
     }
 }

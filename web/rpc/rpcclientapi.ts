@@ -46,6 +46,11 @@ class RpcApiType {
         return client.rpcCall("getappruns", data, opts);
     }
 
+    // command "loggetmarkedlines" [call]
+    LogGetMarkedLinesCommand(client: RpcClient, data: MarkedLinesRequestData, opts?: RpcOpts): Promise<MarkedLinesResultData> {
+        return client.rpcCall("loggetmarkedlines", data, opts);
+    }
+
     // command "logsearchrequest" [call]
     LogSearchRequestCommand(client: RpcClient, data: SearchRequestData, opts?: RpcOpts): Promise<SearchResultData> {
         return client.rpcCall("logsearchrequest", data, opts);
@@ -54,6 +59,11 @@ class RpcApiType {
     // command "logstreamupdate" [call]
     LogStreamUpdateCommand(client: RpcClient, data: StreamUpdateData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("logstreamupdate", data, opts);
+    }
+
+    // command "logupdatemarkedlines" [call]
+    LogUpdateMarkedLinesCommand(client: RpcClient, data: MarkedLinesData, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("logupdatemarkedlines", data, opts);
     }
 
     // command "logwidgetadmin" [call]

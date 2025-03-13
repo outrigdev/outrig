@@ -58,6 +58,12 @@ func GetAppRunsCommand(w *rpc.RpcClient, data rpctypes.AppRunUpdatesRequest, opt
 	return resp, err
 }
 
+// command "loggetmarkedlines", rpctypes.LogGetMarkedLinesCommand
+func LogGetMarkedLinesCommand(w *rpc.RpcClient, data rpctypes.MarkedLinesRequestData, opts *rpc.RpcOpts) (rpctypes.MarkedLinesResultData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.MarkedLinesResultData](w, "loggetmarkedlines", data, opts)
+	return resp, err
+}
+
 // command "logsearchrequest", rpctypes.LogSearchRequestCommand
 func LogSearchRequestCommand(w *rpc.RpcClient, data rpctypes.SearchRequestData, opts *rpc.RpcOpts) (rpctypes.SearchResultData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.SearchResultData](w, "logsearchrequest", data, opts)
@@ -67,6 +73,12 @@ func LogSearchRequestCommand(w *rpc.RpcClient, data rpctypes.SearchRequestData, 
 // command "logstreamupdate", rpctypes.LogStreamUpdateCommand
 func LogStreamUpdateCommand(w *rpc.RpcClient, data rpctypes.StreamUpdateData, opts *rpc.RpcOpts) error {
 	_, err := SendRpcRequestCallHelper[any](w, "logstreamupdate", data, opts)
+	return err
+}
+
+// command "logupdatemarkedlines", rpctypes.LogUpdateMarkedLinesCommand
+func LogUpdateMarkedLinesCommand(w *rpc.RpcClient, data rpctypes.MarkedLinesData, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "logupdatemarkedlines", data, opts)
 	return err
 }
 

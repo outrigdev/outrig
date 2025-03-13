@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
@@ -21,24 +22,26 @@ const (
 
 // SearchManager handles search functionality for a specific widget
 type SearchManager struct {
-	Lock       *sync.Mutex
-	WidgetId   string
-	AppRunId   string
-	AppPeer    *apppeer.AppRunPeer
-	LastUsed   time.Time // Timestamp of when this manager was last used
-	SearchTerm string
-	SearchType string
-	Cache      *LogCache
+	Lock        *sync.Mutex
+	WidgetId    string
+	AppRunId    string
+	AppPeer     *apppeer.AppRunPeer
+	LastUsed    time.Time // Timestamp of when this manager was last used
+	SearchTerm  string
+	SearchType  string
+	Cache       *LogCache
+	MarkedLines map[int64]bool // Map of line numbers that are marked
 }
 
 // NewSearchManager creates a new SearchManager for a specific widget
 func NewSearchManager(widgetId string, appPeer *apppeer.AppRunPeer) *SearchManager {
 	return &SearchManager{
-		Lock:       &sync.Mutex{},
-		WidgetId:   widgetId,
-		AppPeer:    appPeer,
-		LastUsed:   time.Now(),
-		SearchTerm: uuid.New().String(), // pick a random value that will never match a real search term
+		Lock:        &sync.Mutex{},
+		WidgetId:    widgetId,
+		AppPeer:     appPeer,
+		LastUsed:    time.Now(),
+		SearchTerm:  uuid.New().String(), // pick a random value that will never match a real search term
+		MarkedLines: make(map[int64]bool),
 	}
 }
 
@@ -149,6 +152,112 @@ func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string, searchType st
 	})
 	<-doneCh
 	return nil
+}
+
+// MergeMarkedLines updates the marked status of lines based on the provided map
+// If the value is true, the line is marked; if false, the mark is removed
+func (m *SearchManager) MergeMarkedLines(marks map[int64]bool) {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+
+	for lineNum, isMarked := range marks {
+		if isMarked {
+			m.MarkedLines[lineNum] = true
+		} else {
+			delete(m.MarkedLines, lineNum)
+		}
+	}
+	m.LastUsed = time.Now()
+}
+
+// IsLineMarked checks if a line is marked
+func (m *SearchManager) IsLineMarked(lineNum int64) bool {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+
+	_, exists := m.MarkedLines[lineNum]
+	return exists
+}
+
+// ClearMarkedLines clears all marked lines
+func (m *SearchManager) ClearMarkedLines() {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+
+	m.MarkedLines = make(map[int64]bool)
+	m.LastUsed = time.Now()
+}
+
+// GetNumMarkedLines returns the number of marked lines
+func (m *SearchManager) GetNumMarkedLines() int {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+	return len(m.MarkedLines)
+}
+
+// GetMarkedLines returns a slice of all marked line numbers
+func (m *SearchManager) GetMarkedLines() []int64 {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+
+	lines := make([]int64, 0, len(m.MarkedLines))
+	for lineNum := range m.MarkedLines {
+		lines = append(lines, lineNum)
+	}
+
+	// Sort the line numbers for consistent results
+	sort.Slice(lines, func(i, j int) bool {
+		return lines[i] < lines[j]
+	})
+
+	return lines
+}
+
+// RunFullSearch performs a full search using the provided searcher and returns all matching log lines
+func (m *SearchManager) RunFullSearch(searcher LogSearcher) ([]ds.LogLine, error) {
+	// Create a log source
+	logSource := MakeAppPeerLogSource(m.AppPeer)
+
+	// Initialize the source with the searcher
+	logSource.InitSource(searcher, 0, DefaultBackendChunkSize)
+
+	// Collect all matching log lines
+	var matchingLines []ds.LogLine
+	for {
+		lines, eof, err := logSource.SearchNextChunk()
+		if err != nil {
+			return nil, fmt.Errorf("error searching logs: %w", err)
+		}
+
+		matchingLines = append(matchingLines, lines...)
+
+		if eof {
+			break
+		}
+	}
+
+	return matchingLines, nil
+}
+
+// GetMarkedLogLines returns all marked log lines using a MarkedSearcher
+func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
+	// If no lines are marked, return empty result
+	if m.GetNumMarkedLines() == 0 {
+		return []ds.LogLine{}, nil
+	}
+
+	// Create a marked searcher
+	searcher := &MarkedSearcher{
+		manager: m,
+	}
+
+	// Run the full search with the marked searcher
+	markedLines, err := m.RunFullSearch(searcher)
+	if err != nil {
+		return nil, err
+	}
+
+	return markedLines, nil
 }
 
 // SearchRequest handles a search request for logs
