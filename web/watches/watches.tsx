@@ -1,10 +1,11 @@
+import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
 import { useOutrigModel } from "@/util/hooks";
 import { useAtom, useAtomValue } from "jotai";
 import { Clock, Filter, Timer } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef } from "react";
 import { WatchesModel } from "./watches-model";
 
 // Individual watch view component
@@ -72,34 +73,6 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
     );
 };
 
-// Auto-refresh button component
-interface AutoRefreshButtonProps {
-    model: WatchesModel;
-}
-
-const AutoRefreshButton: React.FC<AutoRefreshButtonProps> = ({ model }) => {
-    const [autoRefresh, setAutoRefresh] = useAtom(model.autoRefresh);
-
-    const toggleAutoRefresh = useCallback(() => {
-        model.toggleAutoRefresh();
-    }, [model]);
-
-    return (
-        <Tooltip content={autoRefresh ? "Auto-refresh On (Click to Disable)" : "Auto-refresh Off (Click to Enable)"}>
-            <button
-                onClick={toggleAutoRefresh}
-                className={`p-1 mr-1 rounded ${
-                    autoRefresh
-                        ? "bg-primary/20 text-primary hover:bg-primary/30"
-                        : "text-muted hover:bg-buttonhover hover:text-primary"
-                } cursor-pointer transition-colors`}
-                aria-pressed={autoRefresh}
-            >
-                {autoRefresh ? <Timer size={16} /> : <Clock size={16} />}
-            </button>
-        </Tooltip>
-    );
-};
 
 // Watches filters component
 interface WatchesFiltersProps {
@@ -133,7 +106,10 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
-                <AutoRefreshButton model={model} />
+                <AutoRefreshButton 
+                    autoRefreshAtom={model.autoRefresh} 
+                    onToggle={() => model.toggleAutoRefresh()} 
+                />
                 <RefreshButton
                     isRefreshingAtom={model.isRefreshing}
                     onRefresh={() => model.refresh()}

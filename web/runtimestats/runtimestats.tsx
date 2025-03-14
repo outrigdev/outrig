@@ -1,7 +1,8 @@
+import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { useOutrigModel } from "@/util/hooks";
 import { useAtomValue } from "jotai";
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import { RuntimeStatsModel } from "./runtimestats-model";
 
 // Component for displaying a single stat
@@ -32,12 +33,18 @@ const RuntimeStatsHeader: React.FC<RuntimeStatsHeaderProps> = ({ model }) => {
     return (
         <div className="py-1 px-4 border-b border-border flex items-center justify-between">
             <h2 className="text-primary text-lg">Runtime Stats</h2>
-            <RefreshButton
-                isRefreshingAtom={model.isRefreshing}
-                onRefresh={() => model.refresh()}
-                tooltipContent="Refresh runtime stats"
-                size={16}
-            />
+            <div className="flex items-center">
+                <AutoRefreshButton 
+                    autoRefreshAtom={model.autoRefresh}
+                    onToggle={() => model.toggleAutoRefresh()}
+                />
+                <RefreshButton
+                    isRefreshingAtom={model.isRefreshing}
+                    onRefresh={() => model.refresh()}
+                    tooltipContent="Refresh runtime stats"
+                    size={16}
+                />
+            </div>
         </div>
     );
 };

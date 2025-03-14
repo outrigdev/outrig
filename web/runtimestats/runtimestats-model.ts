@@ -1,3 +1,4 @@
+import { AppModel } from "@/appmodel";
 import { DefaultRpcClient } from "@/init";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 
@@ -16,40 +17,57 @@ class RuntimeStatsModel {
     appRunId: string;
     runtimeStats: PrimitiveAtom<RuntimeStats | null> = atom<RuntimeStats | null>(null) as PrimitiveAtom<RuntimeStats | null>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
-    pollingInterval: number = 5000; // 5 seconds by default
-    pollingIntervalId: number | null = null;
+    autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
+    autoRefreshIntervalId: number | null = null;
+    autoRefreshInterval: number = 1000; // 1 second by default
 
 constructor(appRunId: string) {
     this.widgetId = crypto.randomUUID();
     this.appRunId = appRunId;
-    this.startPolling();
+
+    // Initial refresh
+    this.quietRefresh(true);
+    
+    // Start auto-refresh interval since default is on
+    this.startAutoRefreshInterval();
 }
 
     // Clean up resources when component unmounts
     dispose() {
-        this.stopPolling();
+        this.stopAutoRefreshInterval();
     }
 
-    // Start polling for runtime stats
-    startPolling() {
-        if (this.pollingIntervalId !== null) {
-            this.stopPolling();
+    // Toggle auto-refresh state
+    toggleAutoRefresh() {
+        const store = getDefaultStore();
+        const currentState = store.get(this.autoRefresh);
+        store.set(this.autoRefresh, !currentState);
+
+        if (!currentState) {
+            // If turning on, start the interval
+            this.startAutoRefreshInterval();
+        } else {
+            // If turning off, clear the interval
+            this.stopAutoRefreshInterval();
         }
-
-        // Initial fetch
-        this.refresh();
-
-        // Set up interval for polling
-        this.pollingIntervalId = window.setInterval(() => {
-            this.refresh();
-        }, this.pollingInterval);
     }
 
-    // Stop polling for runtime stats
-    stopPolling() {
-        if (this.pollingIntervalId !== null) {
-            window.clearInterval(this.pollingIntervalId);
-            this.pollingIntervalId = null;
+    // Start the auto-refresh interval
+    startAutoRefreshInterval() {
+        // Clear any existing interval first
+        this.stopAutoRefreshInterval();
+
+        // Set up new interval
+        this.autoRefreshIntervalId = window.setInterval(() => {
+            this.quietRefresh(false);
+        }, this.autoRefreshInterval);
+    }
+
+    // Stop the auto-refresh interval
+    stopAutoRefreshInterval() {
+        if (this.autoRefreshIntervalId !== null) {
+            window.clearInterval(this.autoRefreshIntervalId);
+            this.autoRefreshIntervalId = null;
         }
     }
 
@@ -95,6 +113,32 @@ constructor(appRunId: string) {
         } finally {
             // Set refreshing state to false
             store.set(this.isRefreshing, false);
+        }
+    }
+
+    // Quiet refresh for auto-refresh - doesn't set isRefreshing or clear stats
+    async quietRefresh(force: boolean) {
+        // Get the app run info to check its status
+        const store = getDefaultStore();
+        const appRunInfoAtom = AppModel.getAppRunInfoAtom(this.appRunId);
+        const appRunInfo = store.get(appRunInfoAtom);
+
+        if (!appRunInfo) {
+            return;
+        }
+
+        // If app run is not connected (status is not "running"), don't refresh
+        if (!force && appRunInfo.status !== "running") {
+            return;
+        }
+        
+        try {
+            const stats = await this.fetchRuntimeStats();
+            if (stats) {
+                getDefaultStore().set(this.runtimeStats, stats);
+            }
+        } catch (error) {
+            console.error(`Failed to auto-refresh runtime stats for app run ${this.appRunId}:`, error);
         }
     }
 }
