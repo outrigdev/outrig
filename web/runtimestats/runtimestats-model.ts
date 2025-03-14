@@ -1,36 +1,29 @@
 import { AppModel } from "@/appmodel";
 import { DefaultRpcClient } from "@/init";
+import { RpcApi } from "@/rpc/rpcclientapi";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
-
-// Runtime statistics interface
-interface RuntimeStats {
-    timestamp: number;
-    memoryUsage: number;
-    cpuUsage: number;
-    goroutineCount: number;
-    pid: number;
-    cwd: string;
-}
 
 class RuntimeStatsModel {
     widgetId: string;
     appRunId: string;
-    runtimeStats: PrimitiveAtom<RuntimeStats | null> = atom<RuntimeStats | null>(null) as PrimitiveAtom<RuntimeStats | null>;
+    runtimeStats: PrimitiveAtom<AppRunRuntimeStatsData | null> = atom<AppRunRuntimeStatsData | null>(
+        null
+    ) as PrimitiveAtom<AppRunRuntimeStatsData | null>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
     autoRefreshInterval: number = 1000; // 1 second by default
 
-constructor(appRunId: string) {
-    this.widgetId = crypto.randomUUID();
-    this.appRunId = appRunId;
+    constructor(appRunId: string) {
+        this.widgetId = crypto.randomUUID();
+        this.appRunId = appRunId;
 
-    // Initial refresh
-    this.quietRefresh(true);
-    
-    // Start auto-refresh interval since default is on
-    this.startAutoRefreshInterval();
-}
+        // Initial refresh
+        this.quietRefresh(true);
+
+        // Start auto-refresh interval since default is on
+        this.startAutoRefreshInterval();
+    }
 
     // Clean up resources when component unmounts
     dispose() {
@@ -72,22 +65,13 @@ constructor(appRunId: string) {
     }
 
     // Fetch runtime stats from the backend
-    async fetchRuntimeStats(): Promise<RuntimeStats | null> {
+    async fetchRuntimeStats(): Promise<AppRunRuntimeStatsData | null> {
         try {
-            // This will be replaced with actual API call when we hook up the backend
-            // For now, return mock data
-            return {
-                timestamp: Date.now(),
-                memoryUsage: Math.random() * 1000,
-                cpuUsage: Math.random() * 100,
-                goroutineCount: Math.floor(Math.random() * 1000),
-                pid: Math.floor(Math.random() * 10000),
-                cwd: "/path/to/working/directory",
-            };
-
-            // When we hook up the backend, it will look something like:
-            // const result = await RpcApi.GetRuntimeStatsCommand(DefaultRpcClient, { apprunid: this.appRunId });
-            // return result.stats;
+            // Call the RPC API to get runtime stats
+            const result = await RpcApi.GetAppRunRuntimeStatsCommand(DefaultRpcClient, { apprunid: this.appRunId });
+            
+            // Return the result directly since it's already in the correct format
+            return result;
         } catch (error) {
             console.error(`Failed to load runtime stats for app run ${this.appRunId}:`, error);
             return null;
@@ -109,7 +93,7 @@ constructor(appRunId: string) {
         try {
             // Fetch new stats
             const stats = await this.fetchRuntimeStats();
-            
+
             // Update the atom with the new stats
             store.set(this.runtimeStats, stats);
         } finally {
@@ -133,7 +117,7 @@ constructor(appRunId: string) {
         if (!force && appRunInfo.status !== "running") {
             return;
         }
-        
+
         try {
             const stats = await this.fetchRuntimeStats();
             if (stats) {
