@@ -4,7 +4,9 @@
 // Search Parser Grammar (EBNF):
 //
 // search           = { token } ;
-// token            = fuzzy_token | regexp_token | case_regexp_token | hash_token | simple_token ;
+// token            = not_token | unmodified_token ;
+// not_token        = "-" unmodified_token ;
+// unmodified_token = fuzzy_token | regexp_token | case_regexp_token | hash_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
 // regexp_token     = "/" { any_char - "/" | "\/" } "/" ;
 // case_regexp_token = "c/" { any_char - "/" | "\/" } "/" ;
@@ -26,6 +28,8 @@
 // - Case-sensitive regular expression tokens (c/Foo/) are prefixed with 'c'
 // - Hash tokens (#foo) search for "#foo" literally (case-insensitive)
 // - Special case: #marked uses the marked searcher to find marked lines
+// - Not token (-) negates the search result of the token that follows it
+// - A literal "-" at the start of a token must be quoted: "-hello" searches for "-hello" literally
 
 package searchparser
 
@@ -38,6 +42,7 @@ import (
 type SearchToken struct {
 	Type       string // The search type (exact, regexp, fzf, etc.)
 	SearchTerm string // The actual search term
+	IsNot      bool   // Whether this token is negated (e.g., -hello)
 }
 
 // Parser represents a recursive descent parser for search expressions
@@ -221,6 +226,138 @@ func (p *Parser) parseSimpleToken(defaultType string) (string, string, bool) {
 	return token, tokenType, true
 }
 
+// parseUnmodifiedToken parses a token that is not negated (not preceded by -)
+// This includes fuzzy tokens, regexp tokens, hash tokens, and simple tokens
+func (p *Parser) parseUnmodifiedToken(searchType string) (SearchToken, bool) {
+	var token string
+	var tokenType string
+
+	// Check for fuzzy search indicator (~)
+	if p.ch == '~' {
+		// Skip the ~ character
+		p.readChar()
+
+		// If we've reached the end of the input or whitespace, skip this token
+		if p.ch == 0 || unicode.IsSpace(p.ch) {
+			return SearchToken{}, false
+		}
+
+		// Parse the simple token
+		simpleToken, simpleType, valid := p.parseSimpleToken(searchType)
+		if !valid {
+			return SearchToken{}, false
+		}
+
+		// Convert to fuzzy search type
+		if simpleType == "exactcase" {
+			tokenType = "fzfcase"
+		} else {
+			tokenType = "fzf"
+		}
+		token = simpleToken
+	} else if p.ch == '/' {
+		// Handle regexp token (case-insensitive by default)
+		token = p.readRegexpToken()
+
+		// Skip empty regexp
+		if token == "" {
+			return SearchToken{}, false
+		}
+
+		tokenType = "regexp"
+	} else if p.ch == 'c' && p.readPosition < len(p.input) && p.input[p.readPosition] == '/' {
+		// Handle case-sensitive regexp token (c/Foo/)
+		// Skip the 'c' character
+		p.readChar()
+
+		token = p.readRegexpToken()
+
+		// Skip empty regexp
+		if token == "" {
+			return SearchToken{}, false
+		}
+
+		tokenType = "regexpcase"
+	} else if p.ch == '#' {
+		// Handle # special character
+		// Skip the # character
+		p.readChar()
+
+		// If we've reached the end of the input or whitespace, create a token for just "#"
+		if p.ch == 0 || unicode.IsSpace(p.ch) {
+			tokenType = searchType
+			token = "#"
+		} else {
+			// Read the token after #
+			position := p.position
+			for !unicode.IsSpace(p.ch) && p.ch != 0 {
+				p.readChar()
+			}
+			token = p.input[position:p.position]
+
+			// Special case for #marked
+			if strings.ToLower(token) == "marked" {
+				tokenType = "marked"
+				token = "" // The marked searcher doesn't need a search term
+			} else {
+				// For other cases, search for "#token" literally
+				tokenType = searchType
+				token = "#" + token
+			}
+		}
+	} else {
+		// Parse a regular simple token
+		var valid bool
+		token, tokenType, valid = p.parseSimpleToken(searchType)
+		if !valid {
+			return SearchToken{}, false
+		}
+	}
+
+	return SearchToken{
+		Type:       tokenType,
+		SearchTerm: token,
+		IsNot:      false,
+	}, true
+}
+
+// parseNotToken parses a token that is negated (preceded by -)
+func (p *Parser) parseNotToken(searchType string) (SearchToken, bool) {
+	// Skip the - character
+	p.readChar()
+	
+	// If we've reached the end of the input or whitespace, treat '-' as a literal token
+	if p.ch == 0 || unicode.IsSpace(p.ch) {
+		return SearchToken{
+			Type:       searchType,
+			SearchTerm: "-",
+			IsNot:      false,
+		}, true
+	}
+	
+	// Parse the unmodified token
+	unmodifiedToken, valid := p.parseUnmodifiedToken(searchType)
+	if !valid {
+		return SearchToken{}, false
+	}
+	
+	// Set the IsNot flag to true
+	unmodifiedToken.IsNot = true
+	
+	return unmodifiedToken, true
+}
+
+// parseToken parses a single token, which can be either a not_token or an unmodified_token
+func (p *Parser) parseToken(searchType string) (SearchToken, bool) {
+	// Check for not operator (-)
+	if p.ch == '-' {
+		return p.parseNotToken(searchType)
+	}
+	
+	// Parse an unmodified token
+	return p.parseUnmodifiedToken(searchType)
+}
+
 // Parse parses the input string into a slice of tokens
 func (p *Parser) Parse(searchType string) []SearchToken {
 	var tokens []SearchToken
@@ -234,96 +371,14 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 			break
 		}
 
-		var token string
-		var tokenType string
-
-		// Check for fuzzy search indicator (~)
-		if p.ch == '~' {
-			// Skip the ~ character
-			p.readChar()
-
-			// If we've reached the end of the input or whitespace, skip this token
-			if p.ch == 0 || unicode.IsSpace(p.ch) {
-				continue
-			}
-
-			// Parse the simple token
-			simpleToken, simpleType, valid := p.parseSimpleToken(searchType)
-			if !valid {
-				continue
-			}
-
-			// Convert to fuzzy search type
-			if simpleType == "exactcase" {
-				tokenType = "fzfcase"
-			} else {
-				tokenType = "fzf"
-			}
-			token = simpleToken
-		} else if p.ch == '/' {
-			// Handle regexp token (case-insensitive by default)
-			token = p.readRegexpToken()
-
-			// Skip empty regexp
-			if token == "" {
-				continue
-			}
-
-			tokenType = "regexp"
-		} else if p.ch == 'c' && p.readPosition < len(p.input) && p.input[p.readPosition] == '/' {
-			// Handle case-sensitive regexp token (c/Foo/)
-			// Skip the 'c' character
-			p.readChar()
-
-			token = p.readRegexpToken()
-
-			// Skip empty regexp
-			if token == "" {
-				continue
-			}
-
-			tokenType = "regexpcase"
-		} else if p.ch == '#' {
-			// Handle # special character
-			// Skip the # character
-			p.readChar()
-
-			// If we've reached the end of the input or whitespace, create a token for just "#"
-			if p.ch == 0 || unicode.IsSpace(p.ch) {
-				tokenType = searchType
-				token = "#"
-			} else {
-				// Read the token after #
-				position := p.position
-				for !unicode.IsSpace(p.ch) && p.ch != 0 {
-					p.readChar()
-				}
-				token = p.input[position:p.position]
-
-				// Special case for #marked
-				if strings.ToLower(token) == "marked" {
-					tokenType = "marked"
-					token = "" // The marked searcher doesn't need a search term
-				} else {
-					// For other cases, search for "#token" literally
-					tokenType = searchType
-					token = "#" + token
-				}
-			}
-		} else {
-			// Parse a regular simple token
-			var valid bool
-			token, tokenType, valid = p.parseSimpleToken(searchType)
-			if !valid {
-				continue
-			}
+		// Parse a token
+		token, valid := p.parseToken(searchType)
+		if !valid {
+			continue
 		}
 
 		// Add the token to the result
-		tokens = append(tokens, SearchToken{
-			Type:       tokenType,
-			SearchTerm: token,
-		})
+		tokens = append(tokens, token)
 	}
 
 	return tokens

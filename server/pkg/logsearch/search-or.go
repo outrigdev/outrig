@@ -1,0 +1,42 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+package logsearch
+
+import (
+	"github.com/outrigdev/outrig/pkg/ds"
+)
+
+// OrSearcher implements a searcher that matches if any contained searcher matches
+type OrSearcher struct {
+	searchers []LogSearcher
+}
+
+// MakeOrSearcher creates a new OR searcher from a slice of searchers
+func MakeOrSearcher(searchers []LogSearcher) *OrSearcher {
+	return &OrSearcher{
+		searchers: searchers,
+	}
+}
+
+// Match checks if the log line matches any contained searcher
+func (s *OrSearcher) Match(line ds.LogLine) bool {
+	// If we have no searchers, nothing matches
+	if len(s.searchers) == 0 {
+		return false
+	}
+	
+	// Check if the line matches any searcher
+	for _, searcher := range s.searchers {
+		if searcher.Match(line) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// GetType returns the search type identifier
+func (s *OrSearcher) GetType() string {
+	return SearchTypeOr
+}

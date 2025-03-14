@@ -338,6 +338,80 @@ func TestTokenizeSearch(t *testing.T) {
 			searchInput: `'`,
 			want: []SearchToken{},
 		},
+		{
+			name:        "Simple not token",
+			searchType:  "exact",
+			searchInput: `-hello`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello", IsNot: true},
+			},
+		},
+		{
+			name:        "Not token with fuzzy search",
+			searchType:  "exact",
+			searchInput: `-~hello`,
+			want: []SearchToken{
+				{Type: "fzf", SearchTerm: "hello", IsNot: true},
+			},
+		},
+		{
+			name:        "Not token with regexp",
+			searchType:  "exact",
+			searchInput: `-/hello/`,
+			want: []SearchToken{
+				{Type: "regexp", SearchTerm: "hello", IsNot: true},
+			},
+		},
+		{
+			name:        "Not token with quoted string",
+			searchType:  "exact",
+			searchInput: `-"hello world"`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello world", IsNot: true},
+			},
+		},
+		{
+			name:        "Not token with single quoted string",
+			searchType:  "exact",
+			searchInput: `-'Hello World'`,
+			want: []SearchToken{
+				{Type: "exactcase", SearchTerm: "Hello World", IsNot: true},
+			},
+		},
+		{
+			name:        "Multiple not tokens",
+			searchType:  "exact",
+			searchInput: `-hello -world`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello", IsNot: true},
+				{Type: "exact", SearchTerm: "world", IsNot: true},
+			},
+		},
+		{
+			name:        "Mixed not and regular tokens",
+			searchType:  "exact",
+			searchInput: `hello -world`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello", IsNot: false},
+				{Type: "exact", SearchTerm: "world", IsNot: true},
+			},
+		},
+		{
+			name:        "Literal dash in quoted string",
+			searchType:  "exact",
+			searchInput: `"-hello"`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "-hello", IsNot: false},
+			},
+		},
+		{
+			name:        "Dash as a standalone token",
+			searchType:  "exact",
+			searchInput: `-`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "-", IsNot: false},
+			},
+		},
 	}
 
 	for _, tt := range tests {

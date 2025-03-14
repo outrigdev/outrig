@@ -16,8 +16,10 @@ const (
 	SearchTypeFzf        = "fzf"
 	SearchTypeFzfCase    = "fzfcase"
 	SearchTypeAnd        = "and"
+	SearchTypeOr         = "or"
 	SearchTypeAll        = "all"
 	SearchTypeMarked     = "marked"
+	SearchTypeNot        = "not"
 )
 
 // LogSearcher defines the interface for different search strategies
