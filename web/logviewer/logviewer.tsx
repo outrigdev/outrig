@@ -150,8 +150,8 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
     const filteredCount = useAtomValue(model.filteredItemCount);
     const totalCount = useAtomValue(model.totalItemCount);
 
-    const handleKeyDown = useCallback(
-        keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        return keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
             if (checkKeyPressed(keyEvent, "Cmd:ArrowDown")) {
                 model.scrollToBottom();
                 return true;
@@ -178,9 +178,8 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
             }
 
             return false;
-        }),
-        [model, setSearch]
-    );
+        })(e);
+    }, [model, setSearch]);
 
     return (
         <div className={`py-1 px-1 border-b border-border ${className || ""}`}>
@@ -245,6 +244,29 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         model.setVirtuosoRef(virtuosoRef);
     }, [model]);
 
+    // Prevent default smooth scrolling for PageUp/PageDown when focus is in the list
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        // Capture the current value of the ref
+        const currentContainer = containerRef.current;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'PageUp') {
+                e.preventDefault();
+                model.pageUp();
+            } else if (e.key === 'PageDown') {
+                e.preventDefault();
+                model.pageDown();
+            }
+        };
+
+        currentContainer.addEventListener('keydown', handleKeyDown);
+        return () => {
+            currentContainer.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [model]);
+
     // Handle followOutput changes
     useEffect(() => {
         if (followOutput) {
@@ -294,12 +316,9 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         };
     }, [containerRef]);
 
-    const onRangeChanged = useCallback(
-        (range: ListRange) => {
-            model.setRenderedRange(range.startIndex, range.endIndex);
-        },
-        [model]
-    );
+    const onRangeChanged = useCallback((range: ListRange) => {
+        model.setRenderedRange(range.startIndex, range.endIndex);
+    }, [model]);
 
     // Handle scroll position changes to update follow mode
     const handleAtBottomStateChange = useCallback(
