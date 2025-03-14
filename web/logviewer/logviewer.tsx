@@ -1,4 +1,5 @@
 import { CopyButton } from "@/elements/copybutton";
+import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
@@ -143,45 +144,6 @@ const FollowButton = React.memo<FollowButtonProps>(({ model }) => {
     );
 });
 
-// Refresh Button component
-interface RefreshButtonProps {
-    model: LogViewerModel;
-}
-
-const RefreshButton = React.memo<RefreshButtonProps>(({ model }) => {
-    const isRefreshing = useAtomValue(model.isRefreshing);
-    const [isAnimating, setIsAnimating] = useState(false);
-
-    const handleRefresh = () => {
-        if (isRefreshing || isAnimating) return;
-
-        // Start animation
-        setIsAnimating(true);
-
-        // Start refresh
-        model.refresh();
-
-        // End animation after 500ms
-        setTimeout(() => {
-            setIsAnimating(false);
-        }, 500);
-    };
-
-    return (
-        <Tooltip content="Refresh logs">
-            <button
-                onClick={handleRefresh}
-                className={cn(
-                    "p-1 mr-1 rounded hover:bg-buttonhover text-muted hover:text-primary cursor-pointer",
-                    isAnimating && "refresh-spin"
-                )}
-                disabled={isRefreshing || isAnimating}
-            >
-                <RefreshCw size={16} />
-            </button>
-        </Tooltip>
-    );
-});
 
 // Filter component
 interface LogViewerFilterProps {
@@ -261,7 +223,11 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                 </div>
 
                 <FollowButton model={model} />
-                <RefreshButton model={model} />
+                <RefreshButton 
+                    isRefreshingAtom={model.isRefreshing} 
+                    onRefresh={() => model.refresh()} 
+                    tooltipContent="Refresh logs" 
+                />
             </div>
         </div>
     );

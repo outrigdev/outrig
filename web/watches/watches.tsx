@@ -1,30 +1,9 @@
 import { useAtom, useAtomValue } from "jotai";
-import { Filter, RefreshCw } from "lucide-react";
+import { Filter } from "lucide-react";
+import { RefreshButton } from "@/elements/refreshbutton";
 import React, { useEffect, useRef } from "react";
 import { WatchesModel } from "./watches-model";
 
-// Refresh button component
-interface RefreshButtonProps {
-    model: WatchesModel;
-}
-
-const RefreshButton: React.FC<RefreshButtonProps> = ({ model }) => {
-    const isRefreshing = useAtomValue(model.isRefreshing);
-
-    const handleRefresh = () => {
-        model.refresh();
-    };
-
-    return (
-        <button
-            onClick={handleRefresh}
-            className="p-1.5 border border-border rounded-md text-primary hover:bg-buttonhover transition-colors cursor-pointer"
-            disabled={isRefreshing}
-        >
-            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-        </button>
-    );
-};
 
 // Watches filters component
 interface WatchesFiltersProps {
@@ -36,16 +15,18 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     const searchRef = useRef<HTMLInputElement>(null);
 
     return (
-        <div className="py-1 px-4 border-b border-border">
+        <div className="py-1 px-1 border-b border-border">
             <div className="flex items-center justify-between">
                 <div className="flex items-center flex-grow">
-                    <Filter
-                        size={16}
-                        className="text-muted mr-2"
-                        fill="currentColor"
-                        stroke="currentColor"
-                        strokeWidth={1}
-                    />
+                    <div className="select-none pr-2 text-muted w-12 text-right font-mono flex justify-end items-center">
+                        <Filter
+                            size={16}
+                            className="text-muted"
+                            fill="currentColor"
+                            stroke="currentColor"
+                            strokeWidth={1}
+                        />
+                    </div>
                     <input
                         ref={searchRef}
                         type="text"
@@ -56,7 +37,12 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
-                <RefreshButton model={model} />
+                <RefreshButton 
+                    isRefreshingAtom={model.isRefreshing} 
+                    onRefresh={() => model.refresh()} 
+                    tooltipContent="Refresh watches" 
+                    size={16}
+                />
             </div>
         </div>
     );
