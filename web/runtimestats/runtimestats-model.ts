@@ -19,10 +19,11 @@ class RuntimeStatsModel {
     pollingInterval: number = 5000; // 5 seconds by default
     pollingIntervalId: number | null = null;
 
-    constructor(appRunId: string) {
-        this.widgetId = crypto.randomUUID();
-        this.appRunId = appRunId;
-    }
+constructor(appRunId: string) {
+    this.widgetId = crypto.randomUUID();
+    this.appRunId = appRunId;
+    this.startPolling();
+}
 
     // Clean up resources when component unmounts
     dispose() {

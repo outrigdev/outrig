@@ -12,13 +12,16 @@ class WatchesModel {
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
 
-    constructor(appRunId: string) {
-        this.widgetId = crypto.randomUUID();
-        this.appRunId = appRunId;
+constructor(appRunId: string) {
+    this.widgetId = crypto.randomUUID();
+    this.appRunId = appRunId;
 
-        // Start auto-refresh interval since default is on
-        this.startAutoRefreshInterval();
-    }
+    // Initial refresh
+    this.quietRefresh(true);
+    
+    // Start auto-refresh interval since default is on
+    this.startAutoRefreshInterval();
+}
 
     // Toggle auto-refresh state
     toggleAutoRefresh() {

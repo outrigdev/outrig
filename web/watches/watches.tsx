@@ -1,6 +1,7 @@
 import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
+import { useOutrigModel } from "@/util/hooks";
 import { useAtom, useAtomValue } from "jotai";
 import { Clock, Filter, Timer } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -184,32 +185,16 @@ interface WatchesProps {
 }
 
 export const Watches: React.FC<WatchesProps> = ({ appRunId }) => {
-    const modelRef = useRef<WatchesModel>(null);
-    const [, setForceUpdate] = useState({});
+    const model = useOutrigModel(WatchesModel, appRunId);
 
-    useEffect(() => {
-        if (!modelRef.current) {
-            modelRef.current = new WatchesModel(appRunId);
-            modelRef.current.quietRefresh(true);
-            setForceUpdate({});
-        }
-        return () => {
-            if (!modelRef.current) {
-                return;
-            }
-            modelRef.current.dispose();
-            modelRef.current = null;
-        };
-    }, [appRunId]);
-
-    if (!modelRef.current) {
+    if (!model) {
         return null;
     }
 
     return (
         <div className="w-full h-full flex flex-col">
-            <WatchesFilters model={modelRef.current} />
-            <WatchesContent model={modelRef.current} />
+            <WatchesFilters model={model} />
+            <WatchesContent model={model} />
         </div>
     );
 };

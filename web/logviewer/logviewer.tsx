@@ -1,6 +1,7 @@
 import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
+import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
@@ -476,28 +477,13 @@ interface LogViewerProps {
 }
 
 export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
-    const modelRef = useRef<LogViewerModel>(null);
-    const [, setForceUpdate] = useState({});
+    const model = useOutrigModel(LogViewerModel, props.appRunId);
 
-    console.log("Render logviewer", props.appRunId, modelRef.current);
+    console.log("Render logviewer", props.appRunId, model);
 
-    useEffect(() => {
-        if (!modelRef.current) {
-            modelRef.current = new LogViewerModel(props.appRunId);
-            setForceUpdate({});
-        }
-        return () => {
-            if (!modelRef.current) {
-                return;
-            }
-            modelRef.current.dispose();
-            modelRef.current = null;
-        };
-    }, [props.appRunId]);
-
-    if (!modelRef.current) {
+    if (!model) {
         return null;
     }
 
-    return <LogViewerInternal key={props.appRunId} model={modelRef.current} />;
+    return <LogViewerInternal key={props.appRunId} model={model} />;
 });

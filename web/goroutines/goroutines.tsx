@@ -1,4 +1,5 @@
 import { RefreshButton } from "@/elements/refreshbutton";
+import { useOutrigModel } from "@/util/hooks";
 import { useAtom, useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -145,34 +146,18 @@ interface GoRoutinesProps {
 }
 
 export const GoRoutines: React.FC<GoRoutinesProps> = ({ appRunId }) => {
-    const modelRef = useRef<GoRoutinesModel>(null);
-    const [, setForceUpdate] = useState({});
+    const model = useOutrigModel(GoRoutinesModel, appRunId);
 
-    console.log("Render goroutines", appRunId, modelRef.current);
+    console.log("Render goroutines", appRunId, model);
 
-    useEffect(() => {
-        if (!modelRef.current) {
-            modelRef.current = new GoRoutinesModel(appRunId);
-            modelRef.current.loadAppRunGoroutines();
-            setForceUpdate({});
-        }
-        return () => {
-            if (!modelRef.current) {
-                return;
-            }
-            modelRef.current.dispose();
-            modelRef.current = null;
-        };
-    }, [appRunId]);
-
-    if (!modelRef.current) {
+    if (!model) {
         return null;
     }
 
     return (
         <div className="w-full h-full flex flex-col">
-            <GoRoutinesFilters model={modelRef.current} />
-            <GoRoutinesContent model={modelRef.current} />
+            <GoRoutinesFilters model={model} />
+            <GoRoutinesContent model={model} />
         </div>
     );
 };

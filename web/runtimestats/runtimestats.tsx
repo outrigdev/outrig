@@ -1,4 +1,5 @@
 import { RefreshButton } from "@/elements/refreshbutton";
+import { useOutrigModel } from "@/util/hooks";
 import { useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
 import { RuntimeStatsModel } from "./runtimestats-model";
@@ -61,11 +62,7 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
     }
 
     if (!stats) {
-        return (
-            <div className="flex items-center justify-center h-full text-secondary">
-                No runtime stats available
-            </div>
-        );
+        return <div className="flex items-center justify-center h-full text-secondary">No runtime stats available</div>;
     }
 
     // Format the timestamp
@@ -73,25 +70,12 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
 
     return (
         <div className="w-full h-full overflow-auto p-4">
-            <div className="text-sm text-secondary mb-4">
-                Last updated: {formattedTime}
-            </div>
-            
+            <div className="text-sm text-secondary mb-4">Last updated: {formattedTime}</div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <StatItem 
-                    label="Memory Usage" 
-                    value={stats.memoryUsage.toFixed(2)} 
-                    unit="MB" 
-                />
-                <StatItem 
-                    label="CPU Usage" 
-                    value={stats.cpuUsage.toFixed(2)} 
-                    unit="%" 
-                />
-                <StatItem 
-                    label="Goroutine Count" 
-                    value={stats.goroutineCount} 
-                />
+                <StatItem label="Memory Usage" value={stats.memoryUsage.toFixed(2)} unit="MB" />
+                <StatItem label="CPU Usage" value={stats.cpuUsage.toFixed(2)} unit="%" />
+                <StatItem label="Goroutine Count" value={stats.goroutineCount} />
                 {/* More stats can be added here when we hook up the backend */}
             </div>
         </div>
@@ -104,34 +88,16 @@ interface RuntimeStatsProps {
 }
 
 export const RuntimeStats: React.FC<RuntimeStatsProps> = ({ appRunId }) => {
-    const modelRef = useRef<RuntimeStatsModel>(null);
-    const [, setForceUpdate] = useState({});
+    const model = useOutrigModel(RuntimeStatsModel, appRunId);
 
-    console.log("Render runtime stats", appRunId, modelRef.current);
-
-    useEffect(() => {
-        if (!modelRef.current) {
-            modelRef.current = new RuntimeStatsModel(appRunId);
-            modelRef.current.startPolling();
-            setForceUpdate({});
-        }
-        return () => {
-            if (!modelRef.current) {
-                return;
-            }
-            modelRef.current.dispose();
-            modelRef.current = null;
-        };
-    }, [appRunId]);
-
-    if (!modelRef.current) {
+    if (!model) {
         return null;
     }
 
     return (
         <div className="w-full h-full flex flex-col">
-            <RuntimeStatsHeader model={modelRef.current} />
-            <RuntimeStatsContent model={modelRef.current} />
+            <RuntimeStatsHeader model={model} />
+            <RuntimeStatsContent model={model} />
         </div>
     );
 };

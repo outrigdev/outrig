@@ -13,10 +13,11 @@ class GoRoutinesModel {
     showAll: PrimitiveAtom<boolean> = atom(true);
     selectedStates: PrimitiveAtom<Set<string>> = atom(new Set<string>());
 
-    constructor(appRunId: string) {
-        this.widgetId = crypto.randomUUID();
-        this.appRunId = appRunId;
-    }
+constructor(appRunId: string) {
+    this.widgetId = crypto.randomUUID();
+    this.appRunId = appRunId;
+    this.loadAppRunGoroutines();
+}
 
     // Clean up resources when component unmounts
     dispose() {
