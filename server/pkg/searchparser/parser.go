@@ -80,6 +80,16 @@ func (p *Parser) readChar() {
 	p.readPosition++
 }
 
+// peek performs n-character lookahead and returns the character at position + n
+// Returns 0 (EOF) if the position is out of range
+func (p *Parser) peek(n int) rune {
+	pos := p.readPosition + n - 1
+	if pos >= len(p.input) {
+		return 0 // EOF
+	}
+	return rune(p.input[pos])
+}
+
 // skipWhitespace skips any whitespace characters
 func (p *Parser) skipWhitespace() {
 	for unicode.IsSpace(p.ch) {
@@ -265,7 +275,7 @@ func (p *Parser) parseUnmodifiedToken(searchType string) (SearchToken, bool) {
 		}
 
 		tokenType = "regexp"
-	} else if p.ch == 'c' && p.readPosition < len(p.input) && p.input[p.readPosition] == '/' {
+	} else if p.ch == 'c' && p.peek(1) == '/' {
 		// Handle case-sensitive regexp token (c/Foo/)
 		// Skip the 'c' character
 		p.readChar()
