@@ -14,6 +14,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -23,7 +24,6 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/web"
 )
-
 
 // PacketUnmarshalHelper is the envelope for incoming JSON packets.
 type PacketUnmarshalHelper struct {
@@ -124,7 +124,7 @@ func runDomainSocketServer() error {
 func runWebServers() error {
 	webServerPort := serverbase.GetWebServerPort()
 	webSocketPort := serverbase.GetWebSocketPort()
-	
+
 	// Create TCP listener for HTTP server
 	httpListener, err := web.MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(webServerPort))
 	if err != nil {
@@ -194,6 +194,11 @@ func startViteServer(ctx context.Context) (*exec.Cmd, error) {
 }
 
 func main() {
+	if serverbase.IsDev() {
+		outrigConfig := outrig.DefaultConfig()
+		outrig.Init(outrigConfig)
+	}
+
 	// Create a context that we can cancel
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -230,7 +235,7 @@ func main() {
 
 	outrigRpcServer := rpc.MakeRpcClient(nil, nil, &rpcserver.RpcServerImpl{}, "outrigsrv")
 	rpc.DefaultRouter.RegisterRoute("outrigsrv", outrigRpcServer, true)
-	
+
 	// Initialize browser tabs tracking
 	browsertabs.Initialize()
 	log.Println("Browser tabs tracking initialized")

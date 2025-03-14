@@ -11,6 +11,25 @@
             onload="window.outrigCssLoaded = true; document.dispatchEvent(new Event('outrig-css-loaded'));"
         />
         <script>
+            function onCssLoaded() {
+                if (window.outrigCssLoaded) return;
+                window.outrigCssLoaded = true;
+                document.dispatchEvent(new Event("outrig-css-loaded"));
+            }
+
+            function checkCssLoaded(hrefPart) {
+                const links = document.querySelectorAll('link[rel="stylesheet"]');
+                for (const link of links) {
+                    if (link.href.includes(hrefPart)) {
+                        if (link.sheet) {
+                            onCssLoaded();
+                        } else {
+                            link.addEventListener("load", onCssLoaded);
+                        }
+                        break;
+                    }
+                }
+            }
             // Set the initial background color based on theme to prevent flash
             (function () {
                 const isDarkMode = localStorage.getItem("theme") === "dark";
@@ -18,6 +37,7 @@
                 // Set body background color after DOM is loaded
                 document.addEventListener("DOMContentLoaded", function () {
                     document.body.style.backgroundColor = isDarkMode ? "#0c0c0c" : "#f9fafb";
+                    checkCssLoaded("/assets/");
                 });
             })();
         </script>

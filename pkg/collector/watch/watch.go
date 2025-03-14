@@ -3,7 +3,6 @@ package watch
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"sort"
 	"sync"
@@ -133,7 +132,6 @@ func (wc *WatchCollector) getAndClearWatchVals() []ds.Watch {
 
 // CollectWatches collects watch information and sends it to the controller
 func (wc *WatchCollector) CollectWatches() {
-	log.Printf("[watch] CollectWatches called\n")
 	if !global.OutrigEnabled.Load() || wc.controller == nil {
 		return
 	}
