@@ -4,7 +4,7 @@ import { Tooltip } from "@/elements/tooltip";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { ArrowDown, ArrowDownCircle, Filter, RefreshCw, X } from "lucide-react";
+import { ArrowDown, ArrowDownCircle, Filter, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ListRange, Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { LogViewerModel } from "./logviewer-model";
@@ -44,13 +44,6 @@ function formatSource(source: string): React.ReactNode {
     return <span className={srcStr === "stderr" ? "text-error" : "text-muted"}>[{padded}]</span>;
 }
 
-// Individual log line component that also serves as a row for react-window
-interface LogLineViewProps {
-    lineIndex: number;
-    style: React.CSSProperties;
-    model: LogViewerModel;
-}
-
 // LogLineItem component for rendering individual log lines
 interface LogLineItemProps {
     index: number;
@@ -65,7 +58,7 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
 
     if (line == null) {
         return (
-            <div className="flex hover:bg-buttonhover select-none">
+            <div className="flex hover:bg-buttonhover select-none" style={{ height: 15 }}>
                 <div className="pr-2 text-muted w-12 text-right flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
                     <span className="text-secondary">...</span>
@@ -143,7 +136,6 @@ const FollowButton = React.memo<FollowButtonProps>(({ model }) => {
         </Tooltip>
     );
 });
-
 
 // Filter component
 interface LogViewerFilterProps {
@@ -223,10 +215,10 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                 </div>
 
                 <FollowButton model={model} />
-                <RefreshButton 
-                    isRefreshingAtom={model.isRefreshing} 
-                    onRefresh={() => model.refresh()} 
-                    tooltipContent="Refresh logs" 
+                <RefreshButton
+                    isRefreshingAtom={model.isRefreshing}
+                    onRefresh={() => model.refresh()}
+                    tooltipContent="Refresh logs"
                 />
             </div>
         </div>
@@ -323,23 +315,21 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     // Item renderer function for Virtuoso
     const itemRenderer = useCallback(
         (index: number) => {
-            if (index === filteredItemCount) {
-                return <EofItem />;
-            }
-            return <LogLineItem index={index} model={model} />;
+            return <LogLineItem key={index} index={index} model={model} />;
         },
-        [filteredItemCount, model]
+        [model]
     );
 
     let listElem = (
         <Virtuoso
             ref={virtuosoRef}
             style={{ height: dimensions.height, width: "100%" }}
-            totalCount={filteredItemCount + 1}
+            totalCount={filteredItemCount}
             itemContent={itemRenderer}
             followOutput={followOutput}
             initialTopMostItemIndex={followOutput ? filteredItemCount : undefined}
-            overscan={20}
+            overscan={200}
+            defaultItemHeight={15}
             rangeChanged={onRangeChanged}
             atBottomStateChange={handleAtBottomStateChange}
         />

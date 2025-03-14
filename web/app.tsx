@@ -5,12 +5,12 @@ import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
 import { GoRoutines } from "./goroutines/goroutines";
+import { DefaultRpcClient } from "./init";
 import { appHandleKeyDown } from "./keymodel";
 import { LogViewer } from "./logviewer/logviewer";
-import { Watches } from "./watches/watches";
-import { StatusBar } from "./statusbar";
-import { DefaultRpcClient } from "./init";
 import { RpcApi } from "./rpc/rpcclientapi";
+import { StatusBar } from "./statusbar";
+import { Watches } from "./watches/watches";
 
 // Define tabs that require an app run ID to be selected
 // Add new tabs that require an app run ID to this array
@@ -117,9 +117,9 @@ function App() {
         // Function to send the current URL to the backend
         const sendUrlToBackend = () => {
             if (!DefaultRpcClient) return;
-            
+
             const currentUrl = window.location.href;
-            
+
             // Send the URL and app run ID to the backend
             RpcApi.UpdateBrowserTabUrlCommand(DefaultRpcClient, {
                 url: currentUrl,
@@ -128,23 +128,23 @@ function App() {
                 console.error("Failed to send URL to backend:", err);
             });
         };
-        
+
         // Send the URL when the component mounts
         sendUrlToBackend();
-        
+
         // Listen for popstate events (browser back/forward buttons)
         const handlePopState = () => {
             sendUrlToBackend();
         };
-        
+
         // Listen for hashchange events
         const handleHashChange = () => {
             sendUrlToBackend();
         };
-        
+
         window.addEventListener("popstate", handlePopState);
         window.addEventListener("hashchange", handleHashChange);
-        
+
         // Clean up event listeners
         return () => {
             window.removeEventListener("popstate", handlePopState);

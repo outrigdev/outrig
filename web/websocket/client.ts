@@ -61,9 +61,11 @@ export class WebSocketController {
     noReconnect = false;
     onOpenTimeoutId: ReturnType<typeof setTimeout> | null = null;
     pingIntervalId: ReturnType<typeof setInterval> | null = null;
-    
+
     // Connection state atom
-    connectionState: PrimitiveAtom<"connecting" | "connected" | "failed"> = atom<"connecting" | "connected" | "failed">("connecting");
+    connectionState: PrimitiveAtom<"connecting" | "connected" | "failed"> = atom<"connecting" | "connected" | "failed">(
+        "connecting"
+    );
 
     constructor(options: WebSocketOptions) {
         this.options = options;

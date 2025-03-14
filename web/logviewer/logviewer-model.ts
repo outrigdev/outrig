@@ -14,6 +14,7 @@ type LogCacheEntry = {
 class LogViewerModel {
     widgetId: string;
     appRunId: string;
+    createTs: number = Date.now();
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     isLoading: PrimitiveAtom<boolean> = atom(false);
@@ -82,19 +83,23 @@ class LogViewerModel {
             });
         };
         try {
-            console.log("searchtermupdate, loading page 0 for search term", searchTerm);
+            console.log(
+                "searchtermupdate, loading page 0 for search term",
+                searchTerm,
+                "@" + (Date.now() - this.createTs) + "ms"
+            );
             this.setLogCacheEntry(0, "loading", []);
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
             this.logItemCache = [];
             getDefaultStore().set(this.totalItemCount, results.totalcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
             this.setLogCacheEntry(0, "loaded", results.lines);
-            
+
             // If following output, scroll to bottom
             if (getDefaultStore().get(this.followOutput)) {
                 this.scrollToBottom();
             }
-            
+
             // Use setTimeout to allow any scrolling to complete
             setTimeout(() => {
                 // Fetch the pages for the last visible range
@@ -182,6 +187,7 @@ class LogViewerModel {
                 stream: false,
             });
         };
+        const startTime = Date.now();
         try {
             console.log("fetchlogpage, loading page " + page + " for search term", searchTerm);
             this.setLogCacheEntry(page, "loading", []);
@@ -191,6 +197,8 @@ class LogViewerModel {
             this.setLogCacheEntry(page, "loaded", results.lines);
         } catch (e) {
             console.error("Log search error", e);
+        } finally {
+            console.log("fetchlogpage, loading page " + page + " took", Date.now() - startTime, "ms");
         }
     }
 
