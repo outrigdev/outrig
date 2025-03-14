@@ -98,7 +98,7 @@ body {
     src: url("/fonts/inter-variable.woff2") format("woff2");
     font-weight: 100 900;
     font-style: normal;
-    font-display: swap;
+    font-display: block;
 }
 
 @font-face {
@@ -106,6 +106,7 @@ body {
     src: url("/fonts/hacknerdmono-regular.ttf") format("truetype");
     font-weight: normal;
     font-style: normal;
+    font-display: block;
 }
 
 @font-face {
@@ -113,6 +114,7 @@ body {
     src: url("/fonts/hacknerdmono-bold.ttf") format("truetype");
     font-weight: bold;
     font-style: normal;
+    font-display: block;
 }
 
 @font-face {
@@ -120,6 +122,7 @@ body {
     src: url("/fonts/hacknerdmono-italic.ttf") format("truetype");
     font-weight: normal;
     font-style: italic;
+    font-display: block;
 }
 
 @font-face {
@@ -127,6 +130,7 @@ body {
     src: url("/fonts/hacknerdmono-bolditalic.ttf") format("truetype");
     font-weight: bold;
     font-style: italic;
+    font-display: block;
 }
 
 /* Animation for refresh button */

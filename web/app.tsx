@@ -53,7 +53,7 @@ function FeatureTab() {
 function AppLogo() {
     return (
         <div className="flex items-center space-x-2">
-            <img src="/outriglogo.svg" alt="Outrig Logo" className="h-5" />
+            <img src="/outriglogo.svg" alt="Outrig Logo" className="h-5 w-[20px] h-[20px]" />
         </div>
     );
 }

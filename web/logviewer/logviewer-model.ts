@@ -72,6 +72,8 @@ class LogViewerModel {
         const quickSearchTimeoutId = setTimeout(() => {
             getDefaultStore().set(this.isLoading, true);
         }, 200);
+        const followOutput = getDefaultStore().get(this.followOutput);
+        const requestPages = followOutput ? [-1] : [0];
 
         const cmdPromiseFn = () => {
             return RpcApi.LogSearchRequestCommand(DefaultRpcClient, {
@@ -79,7 +81,7 @@ class LogViewerModel {
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
                 pagesize: PAGESIZE,
-                requestpages: [0],
+                requestpages: requestPages,
                 stream: false,
             });
         };
@@ -94,15 +96,14 @@ class LogViewerModel {
             this.logItemCache = [];
             getDefaultStore().set(this.totalItemCount, results.totalcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
-            // Get lines from the first page (page 0)
-            const lines = results.pages.find(page => page.pagenum === 0)?.lines || [];
-            this.setLogCacheEntry(0, "loaded", lines);
-
+            for (let i = 0; i < results.pages.length; i++) {
+                const page = results.pages[i];
+                this.setLogCacheEntry(page.pagenum, "loaded", page.lines ?? []);
+            }
             // If following output, scroll to bottom
-            if (getDefaultStore().get(this.followOutput)) {
+            if (followOutput) {
                 this.scrollToBottom();
             }
-
             // Use setTimeout to allow any scrolling to complete
             setTimeout(() => {
                 // Fetch the pages for the last visible range
@@ -199,7 +200,7 @@ class LogViewerModel {
             getDefaultStore().set(this.totalItemCount, results.totalcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
             // Get lines from the requested page
-            const lines = results.pages.find(p => p.pagenum === page)?.lines || [];
+            const lines = results.pages.find((p) => p.pagenum === page)?.lines || [];
             this.setLogCacheEntry(page, "loaded", lines);
         } catch (e) {
             console.error("Log search error", e);
