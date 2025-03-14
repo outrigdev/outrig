@@ -15,7 +15,7 @@ export default defineConfig({
             ignored: ["**/*.go", "go.mod", "go.sum", "**/*.md"],
         },
         proxy: {
-            "/api": "http://localhost:5005",
+            "/api": "http://localhost:6005",
         },
     },
 });

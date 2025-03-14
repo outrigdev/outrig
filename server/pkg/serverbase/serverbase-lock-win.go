@@ -11,12 +11,11 @@ import (
 	"path/filepath"
 
 	"github.com/alexflint/go-filemutex"
-	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 func AcquireOutrigServerLock() (FDLock, error) {
-	outrigHome := utilfn.ExpandHomeDir(base.OutrigHome)
+	outrigHome := utilfn.ExpandHomeDir(GetOutrigHome())
 	lockFileName := filepath.Join(outrigHome, OutrigLockFile)
 	log.Printf("[base] acquiring lock on %s\n", lockFileName)
 	m, err := filemutex.New(lockFileName)

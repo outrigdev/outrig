@@ -128,11 +128,8 @@ func generateStructuredLog() string {
 }
 
 func main() {
-	// Seed the random number generator
-	rand.Seed(time.Now().UnixNano())
-
 	fmt.Printf("log before init\n")
-	config := outrig.DefaultConfig()
+	config := outrig.DefaultDevConfig()
 	// config.LogProcessorConfig.WrapStderr = false
 	outrig.Init(config)
 	defer outrig.AppDone()

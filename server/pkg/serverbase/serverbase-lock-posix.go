@@ -10,13 +10,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"golang.org/x/sys/unix"
 )
 
 func AcquireOutrigServerLock() (FDLock, error) {
-	outrigHome := utilfn.ExpandHomeDir(base.OutrigHome)
+	outrigHome := utilfn.ExpandHomeDir(GetOutrigHome())
 	lockFileName := filepath.Join(outrigHome, OutrigLockFile)
 	log.Printf("[base] acquiring lock on %s\n", lockFileName)
 	fd, err := os.OpenFile(lockFileName, os.O_RDWR|os.O_CREATE, 0600)

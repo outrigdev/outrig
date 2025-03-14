@@ -28,19 +28,28 @@ func Enable() {
 	}
 }
 
-// DefaultConfig returns the default configuration
-func DefaultConfig() *ds.Config {
+func getDefaultConfig(isDev bool) *ds.Config {
 	return &ds.Config{
-		DomainSocketPath: base.DefaultDomainSocketName,
-		ServerAddr:       base.DefaultTCPAddr,
+		DomainSocketPath: base.GetDomainSocketNameForClient(isDev),
+		ServerAddr:       base.GetTCPAddrForClient(isDev),
 		AppName:          "",
 		ModuleName:       "",
+		Dev:              isDev,
 		StartAsync:       false,
 		LogProcessorConfig: &ds.LogProcessorConfig{
 			WrapStdout: true,
 			WrapStderr: true,
 		},
 	}
+}
+
+// DefaultConfig returns the default configuration
+func DefaultConfig() *ds.Config {
+	return getDefaultConfig(false)
+}
+
+func DefaultDevConfig() *ds.Config {
+	return getDefaultConfig(true)
 }
 
 // Init initializes Outrig
@@ -50,10 +59,10 @@ func Init(cfgParam *ds.Config) error {
 	}
 	finalCfg := *cfgParam
 	if finalCfg.DomainSocketPath == "" {
-		finalCfg.DomainSocketPath = base.DefaultDomainSocketName
+		finalCfg.DomainSocketPath = base.GetDomainSocketNameForClient(finalCfg.Dev)
 	}
 	if finalCfg.ServerAddr == "" {
-		finalCfg.ServerAddr = base.DefaultTCPAddr
+		finalCfg.ServerAddr = base.GetTCPAddrForClient(finalCfg.Dev)
 	}
 
 	// Create and initialize the controller
@@ -85,7 +94,7 @@ func AppDone() {
 			Data: nil, // No data needed for AppDone
 		}
 		ctrl.SendPacket(packet)
-		
+
 		// Give a small delay to allow the packet to be sent
 		time.Sleep(50 * time.Millisecond)
 	}

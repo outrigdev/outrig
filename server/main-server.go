@@ -14,7 +14,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -25,8 +24,6 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/web"
 )
 
-const WebServerPort = 5005
-const WebSocketPort = 5006
 
 // PacketUnmarshalHelper is the envelope for incoming JSON packets.
 type PacketUnmarshalHelper struct {
@@ -92,13 +89,13 @@ func handleDomainSocketConn(conn net.Conn) {
 }
 
 func runDomainSocketServer() error {
-	outrigPath := utilfn.ExpandHomeDir(base.OutrigHome)
+	outrigPath := utilfn.ExpandHomeDir(serverbase.GetOutrigHome())
 	if err := os.MkdirAll(outrigPath, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", outrigPath, err)
 	}
 
 	// Determine the full path for the socket, remove
-	socketPath := utilfn.ExpandHomeDir(base.DefaultDomainSocketName)
+	socketPath := utilfn.ExpandHomeDir(serverbase.GetDomainSocketName())
 	_ = os.Remove(socketPath)
 
 	// Listen on the Unix domain socket.
@@ -125,15 +122,18 @@ func runDomainSocketServer() error {
 }
 
 func runWebServers() error {
+	webServerPort := serverbase.GetWebServerPort()
+	webSocketPort := serverbase.GetWebSocketPort()
+	
 	// Create TCP listener for HTTP server
-	httpListener, err := web.MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(WebServerPort))
+	httpListener, err := web.MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(webServerPort))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP listener: %w", err)
 	}
 	log.Printf("HTTP server listening on http://%s\n", httpListener.Addr().String())
 
 	// Create TCP listener for WebSocket server
-	wsListener, err := web.MakeTCPListener("websocket", "127.0.0.1:"+strconv.Itoa(WebSocketPort))
+	wsListener, err := web.MakeTCPListener("websocket", "127.0.0.1:"+strconv.Itoa(webSocketPort))
 	if err != nil {
 		return fmt.Errorf("failed to create WebSocket listener: %w", err)
 	}
@@ -217,7 +217,7 @@ func main() {
 
 	err := serverbase.EnsureHomeDir()
 	if err != nil {
-		log.Printf("error cannot create outrig home directory (%s): %v\n", base.OutrigHome, err)
+		log.Printf("error cannot create outrig home directory (%s): %v\n", serverbase.GetOutrigHome(), err)
 		return
 	}
 
@@ -252,7 +252,7 @@ func main() {
 	log.Println("All servers started successfully")
 
 	// If we're in development mode, start the Vite server
-	if os.Getenv("OUTRIG_DEV") == "1" {
+	if serverbase.IsDev() {
 		viteCmd, err := startViteServer(ctx)
 		if err != nil {
 			log.Printf("Error starting Vite server: %v\n", err)

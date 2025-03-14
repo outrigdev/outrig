@@ -39,6 +39,9 @@ type Config struct {
 	// from the go.mod file.
 	ModuleName string
 
+	// Dev indicates whether the client is in development mode
+	Dev bool
+
 	StartAsync bool
 
 	LogProcessorConfig *LogProcessorConfig
