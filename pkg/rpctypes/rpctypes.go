@@ -41,6 +41,7 @@ type FullRpcInterface interface {
 	GetAppRunsCommand(ctx context.Context, data AppRunUpdatesRequest) (AppRunsData, error)
 	GetAppRunLogsCommand(ctx context.Context, data AppRunRequest) (AppRunLogsData, error)
 	GetAppRunGoroutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoroutinesData, error)
+	GetAppRunWatchesCommand(ctx context.Context, data AppRunRequest) (AppRunWatchesData, error)
 
 	// event commands
 	EventPublishCommand(ctx context.Context, data EventType) error
@@ -48,7 +49,7 @@ type FullRpcInterface interface {
 	EventUnsubCommand(ctx context.Context, data string) error
 	EventUnsubAllCommand(ctx context.Context) error
 	EventReadHistoryCommand(ctx context.Context, data EventReadHistoryData) ([]*EventType, error)
-	
+
 	// browser tab tracking
 	UpdateBrowserTabUrlCommand(ctx context.Context, data BrowserTabUrlData) error
 }
@@ -133,6 +134,8 @@ type AppRunInfo struct {
 	NumLogs             int    `json:"numlogs"`
 	NumActiveGoRoutines int    `json:"numactivegoroutines"`
 	NumTotalGoRoutines  int    `json:"numtotalgoroutines"`
+	NumActiveWatches    int    `json:"numactivewatches"`
+	NumTotalWatches     int    `json:"numtotalwatches"`
 	LastModTime         int64  `json:"lastmodtime"`
 }
 
@@ -165,6 +168,12 @@ type AppRunGoroutinesData struct {
 	AppRunId   string          `json:"apprunid"`
 	AppName    string          `json:"appname"`
 	Goroutines []GoroutineData `json:"goroutines"`
+}
+
+type AppRunWatchesData struct {
+	AppRunId string     `json:"apprunid"`
+	AppName  string     `json:"appname"`
+	Watches  []ds.Watch `json:"watches"`
 }
 
 type EventReadHistoryData struct {

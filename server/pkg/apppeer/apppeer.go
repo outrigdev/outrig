@@ -17,6 +17,7 @@ import (
 
 const LogLineBufferSize = 10000
 const GoRoutineStackBufferSize = 600 // 10 minutes of 1-second samples
+const WatchBufferSize = 600 // 10 minutes of 1-second samples
 
 // Application status constants
 const (
@@ -32,13 +33,20 @@ type AppRunPeer struct {
 	Logs             *utilds.CirBuf[ds.LogLine]
 	GoRoutines       *utilds.SyncMap[GoRoutine]
 	ActiveGoRoutines map[int]bool // Tracks currently running goroutines
-	Status           string       // Current status of the application
-	LastModTime      int64        // Last modification time in milliseconds
+	Watches          *utilds.SyncMap[Watch]
+	ActiveWatches    map[string]bool // Tracks currently active watches
+	Status           string          // Current status of the application
+	LastModTime      int64           // Last modification time in milliseconds
 }
 
 type GoRoutine struct {
 	GoId        int
 	StackTraces *utilds.CirBuf[ds.GoRoutineStack]
+}
+
+type Watch struct {
+	Name       string
+	WatchVals  *utilds.CirBuf[ds.Watch]
 }
 
 // Global synchronized map to hold all AppRunPeers
@@ -48,11 +56,13 @@ var appRunPeers = utilds.MakeSyncMap[*AppRunPeer]()
 func GetAppRunPeer(appRunId string) *AppRunPeer {
 	peer, _ := appRunPeers.GetOrCreate(appRunId, func() *AppRunPeer {
 		return &AppRunPeer{
-			AppRunId:    appRunId,
-			Logs:        utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
-			GoRoutines:  utilds.MakeSyncMap[GoRoutine](),
-			Status:      AppStatusRunning,
-			LastModTime: time.Now().UnixMilli(),
+			AppRunId:      appRunId,
+			Logs:          utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
+			GoRoutines:    utilds.MakeSyncMap[GoRoutine](),
+			Watches:       utilds.MakeSyncMap[Watch](),
+			ActiveWatches: make(map[string]bool),
+			Status:        AppStatusRunning,
+			LastModTime:   time.Now().UnixMilli(),
 		}
 	})
 
@@ -165,6 +175,43 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		p.ActiveGoRoutines = activeGoroutines
 
 		log.Printf("Processed %d goroutines for app run ID: %s", len(goroutineInfo.Stacks), p.AppRunId)
+		
+	case ds.PacketTypeWatch:
+		var watchInfo ds.WatchInfo
+		if err := json.Unmarshal(packetData, &watchInfo); err != nil {
+			return fmt.Errorf("failed to unmarshal WatchInfo: %w", err)
+		}
+
+		// Create a new map for active watches in this packet
+		activeWatches := make(map[string]bool)
+
+		// Process watch values
+		for _, watchVal := range watchInfo.Watches {
+			watchName := watchVal.Name
+
+			// Mark this watch as active
+			activeWatches[watchName] = true
+
+			// Get or create watch entry in the syncmap
+			watch, exists := p.Watches.GetEx(watchName)
+			if !exists {
+				// New watch
+				watch = Watch{
+					Name:      watchName,
+					WatchVals: utilds.MakeCirBuf[ds.Watch](WatchBufferSize),
+				}
+			}
+			// Add watch value to the circular buffer
+			watch.WatchVals.Write(watchVal)
+
+			// Update the watch in the syncmap
+			p.Watches.Set(watchName, watch)
+		}
+
+		// Update the active watches map
+		p.ActiveWatches = activeWatches
+
+		log.Printf("Processed %d watches for app run ID: %s", len(watchInfo.Watches), p.AppRunId)
 
 	case ds.PacketTypeAppDone:
 		p.Status = AppStatusDone
@@ -199,6 +246,10 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	// Get the number of active and total goroutines
 	numActiveGoRoutines := len(p.ActiveGoRoutines)
 	numTotalGoRoutines := len(p.GoRoutines.Keys())
+	
+	// Get the number of active and total watches
+	numActiveWatches := len(p.ActiveWatches)
+	numTotalWatches := len(p.Watches.Keys())
 
 	// Create and return AppRunInfo
 	return rpctypes.AppRunInfo{
@@ -210,6 +261,8 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 		NumLogs:             p.Logs.Size(),
 		NumActiveGoRoutines: numActiveGoRoutines,
 		NumTotalGoRoutines:  numTotalGoRoutines,
+		NumActiveWatches:    numActiveWatches,
+		NumTotalWatches:     numTotalWatches,
 		LastModTime:         p.LastModTime,
 	}
 }

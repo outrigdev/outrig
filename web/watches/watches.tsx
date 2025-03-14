@@ -1,9 +1,74 @@
+import { CopyButton } from "@/elements/copybutton";
+import { RefreshButton } from "@/elements/refreshbutton";
 import { useAtom, useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
-import { RefreshButton } from "@/elements/refreshbutton";
 import React, { useEffect, useRef } from "react";
 import { WatchesModel } from "./watches-model";
 
+// Individual watch view component
+interface WatchViewProps {
+    watch: Watch;
+}
+
+const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
+    if (!watch) {
+        return null;
+    }
+
+    // Format the watch value for display
+    const formatValue = (watch: Watch) => {
+        if (watch.error) {
+            return <span className="text-error">{watch.error}</span>;
+        }
+
+        if (watch.value == null) {
+            return <span className="text-muted">null</span>;
+        }
+
+        // Try to parse JSON if it looks like JSON
+        if (watch.value.startsWith("{") || watch.value.startsWith("[")) {
+            try {
+                const parsed = JSON.parse(watch.value);
+                return <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(parsed, null, 2)}</pre>;
+            } catch {
+                // If it's not valid JSON, just display as is
+            }
+        }
+
+        return <span>{watch.value}</span>;
+    };
+
+    return (
+        <div className="mb-4 p-3 border border-border rounded-md hover:bg-buttonhover">
+            <div className="flex justify-between items-center mb-2">
+                <div className="font-semibold text-primary">{watch.name}</div>
+                <div className="flex items-center gap-2">
+                    <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">{watch.type}</div>
+                    <CopyButton
+                        size={14}
+                        tooltipText="Copy value"
+                        onCopy={() => {
+                            if (watch.value) {
+                                navigator.clipboard.writeText(watch.value);
+                            }
+                        }}
+                    />
+                </div>
+            </div>
+            <div className="text-sm text-primary bg-panel p-2 rounded">{formatValue(watch)}</div>
+            {(watch.len != null || watch.cap != null) && (
+                <div className="mt-2 text-xs text-muted">
+                    {watch.len != null && <span>Length: {watch.len}</span>}
+                    {watch.len != null && watch.cap != null && <span> | </span>}
+                    {watch.cap != null && <span>Capacity: {watch.cap}</span>}
+                </div>
+            )}
+            {watch.waittime != null && watch.waittime > 0 && (
+                <div className="mt-1 text-xs text-warning">Wait time: {watch.waittime}μs</div>
+            )}
+        </div>
+    );
+};
 
 // Watches filters component
 interface WatchesFiltersProps {
@@ -37,10 +102,10 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
-                <RefreshButton 
-                    isRefreshingAtom={model.isRefreshing} 
-                    onRefresh={() => model.refresh()} 
-                    tooltipContent="Refresh watches" 
+                <RefreshButton
+                    isRefreshingAtom={model.isRefreshing}
+                    onRefresh={() => model.refresh()}
+                    tooltipContent="Refresh watches"
                     size={16}
                 />
             </div>
@@ -66,9 +131,16 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                         <span>Refreshing watches...</span>
                     </div>
                 </div>
-            ) : (
+            ) : filteredWatches.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-secondary">
-                    no watches found
+                    {search ? "no watches match the filter" : "no watches found"}
+                </div>
+            ) : (
+                <div>
+                    <div className="mb-2 text-sm text-secondary">{filteredWatches.length} watches</div>
+                    {filteredWatches.map((watch) => (
+                        <WatchView key={watch.name} watch={watch} />
+                    ))}
                 </div>
             )}
         </div>

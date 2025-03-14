@@ -3,6 +3,7 @@ package watch
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"sort"
 	"sync"
@@ -33,7 +34,7 @@ type WatchDecl struct {
 	WatchType string
 	Name      string
 	Lock      sync.Locker
-	Ptr       *any
+	PtrVal    reflect.Value
 }
 
 // CollectorName returns the unique name of the collector
@@ -55,14 +56,14 @@ func GetInstance() *WatchCollector {
 	return instance
 }
 
-func (wc *WatchCollector) RegisterWatchSync(name string, ptr *any) {
+func (wc *WatchCollector) RegisterWatchSync(name string, lock sync.Locker, rval reflect.Value) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 	wc.watchDecls[name] = &WatchDecl{
 		WatchType: WatchTypeSync,
 		Name:      name,
-		Lock:      &sync.Mutex{},
-		Ptr:       ptr,
+		Lock:      lock,
+		PtrVal:    rval,
 	}
 }
 
@@ -85,7 +86,7 @@ func (wc *WatchCollector) Enable() {
 	if wc.ticker != nil {
 		return
 	}
-	wc.CollectWatches()
+	go wc.CollectWatches()
 	wc.ticker = time.NewTicker(1 * time.Second)
 	go func() {
 		for range wc.ticker.C {
@@ -132,6 +133,7 @@ func (wc *WatchCollector) getAndClearWatchVals() []ds.Watch {
 
 // CollectWatches collects watch information and sends it to the controller
 func (wc *WatchCollector) CollectWatches() {
+	log.Printf("[watch] CollectWatches called\n")
 	if !global.OutrigEnabled.Load() || wc.controller == nil {
 		return
 	}
@@ -144,7 +146,7 @@ func (wc *WatchCollector) CollectWatches() {
 		}
 		switch watchDecl.WatchType {
 		case WatchTypeSync:
-			wc.doWatchSync(name, watchDecl.Lock, watchDecl.Ptr)
+			wc.doWatchSync(name, watchDecl.Lock, watchDecl.PtrVal)
 		default:
 			continue
 		}
@@ -176,15 +178,8 @@ func (wc *WatchCollector) recordWatch(watch ds.Watch) {
 
 const MaxWatchWaitTime = 10 * time.Millisecond
 
-func (wc *WatchCollector) doWatchSync(name string, lock sync.Locker, val *any) {
+func (wc *WatchCollector) doWatchSync(name string, lock sync.Locker, rval reflect.Value) {
 	watch := ds.Watch{Name: name}
-	if val == nil {
-		watch.Type = "nil"
-		watch.Error = "nil pointer"
-		wc.recordWatch(watch)
-		return
-	}
-	rval := reflect.ValueOf(val)
 	watch.Type = rval.Elem().Type().String()
 	if lock != nil {
 		locked, waitDuration := utilfn.TryLockWithTimeout(lock, MaxWatchWaitTime)

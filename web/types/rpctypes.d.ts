@@ -22,6 +22,8 @@ declare global {
         numlogs: number;
         numactivegoroutines: number;
         numtotalgoroutines: number;
+        numactivewatches: number;
+        numtotalwatches: number;
         lastmodtime: number;
     };
 
@@ -41,6 +43,13 @@ declare global {
     // rpctypes.AppRunUpdatesRequest
     type AppRunUpdatesRequest = {
         since: number;
+    };
+
+    // rpctypes.AppRunWatchesData
+    type AppRunWatchesData = {
+        apprunid: string;
+        appname: string;
+        watches: Watch[];
     };
 
     // rpctypes.AppRunsData
@@ -75,9 +84,9 @@ declare global {
 
     // EventType union (rpctypes.EventToTypeMap)
     type EventType = 
+        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
         | (EventCommonFields & { event: "route:down"; data?: null })
         | (EventCommonFields & { event: "route:up"; data?: null })
-        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
     ;
 
     // rpctypes.GoroutineData
@@ -191,6 +200,19 @@ declare global {
     type ViewWindow = {
         start: number;
         size: number;
+    };
+
+    // ds.Watch
+    type Watch = {
+        ts: number;
+        name: string;
+        value?: string;
+        type: string;
+        error?: string;
+        addr?: string[];
+        cap?: number;
+        len?: number;
+        waittime?: number;
     };
 
 }

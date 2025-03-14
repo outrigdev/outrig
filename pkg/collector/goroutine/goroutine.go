@@ -51,7 +51,7 @@ func (gc *GoroutineCollector) Enable() {
 	if gc.ticker != nil {
 		return
 	}
-	gc.DumpGoroutines()
+	go gc.DumpGoroutines()
 	gc.ticker = time.NewTicker(1 * time.Second)
 	go func() {
 		for range gc.ticker.C {

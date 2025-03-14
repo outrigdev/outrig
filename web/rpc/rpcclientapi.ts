@@ -46,6 +46,11 @@ class RpcApiType {
         return client.rpcCall("getappruns", data, opts);
     }
 
+    // command "getapprunwatches" [call]
+    GetAppRunWatchesCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunWatchesData> {
+        return client.rpcCall("getapprunwatches", data, opts);
+    }
+
     // command "loggetmarkedlines" [call]
     LogGetMarkedLinesCommand(client: RpcClient, data: MarkedLinesRequestData, opts?: RpcOpts): Promise<MarkedLinesResultData> {
         return client.rpcCall("loggetmarkedlines", data, opts);

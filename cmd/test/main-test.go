@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/outrigdev/outrig"
@@ -17,6 +18,9 @@ const (
 	LogLevelError   = "ERROR"
 	LogLevelDebug   = "DEBUG"
 )
+
+var LogCounter int
+var LogCounterLock = &sync.Mutex{}
 
 // Sample words for random log generation
 var (
@@ -133,6 +137,7 @@ func main() {
 	// config.LogProcessorConfig.WrapStderr = false
 	outrig.Init(config)
 	defer outrig.AppDone()
+	outrig.WatchSync("test-count", LogCounterLock, &LogCounter)
 	fmt.Printf("hello outrig!\n")
 	time.Sleep(200 * time.Millisecond)
 	outrig.Disable(false)
@@ -151,6 +156,10 @@ func main() {
 	// Loop that outputs diverse log lines
 	counter := 0
 	for {
+		LogCounterLock.Lock()
+		LogCounter = counter
+		LogCounterLock.Unlock()
+
 		// Every 20th message is still the counter for continuity
 		if counter%20 == 0 {
 			fmt.Printf("Counter: %d\n", counter)

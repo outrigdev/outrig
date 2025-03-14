@@ -131,6 +131,11 @@ func (*RpcServerImpl) GetAppRunGoroutinesCommand(ctx context.Context, data rpcty
 	}, nil
 }
 
+// GetAppRunWatchesCommand returns watches for a specific app run
+func (*RpcServerImpl) GetAppRunWatchesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunWatchesData, error) {
+	return apppeer.GetAppRunWatches(ctx, data)
+}
+
 // LogSearchRequestCommand handles search requests for logs
 func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
 	// Get or create a search manager for this widget

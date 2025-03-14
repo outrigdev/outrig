@@ -58,6 +58,12 @@ func GetAppRunsCommand(w *rpc.RpcClient, data rpctypes.AppRunUpdatesRequest, opt
 	return resp, err
 }
 
+// command "getapprunwatches", rpctypes.GetAppRunWatchesCommand
+func GetAppRunWatchesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunWatchesData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunWatchesData](w, "getapprunwatches", data, opts)
+	return resp, err
+}
+
 // command "loggetmarkedlines", rpctypes.LogGetMarkedLinesCommand
 func LogGetMarkedLinesCommand(w *rpc.RpcClient, data rpctypes.MarkedLinesRequestData, opts *rpc.RpcOpts) (rpctypes.MarkedLinesResultData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.MarkedLinesResultData](w, "loggetmarkedlines", data, opts)

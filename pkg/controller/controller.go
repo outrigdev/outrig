@@ -89,6 +89,12 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	watchCollector.InitCollector(c)
 	c.Collectors[watchCollector.CollectorName()] = watchCollector
 
+	isEnabled := global.OutrigEnabled.Load()
+	if isEnabled {
+		for _, collector := range c.Collectors {
+			collector.Enable()
+		}
+	}
 	go c.runConnPoller()
 	return c, nil
 }

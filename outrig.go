@@ -1,6 +1,8 @@
 package outrig
 
 import (
+	"reflect"
+	"sync"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/base"
@@ -101,7 +103,11 @@ func AppDone() {
 	}
 }
 
-func WatchSync(name string, val *any) {
+func WatchSync[T any](name string, lock sync.Locker, val *T) {
+	if val == nil {
+		return
+	}
 	wc := watch.GetInstance()
-	wc.RegisterWatchSync(name, val)
+	rval := reflect.ValueOf(val)
+	wc.RegisterWatchSync(name, lock, rval)
 }
