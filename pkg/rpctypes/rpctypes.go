@@ -193,6 +193,8 @@ type AppRunRuntimeStatsData struct {
 	GOOS           string             `json:"goos"`
 	GOARCH         string             `json:"goarch"`
 	GoVersion      string             `json:"goversion"`
+	Pid            int                `json:"pid"`
+	Cwd            string             `json:"cwd"`
 	MemStats       ds.MemoryStatsInfo `json:"memstats"`
 }
 

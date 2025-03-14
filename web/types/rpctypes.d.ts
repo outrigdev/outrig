@@ -44,10 +44,17 @@ declare global {
     type AppRunRuntimeStatsData = {
         apprunid: string;
         appname: string;
-        timestamp: number;
-        memoryusage: number;
+        ts: number;
         cpuusage: number;
         goroutinecount: number;
+        gomaxprocs: number;
+        numcpu: number;
+        goos: string;
+        goarch: string;
+        goversion: string;
+        pid: number;
+        cwd: string;
+        memstats: MemoryStatsInfo;
     };
 
     // rpctypes.AppRunUpdatesRequest
@@ -136,6 +143,29 @@ declare global {
     // rpctypes.MarkedLinesResultData
     type MarkedLinesResultData = {
         lines: LogLine[];
+    };
+
+    // ds.MemoryStatsInfo
+    type MemoryStatsInfo = {
+        alloc: number;
+        totalalloc: number;
+        sys: number;
+        heapalloc: number;
+        heapsys: number;
+        heapidle: number;
+        heapinuse: number;
+        stackinuse: number;
+        stacksys: number;
+        mspaninuse: number;
+        mspansys: number;
+        mcacheinuse: number;
+        mcachesys: number;
+        gcsys: number;
+        othersys: number;
+        nextgc: number;
+        lastgc: number;
+        pausetotalns: number;
+        numgc: number;
     };
 
     // rpctypes.PageData

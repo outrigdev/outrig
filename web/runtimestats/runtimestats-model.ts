@@ -2,14 +2,14 @@ import { AppModel } from "@/appmodel";
 import { DefaultRpcClient } from "@/init";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 
-// This will be replaced with actual types when we hook up the backend
+// Runtime statistics interface
 interface RuntimeStats {
-    // Placeholder for runtime statistics
     timestamp: number;
     memoryUsage: number;
     cpuUsage: number;
     goroutineCount: number;
-    // Add more stats as needed
+    pid: number;
+    cwd: string;
 }
 
 class RuntimeStatsModel {
@@ -81,6 +81,8 @@ constructor(appRunId: string) {
                 memoryUsage: Math.random() * 1000,
                 cpuUsage: Math.random() * 100,
                 goroutineCount: Math.floor(Math.random() * 1000),
+                pid: Math.floor(Math.random() * 10000),
+                cwd: "/path/to/working/directory",
             };
 
             // When we hook up the backend, it will look something like:

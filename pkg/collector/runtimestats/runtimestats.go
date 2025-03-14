@@ -1,12 +1,14 @@
 package runtimestats
 
 import (
+	"os"
 	"runtime"
 	"sync"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 // RuntimeStatsCollector implements the collector.Collector interface for runtime stats collection
@@ -99,16 +101,32 @@ func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
 		NumGC:        memStats.NumGC,
 	}
 
+	// Get current process information
+	pid := os.Getpid()
+	
+	// Default values
+	cpuPercent := 0.0
+	cwd, _ := os.Getwd() // Get current working directory from os package
+	
+	// Get CPU percent using gopsutil
+	proc, err := process.NewProcess(int32(pid))
+	if err == nil {
+		// Get CPU percent (might return 0 on first call)
+		cpuPercent, _ = proc.CPUPercent()
+	}
+
 	// Create runtime stats info
 	runtimeStats := &ds.RuntimeStatsInfo{
 		Ts:             time.Now().UnixMilli(),
-		CPUUsage:       0, // We don't have a direct way to get CPU usage from runtime package
+		CPUUsage:       cpuPercent,
 		GoRoutineCount: runtime.NumGoroutine(),
 		GoMaxProcs:     runtime.GOMAXPROCS(0), // 0 means get current value without changing it
 		NumCPU:         runtime.NumCPU(),
 		GOOS:           runtime.GOOS,
 		GOARCH:         runtime.GOARCH,
 		GoVersion:      runtime.Version(),
+		Pid:            pid,
+		Cwd:            cwd,
 		MemStats:       memStatsInfo,
 	}
 

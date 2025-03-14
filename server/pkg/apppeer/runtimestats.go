@@ -40,6 +40,8 @@ func GetAppRunRuntimeStats(ctx context.Context, req rpctypes.AppRunRequest) (rpc
 		GOOS:           latestStats.GOOS,
 		GOARCH:         latestStats.GOARCH,
 		GoVersion:      latestStats.GoVersion,
+		Pid:            latestStats.Pid,
+		Cwd:            latestStats.Cwd,
 		MemStats:       latestStats.MemStats,
 	}, nil
 }
