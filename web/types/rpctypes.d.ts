@@ -48,6 +48,12 @@ declare global {
         appruns: AppRunInfo[];
     };
 
+    // rpctypes.BrowserTabUrlData
+    type BrowserTabUrlData = {
+        url: string;
+        apprunid?: string;
+    };
+
     // rpctypes.CommandMessageData
     type CommandMessageData = {
         message: string;

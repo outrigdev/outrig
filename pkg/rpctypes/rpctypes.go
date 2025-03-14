@@ -48,6 +48,9 @@ type FullRpcInterface interface {
 	EventUnsubCommand(ctx context.Context, data string) error
 	EventUnsubAllCommand(ctx context.Context) error
 	EventReadHistoryCommand(ctx context.Context, data EventReadHistoryData) ([]*EventType, error)
+	
+	// browser tab tracking
+	UpdateBrowserTabUrlCommand(ctx context.Context, data BrowserTabUrlData) error
 }
 
 type RespUnion[T any] struct {
@@ -189,4 +192,10 @@ type SubscriptionRequest struct {
 	Event     string   `json:"event"`
 	Scopes    []string `json:"scopes,omitempty"`
 	AllScopes bool     `json:"allscopes,omitempty"`
+}
+
+// BrowserTabUrlData represents the data for tracking browser tabs
+type BrowserTabUrlData struct {
+	Url      string `json:"url"`
+	AppRunId string `json:"apprunid,omitempty"`
 }

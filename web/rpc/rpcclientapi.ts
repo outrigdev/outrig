@@ -76,6 +76,11 @@ class RpcApiType {
         return client.rpcCall("message", data, opts);
     }
 
+    // command "updatebrowsertaburl" [call]
+    UpdateBrowserTabUrlCommand(client: RpcClient, data: BrowserTabUrlData, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("updatebrowsertaburl", data, opts);
+    }
+
     // command "updatestatus" [call]
     UpdateStatusCommand(client: RpcClient, data: StatusUpdateData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("updatestatus", data, opts);

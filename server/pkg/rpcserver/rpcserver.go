@@ -8,6 +8,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
+	"github.com/outrigdev/outrig/server/pkg/browsertabs"
 	"github.com/outrigdev/outrig/server/pkg/logsearch"
 )
 
@@ -188,12 +189,22 @@ func (*RpcServerImpl) LogGetMarkedLinesCommand(ctx context.Context, data rpctype
 	if manager == nil {
 		return rpctypes.MarkedLinesResultData{}, fmt.Errorf("widget not found: %s", data.WidgetId)
 	}
-	
+
 	// Get marked log lines from the search manager
 	markedLines, err := manager.GetMarkedLogLines()
 	if err != nil {
 		return rpctypes.MarkedLinesResultData{}, err
 	}
-	
+
 	return rpctypes.MarkedLinesResultData{Lines: markedLines}, nil
+}
+
+// UpdateBrowserTabUrlCommand updates the URL for a browser tab
+func (*RpcServerImpl) UpdateBrowserTabUrlCommand(ctx context.Context, data rpctypes.BrowserTabUrlData) error {
+	rpcSource := rpc.GetRpcSourceFromContext(ctx)
+	if rpcSource == "" {
+		return fmt.Errorf("no rpc source set")
+	}
+	
+	return browsertabs.UpdateBrowserTabUrl(rpcSource, data)
 }

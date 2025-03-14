@@ -8,6 +8,8 @@ import { GoRoutines } from "./goroutines/goroutines";
 import { appHandleKeyDown } from "./keymodel";
 import { LogViewer } from "./logviewer/logviewer";
 import { StatusBar } from "./statusbar";
+import { DefaultRpcClient } from "./init";
+import { RpcApi } from "./rpc/rpcclientapi";
 
 // Define tabs that require an app run ID to be selected
 // Add new tabs that require an app run ID to this array
@@ -97,7 +99,45 @@ function App() {
         };
     }, []);
 
-    // We no longer need this effect as URL updates are handled directly in the AppModel methods
+    // Track URL changes and send them to the backend
+    useEffect(() => {
+        // Function to send the current URL to the backend
+        const sendUrlToBackend = () => {
+            if (!DefaultRpcClient) return;
+            
+            const currentUrl = window.location.href;
+            
+            // Send the URL and app run ID to the backend
+            RpcApi.UpdateBrowserTabUrlCommand(DefaultRpcClient, {
+                url: currentUrl,
+                apprunid: selectedAppRunId || "",
+            }).catch((err: Error) => {
+                console.error("Failed to send URL to backend:", err);
+            });
+        };
+        
+        // Send the URL when the component mounts
+        sendUrlToBackend();
+        
+        // Listen for popstate events (browser back/forward buttons)
+        const handlePopState = () => {
+            sendUrlToBackend();
+        };
+        
+        // Listen for hashchange events
+        const handleHashChange = () => {
+            sendUrlToBackend();
+        };
+        
+        window.addEventListener("popstate", handlePopState);
+        window.addEventListener("hashchange", handleHashChange);
+        
+        // Clean up event listeners
+        return () => {
+            window.removeEventListener("popstate", handlePopState);
+            window.removeEventListener("hashchange", handleHashChange);
+        };
+    }, [selectedAppRunId]); // Re-run when selectedAppRunId changes
 
     return (
         <div className="h-screen w-screen flex flex-col bg-panel">
