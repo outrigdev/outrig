@@ -56,6 +56,11 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
     // Subscribe to the version atom to trigger re-renders when marked lines change
     useAtomValue(model.markedLinesVersion);
 
+    const handleLineNumberClick = useCallback(() => {
+        if (line == null) return;
+        model.toggleLineMarked(line.linenum);
+    }, [model, line]);
+
     if (line == null) {
         return (
             <div className="flex hover:bg-buttonhover select-none" style={{ height: 15 }}>
@@ -68,10 +73,6 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
     }
 
     const isMarked = model.isLineMarked(line.linenum);
-
-    const handleLineNumberClick = () => {
-        model.toggleLineMarked(line.linenum);
-    };
 
     return (
         <div className={cn("flex text-muted select-none", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}>
