@@ -18,6 +18,12 @@ class GoRoutinesModel {
         this.appRunId = appRunId;
     }
 
+    // Clean up resources when component unmounts
+    dispose() {
+        // Currently no resources to clean up, but this method is added
+        // for consistency with other models and future-proofing
+    }
+
     // Derived atom for all available states
     availableStates: Atom<string[]> = atom((get) => {
         const goroutines = get(this.appRunGoRoutines);

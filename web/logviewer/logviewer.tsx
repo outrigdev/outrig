@@ -457,16 +457,28 @@ interface LogViewerProps {
 }
 
 export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
-    const [model, setModel] = useState<LogViewerModel>(null);
+    const modelRef = useRef<LogViewerModel>(null);
+    const [, setForceUpdate] = useState({});
+
+    console.log("Render logviewer", props.appRunId, modelRef.current);
+
     useEffect(() => {
-        const model = new LogViewerModel(props.appRunId);
-        setModel(model);
+        if (!modelRef.current) {
+            modelRef.current = new LogViewerModel(props.appRunId);
+            setForceUpdate({});
+        }
         return () => {
-            model.dispose();
+            if (!modelRef.current) {
+                return;
+            }
+            modelRef.current.dispose();
+            modelRef.current = null;
         };
     }, [props.appRunId]);
-    if (!model) {
+
+    if (!modelRef.current) {
         return null;
     }
-    return <LogViewerInternal key={props.appRunId} model={model} />;
+
+    return <LogViewerInternal key={props.appRunId} model={modelRef.current} />;
 });

@@ -1,7 +1,7 @@
+import { RefreshButton } from "@/elements/refreshbutton";
 import { useAtom, useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
-import { RefreshButton } from "@/elements/refreshbutton";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
 
@@ -27,7 +27,6 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine }) => {
         </div>
     );
 };
-
 
 // Combined filters component for both search and state filters
 interface GoRoutinesFiltersProps {
@@ -75,10 +74,10 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                                     border-none ring-0 outline-none focus:outline-none focus:ring-0"
                         />
                     </div>
-                    <RefreshButton 
-                        isRefreshingAtom={model.isRefreshing} 
-                        onRefresh={() => model.refresh()} 
-                        tooltipContent="Refresh goroutines" 
+                    <RefreshButton
+                        isRefreshingAtom={model.isRefreshing}
+                        onRefresh={() => model.refresh()}
+                        tooltipContent="Refresh goroutines"
                         size={16}
                     />
                 </div>
@@ -146,17 +145,34 @@ interface GoRoutinesProps {
 }
 
 export const GoRoutines: React.FC<GoRoutinesProps> = ({ appRunId }) => {
-    const model = useRef(new GoRoutinesModel(appRunId)).current;
+    const modelRef = useRef<GoRoutinesModel>(null);
+    const [, setForceUpdate] = useState({});
+
+    console.log("Render goroutines", appRunId, modelRef.current);
 
     useEffect(() => {
-        // Load goroutines when the component mounts
-        model.loadAppRunGoroutines();
-    }, [model]);
+        if (!modelRef.current) {
+            modelRef.current = new GoRoutinesModel(appRunId);
+            modelRef.current.loadAppRunGoroutines();
+            setForceUpdate({});
+        }
+        return () => {
+            if (!modelRef.current) {
+                return;
+            }
+            modelRef.current.dispose();
+            modelRef.current = null;
+        };
+    }, [appRunId]);
+
+    if (!modelRef.current) {
+        return null;
+    }
 
     return (
         <div className="w-full h-full flex flex-col">
-            <GoRoutinesFilters model={model} />
-            <GoRoutinesContent model={model} />
+            <GoRoutinesFilters model={modelRef.current} />
+            <GoRoutinesContent model={modelRef.current} />
         </div>
     );
 };
