@@ -3,6 +3,7 @@ import { Box, CircleDot, Eye, List, PauseCircle, Wifi, WifiOff } from "lucide-re
 import { useMemo } from "react";
 import { AppModel } from "./appmodel";
 import { Tooltip } from "./elements/tooltip";
+import { isDev } from "./init";
 
 function ConnectionStatus({ status }: { status: string }) {
     let icon;
@@ -77,6 +78,16 @@ export function StatusBar() {
     return (
         <div className="h-6 bg-panel border-t border-border flex items-center justify-between px-2 text-xs text-secondary mt-1">
             <div className="flex items-center space-x-4">
+                {isDev && (
+                    <Tooltip content="Running in Development Mode" placement="bottom">
+                        <div className="flex items-center">
+                            {/* Custom styling for the DEV badge in the status bar */}
+                            <span className="px-1.5 py-0 text-[10px] font-bold rounded-md bg-green-500/30 text-green-500/80 mr-2 leading-[16px]">
+                                DEV
+                            </span>
+                        </div>
+                    </Tooltip>
+                )}
                 {selectedAppRun ? (
                     <>
                         <div className="flex items-center space-x-1">

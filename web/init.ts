@@ -13,7 +13,7 @@ declare global {
 window.jotaiStore = getDefaultStore();
 
 // Use different WebSocket port in development mode
-const isDev = import.meta.env.DEV;
+export const isDev = import.meta.env.DEV;
 const WebSocketPort = isDev ? 6006 : 5006;
 const WebSocketEndpoint = `ws://localhost:${WebSocketPort}/ws`;
 const RouteIdStorageKey = "outrig:routeid";
