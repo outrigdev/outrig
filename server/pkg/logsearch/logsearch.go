@@ -293,9 +293,21 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 		}
 	}
 
+	// Collect pages of log lines
+	pages := make([]rpctypes.PageData, 0, len(data.RequestPages))
+	for _, pageNum := range data.RequestPages {
+		startIndex := pageNum * data.PageSize
+		endIndex := startIndex + data.PageSize
+		pageLines := m.Cache.GetRange(startIndex, endIndex)
+		pages = append(pages, rpctypes.PageData{
+			PageNum: pageNum,
+			Lines:   pageLines,
+		})
+	}
+
 	return rpctypes.SearchResultData{
 		FilteredCount: m.Cache.GetFilteredSize(),
 		TotalCount:    m.Cache.GetTotalSize(),
-		Lines:         m.Cache.GetRange(data.RequestWindow.Start, data.RequestWindow.End()),
+		Pages:         pages,
 	}, nil
 }

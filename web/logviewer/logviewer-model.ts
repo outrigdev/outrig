@@ -78,7 +78,8 @@ class LogViewerModel {
                 widgetid: this.widgetId,
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
-                requestwindow: { start: 0, size: PAGESIZE },
+                pagesize: PAGESIZE,
+                requestpages: [0],
                 stream: false,
             });
         };
@@ -93,7 +94,9 @@ class LogViewerModel {
             this.logItemCache = [];
             getDefaultStore().set(this.totalItemCount, results.totalcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
-            this.setLogCacheEntry(0, "loaded", results.lines);
+            // Get lines from the first page (page 0)
+            const lines = results.pages.find(page => page.pagenum === 0)?.lines || [];
+            this.setLogCacheEntry(0, "loaded", lines);
 
             // If following output, scroll to bottom
             if (getDefaultStore().get(this.followOutput)) {
@@ -183,7 +186,8 @@ class LogViewerModel {
                 widgetid: this.widgetId,
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
-                requestwindow: { start, size: PAGESIZE },
+                pagesize: PAGESIZE,
+                requestpages: [page],
                 stream: false,
             });
         };
@@ -194,7 +198,9 @@ class LogViewerModel {
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
             getDefaultStore().set(this.totalItemCount, results.totalcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
-            this.setLogCacheEntry(page, "loaded", results.lines);
+            // Get lines from the requested page
+            const lines = results.pages.find(p => p.pagenum === page)?.lines || [];
+            this.setLogCacheEntry(page, "loaded", lines);
         } catch (e) {
             console.error("Log search error", e);
         } finally {

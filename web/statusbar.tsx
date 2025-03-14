@@ -1,13 +1,13 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { Box, CircleDot, List, Wifi, WifiOff, PauseCircle, Eye } from "lucide-react";
+import { Box, CircleDot, Eye, List, PauseCircle, Wifi, WifiOff } from "lucide-react";
+import { useMemo } from "react";
 import { AppModel } from "./appmodel";
 import { Tooltip } from "./elements/tooltip";
-import { useMemo } from "react";
 
 function ConnectionStatus({ status }: { status: string }) {
     let icon;
     let displayName;
-    
+
     switch (status) {
         case "running":
             icon = <Wifi size={12} />;
@@ -29,7 +29,7 @@ function ConnectionStatus({ status }: { status: string }) {
             icon = <Wifi size={12} />;
             displayName = status || "Unknown";
     }
-    
+
     return (
         <div className="flex items-center space-x-1">
             {icon}
@@ -45,28 +45,28 @@ export function StatusBar() {
 
     // Find the selected app run
     const selectedAppRun = useMemo(() => {
-        return appRuns.find(run => run.apprunid === selectedAppRunId);
+        return appRuns.find((run) => run.apprunid === selectedAppRunId);
     }, [appRuns, selectedAppRunId]);
 
     // Count running app runs
     const runningAppRunsCount = useMemo(() => {
-        return appRuns.filter(run => run.status === "running").length;
+        return appRuns.filter((run) => run.status === "running").length;
     }, [appRuns]);
 
     // Determine which goroutine count to display based on app status
     const goroutineCount = useMemo(() => {
         if (!selectedAppRun) return 0;
-        
+
         // For running apps, show active goroutines; otherwise show total goroutines
-        return selectedAppRun.status === "running" 
-            ? selectedAppRun.numactivegoroutines 
+        return selectedAppRun.status === "running"
+            ? selectedAppRun.numactivegoroutines
             : selectedAppRun.numtotalgoroutines;
     }, [selectedAppRun]);
 
     // Determine the tooltip text for goroutines
     const goroutineTooltip = useMemo(() => {
         if (!selectedAppRun) return "";
-        
+
         if (selectedAppRun.status === "running") {
             return `${selectedAppRun.numactivegoroutines} Active GoRoutines (${selectedAppRun.numtotalgoroutines} Total)`;
         } else {
@@ -75,7 +75,7 @@ export function StatusBar() {
     }, [selectedAppRun]);
 
     return (
-        <div className="h-6 bg-panel border-t border-border flex items-center justify-between px-2 text-xs text-secondary">
+        <div className="h-6 bg-panel border-t border-border flex items-center justify-between px-2 text-xs text-secondary mt-1">
             <div className="flex items-center space-x-4">
                 {selectedAppRun ? (
                     <>
@@ -96,7 +96,10 @@ export function StatusBar() {
             {selectedAppRun && (
                 <div className="flex items-center space-x-4">
                     <Tooltip content={`${selectedAppRun.numlogs} Log Lines`} placement="bottom">
-                        <div className="flex items-center space-x-1 cursor-pointer" onClick={() => setSelectedTab("logs")}>
+                        <div
+                            className="flex items-center space-x-1 cursor-pointer"
+                            onClick={() => setSelectedTab("logs")}
+                        >
                             <List size={12} />
                             <span>{selectedAppRun.numlogs}</span>
                         </div>
@@ -111,8 +114,8 @@ export function StatusBar() {
                         </div>
                     </Tooltip>
                     {selectedAppRun.numactivewatches > 0 && (
-                        <Tooltip 
-                            content={`${selectedAppRun.numactivewatches} Active ${selectedAppRun.numactivewatches === 1 ? 'Watch' : 'Watches'}`} 
+                        <Tooltip
+                            content={`${selectedAppRun.numactivewatches} Active ${selectedAppRun.numactivewatches === 1 ? "Watch" : "Watches"}`}
                             placement="bottom"
                         >
                             <div

@@ -42,3 +42,8 @@ tasks:
         cmds:
             - go run cmd/generatego/main-generatego.go
             - go run cmd/generatets/main-generatets.go
+
+    testrun:
+        desc: run main-test.go to generate some fake data
+        cmds:
+            - go run cmd/test/main-test.go

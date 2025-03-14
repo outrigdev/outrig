@@ -69,19 +69,24 @@ type ServerCommandMeta struct {
 }
 
 type SearchRequestData struct {
-	WidgetId      string         `json:"widgetid"`
-	AppRunId      string         `json:"apprunid"`
-	SearchTerm    string         `json:"searchterm"`
-	SearchType    string         `json:"searchtype,omitempty"`
-	ViewWindow    *ds.ViewWindow `json:"viewwindow,omitempty"`
-	RequestWindow ds.ViewWindow  `json:"requestwindow"`
-	Stream        bool           `json:"stream"`
+	WidgetId     string `json:"widgetid"`
+	AppRunId     string `json:"apprunid"`
+	SearchTerm   string `json:"searchterm"`
+	SearchType   string `json:"searchtype,omitempty"`
+	PageSize     int    `json:"pagesize"`
+	RequestPages []int  `json:"requestpages"`
+	Stream       bool   `json:"stream"`
+}
+
+type PageData struct {
+	PageNum int          `json:"pagenum"`
+	Lines   []ds.LogLine `json:"lines"`
 }
 
 type SearchResultData struct {
-	FilteredCount int          `json:"filteredcount"`
-	TotalCount    int          `json:"totalcount"`
-	Lines         []ds.LogLine `json:"lines"`
+	FilteredCount int        `json:"filteredcount"`
+	TotalCount    int        `json:"totalcount"`
+	Pages         []PageData `json:"pages"`
 }
 
 type StreamUpdateData struct {

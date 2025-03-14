@@ -84,9 +84,9 @@ declare global {
 
     // EventType union (rpctypes.EventToTypeMap)
     type EventType = 
-        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
         | (EventCommonFields & { event: "route:down"; data?: null })
         | (EventCommonFields & { event: "route:up"; data?: null })
+        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
     ;
 
     // rpctypes.GoroutineData
@@ -128,6 +128,12 @@ declare global {
         lines: LogLine[];
     };
 
+    // rpctypes.PageData
+    type PageData = {
+        pagenum: number;
+        lines: LogLine[];
+    };
+
     // rpc.RpcMessage
     type RpcMessage = {
         command?: string;
@@ -157,8 +163,8 @@ declare global {
         apprunid: string;
         searchterm: string;
         searchtype?: string;
-        viewwindow?: ViewWindow;
-        requestwindow: ViewWindow;
+        pagesize: number;
+        requestpages: number[];
         stream: boolean;
     };
 
@@ -166,7 +172,7 @@ declare global {
     type SearchResultData = {
         filteredcount: number;
         totalcount: number;
-        lines: LogLine[];
+        pages: PageData[];
     };
 
     // rpctypes.ServerCommandMeta
@@ -194,12 +200,6 @@ declare global {
         event: string;
         scopes?: string[];
         allscopes?: boolean;
-    };
-
-    // ds.ViewWindow
-    type ViewWindow = {
-        start: number;
-        size: number;
     };
 
     // ds.Watch
