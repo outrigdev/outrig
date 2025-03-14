@@ -12,12 +12,7 @@ interface AutoRefreshButtonProps {
 }
 
 export const AutoRefreshButton = React.memo<AutoRefreshButtonProps>(
-    ({ 
-        autoRefreshAtom, 
-        onToggle, 
-        className, 
-        size = 16 
-    }) => {
+    ({ autoRefreshAtom, onToggle, className, size = 16 }) => {
         const [autoRefresh, setAutoRefresh] = useAtom(autoRefreshAtom);
 
         const handleToggle = useCallback(() => {
@@ -28,7 +23,9 @@ export const AutoRefreshButton = React.memo<AutoRefreshButtonProps>(
         }, [autoRefresh, setAutoRefresh, onToggle]);
 
         return (
-            <Tooltip content={autoRefresh ? "Auto-refresh On (Click to Disable)" : "Auto-refresh Off (Click to Enable)"}>
+            <Tooltip
+                content={autoRefresh ? "Auto-refresh On (Click to Disable)" : "Auto-refresh Off (Click to Enable)"}
+            >
                 <button
                     onClick={handleToggle}
                     className={cn(

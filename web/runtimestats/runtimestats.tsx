@@ -34,10 +34,7 @@ const RuntimeStatsHeader: React.FC<RuntimeStatsHeaderProps> = ({ model }) => {
         <div className="py-1 px-4 border-b border-border flex items-center justify-between">
             <h2 className="text-primary text-lg">Runtime Stats</h2>
             <div className="flex items-center">
-                <AutoRefreshButton 
-                    autoRefreshAtom={model.autoRefresh}
-                    onToggle={() => model.toggleAutoRefresh()}
-                />
+                <AutoRefreshButton autoRefreshAtom={model.autoRefresh} onToggle={() => model.toggleAutoRefresh()} />
                 <RefreshButton
                     isRefreshingAtom={model.isRefreshing}
                     onRefresh={() => model.refresh()}

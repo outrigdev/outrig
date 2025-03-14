@@ -1,11 +1,10 @@
 import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
-import { Tooltip } from "@/elements/tooltip";
 import { useOutrigModel } from "@/util/hooks";
 import { useAtom, useAtomValue } from "jotai";
-import { Clock, Filter, Timer } from "lucide-react";
-import React, { useCallback, useRef } from "react";
+import { Filter } from "lucide-react";
+import React, { useRef } from "react";
 import { WatchesModel } from "./watches-model";
 
 // Individual watch view component
@@ -73,7 +72,6 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
     );
 };
 
-
 // Watches filters component
 interface WatchesFiltersProps {
     model: WatchesModel;
@@ -106,10 +104,7 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
-                <AutoRefreshButton 
-                    autoRefreshAtom={model.autoRefresh} 
-                    onToggle={() => model.toggleAutoRefresh()} 
-                />
+                <AutoRefreshButton autoRefreshAtom={model.autoRefresh} onToggle={() => model.toggleAutoRefresh()} />
                 <RefreshButton
                     isRefreshingAtom={model.isRefreshing}
                     onRefresh={() => model.refresh()}
