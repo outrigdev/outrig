@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 func GetHomeDir() string {
@@ -177,4 +179,79 @@ func BoundValue[T cmp.Ordered](val, minVal, maxVal T) T {
 		return maxVal
 	}
 	return val
+}
+
+func NeedsLock(rval reflect.Value) bool {
+	switch rval.Kind() {
+	case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Struct, reflect.Interface, reflect.Array, reflect.UnsafePointer:
+		return true
+	default:
+		return false
+	}
+}
+
+var sleepBackoffs = []time.Duration{
+	10 * time.Microsecond,
+	50 * time.Microsecond,
+	100 * time.Microsecond,
+	500 * time.Microsecond,
+	1 * time.Millisecond,
+	2 * time.Millisecond,
+	5 * time.Millisecond,
+}
+
+func TryLockWithTimeout(locker sync.Locker, timeout time.Duration) (bool, time.Duration) {
+	var totalSleepTime time.Duration
+
+	switch l := locker.(type) {
+	case *sync.Mutex:
+		if l.TryLock() {
+			return true, 0
+		}
+		iter := 0
+		for totalSleepTime < timeout {
+			sleepTime := sleepBackoffs[len(sleepBackoffs)-1]
+			if iter < len(sleepBackoffs) {
+				sleepTime = sleepBackoffs[iter]
+			}
+			iter++
+			if totalSleepTime+sleepTime > timeout {
+				sleepTime = timeout - totalSleepTime
+			}
+			time.Sleep(sleepTime)
+			totalSleepTime += sleepTime
+			if l.TryLock() {
+				return true, totalSleepTime
+			}
+		}
+		return false, totalSleepTime
+
+	case *sync.RWMutex:
+		if l.TryRLock() {
+			return true, 0
+		}
+		iter := 0
+		for totalSleepTime < timeout {
+			sleepTime := sleepBackoffs[len(sleepBackoffs)-1]
+			if iter < len(sleepBackoffs) {
+				sleepTime = sleepBackoffs[iter]
+			}
+			iter++
+			if totalSleepTime+sleepTime > timeout {
+				sleepTime = timeout - totalSleepTime
+			}
+			time.Sleep(sleepTime)
+			totalSleepTime += sleepTime
+			if l.TryRLock() {
+				return true, totalSleepTime
+			}
+		}
+		return false, totalSleepTime
+
+	default:
+		// generic Locker: no timeout available
+		startTime := time.Now()
+		locker.Lock()
+		return true, time.Since(startTime)
+	}
 }

@@ -10,6 +10,7 @@ const (
 	PacketTypeAppInfo   = "appinfo"
 	PacketTypeGoroutine = "goroutine"
 	PacketTypeAppDone   = "appdone"
+	PacketTypeWatch     = "watch"
 )
 
 type PacketType struct {
@@ -92,6 +93,23 @@ type GoRoutineStack struct {
 	GoId       int64  `json:"goid"`
 	State      string `json:"state"`
 	StackTrace string `json:"stacktrace"`
+}
+
+type WatchInfo struct {
+	Ts      int64   `json:"ts"`
+	Watches []Watch `json:"watches"`
+}
+
+type Watch struct {
+	Ts       int64    `json:"ts"`
+	Name     string   `json:"name"`
+	Value    string   `json:"value,omitempty"`
+	Type     string   `json:"type"`
+	Error    string   `json:"error,omitempty"`
+	Addr     []string `json:"addr,omitempty"`
+	Cap      int      `json:"cap,omitempty"`
+	Len      int      `json:"len,omitempty"`
+	WaitTime int64    `json:"waittime,omitempty"`
 }
 
 type Controller interface {

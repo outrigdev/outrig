@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
@@ -98,4 +99,9 @@ func AppDone() {
 		// Give a small delay to allow the packet to be sent
 		time.Sleep(50 * time.Millisecond)
 	}
+}
+
+func WatchSync(name string, val *any) {
+	wc := watch.GetInstance()
+	wc.RegisterWatchSync(name, val)
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
+	"github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -83,6 +84,10 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	goroutineCollector := goroutine.GetInstance()
 	goroutineCollector.InitCollector(c)
 	c.Collectors[goroutineCollector.CollectorName()] = goroutineCollector
+
+	watchCollector := watch.GetInstance()
+	watchCollector.InitCollector(c)
+	c.Collectors[watchCollector.CollectorName()] = watchCollector
 
 	go c.runConnPoller()
 	return c, nil
