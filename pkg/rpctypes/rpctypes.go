@@ -42,6 +42,7 @@ type FullRpcInterface interface {
 	GetAppRunLogsCommand(ctx context.Context, data AppRunRequest) (AppRunLogsData, error)
 	GetAppRunGoroutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoroutinesData, error)
 	GetAppRunWatchesCommand(ctx context.Context, data AppRunRequest) (AppRunWatchesData, error)
+	GetAppRunRuntimeStatsCommand(ctx context.Context, data AppRunRequest) (AppRunRuntimeStatsData, error)
 
 	// event commands
 	EventPublishCommand(ctx context.Context, data EventType) error
@@ -179,6 +180,15 @@ type AppRunWatchesData struct {
 	AppRunId string     `json:"apprunid"`
 	AppName  string     `json:"appname"`
 	Watches  []ds.Watch `json:"watches"`
+}
+
+type AppRunRuntimeStatsData struct {
+	AppRunId     string  `json:"apprunid"`
+	AppName      string  `json:"appname"`
+	Timestamp    int64   `json:"timestamp"`
+	MemoryUsage  uint64  `json:"memoryusage"`
+	CPUUsage     float64 `json:"cpuusage"`
+	GoroutineCount int   `json:"goroutinecount"`
 }
 
 type EventReadHistoryData struct {

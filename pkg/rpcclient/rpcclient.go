@@ -52,6 +52,12 @@ func GetAppRunLogsCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *r
 	return resp, err
 }
 
+// command "getapprunruntimestats", rpctypes.GetAppRunRuntimeStatsCommand
+func GetAppRunRuntimeStatsCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunRuntimeStatsData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunRuntimeStatsData](w, "getapprunruntimestats", data, opts)
+	return resp, err
+}
+
 // command "getappruns", rpctypes.GetAppRunsCommand
 func GetAppRunsCommand(w *rpc.RpcClient, data rpctypes.AppRunUpdatesRequest, opts *rpc.RpcOpts) (rpctypes.AppRunsData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunsData](w, "getappruns", data, opts)

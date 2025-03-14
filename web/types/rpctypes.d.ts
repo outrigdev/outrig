@@ -40,6 +40,16 @@ declare global {
         since?: number;
     };
 
+    // rpctypes.AppRunRuntimeStatsData
+    type AppRunRuntimeStatsData = {
+        apprunid: string;
+        appname: string;
+        timestamp: number;
+        memoryusage: number;
+        cpuusage: number;
+        goroutinecount: number;
+    };
+
     // rpctypes.AppRunUpdatesRequest
     type AppRunUpdatesRequest = {
         since: number;

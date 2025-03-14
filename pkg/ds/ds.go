@@ -6,11 +6,12 @@ import (
 
 // Transport packet types
 const (
-	PacketTypeLog       = "log"
-	PacketTypeAppInfo   = "appinfo"
-	PacketTypeGoroutine = "goroutine"
-	PacketTypeAppDone   = "appdone"
-	PacketTypeWatch     = "watch"
+	PacketTypeLog          = "log"
+	PacketTypeAppInfo      = "appinfo"
+	PacketTypeGoroutine    = "goroutine"
+	PacketTypeAppDone      = "appdone"
+	PacketTypeWatch        = "watch"
+	PacketTypeRuntimeStats = "runtimestats"
 )
 
 type PacketType struct {
@@ -98,6 +99,13 @@ type GoRoutineStack struct {
 type WatchInfo struct {
 	Ts      int64   `json:"ts"`
 	Watches []Watch `json:"watches"`
+}
+
+type RuntimeStatsInfo struct {
+	Ts             int64   `json:"ts"`
+	MemoryUsage    uint64  `json:"memoryusage"`
+	CPUUsage       float64 `json:"cpuusage"`
+	GoroutineCount int     `json:"goroutinecount"`
 }
 
 type Watch struct {

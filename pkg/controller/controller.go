@@ -16,6 +16,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
+	"github.com/outrigdev/outrig/pkg/collector/runtimestats"
 	"github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
@@ -88,6 +89,10 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	watchCollector := watch.GetInstance()
 	watchCollector.InitCollector(c)
 	c.Collectors[watchCollector.CollectorName()] = watchCollector
+
+	runtimeStatsCollector := runtimestats.GetInstance()
+	runtimeStatsCollector.InitCollector(c)
+	c.Collectors[runtimeStatsCollector.CollectorName()] = runtimeStatsCollector
 
 	isEnabled := global.OutrigEnabled.Load()
 	if isEnabled {
