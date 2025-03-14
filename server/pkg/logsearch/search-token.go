@@ -70,15 +70,66 @@ func CreateSearchersFromTokens(tokens []SearchToken, manager *SearchManager) ([]
 		return []LogSearcher{MakeAllSearcher()}, nil
 	}
 
-	searchers := make([]LogSearcher, len(tokens))
+	// Check if we have OR tokens
+	hasOrToken := false
+	for _, token := range tokens {
+		if token.Type == "or" && token.SearchTerm == "|" {
+			hasOrToken = true
+			break
+		}
+	}
 
-	for i, token := range tokens {
+	// If no OR tokens, process normally
+	if !hasOrToken {
+		searchers := make([]LogSearcher, len(tokens))
+		for i, token := range tokens {
+			searcher, err := MakeSearcherFromToken(token, manager)
+			if err != nil {
+				return nil, err
+			}
+			searchers[i] = searcher
+		}
+		return searchers, nil
+	}
+
+	// Process OR tokens
+	var orSearchers []LogSearcher
+	var currentGroup []LogSearcher
+
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
+		
+		// If this is an OR token, add the current group to the OR searchers
+		if token.Type == "or" && token.SearchTerm == "|" {
+			// If we have searchers in the current group, add them as an AND searcher
+			if len(currentGroup) > 0 {
+				orSearchers = append(orSearchers, MakeAndSearcher(currentGroup))
+				currentGroup = nil
+			} else {
+				// Empty group, add an AllSearcher
+				orSearchers = append(orSearchers, MakeAllSearcher())
+			}
+			continue
+		}
+		
+		// Regular token, add to current group
 		searcher, err := MakeSearcherFromToken(token, manager)
 		if err != nil {
 			return nil, err
 		}
-		searchers[i] = searcher
+		currentGroup = append(currentGroup, searcher)
 	}
-
-	return searchers, nil
+	
+	// Add the last group if it's not empty
+	if len(currentGroup) > 0 {
+		orSearchers = append(orSearchers, MakeAndSearcher(currentGroup))
+	}
+	
+	// If we only have one searcher, return it directly
+	if len(orSearchers) == 1 {
+		return []LogSearcher{orSearchers[0]}, nil
+	}
+	
+	// Create an OR searcher with all the groups
+	return []LogSearcher{MakeOrSearcher(orSearchers)}, nil
 }

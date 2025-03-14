@@ -48,9 +48,28 @@ func GetSearcher(searchType string, searchTerm string, manager *SearchManager) (
 	if len(tokens) == 1 {
 		return MakeSearcherFromToken(tokens[0], manager)
 	}
+	
+	// Check if we have OR tokens
+	hasOrToken := false
+	for _, token := range tokens {
+		if token.Type == "or" && token.SearchTerm == "|" {
+			hasOrToken = true
+			break
+		}
+	}
+	
+	// Create searchers from tokens
 	searchers, err := CreateSearchersFromTokens(tokens, manager)
 	if err != nil {
 		return nil, err
 	}
+	
+	// If we have OR tokens, the CreateSearchersFromTokens function will have already
+	// created the appropriate OR searcher structure, so we can just return the first searcher
+	if hasOrToken {
+		return searchers[0], nil
+	}
+	
+	// Otherwise, create an AND searcher as before
 	return MakeAndSearcher(searchers), nil
 }

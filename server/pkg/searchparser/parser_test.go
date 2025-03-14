@@ -412,6 +412,210 @@ func TestTokenizeSearch(t *testing.T) {
 				{Type: "exact", SearchTerm: "-", IsNot: false},
 			},
 		},
+		{
+			name:        "Simple OR expression",
+			searchType:  "exact",
+			searchInput: `mike | mark`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark"},
+			},
+		},
+		{
+			name:        "OR expression with multiple tokens on left side",
+			searchType:  "exact",
+			searchInput: `mike michelle | mark`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "exact", SearchTerm: "michelle"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark"},
+			},
+		},
+		{
+			name:        "OR expression with multiple tokens on right side",
+			searchType:  "exact",
+			searchInput: `mike | mark mary`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark"},
+				{Type: "exact", SearchTerm: "mary"},
+			},
+		},
+		{
+			name:        "Multiple OR expressions",
+			searchType:  "exact",
+			searchInput: `mike | mark | mary`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mary"},
+			},
+		},
+		{
+			name:        "OR expression with quoted strings",
+			searchType:  "exact",
+			searchInput: `"mike smith" | "mark johnson"`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike smith"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark johnson"},
+			},
+		},
+		{
+			name:        "OR expression with fuzzy search",
+			searchType:  "exact",
+			searchInput: `~mike | ~mark`,
+			want: []SearchToken{
+				{Type: "fzf", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "fzf", SearchTerm: "mark"},
+			},
+		},
+		{
+			name:        "OR expression with NOT tokens",
+			searchType:  "exact",
+			searchInput: `-mike | -mark`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike", IsNot: true},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark", IsNot: true},
+			},
+		},
+		{
+			name:        "OR expression with mixed token types",
+			searchType:  "exact",
+			searchInput: `mike ~johnson | /mark\d+/ | #marked`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "fzf", SearchTerm: "johnson"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "regexp", SearchTerm: `mark\d+`},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "marked", SearchTerm: ""},
+			},
+		},
+		{
+			name:        "Empty OR expression segments",
+			searchType:  "exact",
+			searchInput: `mike | | mark`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark"},
+			},
+		},
+		{
+			name:        "Pipe character at the beginning",
+			searchType:  "exact",
+			searchInput: `| mike`,
+			want: []SearchToken{
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mike"},
+			},
+		},
+		{
+			name:        "Pipe character at the end",
+			searchType:  "exact",
+			searchInput: `mike |`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+			},
+		},
+		{
+			name:        "Only pipe character",
+			searchType:  "exact",
+			searchInput: `|`,
+			want: []SearchToken{
+				{Type: "or", SearchTerm: "|"},
+			},
+		},
+		{
+			name:        "Pipe without whitespace before",
+			searchType:  "exact",
+			searchInput: `mike|mark`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark"},
+			},
+		},
+		{
+			name:        "Pipe without whitespace after",
+			searchType:  "exact",
+			searchInput: `mike |mark`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark"},
+			},
+		},
+		{
+			name:        "Multiple pipes without whitespace",
+			searchType:  "exact",
+			searchInput: `mike|mark|mary`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mary"},
+			},
+		},
+		{
+			name:        "Pipe in quoted string",
+			searchType:  "exact",
+			searchInput: `"mike|mark"`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike|mark"},
+			},
+		},
+		{
+			name:        "Pipe in single quoted string",
+			searchType:  "exact",
+			searchInput: `'mike|mark'`,
+			want: []SearchToken{
+				{Type: "exactcase", SearchTerm: "mike|mark"},
+			},
+		},
+		{
+			name:        "Mixed tokens with pipes without whitespace",
+			searchType:  "exact",
+			searchInput: `mike michelle|mark mary`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike"},
+				{Type: "exact", SearchTerm: "michelle"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark"},
+				{Type: "exact", SearchTerm: "mary"},
+			},
+		},
+		{
+			name:        "Fuzzy search with pipe without whitespace",
+			searchType:  "exact",
+			searchInput: `~mike|~mark`,
+			want: []SearchToken{
+				{Type: "fzf", SearchTerm: "mike"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "fzf", SearchTerm: "mark"},
+			},
+		},
+		{
+			name:        "NOT tokens with pipe without whitespace",
+			searchType:  "exact",
+			searchInput: `-mike|-mark`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "mike", IsNot: true},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "mark", IsNot: true},
+			},
+		},
 	}
 
 	for _, tt := range tests {

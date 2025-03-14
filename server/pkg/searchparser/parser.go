@@ -3,7 +3,9 @@
 
 // Search Parser Grammar (EBNF):
 //
-// search           = { token } ;
+// search           = or_expr ;
+// or_expr          = and_expr { "|" and_expr } ;
+// and_expr         = { token } ;
 // token            = not_token | unmodified_token ;
 // not_token        = "-" unmodified_token ;
 // unmodified_token = fuzzy_token | regexp_token | case_regexp_token | hash_token | simple_token ;
@@ -98,11 +100,12 @@ func (p *Parser) skipWhitespace() {
 }
 
 // readToken reads a token (any sequence of non-whitespace characters)
-func (p *Parser) readToken() string {
+// If splitOnPipe is true, it will stop at a pipe character
+func (p *Parser) readToken(splitOnPipe bool) string {
 	position := p.position
 
-	// Read until whitespace or EOF
-	for !unicode.IsSpace(p.ch) && p.ch != 0 {
+	// Read until whitespace, pipe (if splitOnPipe is true), or EOF
+	for !unicode.IsSpace(p.ch) && p.ch != 0 && !(splitOnPipe && p.ch == '|') {
 		p.readChar()
 	}
 
@@ -230,7 +233,8 @@ func (p *Parser) parseSimpleToken(defaultType string) (string, string, bool) {
 		}
 		tokenType = "exactcase"
 	} else {
-		token = p.readToken()
+		// For plain tokens, we want to split on pipe characters
+		token = p.readToken(true)
 	}
 
 	return token, tokenType, true
@@ -368,16 +372,16 @@ func (p *Parser) parseToken(searchType string) (SearchToken, bool) {
 	return p.parseUnmodifiedToken(searchType)
 }
 
-// Parse parses the input string into a slice of tokens
-func (p *Parser) Parse(searchType string) []SearchToken {
+// parseAndExpr parses a sequence of tokens (AND expression)
+func (p *Parser) parseAndExpr(searchType string) []SearchToken {
 	var tokens []SearchToken
 
-	for p.ch != 0 {
+	for p.ch != 0 && p.ch != '|' {
 		// Skip whitespace
 		p.skipWhitespace()
 
-		// If we've reached the end of the input, break
-		if p.ch == 0 {
+		// If we've reached the end of the input or a pipe, break
+		if p.ch == 0 || p.ch == '|' {
 			break
 		}
 
@@ -392,6 +396,106 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 	}
 
 	return tokens
+}
+
+// parseOrExpr parses an OR expression (and_expr { "|" and_expr })
+func (p *Parser) parseOrExpr(searchType string) [][]SearchToken {
+	var orGroups [][]SearchToken
+
+	// Handle the case where the expression starts with a pipe
+	if p.ch == '|' {
+		// Skip the "|" character
+		p.readChar()
+		
+		// Skip any whitespace after the "|"
+		p.skipWhitespace()
+		
+		// Add an empty group before the pipe
+		orGroups = append(orGroups, []SearchToken{})
+		
+		// Parse the expression after the pipe
+		andTokens := p.parseAndExpr(searchType)
+		orGroups = append(orGroups, andTokens)
+		
+		// Continue parsing if there are more pipes
+		for p.ch == '|' {
+			// Skip the "|" character
+			p.readChar()
+			
+			// Skip any whitespace after the "|"
+			p.skipWhitespace()
+			
+			// Parse the next AND expression
+			andTokens = p.parseAndExpr(searchType)
+			orGroups = append(orGroups, andTokens)
+		}
+		
+		return orGroups
+	}
+
+	// Parse the first AND expression
+	andTokens := p.parseAndExpr(searchType)
+	orGroups = append(orGroups, andTokens)
+
+	// Parse additional AND expressions separated by "|"
+	for p.ch == '|' {
+		// Skip the "|" character
+		p.readChar()
+		
+		// Skip any whitespace after the "|"
+		p.skipWhitespace()
+		
+		// Parse the next AND expression
+		andTokens = p.parseAndExpr(searchType)
+		orGroups = append(orGroups, andTokens)
+	}
+
+	return orGroups
+}
+
+// Parse parses the input string into a slice of tokens with OR groups
+func (p *Parser) Parse(searchType string) []SearchToken {
+	// Special case for a single pipe character
+	if p.ch == '|' && p.peek(1) == 0 {
+		return []SearchToken{
+			{
+				Type:       "or",
+				SearchTerm: "|",
+				IsNot:      false,
+			},
+		}
+	}
+	
+	// Parse the OR expression
+	orGroups := p.parseOrExpr(searchType)
+	
+	// If there's only one group, return it directly
+	if len(orGroups) <= 1 {
+		if len(orGroups) == 0 {
+			return []SearchToken{}
+		}
+		return orGroups[0]
+	}
+	
+	// Otherwise, create OR tokens
+	var result []SearchToken
+	
+	// Add a special token to indicate the start of an OR group
+	for i, group := range orGroups {
+		// Add a special token to indicate OR operation
+		if i > 0 {
+			result = append(result, SearchToken{
+				Type:       "or",
+				SearchTerm: "|",
+				IsNot:      false,
+			})
+		}
+		
+		// Add the tokens from this group
+		result = append(result, group...)
+	}
+	
+	return result
 }
 
 // TokenizeSearch splits a search string into tokens using the parser
