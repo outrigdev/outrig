@@ -185,13 +185,17 @@ function App() {
             </nav>
 
             {/* Main content */}
-            <main className="flex-grow overflow-auto w-full">
-                <div style={{ display: selectedTab === "appruns" ? "block" : "none" }}>
-                    <AppRunsTab />
-                </div>
-                <div style={{ display: selectedTab === "appruns" ? "none" : "block" }}>
-                    <FeatureTab />
-                </div>
+            <main
+                className="flex-grow overflow-auto w-full"
+                style={{ display: selectedTab === "appruns" ? "block" : "none" }}
+            >
+                <AppRunsTab />
+            </main>
+            <main
+                className="flex-grow overflow-auto w-full"
+                style={{ display: selectedTab === "appruns" ? "none" : "block" }}
+            >
+                <FeatureTab />
             </main>
 
             {/* Status bar */}
