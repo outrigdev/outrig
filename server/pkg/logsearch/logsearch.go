@@ -293,9 +293,38 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 		}
 	}
 
-	// Collect pages of log lines
-	pages := make([]rpctypes.PageData, 0, len(data.RequestPages))
+	// Calculate total number of pages
+	filteredSize := m.Cache.GetFilteredSize()
+	totalPages := filteredSize / data.PageSize
+	if filteredSize % data.PageSize != 0 {
+		totalPages++
+	}
+
+	// Resolve page numbers (handle negative indices)
+	resolvedPages := make(map[int]bool)
+	resolvedPageNums := make([]int, 0, len(data.RequestPages))
+
 	for _, pageNum := range data.RequestPages {
+		resolvedPageNum := pageNum
+		
+		// Handle negative page numbers (counting from the end)
+		if pageNum < 0 {
+			resolvedPageNum = totalPages + pageNum // e.g., -1 becomes totalPages-1 (last page)
+		}
+		
+		// Ensure page number is within valid range [0, totalPages-1]
+		if resolvedPageNum >= 0 && resolvedPageNum < totalPages {
+			// Only add each page once (avoid duplicates)
+			if _, exists := resolvedPages[resolvedPageNum]; !exists {
+				resolvedPages[resolvedPageNum] = true
+				resolvedPageNums = append(resolvedPageNums, resolvedPageNum)
+			}
+		}
+	}
+
+	// Collect pages of log lines
+	pages := make([]rpctypes.PageData, 0, len(resolvedPageNums))
+	for _, pageNum := range resolvedPageNums {
 		startIndex := pageNum * data.PageSize
 		endIndex := startIndex + data.PageSize
 		pageLines := m.Cache.GetRange(startIndex, endIndex)
@@ -306,7 +335,7 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	}
 
 	return rpctypes.SearchResultData{
-		FilteredCount: m.Cache.GetFilteredSize(),
+		FilteredCount: filteredSize,
 		TotalCount:    m.Cache.GetTotalSize(),
 		Pages:         pages,
 	}, nil
