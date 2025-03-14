@@ -122,7 +122,7 @@ func (c *ControllerImpl) Connect() bool {
 		if _, errStat := os.Stat(dsPath); errStat == nil {
 			conn, err = net.DialTimeout("unix", dsPath, 2*time.Second)
 			if err == nil {
-				fmt.Println("Outrig connected via domain socket:", dsPath)
+				fmt.Printf("Outrig connected via domain socket: %v\n", dsPath)
 				c.conn.Store(&conn)
 				c.ClientAddr = c.config.DomainSocketPath
 				c.sendAppInfo()
@@ -137,7 +137,7 @@ func (c *ControllerImpl) Connect() bool {
 	if c.config.ServerAddr != "-" {
 		conn, err = net.DialTimeout("tcp", c.config.ServerAddr, 2*time.Second)
 		if err == nil {
-			fmt.Println("Outrig connected via TCP:", c.config.ServerAddr)
+			fmt.Printf("Outrig connected via TCP: %v\n", c.config.ServerAddr)
 			c.conn.Store(&conn)
 			c.ClientAddr = c.config.ServerAddr
 			c.sendAppInfo()
@@ -154,6 +154,7 @@ func (c *ControllerImpl) Disconnect() {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 
+	fmt.Printf("Outrig disconnected from %s\n", c.ClientAddr)
 	c.OutrigConnected = false
 	c.setEnabled(false)
 

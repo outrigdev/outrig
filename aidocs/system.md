@@ -16,19 +16,21 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - **Go Conventions**:
     - Don't use custom enum types in Go. Instead, use string constants (e.g., `const StatusRunning = "running"` rather than creating a custom type like `type Status string`).
     - Use string constants for status values, packet types, and other string-based enumerations.
+    - in Go code, prefer using Printf() vs Println()
 - **TypeScript Imports**:
-    - Use `@/init` for imports from different parts of the project (configured in `tsconfig.json` as `"@/*": ["web/*"]`).
+    - Use `@/...` for imports from different parts of the project (configured in `tsconfig.json` as `"@/*": ["web/*"]`).
     - Prefer relative imports (`"./name"`) within the same or child directories.
     - Use named exports exclusively; avoid default exports. It's acceptable to export functions directly (e.g., React Components).
 - **JSON Field Naming**: All fields must be lowercase, without underscores.
-- In TypeScript we have strict null checks off, so no need to add "| null" to all the types.
-- In TypeScript for Jotai atoms, if we want to write, we need to type the atom as a PrimitiveAtom<Type>
-- Jotai has a bug with strick null checks off where if you create a null atom, e.g. atom(null) it does not "type" correctly. That's no issue, just cast it to the proper PrimitiveAtom type (no "| null") and it will work fine.
-- generally never use "=== undefined" or "!== undefined". this is bad style. just use a "== null" or "!= null" unless it is a very specific case where we need to distinguish undefined from null.
-- use all lowercase filenames (except where case is actually important like Taskfile.yml)
-- import the "cn" function from "@/util/util" to do classname / clsx class merge (it uses twMerge underneath)
-- make sure to add cursor-pointer to buttons/links and clickable items
-- for element variants use class-variance-authority
+- **TypeScript Conventions**
+    - In TypeScript we have strict null checks off, so no need to add "| null" to all the types.
+    - In TypeScript for Jotai atoms, if we want to write, we need to type the atom as a PrimitiveAtom<Type>
+    - Jotai has a bug with strick null checks off where if you create a null atom, e.g. atom(null) it does not "type" correctly. That's no issue, just cast it to the proper PrimitiveAtom type (no "| null") and it will work fine.
+    - generally never use "=== undefined" or "!== undefined". this is bad style. just use a "== null" or "!= null" unless it is a very specific case where we need to distinguish undefined from null.
+    - use all lowercase filenames (except where case is actually important like Taskfile.yml)
+    - import the "cn" function from "@/util/util" to do classname / clsx class merge (it uses twMerge underneath)
+    - make sure to add cursor-pointer to buttons/links and clickable items
+    - for element variants use class-variance-authority
 
 ### Styling
 

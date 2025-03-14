@@ -152,7 +152,7 @@ func runWebServers() error {
 // and pipes its stdout/stderr to the Go server's stdout/stderr.
 // It returns a function that can be called to stop the Vite server.
 func startViteServer(ctx context.Context) (*exec.Cmd, error) {
-	log.Println("Starting Vite development server...")
+	log.Printf("Starting Vite development server...\n")
 
 	// Create the command to run task dev:vite
 	cmd := exec.CommandContext(ctx, "task", "dev:vite")
@@ -177,7 +177,7 @@ func startViteServer(ctx context.Context) (*exec.Cmd, error) {
 	go func() {
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
-			fmt.Println("[vite]", scanner.Text())
+			fmt.Printf("[vite] %s\n", scanner.Text())
 		}
 	}()
 
@@ -189,7 +189,7 @@ func startViteServer(ctx context.Context) (*exec.Cmd, error) {
 		}
 	}()
 
-	log.Println("Vite development server started")
+	log.Printf("Vite development server started\n")
 	return cmd, nil
 }
 
@@ -238,7 +238,7 @@ func main() {
 
 	// Initialize browser tabs tracking
 	browsertabs.Initialize()
-	log.Println("Browser tabs tracking initialized")
+	log.Printf("Browser tabs tracking initialized\n")
 
 	// Run domain socket server
 	err = runDomainSocketServer()
@@ -254,7 +254,7 @@ func main() {
 		return
 	}
 
-	log.Println("All servers started successfully")
+	log.Printf("All servers started successfully\n")
 
 	// If we're in development mode, start the Vite server
 	if serverbase.IsDev() {
@@ -272,7 +272,7 @@ func main() {
 			defer wg.Done() // Mark this goroutine as done when it completes
 
 			<-ctx.Done()
-			log.Println("Shutting down Vite server...")
+			log.Printf("Shutting down Vite server...\n")
 
 			// The context cancellation should already signal the process to stop,
 			// but we can also explicitly wait for it to finish
@@ -283,16 +283,16 @@ func main() {
 				}
 			}
 
-			log.Println("Vite server shutdown complete")
+			log.Printf("Vite server shutdown complete\n")
 		}()
 	}
 
 	// Wait for context cancellation (from signal handler)
 	<-ctx.Done()
-	log.Println("Shutting down server...")
+	log.Printf("Shutting down server...\n")
 
 	// Wait for all subprocesses to finish shutting down
-	log.Println("Waiting for all processes to complete...")
+	log.Printf("Waiting for all processes to complete...\n")
 	wg.Wait()
-	log.Println("All processes shutdown complete")
+	log.Printf("All processes shutdown complete\n")
 }
