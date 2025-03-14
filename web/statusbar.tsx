@@ -1,5 +1,5 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { Box, CircleDot, List, Wifi, WifiOff, PauseCircle } from "lucide-react";
+import { Box, CircleDot, List, Wifi, WifiOff, PauseCircle, Eye } from "lucide-react";
 import { AppModel } from "./appmodel";
 import { Tooltip } from "./elements/tooltip";
 import { useMemo } from "react";
@@ -110,6 +110,20 @@ export function StatusBar() {
                             <span>{goroutineCount}</span>
                         </div>
                     </Tooltip>
+                    {selectedAppRun.numactivewatches > 0 && (
+                        <Tooltip 
+                            content={`${selectedAppRun.numactivewatches} Active ${selectedAppRun.numactivewatches === 1 ? 'Watch' : 'Watches'}`} 
+                            placement="bottom"
+                        >
+                            <div
+                                className="flex items-center space-x-1 cursor-pointer"
+                                onClick={() => setSelectedTab("watches")}
+                            >
+                                <Eye size={12} />
+                                <span>{selectedAppRun.numactivewatches}</span>
+                            </div>
+                        </Tooltip>
+                    )}
                 </div>
             )}
         </div>
