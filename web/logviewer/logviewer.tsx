@@ -246,7 +246,7 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                     <input
                         ref={searchRef}
                         type="text"
-                        placeholder="filter..."
+                        placeholder="Filter logs..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         onKeyDown={handleKeyDown}

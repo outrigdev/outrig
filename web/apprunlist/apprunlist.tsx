@@ -52,7 +52,7 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
 };
 
 const NoAppRunsFound: React.FC = () => {
-    return <div className="flex items-center justify-center h-full text-secondary">No app runs found</div>;
+    return <div className="flex items-center justify-center h-full text-secondary">no app runs found</div>;
 };
 
 export const AppRunList: React.FC = () => {

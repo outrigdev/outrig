@@ -37,7 +37,7 @@ class AppModel {
         const appRunIdParam = params.get("appRunId");
 
         // Set the selected tab if it's valid
-        if (tabParam && ["appruns", "logs", "goroutines"].includes(tabParam)) {
+        if (tabParam && ["appruns", "logs", "goroutines", "watches"].includes(tabParam)) {
             getDefaultStore().set(this.selectedTab, tabParam);
         }
 
@@ -141,6 +141,12 @@ class AppModel {
         // Note: Goroutines are loaded by the GoRoutines component when it mounts
         getDefaultStore().set(this.selectedTab, "goroutines");
         this.updateUrl({ tab: "goroutines" });
+    }
+
+    selectWatchesTab() {
+        // Note: Watches are loaded by the Watches component when it mounts
+        getDefaultStore().set(this.selectedTab, "watches");
+        this.updateUrl({ tab: "watches" });
     }
 
     applyTheme(): void {

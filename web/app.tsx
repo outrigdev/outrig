@@ -7,13 +7,22 @@ import { AppRunList } from "./apprunlist/apprunlist";
 import { GoRoutines } from "./goroutines/goroutines";
 import { appHandleKeyDown } from "./keymodel";
 import { LogViewer } from "./logviewer/logviewer";
+import { Watches } from "./watches/watches";
 import { StatusBar } from "./statusbar";
 import { DefaultRpcClient } from "./init";
 import { RpcApi } from "./rpc/rpcclientapi";
 
 // Define tabs that require an app run ID to be selected
 // Add new tabs that require an app run ID to this array
-const TABS_REQUIRING_APP_RUN_ID = ["logs", "goroutines"];
+const TABS_REQUIRING_APP_RUN_ID = ["logs", "goroutines", "watches"];
+
+// Define display names for tabs
+const TAB_DISPLAY_NAMES: Record<string, string> = {
+    appruns: "App Runs",
+    logs: "Logs",
+    goroutines: "GoRoutines",
+    watches: "Watches",
+};
 
 function MainTab() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
@@ -30,6 +39,8 @@ function MainTab() {
         return <AppRunList />;
     } else if (selectedTab === "goroutines") {
         return <GoRoutines key={selectedAppRunId} appRunId={selectedAppRunId} />;
+    } else if (selectedTab === "watches") {
+        return <Watches key={selectedAppRunId} appRunId={selectedAppRunId} />;
     }
 
     return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;
@@ -59,6 +70,8 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
             AppModel.selectLogsTab();
         } else if (name == "appruns") {
             AppModel.selectAppRunsTab();
+        } else if (name == "watches") {
+            AppModel.selectWatchesTab();
         } else {
             console.log("unknown tab selected", name);
         }
@@ -145,22 +158,16 @@ function App() {
                 <div className="flex items-center">
                     <AppLogo />
                     <div className="ml-3 flex">
-                        <Tab name="appruns" displayName="App Runs" />
+                        <Tab name="appruns" displayName={TAB_DISPLAY_NAMES.appruns} />
                         {selectedAppRunId && (
                             <>
-                                {TABS_REQUIRING_APP_RUN_ID.map((tabName) => {
-                                    const displayNames: Record<string, string> = {
-                                        logs: "Logs",
-                                        goroutines: "GoRoutines",
-                                    };
-                                    return (
-                                        <Tab
-                                            key={tabName}
-                                            name={tabName}
-                                            displayName={displayNames[tabName] || tabName}
-                                        />
-                                    );
-                                })}
+                                {TABS_REQUIRING_APP_RUN_ID.map((tabName) => (
+                                    <Tab
+                                        key={tabName}
+                                        name={tabName}
+                                        displayName={TAB_DISPLAY_NAMES[tabName] || tabName}
+                                    />
+                                ))}
                             </>
                         )}
                     </div>

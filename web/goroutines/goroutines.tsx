@@ -1,7 +1,6 @@
 import { useAtom, useAtomValue } from "jotai";
 import { Filter, RefreshCw } from "lucide-react";
 import React, { useEffect, useRef } from "react";
-import { AppModel } from "../appmodel";
 import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
 
@@ -141,7 +140,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
                 </div>
             ) : filteredGoroutines.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-secondary">
-                    {search || !showAll ? "No goroutines match the filter" : "No goroutines found"}
+                    {search || !showAll ? "no goroutines match the filter" : "no goroutines found"}
                 </div>
             ) : (
                 <div>
