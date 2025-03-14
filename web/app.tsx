@@ -9,12 +9,13 @@ import { DefaultRpcClient } from "./init";
 import { appHandleKeyDown } from "./keymodel";
 import { LogViewer } from "./logviewer/logviewer";
 import { RpcApi } from "./rpc/rpcclientapi";
+import { RuntimeStats } from "./runtimestats/runtimestats";
 import { StatusBar } from "./statusbar";
 import { Watches } from "./watches/watches";
 
 // Define tabs that require an app run ID to be selected
 // Add new tabs that require an app run ID to this array
-const TABS_REQUIRING_APP_RUN_ID = ["logs", "goroutines", "watches"];
+const TABS_REQUIRING_APP_RUN_ID = ["logs", "goroutines", "watches", "runtimestats"];
 
 // Define display names for tabs
 const TAB_DISPLAY_NAMES: Record<string, string> = {
@@ -22,6 +23,7 @@ const TAB_DISPLAY_NAMES: Record<string, string> = {
     logs: "Logs",
     goroutines: "GoRoutines",
     watches: "Watches",
+    runtimestats: "Runtime Stats",
 };
 
 // Component for rendering the AppRunList
@@ -45,6 +47,8 @@ function FeatureTab() {
         return <GoRoutines key={selectedAppRunId} appRunId={selectedAppRunId} />;
     } else if (selectedTab === "watches") {
         return <Watches key={selectedAppRunId} appRunId={selectedAppRunId} />;
+    } else if (selectedTab === "runtimestats") {
+        return <RuntimeStats key={selectedAppRunId} appRunId={selectedAppRunId} />;
     }
 
     return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;
@@ -53,7 +57,7 @@ function FeatureTab() {
 function AppLogo() {
     return (
         <div className="flex items-center space-x-2">
-            <img src="/outriglogo.svg" alt="Outrig Logo" className="h-5 w-[20px] h-[20px]" />
+            <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
         </div>
     );
 }
@@ -76,6 +80,8 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
             AppModel.selectAppRunsTab();
         } else if (name == "watches") {
             AppModel.selectWatchesTab();
+        } else if (name == "runtimestats") {
+            AppModel.selectRuntimeStatsTab();
         } else {
             console.log("unknown tab selected", name);
         }

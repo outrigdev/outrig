@@ -187,8 +187,6 @@ export const Watches: React.FC<WatchesProps> = ({ appRunId }) => {
     const modelRef = useRef<WatchesModel>(null);
     const [, setForceUpdate] = useState({});
 
-    console.log("Render watches", appRunId, modelRef.current);
-
     useEffect(() => {
         if (!modelRef.current) {
             modelRef.current = new WatchesModel(appRunId);
