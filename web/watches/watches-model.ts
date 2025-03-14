@@ -42,7 +42,7 @@ class WatchesModel {
 
         // Set up new interval
         this.autoRefreshIntervalId = window.setInterval(() => {
-            this.quietRefresh();
+            this.quietRefresh(false);
         }, 1000); // Refresh every second
     }
 
@@ -136,17 +136,20 @@ class WatchesModel {
     }
 
     // Quiet refresh for auto-refresh - doesn't set isRefreshing or clear watches
-    async quietRefresh() {
+    async quietRefresh(force: boolean) {
         // Get the app run info to check its status
         const store = getDefaultStore();
         const appRunInfoAtom = AppModel.getAppRunInfoAtom(this.appRunId);
         const appRunInfo = store.get(appRunInfoAtom);
 
-        // If app run is not connected (status is not "running"), don't refresh
-        if (!appRunInfo || appRunInfo.status !== "running") {
+        if (!appRunInfo) {
             return;
         }
 
+        // If app run is not connected (status is not "running"), don't refresh
+        if (!force && appRunInfo.status !== "running") {
+            return;
+        }
         try {
             const watches = await this.fetchAppRunWatches();
             getDefaultStore().set(this.appRunWatches, watches);

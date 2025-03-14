@@ -182,7 +182,7 @@ export class WebSocketController {
         if (event.wasClean) {
             console.log("[websocket] connection closed cleanly");
         } else {
-            console.log("[websocket] connection closed unexpectedly");
+            console.log("[websocket] connection closed unexpectedly", event);
         }
 
         if (this.isConnected || this.isOpening) {

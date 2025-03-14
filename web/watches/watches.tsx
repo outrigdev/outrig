@@ -3,7 +3,7 @@ import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
 import { useAtom, useAtomValue } from "jotai";
 import { Clock, Filter, Timer } from "lucide-react";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { WatchesModel } from "./watches-model";
 
 // Individual watch view component
@@ -184,25 +184,34 @@ interface WatchesProps {
 }
 
 export const Watches: React.FC<WatchesProps> = ({ appRunId }) => {
-    const model = useRef(new WatchesModel(appRunId)).current;
+    const modelRef = useRef<WatchesModel>(null);
+    const [, setForceUpdate] = useState({});
+
+    console.log("Render watches", appRunId, modelRef.current);
 
     useEffect(() => {
-        // Initialize when the component mounts
-        model.refresh();
-        
-        // Ensure auto-refresh is started (in case it wasn't started in the constructor)
-        model.startAutoRefreshInterval();
-        
-        // Clean up when the component unmounts
+        if (!modelRef.current) {
+            modelRef.current = new WatchesModel(appRunId);
+            modelRef.current.quietRefresh(true);
+            setForceUpdate({});
+        }
         return () => {
-            model.dispose();
+            if (!modelRef.current) {
+                return;
+            }
+            modelRef.current.dispose();
+            modelRef.current = null;
         };
-    }, [model]);
+    }, [appRunId]);
+
+    if (!modelRef.current) {
+        return null;
+    }
 
     return (
         <div className="w-full h-full flex flex-col">
-            <WatchesFilters model={model} />
-            <WatchesContent model={model} />
+            <WatchesFilters model={modelRef.current} />
+            <WatchesContent model={modelRef.current} />
         </div>
     );
 };
