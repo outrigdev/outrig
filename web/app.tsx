@@ -24,19 +24,23 @@ const TAB_DISPLAY_NAMES: Record<string, string> = {
     watches: "Watches",
 };
 
-function MainTab() {
+// Component for rendering the AppRunList
+function AppRunsTab() {
+    return <AppRunList />;
+}
+
+// Component for rendering feature tabs (logs, goroutines, watches)
+function FeatureTab() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
-    // If a tab requiring an app run ID is selected but no app run is selected, show app runs list
-    if (TABS_REQUIRING_APP_RUN_ID.includes(selectedTab) && !selectedAppRunId) {
-        return <AppRunList />;
+    // Return null if no app run is selected
+    if (!selectedAppRunId) {
+        return null;
     }
 
     if (selectedTab === "logs") {
         return <LogViewer key={selectedAppRunId} appRunId={selectedAppRunId} />;
-    } else if (selectedTab === "appruns") {
-        return <AppRunList />;
     } else if (selectedTab === "goroutines") {
         return <GoRoutines key={selectedAppRunId} appRunId={selectedAppRunId} />;
     } else if (selectedTab === "watches") {
@@ -182,7 +186,12 @@ function App() {
 
             {/* Main content */}
             <main className="flex-grow overflow-auto w-full">
-                <MainTab />
+                <div style={{ display: selectedTab === "appruns" ? "block" : "none" }}>
+                    <AppRunsTab />
+                </div>
+                <div style={{ display: selectedTab === "appruns" ? "none" : "block" }}>
+                    <FeatureTab />
+                </div>
             </main>
 
             {/* Status bar */}

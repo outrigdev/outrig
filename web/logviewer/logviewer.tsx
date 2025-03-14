@@ -465,6 +465,7 @@ export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
     useEffect(() => {
         if (!modelRef.current) {
             modelRef.current = new LogViewerModel(props.appRunId);
+            modelRef.current.onSearchTermUpdate("");
             setForceUpdate({});
         }
         return () => {
