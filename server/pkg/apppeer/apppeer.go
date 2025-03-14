@@ -17,7 +17,8 @@ import (
 
 const LogLineBufferSize = 10000
 const GoRoutineStackBufferSize = 600 // 10 minutes of 1-second samples
-const WatchBufferSize = 600 // 10 minutes of 1-second samples
+const WatchBufferSize = 600          // 10 minutes of 1-second samples
+const RuntimeStatsBufferSize = 600   // 10 minutes of 1-second samples
 
 // Application status constants
 const (
@@ -34,9 +35,10 @@ type AppRunPeer struct {
 	GoRoutines       *utilds.SyncMap[GoRoutine]
 	ActiveGoRoutines map[int]bool // Tracks currently running goroutines
 	Watches          *utilds.SyncMap[Watch]
-	ActiveWatches    map[string]bool // Tracks currently active watches
-	Status           string          // Current status of the application
-	LastModTime      int64           // Last modification time in milliseconds
+	ActiveWatches    map[string]bool                     // Tracks currently active watches
+	RuntimeStats     *utilds.CirBuf[ds.RuntimeStatsInfo] // History of runtime stats
+	Status           string                              // Current status of the application
+	LastModTime      int64                               // Last modification time in milliseconds
 }
 
 type GoRoutine struct {
@@ -45,8 +47,8 @@ type GoRoutine struct {
 }
 
 type Watch struct {
-	Name       string
-	WatchVals  *utilds.CirBuf[ds.Watch]
+	Name      string
+	WatchVals *utilds.CirBuf[ds.Watch]
 }
 
 // Global synchronized map to hold all AppRunPeers
@@ -61,6 +63,7 @@ func GetAppRunPeer(appRunId string) *AppRunPeer {
 			GoRoutines:    utilds.MakeSyncMap[GoRoutine](),
 			Watches:       utilds.MakeSyncMap[Watch](),
 			ActiveWatches: make(map[string]bool),
+			RuntimeStats:  utilds.MakeCirBuf[ds.RuntimeStatsInfo](RuntimeStatsBufferSize),
 			Status:        AppStatusRunning,
 			LastModTime:   time.Now().UnixMilli(),
 		}
@@ -175,7 +178,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		p.ActiveGoRoutines = activeGoroutines
 
 		log.Printf("Processed %d goroutines for app run ID: %s", len(goroutineInfo.Stacks), p.AppRunId)
-		
+
 	case ds.PacketTypeWatch:
 		var watchInfo ds.WatchInfo
 		if err := json.Unmarshal(packetData, &watchInfo); err != nil {
@@ -217,6 +220,17 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		p.Status = AppStatusDone
 		log.Printf("Received AppDone for app run ID: %s", p.AppRunId)
 
+	case ds.PacketTypeRuntimeStats:
+		var runtimeStats ds.RuntimeStatsInfo
+		if err := json.Unmarshal(packetData, &runtimeStats); err != nil {
+			return fmt.Errorf("failed to unmarshal RuntimeStatsInfo: %w", err)
+		}
+
+		// Add runtime stats to circular buffer
+		p.RuntimeStats.Write(runtimeStats)
+
+		log.Printf("Received runtime stats for app run ID: %s", p.AppRunId)
+
 	default:
 		log.Printf("Unknown packet type: %s", packetType)
 	}
@@ -246,7 +260,7 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	// Get the number of active and total goroutines
 	numActiveGoRoutines := len(p.ActiveGoRoutines)
 	numTotalGoRoutines := len(p.GoRoutines.Keys())
-	
+
 	// Get the number of active and total watches
 	numActiveWatches := len(p.ActiveWatches)
 	numTotalWatches := len(p.Watches.Keys())

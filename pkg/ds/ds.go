@@ -101,11 +101,38 @@ type WatchInfo struct {
 	Watches []Watch `json:"watches"`
 }
 
+type MemoryStatsInfo struct {
+	Alloc        uint64 `json:"alloc"`
+	TotalAlloc   uint64 `json:"totalalloc"`
+	Sys          uint64 `json:"sys"`
+	HeapAlloc    uint64 `json:"heapalloc"`
+	HeapSys      uint64 `json:"heapsys"`
+	HeapIdle     uint64 `json:"heapidle"`
+	HeapInuse    uint64 `json:"heapinuse"`
+	StackInuse   uint64 `json:"stackinuse"`
+	StackSys     uint64 `json:"stacksys"`
+	MSpanInuse   uint64 `json:"mspaninuse"`
+	MSpanSys     uint64 `json:"mspansys"`
+	MCacheInuse  uint64 `json:"mcacheinuse"`
+	MCacheSys    uint64 `json:"mcachesys"`
+	GCSys        uint64 `json:"gcsys"`
+	OtherSys     uint64 `json:"othersys"`
+	NextGC       uint64 `json:"nextgc"`
+	LastGC       uint64 `json:"lastgc"`
+	PauseTotalNs uint64 `json:"pausetotalns"`
+	NumGC        uint32 `json:"numgc"`
+}
+
 type RuntimeStatsInfo struct {
-	Ts             int64   `json:"ts"`
-	MemoryUsage    uint64  `json:"memoryusage"`
-	CPUUsage       float64 `json:"cpuusage"`
-	GoroutineCount int     `json:"goroutinecount"`
+	Ts             int64           `json:"ts"`
+	CPUUsage       float64         `json:"cpuusage"`
+	GoRoutineCount int             `json:"goroutinecount"`
+	GoMaxProcs     int             `json:"gomaxprocs"`
+	NumCPU         int             `json:"numcpu"`
+	GOOS           string          `json:"goos"`
+	GOARCH         string          `json:"goarch"`
+	GoVersion      string          `json:"goversion"`
+	MemStats       MemoryStatsInfo `json:"memstats"`
 }
 
 type Watch struct {

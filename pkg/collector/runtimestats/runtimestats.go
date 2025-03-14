@@ -1,6 +1,7 @@
 package runtimestats
 
 import (
+	"runtime"
 	"sync"
 	"time"
 
@@ -71,11 +72,44 @@ func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
 		return
 	}
 
-	// For now, we're just creating a placeholder structure
-	// Actual implementation will be added later
+	// Collect memory statistics
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	// Create memory stats info
+	memStatsInfo := ds.MemoryStatsInfo{
+		Alloc:        memStats.Alloc,
+		TotalAlloc:   memStats.TotalAlloc,
+		Sys:          memStats.Sys,
+		HeapAlloc:    memStats.HeapAlloc,
+		HeapSys:      memStats.HeapSys,
+		HeapIdle:     memStats.HeapIdle,
+		HeapInuse:    memStats.HeapInuse,
+		StackInuse:   memStats.StackInuse,
+		StackSys:     memStats.StackSys,
+		MSpanInuse:   memStats.MSpanInuse,
+		MSpanSys:     memStats.MSpanSys,
+		MCacheInuse:  memStats.MCacheInuse,
+		MCacheSys:    memStats.MCacheSys,
+		GCSys:        memStats.GCSys,
+		OtherSys:     memStats.OtherSys,
+		NextGC:       memStats.NextGC,
+		LastGC:       memStats.LastGC,
+		PauseTotalNs: memStats.PauseTotalNs,
+		NumGC:        memStats.NumGC,
+	}
+
+	// Create runtime stats info
 	runtimeStats := &ds.RuntimeStatsInfo{
-		Ts: time.Now().UnixMilli(),
-		// Other fields will be populated later
+		Ts:             time.Now().UnixMilli(),
+		CPUUsage:       0, // We don't have a direct way to get CPU usage from runtime package
+		GoRoutineCount: runtime.NumGoroutine(),
+		GoMaxProcs:     runtime.GOMAXPROCS(0), // 0 means get current value without changing it
+		NumCPU:         runtime.NumCPU(),
+		GOOS:           runtime.GOOS,
+		GOARCH:         runtime.GOARCH,
+		GoVersion:      runtime.Version(),
+		MemStats:       memStatsInfo,
 	}
 
 	// Send the runtime stats packet

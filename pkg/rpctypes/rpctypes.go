@@ -173,7 +173,7 @@ type GoroutineData struct {
 type AppRunGoroutinesData struct {
 	AppRunId   string          `json:"apprunid"`
 	AppName    string          `json:"appname"`
-	Goroutines []GoroutineData `json:"goroutines"`
+	GoRoutines []GoroutineData `json:"goroutines"`
 }
 
 type AppRunWatchesData struct {
@@ -183,12 +183,17 @@ type AppRunWatchesData struct {
 }
 
 type AppRunRuntimeStatsData struct {
-	AppRunId     string  `json:"apprunid"`
-	AppName      string  `json:"appname"`
-	Timestamp    int64   `json:"timestamp"`
-	MemoryUsage  uint64  `json:"memoryusage"`
-	CPUUsage     float64 `json:"cpuusage"`
-	GoroutineCount int   `json:"goroutinecount"`
+	AppRunId       string             `json:"apprunid"`
+	AppName        string             `json:"appname"`
+	Ts             int64              `json:"ts"`
+	CPUUsage       float64            `json:"cpuusage"`
+	GoRoutineCount int                `json:"goroutinecount"`
+	GoMaxProcs     int                `json:"gomaxprocs"`
+	NumCPU         int                `json:"numcpu"`
+	GOOS           string             `json:"goos"`
+	GOARCH         string             `json:"goarch"`
+	GoVersion      string             `json:"goversion"`
+	MemStats       ds.MemoryStatsInfo `json:"memstats"`
 }
 
 type EventReadHistoryData struct {

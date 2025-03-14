@@ -188,3 +188,25 @@ func (cb *CirBuf[T]) GetRange(start int, end int) ([]T, int, bool) {
 	}
 	return rtn, start, eof
 }
+
+// GetLast returns the last element in the buffer, its offset, and a boolean indicating
+// whether the buffer has any elements. If the buffer is empty, the zero value of T,
+// 0, and false are returned.
+func (cb *CirBuf[T]) GetLast() (T, int, bool) {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+
+	size := cb.size_nolock()
+	if size == 0 {
+		var zero T
+		return zero, 0, false
+	}
+
+	// Calculate the position of the last element
+	lastPos := (cb.Tail - 1 + len(cb.Buf)) % len(cb.Buf)
+	
+	// The offset is simply TotalCount - 1 (index of the last element)
+	lastOffset := cb.TotalCount - 1
+	
+	return cb.Buf[lastPos], lastOffset, true
+}

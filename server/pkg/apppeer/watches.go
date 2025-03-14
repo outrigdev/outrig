@@ -32,14 +32,11 @@ func GetAppRunWatches(ctx context.Context, req rpctypes.AppRunRequest) (rpctypes
 			continue
 		}
 
-		// Get all watch values
-		watchVals := watch.WatchVals.GetAll()
-		if len(watchVals) == 0 {
+		// Get the most recent watch value using GetLast
+		latestWatch, _, exists := watch.WatchVals.GetLast()
+		if !exists {
 			continue
 		}
-
-		// Get the most recent watch value
-		latestWatch := watchVals[len(watchVals)-1]
 
 		watches = append(watches, latestWatch)
 	}
