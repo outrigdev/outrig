@@ -41,7 +41,7 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
     };
 
     return (
-        <div className="mb-4 p-3 border border-border rounded-md hover:bg-buttonhover">
+        <div className="mb-4 p-3 border border-border rounded-md">
             <div className="flex justify-between items-center mb-2">
                 <div className="font-semibold text-primary">{watch.name}</div>
                 <div className="flex items-center gap-2">
