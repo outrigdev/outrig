@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
@@ -17,8 +18,8 @@ const (
 
 // BrowserTabInfo stores information about a browser tab
 type BrowserTabInfo struct {
-	Url      string
-	AppRunId string
+	AppRunId string `json:"apprunid"`
+	Url      string `json:"url"`
 }
 
 // Global map to store route ID to browser tab info mapping
@@ -50,6 +51,8 @@ func Initialize() {
 		log.Printf("[browsertabs] Route down event for %s", routeId)
 		RemoveBrowserTab(routeId)
 	})
+
+	outrig.WatchSync("browsertabs", &browserTabsMutex, &browserTabs)
 
 	log.Printf("[browsertabs] Subscribed to route down events")
 }

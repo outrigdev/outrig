@@ -139,7 +139,7 @@ function App() {
             });
         };
 
-        // Send the URL when the component mounts
+        // Send the URL when the component mounts or when tab/appRunId changes
         sendUrlToBackend();
 
         // Listen for popstate events (browser back/forward buttons)
@@ -160,7 +160,7 @@ function App() {
             window.removeEventListener("popstate", handlePopState);
             window.removeEventListener("hashchange", handleHashChange);
         };
-    }, [selectedAppRunId]); // Re-run when selectedAppRunId changes
+    }, [selectedAppRunId, selectedTab]); // Re-run when selectedAppRunId or selectedTab changes
 
     return (
         <div className="h-screen w-screen flex flex-col bg-panel">
