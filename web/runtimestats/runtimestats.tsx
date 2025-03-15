@@ -324,6 +324,26 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
     const totalAllocMB = stats.memstats ? (stats.memstats.totalalloc / (1024 * 1024)).toFixed(2) : "0";
     const sysMB = stats.memstats ? (stats.memstats.sys / (1024 * 1024)).toFixed(2) : "0";
 
+    // Information items that should be displayed in a more informational way
+    const infoItems = [
+        { key: "processId", label: "Process ID", value: stats.pid },
+        { key: "workingDirectory", label: "Working Directory", value: stats.cwd },
+        { key: "goMaxProcs", label: "GOMAXPROCS", value: stats.gomaxprocs },
+        { key: "cpuCores", label: "CPU Cores", value: stats.numcpu },
+        { key: "platform", label: "Platform", value: `${stats.goos}/${stats.goarch}` },
+        { key: "goVersion", label: "Go Version", value: stats.goversion },
+    ];
+
+    // Metric items that should be displayed as StatItems
+    const metricKeys = [
+        "heapMemory",
+        "cpuUsage",
+        "goroutineCount",
+        "totalMemoryAllocated",
+        "totalProcessMemory",
+        "gcCycles",
+    ];
+
     return (
         <div className="w-full h-full overflow-auto p-4">
             <div className="text-sm text-secondary mb-4">Last updated: {formattedTime}</div>
@@ -336,10 +356,26 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Render all stats using metadata */}
-                {Object.entries(runtimeStatsMetadata).map(([key, metadata]) => (
-                    <StatItem key={key} metadata={metadata} stats={stats} />
+            {/* Information panel */}
+            <div className="mb-6 p-4 border border-border rounded-md bg-panel">
+                <div className="text-sm text-secondary font-medium mb-3">Application Information</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+                    {infoItems.map((item) => (
+                        <div key={item.key} className="flex flex-col">
+                            <div className="text-xs text-secondary">{item.label}</div>
+                            <div className="text-sm text-primary font-mono truncate" title={String(item.value)}>
+                                {item.value}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Metrics grid */}
+            <div className="grid grid-cols-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Render only metric stats as StatItems */}
+                {metricKeys.map((key) => (
+                    <StatItem key={key} metadata={runtimeStatsMetadata[key]} stats={stats} />
                 ))}
             </div>
         </div>
