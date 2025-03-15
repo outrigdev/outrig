@@ -44,17 +44,7 @@ declare global {
     type AppRunRuntimeStatsData = {
         apprunid: string;
         appname: string;
-        ts: number;
-        cpuusage: number;
-        goroutinecount: number;
-        gomaxprocs: number;
-        numcpu: number;
-        goos: string;
-        goarch: string;
-        goversion: string;
-        pid: number;
-        cwd: string;
-        memstats: MemoryStatsInfo;
+        stats: RuntimeStatData[];
     };
 
     // rpctypes.AppRunUpdatesRequest
@@ -195,6 +185,21 @@ declare global {
         timeout?: number;
         noresponse?: boolean;
         route?: string;
+    };
+
+    // rpctypes.RuntimeStatData
+    type RuntimeStatData = {
+        ts: number;
+        cpuusage: number;
+        goroutinecount: number;
+        gomaxprocs: number;
+        numcpu: number;
+        goos: string;
+        goarch: string;
+        goversion: string;
+        pid: number;
+        cwd: string;
+        memstats: MemoryStatsInfo;
     };
 
     // rpctypes.SearchRequestData

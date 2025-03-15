@@ -182,9 +182,7 @@ type AppRunWatchesData struct {
 	Watches  []ds.Watch `json:"watches"`
 }
 
-type AppRunRuntimeStatsData struct {
-	AppRunId       string             `json:"apprunid"`
-	AppName        string             `json:"appname"`
+type RuntimeStatData struct {
 	Ts             int64              `json:"ts"`
 	CPUUsage       float64            `json:"cpuusage"`
 	GoRoutineCount int                `json:"goroutinecount"`
@@ -196,6 +194,12 @@ type AppRunRuntimeStatsData struct {
 	Pid            int                `json:"pid"`
 	Cwd            string             `json:"cwd"`
 	MemStats       ds.MemoryStatsInfo `json:"memstats"`
+}
+
+type AppRunRuntimeStatsData struct {
+	AppRunId string           `json:"apprunid"`
+	AppName  string           `json:"appname"`
+	Stats    []RuntimeStatData `json:"stats"`
 }
 
 type EventReadHistoryData struct {

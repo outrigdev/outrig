@@ -1,5 +1,8 @@
+// Import the LegacyRuntimeStatsData type from the model
+import { LegacyRuntimeStatsData } from "./runtimestats-model";
+
 export interface RuntimeStatMetadata {
-    statFn: (stat: AppRunRuntimeStatsData) => string | number;
+    statFn: (stat: LegacyRuntimeStatsData) => string | number;
     label: string;
     unit?: string;
     desc: string;

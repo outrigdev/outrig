@@ -204,9 +204,43 @@ func (cb *CirBuf[T]) GetLast() (T, int, bool) {
 
 	// Calculate the position of the last element
 	lastPos := (cb.Tail - 1 + len(cb.Buf)) % len(cb.Buf)
-	
+
 	// The offset is simply TotalCount - 1 (index of the last element)
 	lastOffset := cb.TotalCount - 1
-	
+
 	return cb.Buf[lastPos], lastOffset, true
+}
+
+// FilterItems returns a slice of items for which the provided filter function returns true.
+// The filter function takes the item and its absolute index (TotalCount-based) and returns a boolean.
+// This is useful for filtering items based on custom criteria, such as timestamp.
+func (cb *CirBuf[T]) FilterItems(filter func(item T, index int) bool) []T {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+
+	size := cb.size_nolock()
+	if size == 0 {
+		return []T{}
+	}
+
+	var result []T
+
+	// Calculate the absolute index of the first item in the buffer
+	firstIndex := cb.TotalCount - size
+
+	// Iterate through all items in the buffer
+	for i := 0; i < size; i++ {
+		// Calculate the position in the underlying array
+		pos := (cb.Head + i) % len(cb.Buf)
+
+		// Calculate the absolute index of this item
+		absIndex := firstIndex + i
+
+		// Apply the filter function
+		if filter(cb.Buf[pos], absIndex) {
+			result = append(result, cb.Buf[pos])
+		}
+	}
+
+	return result
 }

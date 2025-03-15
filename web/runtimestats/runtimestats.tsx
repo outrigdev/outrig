@@ -20,7 +20,7 @@ import {
     memoryChartMetadata,
     runtimeStatsMetadata,
 } from "./runtimestats-metadata";
-import { RuntimeStatsModel } from "./runtimestats-model";
+import { LegacyRuntimeStatsData, RuntimeStatsModel } from "./runtimestats-model";
 
 // Custom tooltip component for runtime stats
 interface RuntimeStatsTooltipProps {
@@ -245,7 +245,7 @@ const MemoryUsageChart: React.FC<MemoryUsageChartProps> = ({ memStats }) => {
 // Component for displaying a single stat
 interface StatItemProps {
     metadata: RuntimeStatMetadata;
-    stats: AppRunRuntimeStatsData;
+    stats: LegacyRuntimeStatsData;
 }
 
 const StatItem: React.FC<StatItemProps> = ({ metadata, stats }) => {

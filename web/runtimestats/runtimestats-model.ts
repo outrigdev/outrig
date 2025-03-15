@@ -3,12 +3,33 @@ import { DefaultRpcClient } from "@/init";
 import { RpcApi } from "@/rpc/rpcclientapi";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 
+// Create a type that combines the AppRunRuntimeStatsData with a single RuntimeStatData
+// This is for backward compatibility with the existing UI
+export type LegacyRuntimeStatsData = {
+    apprunid: string;
+    appname: string;
+    ts: number;
+    cpuusage: number;
+    goroutinecount: number;
+    gomaxprocs: number;
+    numcpu: number;
+    goos: string;
+    goarch: string;
+    goversion: string;
+    pid: number;
+    cwd: string;
+    memstats: MemoryStatsInfo;
+};
+
 class RuntimeStatsModel {
     widgetId: string;
     appRunId: string;
-    runtimeStats: PrimitiveAtom<AppRunRuntimeStatsData | null> = atom<AppRunRuntimeStatsData | null>(
-        null
-    ) as PrimitiveAtom<AppRunRuntimeStatsData | null>;
+    // Store all runtime stats
+    allRuntimeStats: PrimitiveAtom<RuntimeStatData[]> = atom<RuntimeStatData[]>([]) as PrimitiveAtom<RuntimeStatData[]>;
+    // Store the latest timestamp we've seen
+    latestTimestamp: PrimitiveAtom<number> = atom<number>(0) as PrimitiveAtom<number>;
+    // For backward compatibility with the UI, we'll keep a single stats object
+    runtimeStats: PrimitiveAtom<LegacyRuntimeStatsData | null> = atom<LegacyRuntimeStatsData | null>(null) as PrimitiveAtom<LegacyRuntimeStatsData | null>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
@@ -67,15 +88,66 @@ class RuntimeStatsModel {
     // Fetch runtime stats from the backend
     async fetchRuntimeStats(): Promise<AppRunRuntimeStatsData | null> {
         try {
-            // Call the RPC API to get runtime stats
-            const result = await RpcApi.GetAppRunRuntimeStatsCommand(DefaultRpcClient, { apprunid: this.appRunId });
+            const store = getDefaultStore();
+            const sinceTs = store.get(this.latestTimestamp);
             
-            // Return the result directly since it's already in the correct format
+            // Call the RPC API to get runtime stats with the latest timestamp
+            const result = await RpcApi.GetAppRunRuntimeStatsCommand(DefaultRpcClient, { 
+                apprunid: this.appRunId,
+                since: sinceTs 
+            });
+            
             return result;
         } catch (error) {
             console.error(`Failed to load runtime stats for app run ${this.appRunId}:`, error);
             return null;
         }
+    }
+
+    // Update the latest timestamp based on the stats we received
+    private updateLatestTimestamp(stats: RuntimeStatData[]) {
+        if (stats.length === 0) return;
+        
+        const store = getDefaultStore();
+        const currentLatestTs = store.get(this.latestTimestamp);
+        
+        // Find the maximum timestamp in the new stats
+        const maxTs = Math.max(...stats.map(stat => stat.ts));
+        
+        // Update the latest timestamp if the new max is greater
+        if (maxTs > currentLatestTs) {
+            store.set(this.latestTimestamp, maxTs);
+        }
+    }
+
+    // Update the legacy runtime stats object for backward compatibility with the UI
+    private updateLegacyRuntimeStats(appRunId: string, appName: string, stats: RuntimeStatData[]) {
+        if (stats.length === 0) return;
+        
+        const store = getDefaultStore();
+        
+        // Use the most recent stat for the legacy object
+        const latestStat = stats[stats.length - 1];
+        
+        // Create a legacy-format object from the latest stat
+        const legacyStats: LegacyRuntimeStatsData = {
+            apprunid: appRunId,
+            appname: appName,
+            ts: latestStat.ts,
+            cpuusage: latestStat.cpuusage,
+            goroutinecount: latestStat.goroutinecount,
+            gomaxprocs: latestStat.gomaxprocs,
+            numcpu: latestStat.numcpu,
+            goos: latestStat.goos,
+            goarch: latestStat.goarch,
+            goversion: latestStat.goversion,
+            pid: latestStat.pid,
+            cwd: latestStat.cwd,
+            memstats: latestStat.memstats
+        };
+        
+        // Update the legacy stats atom
+        store.set(this.runtimeStats, legacyStats);
     }
 
     // Refresh runtime stats with a minimum time to show the refreshing state
@@ -92,10 +164,24 @@ class RuntimeStatsModel {
 
         try {
             // Fetch new stats
-            const stats = await this.fetchRuntimeStats();
+            const result = await this.fetchRuntimeStats();
 
-            // Update the atom with the new stats
-            store.set(this.runtimeStats, stats);
+            if (result && result.stats.length > 0) {
+                // Get current stats
+                const currentStats = store.get(this.allRuntimeStats);
+                
+                // Append new stats
+                const updatedStats = [...currentStats, ...result.stats];
+                
+                // Update all stats atom
+                store.set(this.allRuntimeStats, updatedStats);
+                
+                // Update the latest timestamp
+                this.updateLatestTimestamp(result.stats);
+                
+                // Update the legacy stats object for backward compatibility
+                this.updateLegacyRuntimeStats(result.apprunid, result.appname, result.stats);
+            }
         } finally {
             // Set refreshing state to false
             store.set(this.isRefreshing, false);
@@ -119,9 +205,24 @@ class RuntimeStatsModel {
         }
 
         try {
-            const stats = await this.fetchRuntimeStats();
-            if (stats) {
-                getDefaultStore().set(this.runtimeStats, stats);
+            // Fetch new stats
+            const result = await this.fetchRuntimeStats();
+
+            if (result && result.stats.length > 0) {
+                // Get current stats
+                const currentStats = store.get(this.allRuntimeStats);
+                
+                // Append new stats
+                const updatedStats = [...currentStats, ...result.stats];
+                
+                // Update all stats atom
+                store.set(this.allRuntimeStats, updatedStats);
+                
+                // Update the latest timestamp
+                this.updateLatestTimestamp(result.stats);
+                
+                // Update the legacy stats object for backward compatibility
+                this.updateLegacyRuntimeStats(result.apprunid, result.appname, result.stats);
             }
         } catch (error) {
             console.error(`Failed to auto-refresh runtime stats for app run ${this.appRunId}:`, error);
