@@ -2,10 +2,6 @@ import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { useOutrigModel } from "@/util/hooks";
 import { cn } from "@/util/util";
-import { useAtomValue } from "jotai";
-import React, { useState, useRef, useEffect } from "react";
-import { RuntimeStatsModel } from "./runtimestats-model";
-import { memoryChartMetadata, runtimeStatsMetadata, RuntimeStatMetadata, getDetailedOtherMemoryBreakdown } from "./runtimestats-metadata";
 import {
     FloatingPortal,
     autoUpdate,
@@ -16,6 +12,15 @@ import {
     useHover,
     useInteractions,
 } from "@floating-ui/react";
+import { useAtomValue } from "jotai";
+import React, { useEffect, useRef, useState } from "react";
+import {
+    RuntimeStatMetadata,
+    getDetailedOtherMemoryBreakdown,
+    memoryChartMetadata,
+    runtimeStatsMetadata,
+} from "./runtimestats-metadata";
+import { RuntimeStatsModel } from "./runtimestats-model";
 
 // Custom tooltip component for runtime stats
 interface RuntimeStatsTooltipProps {
@@ -25,11 +30,11 @@ interface RuntimeStatsTooltipProps {
     className?: string;
 }
 
-const RuntimeStatsTooltip: React.FC<RuntimeStatsTooltipProps> = ({ 
-    children, 
-    content, 
+const RuntimeStatsTooltip: React.FC<RuntimeStatsTooltipProps> = ({
+    children,
+    content,
     placement = "top",
-    className = "" 
+    className = "",
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
@@ -114,27 +119,31 @@ interface MemoryUsageChartProps {
 
 const MemoryUsageChart: React.FC<MemoryUsageChartProps> = ({ memStats }) => {
     // Calculate values and percentages using metadata
-    const segments = memoryChartMetadata.map(segment => ({
+    const segments = memoryChartMetadata.map((segment) => ({
         id: segment.id,
         label: segment.label,
         color: segment.color,
         valueMB: segment.valueFn(memStats).toFixed(2),
         percent: segment.percentFn(memStats),
-        desc: segment.desc
+        desc: segment.desc,
     }));
-    
+
     // Create tooltip content for each segment
-    const createTooltipContent = (segment: typeof segments[0]) => (
+    const createTooltipContent = (segment: (typeof segments)[0]) => (
         <div>
             <div className="font-medium mb-1">{segment.label}</div>
-            <div className="text-secondary mb-2">{segment.valueMB} MB ({segment.percent.toFixed(1)}% of total)</div>
+            <div className="text-secondary mb-2">
+                {segment.valueMB} MB ({segment.percent.toFixed(1)}% of total)
+            </div>
             <div className="text-xs">
                 {segment.desc}
-                {segment.id === 'other' && (
+                {segment.id === "other" && (
                     <div className="mt-1">
-                        {getDetailedOtherMemoryBreakdown(memStats).split('\n').map((line, i) => (
-                            <div key={i}>{line}</div>
-                        ))}
+                        {getDetailedOtherMemoryBreakdown(memStats)
+                            .split("\n")
+                            .map((line, i) => (
+                                <div key={i}>{line}</div>
+                            ))}
                     </div>
                 )}
             </div>
@@ -143,93 +152,85 @@ const MemoryUsageChart: React.FC<MemoryUsageChartProps> = ({ memStats }) => {
 
     // State to track which segment is being hovered
     const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
-    const [tooltipOpen, setTooltipOpen] = useState(false);
-    const chartRef = useRef<HTMLDivElement>(null);
-    const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-    const [tooltipContent, setTooltipContent] = useState<React.ReactNode>(null);
+    const [open, setOpen] = useState(false);
 
-    // Handle mouse movement over the chart
-    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!chartRef.current) return;
-        
-        const rect = chartRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left; // x position within the element
-        const totalWidth = rect.width;
-        const relativePosition = x / totalWidth;
-        
-        // Calculate cumulative percentages for determining which segment is hovered
-        let cumulativePercent = 0;
-        let newHoveredSegment: string | null = null;
-        let content: React.ReactNode = null;
-        
-        for (const segment of segments) {
-            const segmentEnd = cumulativePercent + (segment.percent / 100);
-            
-            if (relativePosition <= segmentEnd) {
-                newHoveredSegment = segment.id;
-                content = createTooltipContent(segment);
-                break;
-            }
-            
-            cumulativePercent = segmentEnd;
-        }
-        
-        if (newHoveredSegment !== hoveredSegment) {
-            setHoveredSegment(newHoveredSegment);
-            setTooltipContent(content);
-        }
-        
-        // Position tooltip near the cursor
-        setTooltipPosition({ 
-            x: e.clientX, 
-            y: e.clientY - 10 // Offset slightly above cursor
-        });
+    // References for the chart and hovered segment
+    const chartRef = useRef<HTMLDivElement>(null);
+    const segmentRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+    // Set up floating UI
+    const { refs, floatingStyles, context } = useFloating({
+        open,
+        onOpenChange: setOpen,
+        placement: "bottom",
+        middleware: [offset(10), flip(), shift()],
+        whileElementsMounted: autoUpdate,
+    });
+
+    // Set up hover interaction
+    const hover = useHover(context);
+    const { getFloatingProps } = useInteractions([hover]);
+
+    // Handle segment hover
+    const handleSegmentHover = (segmentId: string, element: HTMLDivElement) => {
+        setHoveredSegment(segmentId);
+        setOpen(true);
+        refs.setReference(element);
+    };
+
+    // Handle mouse leave
+    const handleMouseLeave = () => {
+        setHoveredSegment(null);
+        setOpen(false);
     };
 
     return (
         <div>
-            <div 
+            <div
                 className="relative flex h-6 w-full rounded-md overflow-hidden mb-2"
                 ref={chartRef}
-                onMouseMove={handleMouseMove}
-                onMouseEnter={() => setTooltipOpen(true)}
-                onMouseLeave={() => {
-                    setTooltipOpen(false);
-                    setHoveredSegment(null);
-                }}
+                onMouseLeave={handleMouseLeave}
             >
-                {segments.map(segment => (
-                    <div 
+                {segments.map((segment) => (
+                    <div
                         key={segment.id}
-                        className={`${segment.color} h-full cursor-pointer`} 
-                        style={{ width: `${segment.percent}%` }} 
+                        ref={(el) => {
+                            if (el) {
+                                segmentRefs.current[segment.id] = el;
+                            }
+                        }}
+                        className={`${segment.color} h-full cursor-pointer`}
+                        style={{ width: `${segment.percent}%` }}
+                        onMouseEnter={() => {
+                            const element = segmentRefs.current[segment.id];
+                            if (element) {
+                                handleSegmentHover(segment.id, element);
+                            }
+                        }}
                     />
                 ))}
-                
-                {tooltipOpen && hoveredSegment && (
+
+                {open && hoveredSegment && (
                     <FloatingPortal>
-                        <div 
-                            className="fixed z-50 bg-panel border border-border rounded-md px-3 py-2 text-sm text-primary shadow-md max-w-xs"
-                            style={{
-                                left: `${tooltipPosition.x}px`,
-                                top: `${tooltipPosition.y - 100}px`, // Position well above the cursor
-                                transform: 'translateX(-50%)',
-                                opacity: 1,
-                                pointerEvents: 'none', // Prevent the tooltip from interfering with mouse events
-                                width: '250px',
-                            }}
+                        <div
+                            ref={refs.setFloating}
+                            style={floatingStyles}
+                            {...getFloatingProps()}
+                            className="bg-panel border border-border rounded-md px-3 py-2 text-sm text-primary shadow-md z-50 max-w-xs"
                         >
-                            {tooltipContent}
+                            {createTooltipContent(segments.find((s) => s.id === hoveredSegment)!)}
                         </div>
                     </FloatingPortal>
                 )}
             </div>
             <div className="flex flex-wrap text-xs gap-3 mb-2">
-                {segments.map(segment => (
+                {segments.map((segment) => (
                     <RuntimeStatsTooltip key={segment.id} content={createTooltipContent(segment)}>
                         <div className="flex items-center cursor-pointer">
                             <div className={`w-3 h-3 ${segment.color} mr-1 rounded-sm`}></div>
-                            <span className="text-primary">{segment.label}: {segment.valueMB} MB</span>
+                            <span className="text-primary">
+                                {segment.label}: {segment.valueMB} MB
+                            </span>
                         </div>
                     </RuntimeStatsTooltip>
                 ))}
@@ -249,14 +250,14 @@ interface StatItemProps {
 
 const StatItem: React.FC<StatItemProps> = ({ metadata, stats }) => {
     const value = metadata.statFn(stats);
-    
+
     const tooltipContent = (
         <div>
             <div className="font-medium mb-1">{metadata.label}</div>
             <div className="text-xs">{metadata.desc}</div>
         </div>
     );
-    
+
     const content = (
         <div className="mb-4 p-4 border border-border rounded-md bg-panel">
             <div className="text-sm text-secondary mb-1">{metadata.label}</div>
@@ -267,11 +268,7 @@ const StatItem: React.FC<StatItemProps> = ({ metadata, stats }) => {
         </div>
     );
 
-    return (
-        <RuntimeStatsTooltip content={tooltipContent}>
-            {content}
-        </RuntimeStatsTooltip>
-    );
+    return <RuntimeStatsTooltip content={tooltipContent}>{content}</RuntimeStatsTooltip>;
 };
 
 // Header component with refresh button
@@ -342,11 +339,7 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Render all stats using metadata */}
                 {Object.entries(runtimeStatsMetadata).map(([key, metadata]) => (
-                    <StatItem 
-                        key={key}
-                        metadata={metadata}
-                        stats={stats}
-                    />
+                    <StatItem key={key} metadata={metadata} stats={stats} />
                 ))}
             </div>
         </div>
