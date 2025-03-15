@@ -1,9 +1,10 @@
 import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
+import { Tooltip } from "@/elements/tooltip";
 import { useOutrigModel } from "@/util/hooks";
 import { cn } from "@/util/util";
 import { useAtom, useAtomValue } from "jotai";
-import { Filter } from "lucide-react";
+import { Filter, Layers } from "lucide-react";
 import React, { useRef, useState } from "react";
 import { Tag } from "../elements/tag";
 import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
@@ -73,6 +74,7 @@ const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }
 
 const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     const linkType = useAtomValue(model.showCodeLinks);
+    const simpleMode = useAtomValue(model.simpleStacktraceMode);
     
     if (!goroutine) {
         return null;
@@ -128,6 +130,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
     const [showAll, setShowAll] = useAtom(model.showAll);
     const [selectedStates, setSelectedStates] = useAtom(model.selectedStates);
+    const [simpleMode, setSimpleMode] = useAtom(model.simpleStacktraceMode);
     const availableStates = useAtomValue(model.availableStates);
     const searchRef = useRef<HTMLInputElement>(null);
     const isRefreshing = useAtomValue(model.isRefreshing);
@@ -165,12 +168,28 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                                     border-none ring-0 outline-none focus:outline-none focus:ring-0"
                         />
                     </div>
-                    <RefreshButton
-                        isRefreshingAtom={model.isRefreshing}
-                        onRefresh={() => model.refresh()}
-                        tooltipContent="Refresh goroutines"
-                        size={16}
-                    />
+                    <div className="flex items-center gap-2">
+                        <Tooltip content={simpleMode ? "Simple Stacktrace Mode On (Click to Disable)" : "Simple Stacktrace Mode Off (Click to Enable)"}>
+                            <button
+                                onClick={() => setSimpleMode(!simpleMode)}
+                                className={cn(
+                                    "p-1 mr-1 rounded cursor-pointer transition-colors",
+                                    simpleMode
+                                        ? "bg-primary/20 text-primary hover:bg-primary/30"
+                                        : "text-muted hover:bg-buttonhover hover:text-primary"
+                                )}
+                                aria-pressed={simpleMode}
+                            >
+                                <Layers size={16} />
+                            </button>
+                        </Tooltip>
+                        <RefreshButton
+                            isRefreshingAtom={model.isRefreshing}
+                            onRefresh={() => model.refresh()}
+                            tooltipContent="Refresh goroutines"
+                            size={16}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -191,6 +210,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                     ))}
                 </div>
             </div>
+            
         </>
     );
 };
