@@ -1,29 +1,119 @@
+import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { useOutrigModel } from "@/util/hooks";
+import { cn } from "@/util/util";
 import { useAtom, useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Tag } from "../elements/tag";
-import { GoRoutinesModel } from "./goroutines-model";
+import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
 
 // Individual goroutine view component
 interface GoroutineViewProps {
     goroutine: GoroutineData;
+    model: GoRoutinesModel;
 }
 
-const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine }) => {
+// Component for a single stacktrace line with optional VSCode link
+interface StacktraceLineProps {
+    line: string;
+    model: GoRoutinesModel;
+    linkType: CodeLinkType;
+}
+
+const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }) => {
+    // Only process lines that might contain file paths
+    if (!line.includes(".go:")) {
+        return <div>{line}</div>;
+    }
+    
+    const parsedLine = model.parseStacktraceLine(line);
+    if (!parsedLine || linkType == null) {
+        return <div>{line}</div>;
+    }
+    
+    const { filePath, lineNumber } = parsedLine;
+    const link = model.generateCodeLink(filePath, lineNumber, linkType);
+    
+    if (!link) {
+        return <div>{line}</div>;
+    }
+    
+    // Find the file:line part in the text to make it clickable
+    const fileLinePattern = new RegExp(`(${filePath.replace(/\//g, "\\/")}:${lineNumber})`);
+    const parts = line.split(fileLinePattern);
+    
+    if (parts.length === 1) {
+        // Pattern not found, return the line as is
+        return <div>{line}</div>;
+    }
+    
+    return (
+        <div>
+            {parts.map((part, index) => {
+                // If this part matches the file:line pattern, make it a link
+                if (part === `${filePath}:${lineNumber}`) {
+                    return (
+                        <a 
+                            key={index}
+                            href={link}
+                            className="group cursor-pointer"
+                        >
+                            <span className="group-hover:text-blue-500 group-hover:underline transition-colors duration-150">
+                                {part}
+                            </span>
+                        </a>
+                    );
+                }
+                return <span key={index}>{part}</span>;
+            })}
+        </div>
+    );
+};
+
+const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
+    const linkType = useAtomValue(model.showCodeLinks);
+    
     if (!goroutine) {
         return null;
     }
+    
+    // Split the stacktrace into lines
+    const stacktraceLines = goroutine.stacktrace.split('\n');
+
+    const copyStackTrace = async () => {
+        try {
+            await navigator.clipboard.writeText(goroutine.stacktrace);
+            return Promise.resolve();
+        } catch (error) {
+            console.error("Failed to copy stack trace:", error);
+            return Promise.reject(error);
+        }
+    };
 
     return (
-        <div className="mb-4 p-3 border border-border rounded-md hover:bg-buttonhover">
+        <div className="mb-4 p-3 border border-border rounded-md">
             <div className="flex justify-between items-center mb-2">
-                <div className="font-semibold text-primary">Goroutine {goroutine.goid}</div>
+                <div className="flex items-center gap-2">
+                    <div className="font-semibold text-primary">Goroutine {goroutine.goid}</div>
+                    <CopyButton 
+                        onCopy={copyStackTrace} 
+                        tooltipText="Copy stack trace" 
+                        successTooltipText="Stack trace copied!"
+                        size={14}
+                    />
+                </div>
                 <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">{goroutine.state}</div>
             </div>
             <pre className="text-xs text-primary overflow-auto whitespace-pre-wrap bg-panel p-2 rounded max-h-60">
-                {goroutine.stacktrace}
+                {stacktraceLines.map((line, index) => (
+                    <StacktraceLine 
+                        key={index} 
+                        line={line} 
+                        model={model} 
+                        linkType={linkType} 
+                    />
+                ))}
             </pre>
         </div>
     );
@@ -132,7 +222,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
                 <div>
                     <div className="mb-2 text-sm text-secondary">{filteredGoroutines.length} goroutines</div>
                     {filteredGoroutines.map((goroutine) => (
-                        <GoroutineView key={goroutine.goid} goroutine={goroutine} />
+                        <GoroutineView key={goroutine.goid} goroutine={goroutine} model={model} />
                     ))}
                 </div>
             )}
