@@ -197,12 +197,9 @@ func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
 
 	// Parse stack frames
 	for _, frame := range preprocessed.StackFrames {
-		if frame.FileLine != "" {
-			if parsedFrame, ok := parseFrame(frame.FuncLine, frame.FileLine); ok {
-				routine.ParsedFrames = append(routine.ParsedFrames, parsedFrame)
-			}
+		if parsedFrame, ok := parseFrame(frame.FuncLine, frame.FileLine); ok {
+			routine.ParsedFrames = append(routine.ParsedFrames, parsedFrame)
 		}
-		// Skip frames that don't have a file line
 	}
 
 	// Parse created by information
@@ -286,15 +283,15 @@ func parseFrame(funcLine, fileLine string) (Frame, bool) {
 	}
 
 	// Parse file line
-	filePath, lineNumber, pcOffset, ok := parseFileLine(fileLine)
-	if !ok {
-		return frame, false
+	if fileLine != "" {
+		filePath, lineNumber, pcOffset, ok := parseFileLine(fileLine)
+		if !ok {
+			return frame, false
+		}
+		frame.FilePath = filePath
+		frame.LineNumber = lineNumber
+		frame.PCOffset = pcOffset
 	}
-
-	frame.FilePath = filePath
-	frame.LineNumber = lineNumber
-	frame.PCOffset = pcOffset
-
 	return frame, true
 }
 
@@ -346,7 +343,7 @@ func parseStateComponents(rawState string) (string, int64, []string) {
 
 	// The first component is always the primary state
 	primaryState := strings.TrimSpace(components[0])
-	
+
 	// Initialize variables for additional components
 	var stateDurationMs int64
 	var extraStates []string
