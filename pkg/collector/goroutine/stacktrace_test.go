@@ -171,17 +171,19 @@ func TestParseFrame(t *testing.T) {
 	}
 }
 
+
 func TestParseGoRoutineStackTrace(t *testing.T) {
 	tests := []struct {
-		name                 string
-		input                string
-		expectedCount        int
-		expectedGoId         int64
-		expectedPrimaryState string
-		expectedFrames       int
-		hasCreatedBy         bool
-		expectedDurationMs   int64    // Expected duration in milliseconds
-		expectedExtraStates  []string // Expected extra states
+		name                  string
+		input                 string
+		expectedCount         int
+		expectedGoId          int64
+		expectedPrimaryState  string
+		expectedFrames        int
+		hasCreatedBy          bool
+		expectedDurationMs    int64    // Expected duration in milliseconds
+		expectedExtraStates   []string // Expected extra states
+		expectedCreatedByGoId int64    // Expected goroutine ID that created this one
 	}{
 		{
 			name: "IO wait goroutine",
@@ -202,13 +204,14 @@ github.com/outrigdev/outrig/pkg/collector/logprocess.(*DupWrap).Run(0x1400014670
 	/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl-posix.go:110 +0x64
 created by github.com/outrigdev/outrig/pkg/collector/logprocess.(*LogCollector).initInternal in goroutine 1
 	/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl.go:69 +0x3dc`,
-			expectedCount:        1,
-			expectedGoId:         38,
-			expectedPrimaryState: "IO wait",
-			expectedFrames:       15, // Actual number of frame lines parsed
-			hasCreatedBy:         true,
-			expectedDurationMs:   0,   // No duration
-			expectedExtraStates:  nil, // No extra states
+			expectedCount:         1,
+			expectedGoId:          38,
+			expectedPrimaryState:  "IO wait",
+			expectedFrames:        14, // Actual number of frame lines parsed (excluding the created by file line)
+			hasCreatedBy:          true,
+			expectedDurationMs:    0,   // No duration
+			expectedExtraStates:   nil, // No extra states
+			expectedCreatedByGoId: 1,   // Created by goroutine 1
 		},
 		{
 			name: "chan receive goroutine with duration",
@@ -219,52 +222,56 @@ github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute.func2()
 	/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:326 +0x14c
 created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in goroutine 327
 	/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:315 +0x3cc`,
-			expectedCount:        1,
-			expectedGoId:         338,
-			expectedPrimaryState: "chan receive",
-			expectedFrames:       5, // Actual number of frame lines parsed
-			hasCreatedBy:         true,
-			expectedDurationMs:   101 * 60 * 1000, // 101 minutes in milliseconds
-			expectedExtraStates:  nil,             // No extra states besides duration
+			expectedCount:         1,
+			expectedGoId:          338,
+			expectedPrimaryState:  "chan receive",
+			expectedFrames:        4, // Actual number of frame lines parsed (excluding the created by file line)
+			hasCreatedBy:          true,
+			expectedDurationMs:    101 * 60 * 1000, // 101 minutes in milliseconds
+			expectedExtraStates:   nil,             // No extra states besides duration
+			expectedCreatedByGoId: 327,             // Created by goroutine 327
 		},
 		{
 			name: "goroutine 1 with no created by",
 			input: `goroutine 1 [chan receive, 105 minutes]:
 main.main()
 	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
-			expectedCount:        1,
-			expectedGoId:         1,
-			expectedPrimaryState: "chan receive",
-			expectedFrames:       2, // 1 frame * 2 lines
-			hasCreatedBy:         false,
-			expectedDurationMs:   105 * 60 * 1000, // 105 minutes in milliseconds
-			expectedExtraStates:  nil,             // No extra states besides duration
+			expectedCount:         1,
+			expectedGoId:          1,
+			expectedPrimaryState:  "chan receive",
+			expectedFrames:        2, // 1 frame * 2 lines
+			hasCreatedBy:          false,
+			expectedDurationMs:    105 * 60 * 1000, // 105 minutes in milliseconds
+			expectedExtraStates:   nil,             // No extra states besides duration
+			expectedCreatedByGoId: 0,               // No creator goroutine
 		},
 		{
 			name: "goroutine with multiple extra states",
 			input: `goroutine 42 [chan receive, 3 minutes, locked to thread]:
 main.main()
 	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
-			expectedCount:        1,
-			expectedGoId:         42,
-			expectedPrimaryState: "chan receive",
-			expectedFrames:       2, // 1 frame * 2 lines
-			hasCreatedBy:         false,
-			expectedDurationMs:   3 * 60 * 1000,                // 3 minutes in milliseconds
-			expectedExtraStates:  []string{"locked to thread"}, // Extra state
+			expectedCount:         1,
+			expectedGoId:          42,
+			expectedPrimaryState:  "chan receive",
+			expectedFrames:        2, // 1 frame * 2 lines
+			hasCreatedBy:          false,
+			expectedDurationMs:    3 * 60 * 1000,                // 3 minutes in milliseconds
+			expectedExtraStates:   []string{"locked to thread"}, // Extra state
+			expectedCreatedByGoId: 0,                            // No creator goroutine
 		},
 		{
 			name: "goroutine with lock info",
 			input: `goroutine 55 [semacquire, 2 minutes]:
 main.main()
 	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
-			expectedCount:        1,
-			expectedGoId:         55,
-			expectedPrimaryState: "semacquire",
-			expectedFrames:       2, // 1 frame * 2 lines
-			hasCreatedBy:         false,
-			expectedDurationMs:   2 * 60 * 1000, // 2 minutes in milliseconds
-			expectedExtraStates:  nil,           // No extra states besides duration
+			expectedCount:         1,
+			expectedGoId:          55,
+			expectedPrimaryState:  "semacquire",
+			expectedFrames:        2, // 1 frame * 2 lines
+			hasCreatedBy:          false,
+			expectedDurationMs:    2 * 60 * 1000, // 2 minutes in milliseconds
+			expectedExtraStates:   nil,           // No extra states besides duration
+			expectedCreatedByGoId: 0,             // No creator goroutine
 		},
 	}
 
@@ -324,6 +331,41 @@ main.main()
 
 			if !tt.hasCreatedBy && routine.CreatedBy != "" {
 				t.Errorf("Expected CreatedBy to be empty, but got %q", routine.CreatedBy)
+			}
+			
+			// Check CreatedByGoId
+			if routine.CreatedByGoId != tt.expectedCreatedByGoId {
+				t.Errorf("Expected CreatedByGoId %d, got %d", tt.expectedCreatedByGoId, routine.CreatedByGoId)
+			}
+			
+			// Check CreatedByFrame if we expect a created by line
+			if tt.hasCreatedBy {
+				if routine.CreatedByFrame == nil {
+					t.Errorf("Expected CreatedByFrame to be set, but it was nil")
+				} else {
+					// Verify that the frame has some basic information
+					if routine.CreatedByFrame.Package == "" {
+						t.Errorf("Expected CreatedByFrame.Package to be set, but it was empty")
+					}
+					if routine.CreatedByFrame.FuncName == "" {
+						t.Errorf("Expected CreatedByFrame.FuncName to be set, but it was empty")
+					}
+					// For the first test case, verify the file path and line number
+					if tt.name == "IO wait goroutine" {
+						expectedPath := "/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl.go"
+						if routine.CreatedByFrame.FilePath != expectedPath {
+							t.Errorf("Expected CreatedByFrame.FilePath %q, got %q", expectedPath, routine.CreatedByFrame.FilePath)
+						}
+						expectedLine := 69
+						if routine.CreatedByFrame.LineNumber != expectedLine {
+							t.Errorf("Expected CreatedByFrame.LineNumber %d, got %d", expectedLine, routine.CreatedByFrame.LineNumber)
+						}
+					}
+				}
+			} else {
+				if routine.CreatedByFrame != nil {
+					t.Errorf("Expected CreatedByFrame to be nil, but it was set")
+				}
 			}
 		})
 	}
