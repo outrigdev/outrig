@@ -1,7 +1,6 @@
 package goroutine
 
 import (
-	"bufio"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,31 +28,40 @@ type Frame struct {
 
 // ParsedGoRoutine represents a parsed goroutine stack trace
 type ParsedGoRoutine struct {
-	GoId           int64
-	RawState       string   // The complete state information
-	PrimaryState   string   // The first part of the state (before any commas)
-	DurationMs     int64    // Duration in milliseconds (if available)
-	ExtraStates    []string // Array of additional state information
-	ParsedFrames   []Frame  // Structured frame information
-	CreatedBy      string   // Raw "created by" line
-	CreatedByGoId  int64    // ID of the goroutine that created this one
-	CreatedByFrame *Frame   // Frame information for the creation point
+	GoId            int64
+	RawState        string   // The complete state information
+	PrimaryState    string   // The first part of the state (before any commas)
+	StateDurationMs int64    // Duration of state in milliseconds (if available)
+	ExtraStates     []string // Array of additional state information
+	ParsedFrames    []Frame  // Structured frame information
+	CreatedByGoId   int64    // ID of the goroutine that created this one
+	CreatedByFrame  *Frame   // Frame information for the creation point
 }
 
 // ParseGoRoutineStackTrace parses a Go routine stack trace string into a struct
 func ParseGoRoutineStackTrace(stackTrace string) ([]ParsedGoRoutine, error) {
 	var result []ParsedGoRoutine
 
-	// Process the stack trace line by line
-	scanner := bufio.NewScanner(strings.NewReader(stackTrace))
+	// Split the stack trace into lines and trim each line
+	lines := strings.Split(stackTrace, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimSpace(lines[i])
+	}
 
 	var currentRoutine *ParsedGoRoutine
 	var currentFrame []string
+	var lineIndex int
 
 	headerRegex := regexp.MustCompile(`^goroutine\s+(\d+)\s+\[(.*)\]:$`)
 
-	for scanner.Scan() {
-		line := scanner.Text()
+	for lineIndex < len(lines) {
+		line := lines[lineIndex]
+		lineIndex++
+
+		// Skip empty lines
+		if line == "" {
+			continue
+		}
 
 		// Check if this is a goroutine header line
 		if match := headerRegex.FindStringSubmatch(line); match != nil {
@@ -94,58 +102,11 @@ func ParseGoRoutineStackTrace(stackTrace string) ([]ParsedGoRoutine, error) {
 			continue
 		}
 
-		// Process the line
-		line = strings.TrimSpace(line)
-
-		if line == "" {
-			continue
-		}
-
 		// Check if this is a "created by" line
 		if strings.HasPrefix(line, "created by ") {
-			currentRoutine.CreatedBy = line
-			
-			// Extract the goroutine ID
-			goIdRegex := regexp.MustCompile(`in goroutine (\d+)`)
-			if match := goIdRegex.FindStringSubmatch(line); match != nil {
-				if goId, err := strconv.ParseInt(match[1], 10, 64); err == nil {
-					currentRoutine.CreatedByGoId = goId
-				}
-			}
-			
-			// Extract the function name from the "created by" line
-			// Format: "created by package.function in goroutine X"
-			funcNameRegex := regexp.MustCompile(`created by (.+) in goroutine`)
-			var funcName string
-			if match := funcNameRegex.FindStringSubmatch(line); match != nil {
-				funcName = match[1]
-			} else {
-				// If we can't extract with the regex, just take everything after "created by "
-				funcName = strings.TrimPrefix(line, "created by ")
-				// Remove " in goroutine X" if present
-				if idx := strings.Index(funcName, " in goroutine "); idx > 0 {
-					funcName = funcName[:idx]
-				}
-			}
-			
-			// The next line might be the file location for the created by frame
-			if scanner.Scan() {
-				fileLine := scanner.Text()
-				fileLine = strings.TrimSpace(fileLine)
-				
-				// If this looks like a file line, parse it as part of the created by frame
-				if strings.Contains(fileLine, ".go:") {
-					// Use the existing parseFrame function to parse the created by frame
-					if frame, ok := parseFrame(funcName, fileLine); ok {
-						currentRoutine.CreatedByFrame = &frame
-					}
-				} else {
-					// If it's not a file line, we need to process it as a normal line
-					// by putting it back into processing
-					currentFrame = append(currentFrame, fileLine)
-				}
-			}
-			
+			var nextLineIndex int
+			currentFrame, nextLineIndex = parseCreatedBy(line, lines, lineIndex, currentRoutine, currentFrame)
+			lineIndex = nextLineIndex
 			continue
 		}
 
@@ -185,26 +146,26 @@ func parseFrame(funcLine, fileLine string) (Frame, bool) {
 		FuncLine: funcLine,
 		FileLine: fileLine,
 	}
-	
+
 	// Use regular expressions to parse the function line
 	// We need to handle several cases:
 	// 1. Method with pointer receiver: internal/poll.(*FD).Read(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})
 	// 2. Method with value receiver: time.Time.Add(0x140003801e0, 0x140003ae723)
 	// 3. Function without receiver: runtime.doInit(0x12f7be0)
-	
+
 	// Pattern for method with pointer receiver: package.(*Type).Method(args)
 	// The args part is optional for "created by" lines
 	pointerReceiverRegex := regexp.MustCompile(`^(.+)\.(\(\*[^)]+\))\.([^(]+)(\(.+)?$`)
-	
+
 	// Pattern for method with value receiver: package.Type.Method(args)
 	// The args part is optional for "created by" lines
 	valueReceiverRegex := regexp.MustCompile(`^(.+)\.([^.(]+)\.([^(]+)(\(.+)?$`)
-	
+
 	// Pattern for function without receiver: package.Function(args)
 	// The args part is optional for "created by" lines
 	// This needs to handle package names with dots (e.g., github.com/outrigdev/outrig/pkg/collector/logprocess.initLogger)
 	functionRegex := regexp.MustCompile(`^((?:[^.]+(?:\.[^.]+)*(?:/[^.]+)*)+)\.([^.(]+)(\(.+)?$`)
-	
+
 	// Try to match with pointer receiver pattern first
 	if match := pointerReceiverRegex.FindStringSubmatch(funcLine); match != nil {
 		frame.Package = match[1]
@@ -246,6 +207,54 @@ func parseFrame(funcLine, fileLine string) (Frame, bool) {
 	return frame, true
 }
 
+// parseCreatedBy parses the "created by" information in a goroutine stack trace
+// It extracts the goroutine ID that created the current goroutine and the function/file information
+// Returns the updated currentFrame slice and the next line index to process
+func parseCreatedBy(line string, lines []string, lineIndex int, currentRoutine *ParsedGoRoutine, currentFrame []string) ([]string, int) {
+	// Extract the goroutine ID
+	goIdRegex := regexp.MustCompile(`in goroutine (\d+)`)
+	if match := goIdRegex.FindStringSubmatch(line); match != nil {
+		if goId, err := strconv.ParseInt(match[1], 10, 64); err == nil {
+			currentRoutine.CreatedByGoId = goId
+		}
+	}
+
+	// Extract the function name from the "created by" line
+	// Format: "created by package.function in goroutine X"
+	funcNameRegex := regexp.MustCompile(`created by (.+) in goroutine`)
+	var funcName string
+	if match := funcNameRegex.FindStringSubmatch(line); match != nil {
+		funcName = match[1]
+	} else {
+		// If we can't extract with the regex, just take everything after "created by "
+		funcName = strings.TrimPrefix(line, "created by ")
+		// Remove " in goroutine X" if present
+		if idx := strings.Index(funcName, " in goroutine "); idx > 0 {
+			funcName = funcName[:idx]
+		}
+	}
+
+	// The next line might be the file location for the created by frame
+	if lineIndex < len(lines) {
+		fileLine := lines[lineIndex]
+		lineIndex++ // Move to the next line
+
+		// If this looks like a file line, parse it as part of the created by frame
+		if strings.Contains(fileLine, ".go:") {
+			// Use the existing parseFrame function to parse the created by frame
+			if frame, ok := parseFrame(funcName, fileLine); ok {
+				currentRoutine.CreatedByFrame = &frame
+			}
+		} else {
+			// If it's not a file line, we need to process it as a normal line
+			// by putting it back into processing
+			currentFrame = append(currentFrame, fileLine)
+		}
+	}
+
+	return currentFrame, lineIndex
+}
+
 // parseStateComponents parses the RawState into its components
 func parseStateComponents(routine *ParsedGoRoutine) {
 	// Split the state by commas
@@ -263,7 +272,7 @@ func parseStateComponents(routine *ParsedGoRoutine) {
 
 			// Check if this component is a duration
 			if isDuration, durationMs := parseDuration(component); isDuration {
-				routine.DurationMs = durationMs
+				routine.StateDurationMs = durationMs
 			} else {
 				routine.ExtraStates = append(routine.ExtraStates, component)
 			}

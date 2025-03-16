@@ -299,8 +299,8 @@ main.main()
 				t.Errorf("Expected PrimaryState %q, got %q", tt.expectedPrimaryState, routine.PrimaryState)
 			}
 
-			if routine.DurationMs != tt.expectedDurationMs {
-				t.Errorf("Expected DurationMs %d, got %d", tt.expectedDurationMs, routine.DurationMs)
+			if routine.StateDurationMs != tt.expectedDurationMs {
+				t.Errorf("Expected DurationMs %d, got %d", tt.expectedDurationMs, routine.StateDurationMs)
 			}
 
 			if tt.expectedExtraStates != nil {
@@ -319,14 +319,6 @@ main.main()
 
 			if len(routine.ParsedFrames) != tt.expectedFrames {
 				t.Errorf("Expected %d parsed frames, got %d", tt.expectedFrames, len(routine.ParsedFrames))
-			}
-
-			if tt.hasCreatedBy && routine.CreatedBy == "" {
-				t.Errorf("Expected CreatedBy to be set, but it was empty")
-			}
-
-			if !tt.hasCreatedBy && routine.CreatedBy != "" {
-				t.Errorf("Expected CreatedBy to be empty, but got %q", routine.CreatedBy)
 			}
 
 			if routine.CreatedByGoId != tt.expectedCreatedByGoId {
