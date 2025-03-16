@@ -97,7 +97,10 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
         <div className="mb-4 p-3 border border-border rounded-md">
             <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
-                    <div className="font-semibold text-primary">Goroutine {goroutine.goid}</div>
+                    <div className="font-semibold text-primary w-[135px]">Goroutine {goroutine.goid}</div>
+                    <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">{goroutine.state}</div>
+                </div>
+                <div>
                     <CopyButton
                         onCopy={copyStackTrace}
                         tooltipText="Copy stack trace"
@@ -105,9 +108,8 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                         size={14}
                     />
                 </div>
-                <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">{goroutine.state}</div>
             </div>
-            <pre className="text-xs text-primary overflow-auto whitespace-pre-wrap bg-panel p-2 rounded max-h-60">
+            <pre className="text-xs text-primary whitespace-pre-wrap bg-panel p-2 rounded">
                 {stacktraceLines.map((line, index) => (
                     <StacktraceLine key={index} line={line} model={model} linkType={linkType} />
                 ))}
