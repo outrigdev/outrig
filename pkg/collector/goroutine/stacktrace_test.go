@@ -171,6 +171,202 @@ func TestParseFrame(t *testing.T) {
 	}
 }
 
+func TestParseStateComponents(t *testing.T) {
+	tests := []struct {
+		name                string
+		rawState            string
+		expectedPrimary     string
+		expectedDurationMs  int64
+		expectedExtraStates []string
+	}{
+		{
+			name:                "Simple state",
+			rawState:            "running",
+			expectedPrimary:     "running",
+			expectedDurationMs:  0,
+			expectedExtraStates: nil,
+		},
+		{
+			name:                "State with duration",
+			rawState:            "chan receive, 101 minutes",
+			expectedPrimary:     "chan receive",
+			expectedDurationMs:  101 * 60 * 1000,
+			expectedExtraStates: nil,
+		},
+		{
+			name:                "State with extra states",
+			rawState:            "chan receive, locked to thread",
+			expectedPrimary:     "chan receive",
+			expectedDurationMs:  0,
+			expectedExtraStates: []string{"locked to thread"},
+		},
+		{
+			name:                "State with duration and extra states",
+			rawState:            "chan receive, 3 minutes, locked to thread",
+			expectedPrimary:     "chan receive",
+			expectedDurationMs:  3 * 60 * 1000,
+			expectedExtraStates: []string{"locked to thread"},
+		},
+		{
+			name:                "State with multiple extra states",
+			rawState:            "chan receive, locked to thread, syscall",
+			expectedPrimary:     "chan receive",
+			expectedDurationMs:  0,
+			expectedExtraStates: []string{"locked to thread", "syscall"},
+		},
+		{
+			name:                "State with seconds duration",
+			rawState:            "chan receive, 45 seconds",
+			expectedPrimary:     "chan receive",
+			expectedDurationMs:  45 * 1000,
+			expectedExtraStates: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			primaryState, durationMs, extraStates := parseStateComponents(tt.rawState)
+
+			if primaryState != tt.expectedPrimary {
+				t.Errorf("Expected primary state %q, got %q", tt.expectedPrimary, primaryState)
+			}
+
+			if durationMs != tt.expectedDurationMs {
+				t.Errorf("Expected duration %d ms, got %d ms", tt.expectedDurationMs, durationMs)
+			}
+
+			if tt.expectedExtraStates == nil {
+				if len(extraStates) > 0 {
+					t.Errorf("Expected no extra states, got %v", extraStates)
+				}
+			} else {
+				if len(extraStates) != len(tt.expectedExtraStates) {
+					t.Errorf("Expected %d extra states, got %d", len(tt.expectedExtraStates), len(extraStates))
+				} else {
+					for i, expected := range tt.expectedExtraStates {
+						if extraStates[i] != expected {
+							t.Errorf("Expected extra state %q at index %d, got %q", expected, i, extraStates[i])
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestParseHeaderLine(t *testing.T) {
+	tests := []struct {
+		name                 string
+		headerLine           string
+		expectError          bool
+		expectedGoId         int64
+		expectedRawState     string
+		expectedPrimaryState string
+		expectedDurationMs   int64
+		expectedExtraStates  []string
+	}{
+		{
+			name:                 "Valid header with simple state",
+			headerLine:           "goroutine 38 [IO wait]:",
+			expectError:          false,
+			expectedGoId:         38,
+			expectedRawState:     "IO wait",
+			expectedPrimaryState: "IO wait",
+			expectedDurationMs:   0,
+			expectedExtraStates:  nil,
+		},
+		{
+			name:                 "Valid header with duration",
+			headerLine:           "goroutine 338 [chan receive, 101 minutes]:",
+			expectError:          false,
+			expectedGoId:         338,
+			expectedRawState:     "chan receive, 101 minutes",
+			expectedPrimaryState: "chan receive",
+			expectedDurationMs:   101 * 60 * 1000,
+			expectedExtraStates:  nil,
+		},
+		{
+			name:                 "Valid header with extra states",
+			headerLine:           "goroutine 42 [chan receive, locked to thread]:",
+			expectError:          false,
+			expectedGoId:         42,
+			expectedRawState:     "chan receive, locked to thread",
+			expectedPrimaryState: "chan receive",
+			expectedDurationMs:   0,
+			expectedExtraStates:  []string{"locked to thread"},
+		},
+		{
+			name:                 "Valid header with duration and extra states",
+			headerLine:           "goroutine 42 [chan receive, 3 minutes, locked to thread]:",
+			expectError:          false,
+			expectedGoId:         42,
+			expectedRawState:     "chan receive, 3 minutes, locked to thread",
+			expectedPrimaryState: "chan receive",
+			expectedDurationMs:   3 * 60 * 1000,
+			expectedExtraStates:  []string{"locked to thread"},
+		},
+		{
+			name:        "Invalid header format",
+			headerLine:  "not a valid goroutine header",
+			expectError: true,
+		},
+		{
+			name:        "Invalid goroutine ID",
+			headerLine:  "goroutine abc [running]:",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			routine, err := parseHeaderLine(tt.headerLine)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error, but got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if routine.GoId != tt.expectedGoId {
+				t.Errorf("Expected GoId %d, got %d", tt.expectedGoId, routine.GoId)
+			}
+
+			if routine.RawState != tt.expectedRawState {
+				t.Errorf("Expected RawState %q, got %q", tt.expectedRawState, routine.RawState)
+			}
+
+			if routine.PrimaryState != tt.expectedPrimaryState {
+				t.Errorf("Expected PrimaryState %q, got %q", tt.expectedPrimaryState, routine.PrimaryState)
+			}
+
+			if routine.StateDurationMs != tt.expectedDurationMs {
+				t.Errorf("Expected StateDurationMs %d, got %d", tt.expectedDurationMs, routine.StateDurationMs)
+			}
+
+			if tt.expectedExtraStates == nil {
+				if len(routine.ExtraStates) > 0 {
+					t.Errorf("Expected no extra states, got %v", routine.ExtraStates)
+				}
+			} else {
+				if len(routine.ExtraStates) != len(tt.expectedExtraStates) {
+					t.Errorf("Expected %d extra states, got %d", len(tt.expectedExtraStates), len(routine.ExtraStates))
+				} else {
+					for i, expected := range tt.expectedExtraStates {
+						if routine.ExtraStates[i] != expected {
+							t.Errorf("Expected extra state %q at index %d, got %q", expected, i, routine.ExtraStates[i])
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestParseGoRoutineStackTrace(t *testing.T) {
 	tests := []struct {
 		name                  string

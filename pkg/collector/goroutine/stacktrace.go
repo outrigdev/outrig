@@ -1,6 +1,7 @@
 package goroutine
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -145,32 +146,54 @@ func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 	return result
 }
 
+// parseHeaderLine parses a goroutine header line and returns a ParsedGoRoutine
+func parseHeaderLine(headerLine string) (ParsedGoRoutine, error) {
+	headerRegex := regexp.MustCompile(`^goroutine\s+(\d+)\s+\[(.*)\]:$`)
+
+	// Parse the goroutine header
+	match := headerRegex.FindStringSubmatch(headerLine)
+	if match == nil {
+		return ParsedGoRoutine{}, fmt.Errorf("invalid header format: %s", headerLine)
+	}
+
+	// Parse the goroutine ID and state
+	goId, err := strconv.ParseInt(match[1], 10, 64)
+	if err != nil {
+		return ParsedGoRoutine{}, fmt.Errorf("failed to parse goroutine ID: %v", err)
+	}
+	state := match[2]
+
+	// Parse the state components
+	primaryState, stateDurationMs, extraStates := parseStateComponents(state)
+
+	// Create a new routine
+	routine := ParsedGoRoutine{
+		GoId:            goId,
+		RawState:        state,
+		PrimaryState:    primaryState,
+		StateDurationMs: stateDurationMs,
+		ExtraStates:     extraStates,
+		ParsedFrames:    []Frame{},
+	}
+
+	return routine, nil
+}
+
 // ParseGoRoutineStackTrace parses a Go routine stack trace string into a struct
 func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
 	// Preprocess the stack trace
 	preprocessed := preprocessStackTrace(stackTrace)
 
-	headerRegex := regexp.MustCompile(`^goroutine\s+(\d+)\s+\[(.*)\]:$`)
-
-	// Parse the goroutine header
-	match := headerRegex.FindStringSubmatch(preprocessed.HeaderLine)
-	if match == nil {
-		return ParsedGoRoutine{}, nil // Return empty struct if header doesn't match expected format
+	// Return empty struct and error if header line is empty
+	if preprocessed.HeaderLine == "" {
+		return ParsedGoRoutine{}, fmt.Errorf("no goroutine header found in stack trace")
 	}
 
-	// Parse the goroutine ID and state
-	goId, _ := strconv.ParseInt(match[1], 10, 64)
-	state := match[2]
-
-	// Create a new routine
-	routine := ParsedGoRoutine{
-		GoId:         goId,
-		RawState:     state,
-		ParsedFrames: []Frame{},
+	// Parse the header line
+	routine, err := parseHeaderLine(preprocessed.HeaderLine)
+	if err != nil {
+		return ParsedGoRoutine{}, err
 	}
-
-	// Parse the state components
-	parseStateComponents(&routine)
 
 	// Parse stack frames
 	for _, frame := range preprocessed.StackFrames {
@@ -316,29 +339,35 @@ func parseCreatedByFrame(createdBy RawStackFrame, routine *ParsedGoRoutine) {
 	}
 }
 
-// parseStateComponents parses the RawState into its components
-func parseStateComponents(routine *ParsedGoRoutine) {
+// parseStateComponents parses a raw state string into its components
+func parseStateComponents(rawState string) (string, int64, []string) {
 	// Split the state by commas
-	components := strings.Split(routine.RawState, ",")
+	components := strings.Split(rawState, ",")
 
 	// The first component is always the primary state
-	routine.PrimaryState = strings.TrimSpace(components[0])
+	primaryState := strings.TrimSpace(components[0])
+	
+	// Initialize variables for additional components
+	var stateDurationMs int64
+	var extraStates []string
 
 	// Process additional components
 	if len(components) > 1 {
-		routine.ExtraStates = make([]string, 0, len(components)-1)
+		extraStates = make([]string, 0, len(components)-1)
 
 		for _, component := range components[1:] {
 			component = strings.TrimSpace(component)
 
 			// Check if this component is a duration
 			if isDuration, durationMs := parseDuration(component); isDuration {
-				routine.StateDurationMs = durationMs
+				stateDurationMs = durationMs
 			} else {
-				routine.ExtraStates = append(routine.ExtraStates, component)
+				extraStates = append(extraStates, component)
 			}
 		}
 	}
+
+	return primaryState, stateDurationMs, extraStates
 }
 
 // parseDuration attempts to parse a duration string and convert it to milliseconds
