@@ -34,7 +34,6 @@ type ParsedGoRoutine struct {
 	PrimaryState   string   // The first part of the state (before any commas)
 	DurationMs     int64    // Duration in milliseconds (if available)
 	ExtraStates    []string // Array of additional state information
-	Frames         []string // Original raw frame lines (for backward compatibility)
 	ParsedFrames   []Frame  // Structured frame information
 	CreatedBy      string   // Raw "created by" line
 	CreatedByGoId  int64    // ID of the goroutine that created this one
@@ -61,16 +60,10 @@ func ParseGoRoutineStackTrace(stackTrace string) ([]ParsedGoRoutine, error) {
 			// If we have a current routine, add it to the result
 			if currentRoutine != nil {
 				// Handle any remaining frame
-				if len(currentFrame) > 0 {
-					currentRoutine.Frames = append(currentRoutine.Frames, currentFrame...)
-
-					// Parse the frame if we have both lines
-					if len(currentFrame) == 2 {
-						if frame, ok := parseFrame(currentFrame[0], currentFrame[1]); ok {
-							currentRoutine.ParsedFrames = append(currentRoutine.ParsedFrames, frame)
-						}
+				if len(currentFrame) == 2 {
+					if frame, ok := parseFrame(currentFrame[0], currentFrame[1]); ok {
+						currentRoutine.ParsedFrames = append(currentRoutine.ParsedFrames, frame)
 					}
-
 					currentFrame = nil
 				}
 
@@ -159,10 +152,8 @@ func ParseGoRoutineStackTrace(stackTrace string) ([]ParsedGoRoutine, error) {
 		// Add to current frame
 		currentFrame = append(currentFrame, line)
 
-		// If we have 2 lines in the current frame, add it to frames and reset
+		// If we have 2 lines in the current frame, parse and add to ParsedFrames
 		if len(currentFrame) == 2 {
-			currentRoutine.Frames = append(currentRoutine.Frames, currentFrame...)
-
 			// Parse the frame
 			if frame, ok := parseFrame(currentFrame[0], currentFrame[1]); ok {
 				currentRoutine.ParsedFrames = append(currentRoutine.ParsedFrames, frame)
@@ -175,14 +166,9 @@ func ParseGoRoutineStackTrace(stackTrace string) ([]ParsedGoRoutine, error) {
 	// Add the last routine if there is one
 	if currentRoutine != nil {
 		// Handle any remaining frame
-		if len(currentFrame) > 0 {
-			currentRoutine.Frames = append(currentRoutine.Frames, currentFrame...)
-
-			// Parse the frame if we have both lines
-			if len(currentFrame) == 2 {
-				if frame, ok := parseFrame(currentFrame[0], currentFrame[1]); ok {
-					currentRoutine.ParsedFrames = append(currentRoutine.ParsedFrames, frame)
-				}
+		if len(currentFrame) == 2 {
+			if frame, ok := parseFrame(currentFrame[0], currentFrame[1]); ok {
+				currentRoutine.ParsedFrames = append(currentRoutine.ParsedFrames, frame)
 			}
 		}
 

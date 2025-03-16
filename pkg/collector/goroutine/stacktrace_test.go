@@ -6,11 +6,11 @@ import (
 
 func TestParseFrame(t *testing.T) {
 	tests := []struct {
-		name           string
-		funcLine       string
-		fileLine       string
-		expectSuccess  bool
-		expectedFrame  Frame
+		name          string
+		funcLine      string
+		fileLine      string
+		expectSuccess bool
+		expectedFrame Frame
 	}{
 		{
 			name:          "Method with receiver",
@@ -131,46 +131,45 @@ func TestParseFrame(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			frame, ok := parseFrame(tt.funcLine, tt.fileLine)
-			
+
 			if ok != tt.expectSuccess {
 				t.Fatalf("parseFrame() success = %v, expected %v", ok, tt.expectSuccess)
 			}
-			
+
 			if !tt.expectSuccess {
 				return
 			}
-			
+
 			if frame.Package != tt.expectedFrame.Package {
 				t.Errorf("Package = %q, expected %q", frame.Package, tt.expectedFrame.Package)
 			}
-			
+
 			if frame.Receiver != tt.expectedFrame.Receiver {
 				t.Errorf("Receiver = %q, expected %q", frame.Receiver, tt.expectedFrame.Receiver)
 			}
-			
+
 			if frame.FuncName != tt.expectedFrame.FuncName {
 				t.Errorf("FuncName = %q, expected %q", frame.FuncName, tt.expectedFrame.FuncName)
 			}
-			
+
 			if frame.Args != tt.expectedFrame.Args {
 				t.Errorf("Args = %q, expected %q", frame.Args, tt.expectedFrame.Args)
 			}
-			
+
 			if frame.FilePath != tt.expectedFrame.FilePath {
 				t.Errorf("FilePath = %q, expected %q", frame.FilePath, tt.expectedFrame.FilePath)
 			}
-			
+
 			if frame.LineNumber != tt.expectedFrame.LineNumber {
 				t.Errorf("LineNumber = %d, expected %d", frame.LineNumber, tt.expectedFrame.LineNumber)
 			}
-			
+
 			if frame.PCOffset != tt.expectedFrame.PCOffset {
 				t.Errorf("PCOffset = %q, expected %q", frame.PCOffset, tt.expectedFrame.PCOffset)
 			}
 		})
 	}
 }
-
 
 func TestParseGoRoutineStackTrace(t *testing.T) {
 	tests := []struct {
@@ -181,9 +180,9 @@ func TestParseGoRoutineStackTrace(t *testing.T) {
 		expectedPrimaryState  string
 		expectedFrames        int
 		hasCreatedBy          bool
-		expectedDurationMs    int64    // Expected duration in milliseconds
-		expectedExtraStates   []string // Expected extra states
-		expectedCreatedByGoId int64    // Expected goroutine ID that created this one
+		expectedDurationMs    int64
+		expectedExtraStates   []string
+		expectedCreatedByGoId int64
 	}{
 		{
 			name: "IO wait goroutine",
@@ -207,11 +206,11 @@ created by github.com/outrigdev/outrig/pkg/collector/logprocess.(*LogCollector).
 			expectedCount:         1,
 			expectedGoId:          38,
 			expectedPrimaryState:  "IO wait",
-			expectedFrames:        14, // Actual number of frame lines parsed (excluding the created by file line)
+			expectedFrames:        7,
 			hasCreatedBy:          true,
-			expectedDurationMs:    0,   // No duration
-			expectedExtraStates:   nil, // No extra states
-			expectedCreatedByGoId: 1,   // Created by goroutine 1
+			expectedDurationMs:    0,
+			expectedExtraStates:   nil,
+			expectedCreatedByGoId: 1,
 		},
 		{
 			name: "chan receive goroutine with duration",
@@ -225,11 +224,11 @@ created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in gor
 			expectedCount:         1,
 			expectedGoId:          338,
 			expectedPrimaryState:  "chan receive",
-			expectedFrames:        4, // Actual number of frame lines parsed (excluding the created by file line)
+			expectedFrames:        2,
 			hasCreatedBy:          true,
-			expectedDurationMs:    101 * 60 * 1000, // 101 minutes in milliseconds
-			expectedExtraStates:   nil,             // No extra states besides duration
-			expectedCreatedByGoId: 327,             // Created by goroutine 327
+			expectedDurationMs:    101 * 60 * 1000,
+			expectedExtraStates:   nil,
+			expectedCreatedByGoId: 327,
 		},
 		{
 			name: "goroutine 1 with no created by",
@@ -239,11 +238,11 @@ main.main()
 			expectedCount:         1,
 			expectedGoId:          1,
 			expectedPrimaryState:  "chan receive",
-			expectedFrames:        2, // 1 frame * 2 lines
+			expectedFrames:        1,
 			hasCreatedBy:          false,
-			expectedDurationMs:    105 * 60 * 1000, // 105 minutes in milliseconds
-			expectedExtraStates:   nil,             // No extra states besides duration
-			expectedCreatedByGoId: 0,               // No creator goroutine
+			expectedDurationMs:    105 * 60 * 1000,
+			expectedExtraStates:   nil,
+			expectedCreatedByGoId: 0,
 		},
 		{
 			name: "goroutine with multiple extra states",
@@ -253,11 +252,11 @@ main.main()
 			expectedCount:         1,
 			expectedGoId:          42,
 			expectedPrimaryState:  "chan receive",
-			expectedFrames:        2, // 1 frame * 2 lines
+			expectedFrames:        1,
 			hasCreatedBy:          false,
-			expectedDurationMs:    3 * 60 * 1000,                // 3 minutes in milliseconds
-			expectedExtraStates:   []string{"locked to thread"}, // Extra state
-			expectedCreatedByGoId: 0,                            // No creator goroutine
+			expectedDurationMs:    3 * 60 * 1000,
+			expectedExtraStates:   []string{"locked to thread"},
+			expectedCreatedByGoId: 0,
 		},
 		{
 			name: "goroutine with lock info",
@@ -267,11 +266,11 @@ main.main()
 			expectedCount:         1,
 			expectedGoId:          55,
 			expectedPrimaryState:  "semacquire",
-			expectedFrames:        2, // 1 frame * 2 lines
+			expectedFrames:        1,
 			hasCreatedBy:          false,
-			expectedDurationMs:    2 * 60 * 1000, // 2 minutes in milliseconds
-			expectedExtraStates:   nil,           // No extra states besides duration
-			expectedCreatedByGoId: 0,             // No creator goroutine
+			expectedDurationMs:    2 * 60 * 1000,
+			expectedExtraStates:   nil,
+			expectedCreatedByGoId: 0,
 		},
 	}
 
@@ -296,17 +295,14 @@ main.main()
 				t.Errorf("Expected GoId %d, got %d", tt.expectedGoId, routine.GoId)
 			}
 
-			// Check that PrimaryState matches the expected state
 			if routine.PrimaryState != tt.expectedPrimaryState {
 				t.Errorf("Expected PrimaryState %q, got %q", tt.expectedPrimaryState, routine.PrimaryState)
 			}
 
-			// Check duration if expected
 			if routine.DurationMs != tt.expectedDurationMs {
 				t.Errorf("Expected DurationMs %d, got %d", tt.expectedDurationMs, routine.DurationMs)
 			}
 
-			// Check extra states if expected
 			if tt.expectedExtraStates != nil {
 				if len(routine.ExtraStates) != len(tt.expectedExtraStates) {
 					t.Errorf("Expected %d extra states, got %d", len(tt.expectedExtraStates), len(routine.ExtraStates))
@@ -321,8 +317,8 @@ main.main()
 				t.Errorf("Expected no extra states, got %v", routine.ExtraStates)
 			}
 
-			if len(routine.Frames) != tt.expectedFrames {
-				t.Errorf("Expected %d frame lines, got %d", tt.expectedFrames, len(routine.Frames))
+			if len(routine.ParsedFrames) != tt.expectedFrames {
+				t.Errorf("Expected %d parsed frames, got %d", tt.expectedFrames, len(routine.ParsedFrames))
 			}
 
 			if tt.hasCreatedBy && routine.CreatedBy == "" {
@@ -332,25 +328,21 @@ main.main()
 			if !tt.hasCreatedBy && routine.CreatedBy != "" {
 				t.Errorf("Expected CreatedBy to be empty, but got %q", routine.CreatedBy)
 			}
-			
-			// Check CreatedByGoId
+
 			if routine.CreatedByGoId != tt.expectedCreatedByGoId {
 				t.Errorf("Expected CreatedByGoId %d, got %d", tt.expectedCreatedByGoId, routine.CreatedByGoId)
 			}
-			
-			// Check CreatedByFrame if we expect a created by line
+
 			if tt.hasCreatedBy {
 				if routine.CreatedByFrame == nil {
 					t.Errorf("Expected CreatedByFrame to be set, but it was nil")
 				} else {
-					// Verify that the frame has some basic information
 					if routine.CreatedByFrame.Package == "" {
 						t.Errorf("Expected CreatedByFrame.Package to be set, but it was empty")
 					}
 					if routine.CreatedByFrame.FuncName == "" {
 						t.Errorf("Expected CreatedByFrame.FuncName to be set, but it was empty")
 					}
-					// For the first test case, verify the file path and line number
 					if tt.name == "IO wait goroutine" {
 						expectedPath := "/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl.go"
 						if routine.CreatedByFrame.FilePath != expectedPath {
