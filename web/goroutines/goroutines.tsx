@@ -5,9 +5,10 @@ import { useOutrigModel } from "@/util/hooks";
 import { cn } from "@/util/util";
 import { useAtom, useAtomValue } from "jotai";
 import { Filter, Layers } from "lucide-react";
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { Tag } from "../elements/tag";
 import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
+import { simplifyStackTrace } from "./stacktrace";
 
 // Individual goroutine view component
 interface GoroutineViewProps {
@@ -27,39 +28,35 @@ const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }
     if (!line.includes(".go:")) {
         return <div>{line}</div>;
     }
-    
+
     const parsedLine = model.parseStacktraceLine(line);
     if (!parsedLine || linkType == null) {
         return <div>{line}</div>;
     }
-    
+
     const { filePath, lineNumber } = parsedLine;
     const link = model.generateCodeLink(filePath, lineNumber, linkType);
-    
+
     if (!link) {
         return <div>{line}</div>;
     }
-    
+
     // Find the file:line part in the text to make it clickable
     const fileLinePattern = new RegExp(`(${filePath.replace(/\//g, "\\/")}:${lineNumber})`);
     const parts = line.split(fileLinePattern);
-    
+
     if (parts.length === 1) {
         // Pattern not found, return the line as is
         return <div>{line}</div>;
     }
-    
+
     return (
         <div>
             {parts.map((part, index) => {
                 // If this part matches the file:line pattern, make it a link
                 if (part === `${filePath}:${lineNumber}`) {
                     return (
-                        <a 
-                            key={index}
-                            href={link}
-                            className="group cursor-pointer"
-                        >
+                        <a key={index} href={link} className="group cursor-pointer">
                             <span className="group-hover:text-blue-500 group-hover:underline transition-colors duration-150">
                                 {part}
                             </span>
@@ -75,13 +72,16 @@ const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }
 const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     const linkType = useAtomValue(model.showCodeLinks);
     const simpleMode = useAtomValue(model.simpleStacktraceMode);
-    
+
     if (!goroutine) {
         return null;
     }
-    
+
+    // Apply simplification if simple mode is enabled
+    const displayStacktrace = simpleMode ? simplifyStackTrace(goroutine.stacktrace) : goroutine.stacktrace;
+
     // Split the stacktrace into lines
-    const stacktraceLines = goroutine.stacktrace.split('\n');
+    const stacktraceLines = displayStacktrace.split("\n");
 
     const copyStackTrace = async () => {
         try {
@@ -98,9 +98,9 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
             <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
                     <div className="font-semibold text-primary">Goroutine {goroutine.goid}</div>
-                    <CopyButton 
-                        onCopy={copyStackTrace} 
-                        tooltipText="Copy stack trace" 
+                    <CopyButton
+                        onCopy={copyStackTrace}
+                        tooltipText="Copy stack trace"
                         successTooltipText="Stack trace copied!"
                         size={14}
                     />
@@ -109,12 +109,7 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
             </div>
             <pre className="text-xs text-primary overflow-auto whitespace-pre-wrap bg-panel p-2 rounded max-h-60">
                 {stacktraceLines.map((line, index) => (
-                    <StacktraceLine 
-                        key={index} 
-                        line={line} 
-                        model={model} 
-                        linkType={linkType} 
-                    />
+                    <StacktraceLine key={index} line={line} model={model} linkType={linkType} />
                 ))}
             </pre>
         </div>
@@ -169,7 +164,13 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                         />
                     </div>
                     <div className="flex items-center gap-2">
-                        <Tooltip content={simpleMode ? "Simple Stacktrace Mode On (Click to Disable)" : "Simple Stacktrace Mode Off (Click to Enable)"}>
+                        <Tooltip
+                            content={
+                                simpleMode
+                                    ? "Simple Stacktrace Mode On (Click to Disable)"
+                                    : "Simple Stacktrace Mode Off (Click to Enable)"
+                            }
+                        >
                             <button
                                 onClick={() => setSimpleMode(!simpleMode)}
                                 className={cn(
@@ -210,7 +211,6 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                     ))}
                 </div>
             </div>
-            
         </>
     );
 };

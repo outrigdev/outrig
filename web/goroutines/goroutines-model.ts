@@ -15,10 +15,10 @@ class GoRoutinesModel {
     // State filters
     showAll: PrimitiveAtom<boolean> = atom(true);
     selectedStates: PrimitiveAtom<Set<string>> = atom(new Set<string>());
-    
+
     // Code link settings
     showCodeLinks: PrimitiveAtom<CodeLinkType> = atom<CodeLinkType>("vscode");
-    
+
     // Stacktrace display settings
     simpleStacktraceMode: PrimitiveAtom<boolean> = atom(true);
 
@@ -150,25 +150,25 @@ class GoRoutinesModel {
         if (match) {
             return {
                 filePath: match[1],
-                lineNumber: parseInt(match[2], 10)
+                lineNumber: parseInt(match[2], 10),
             };
         }
         return null;
     }
-    
+
     // Generate a VSCode link for a file path and line number
     generateCodeLink(filePath: string, lineNumber: number, linkType: CodeLinkType): string {
         if (linkType == null) {
             return null;
         }
-        
+
         if (linkType === "vscode") {
             return `vscode://file${filePath}:${lineNumber}`;
         }
-        
+
         return null;
     }
-    
+
     // Refresh goroutines with a minimum time to show the refreshing state
     async refresh() {
         const store = getDefaultStore();
