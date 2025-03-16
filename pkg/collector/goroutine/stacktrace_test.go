@@ -4,6 +4,173 @@ import (
 	"testing"
 )
 
+func TestParseFrame(t *testing.T) {
+	tests := []struct {
+		name           string
+		funcLine       string
+		fileLine       string
+		expectSuccess  bool
+		expectedFrame  Frame
+	}{
+		{
+			name:          "Method with receiver",
+			funcLine:      "internal/poll.(*FD).Read(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})",
+			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go:165 +0x1fc",
+			expectSuccess: true,
+			expectedFrame: Frame{
+				Package:    "internal/poll",
+				Receiver:   "(*FD)",
+				FuncName:   "Read",
+				Args:       "(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})",
+				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go",
+				LineNumber: 165,
+				PCOffset:   "+0x1fc",
+				FuncLine:   "internal/poll.(*FD).Read(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})",
+				FileLine:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go:165 +0x1fc",
+			},
+		},
+		{
+			name:          "Function without receiver",
+			funcLine:      "runtime.doInit(0x12f7be0)",
+			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go:6329",
+			expectSuccess: true,
+			expectedFrame: Frame{
+				Package:    "runtime",
+				Receiver:   "",
+				FuncName:   "doInit",
+				Args:       "(0x12f7be0)",
+				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go",
+				LineNumber: 6329,
+				PCOffset:   "",
+				FuncLine:   "runtime.doInit(0x12f7be0)",
+				FileLine:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go:6329",
+			},
+		},
+		{
+			name:          "Function with dots in package name",
+			funcLine:      "github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute.func2()",
+			fileLine:      "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:326 +0x14c",
+			expectSuccess: true,
+			expectedFrame: Frame{
+				Package:    "github.com/outrigdev/outrig/pkg/rpc",
+				Receiver:   "(*WshRouter)",
+				FuncName:   "RegisterRoute.func2",
+				Args:       "()",
+				FilePath:   "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go",
+				LineNumber: 326,
+				PCOffset:   "+0x14c",
+				FuncLine:   "github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute.func2()",
+				FileLine:   "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:326 +0x14c",
+			},
+		},
+		{
+			name:          "Function with ellipsis",
+			funcLine:      "internal/poll.(*pollDesc).waitRead(...)",
+			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_poll_runtime.go:89",
+			expectSuccess: true,
+			expectedFrame: Frame{
+				Package:    "internal/poll",
+				Receiver:   "(*pollDesc)",
+				FuncName:   "waitRead",
+				Args:       "(...)",
+				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_poll_runtime.go",
+				LineNumber: 89,
+				PCOffset:   "",
+				FuncLine:   "internal/poll.(*pollDesc).waitRead(...)",
+				FileLine:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_poll_runtime.go:89",
+			},
+		},
+		{
+			name:          "Main function",
+			funcLine:      "main.main()",
+			fileLine:      "/Users/mike/work/outrig/server/main-server.go:291 +0x714",
+			expectSuccess: true,
+			expectedFrame: Frame{
+				Package:    "main",
+				Receiver:   "",
+				FuncName:   "main",
+				Args:       "()",
+				FilePath:   "/Users/mike/work/outrig/server/main-server.go",
+				LineNumber: 291,
+				PCOffset:   "+0x714",
+				FuncLine:   "main.main()",
+				FileLine:   "/Users/mike/work/outrig/server/main-server.go:291 +0x714",
+			},
+		},
+		{
+			name:          "Invalid function line",
+			funcLine:      "this is not a valid function line",
+			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go:6329",
+			expectSuccess: false,
+		},
+		{
+			name:          "Invalid file line",
+			funcLine:      "runtime.doInit(0x12f7be0)",
+			fileLine:      "this is not a valid file line",
+			expectSuccess: false,
+		},
+		{
+			name:          "Method with value receiver",
+			funcLine:      "time.Time.Add(0x140003801e0, 0x140003ae723)",
+			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/time/time.go:1076 +0x1a4",
+			expectSuccess: true,
+			expectedFrame: Frame{
+				Package:    "time",
+				Receiver:   "Time",
+				FuncName:   "Add",
+				Args:       "(0x140003801e0, 0x140003ae723)",
+				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/time/time.go",
+				LineNumber: 1076,
+				PCOffset:   "+0x1a4",
+				FuncLine:   "time.Time.Add(0x140003801e0, 0x140003ae723)",
+				FileLine:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/time/time.go:1076 +0x1a4",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			frame, ok := parseFrame(tt.funcLine, tt.fileLine)
+			
+			if ok != tt.expectSuccess {
+				t.Fatalf("parseFrame() success = %v, expected %v", ok, tt.expectSuccess)
+			}
+			
+			if !tt.expectSuccess {
+				return
+			}
+			
+			if frame.Package != tt.expectedFrame.Package {
+				t.Errorf("Package = %q, expected %q", frame.Package, tt.expectedFrame.Package)
+			}
+			
+			if frame.Receiver != tt.expectedFrame.Receiver {
+				t.Errorf("Receiver = %q, expected %q", frame.Receiver, tt.expectedFrame.Receiver)
+			}
+			
+			if frame.FuncName != tt.expectedFrame.FuncName {
+				t.Errorf("FuncName = %q, expected %q", frame.FuncName, tt.expectedFrame.FuncName)
+			}
+			
+			if frame.Args != tt.expectedFrame.Args {
+				t.Errorf("Args = %q, expected %q", frame.Args, tt.expectedFrame.Args)
+			}
+			
+			if frame.FilePath != tt.expectedFrame.FilePath {
+				t.Errorf("FilePath = %q, expected %q", frame.FilePath, tt.expectedFrame.FilePath)
+			}
+			
+			if frame.LineNumber != tt.expectedFrame.LineNumber {
+				t.Errorf("LineNumber = %d, expected %d", frame.LineNumber, tt.expectedFrame.LineNumber)
+			}
+			
+			if frame.PCOffset != tt.expectedFrame.PCOffset {
+				t.Errorf("PCOffset = %q, expected %q", frame.PCOffset, tt.expectedFrame.PCOffset)
+			}
+		})
+	}
+}
+
 func TestParseGoRoutineStackTrace(t *testing.T) {
 	tests := []struct {
 		name                 string
