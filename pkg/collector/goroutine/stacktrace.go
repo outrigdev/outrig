@@ -38,11 +38,17 @@ type ParsedGoRoutine struct {
 	CreatedByFrame  *Frame   // Frame information for the creation point
 }
 
+// RawStackFrame represents a pair of lines in a stack trace
+type RawStackFrame struct {
+	FuncLine string // The function call line
+	FileLine string // The file location line (may be empty)
+}
+
 // GoRoutineSection represents a preprocessed section of a goroutine stack trace
 type GoRoutineSection struct {
-	HeaderLine  string     // The goroutine header line (e.g., "goroutine 1 [running]:")
-	StackFrames [][]string // Stack frames, where each frame is 1 or 2 lines
-	CreatedBy   []string   // The "created by" information (can be multiple lines)
+	HeaderLine  string          // The goroutine header line (e.g., "goroutine 1 [running]:")
+	StackFrames []RawStackFrame // Stack frames, where each frame has a function line and optional file line
+	CreatedBy   RawStackFrame   // The "created by" information
 }
 
 // preprocessStackTrace splits a stack trace into sections for each goroutine
@@ -53,7 +59,7 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 
 	var sections []GoRoutineSection
 	var currentSection *GoRoutineSection
-	var currentFrame []string
+	var currentFuncLine string
 
 	headerRegex := regexp.MustCompile(`^goroutine\s+\d+\s+\[.*\]:$`)
 
@@ -70,8 +76,11 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 			// If we have a current section, add it to the result
 			if currentSection != nil {
 				// Add any remaining frame to the current section
-				if len(currentFrame) > 0 {
-					currentSection.StackFrames = append(currentSection.StackFrames, currentFrame)
+				if currentFuncLine != "" {
+					currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
+						FuncLine: currentFuncLine,
+						FileLine: "",
+					})
 				}
 				sections = append(sections, *currentSection)
 			}
@@ -79,10 +88,10 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 			// Start a new section
 			currentSection = &GoRoutineSection{
 				HeaderLine:  strings.TrimSpace(line),
-				StackFrames: [][]string{},
-				CreatedBy:   []string{},
+				StackFrames: []RawStackFrame{},
+				CreatedBy:   RawStackFrame{},
 			}
-			currentFrame = nil
+			currentFuncLine = ""
 			continue
 		}
 
@@ -94,17 +103,21 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 		// Check if this is a "created by" line
 		if strings.HasPrefix(strings.TrimSpace(line), "created by ") {
 			// Add any remaining frame to the current section
-			if len(currentFrame) > 0 {
-				currentSection.StackFrames = append(currentSection.StackFrames, currentFrame)
-				currentFrame = nil
+			if currentFuncLine != "" {
+				currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
+					FuncLine: currentFuncLine,
+					FileLine: "",
+				})
+				currentFuncLine = ""
 			}
 
-			// Add this line to the created by section
-			currentSection.CreatedBy = append(currentSection.CreatedBy, strings.TrimSpace(line))
+			// Set the created by function line
+			createdByLine := strings.TrimSpace(line)
+			currentSection.CreatedBy.FuncLine = createdByLine
 
 			// Check if the next line is indented (part of the created by frame)
 			if i+1 < len(lines) && len(lines[i+1]) > 0 && (lines[i+1][0] == ' ' || lines[i+1][0] == '\t') {
-				currentSection.CreatedBy = append(currentSection.CreatedBy, strings.TrimSpace(lines[i+1]))
+				currentSection.CreatedBy.FileLine = strings.TrimSpace(lines[i+1])
 				i++ // Skip the next line since we've processed it
 			}
 
@@ -115,29 +128,38 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 		trimmedLine := strings.TrimSpace(line)
 		if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
 			// This is the second line of a frame
-			if len(currentFrame) == 1 {
-				currentFrame = append(currentFrame, trimmedLine)
-				currentSection.StackFrames = append(currentSection.StackFrames, currentFrame)
-				currentFrame = nil
+			if currentFuncLine != "" {
+				currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
+					FuncLine: currentFuncLine,
+					FileLine: trimmedLine,
+				})
+				currentFuncLine = ""
 			} else {
 				// This shouldn't happen in a well-formed stack trace, but handle it anyway
-				currentFrame = []string{trimmedLine}
+				// Just treat it as a function line for now
+				currentFuncLine = trimmedLine
 			}
 		} else {
 			// This is the first line of a new frame
-			if len(currentFrame) > 0 {
+			if currentFuncLine != "" {
 				// Add the previous frame (which only had one line)
-				currentSection.StackFrames = append(currentSection.StackFrames, currentFrame)
+				currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
+					FuncLine: currentFuncLine,
+					FileLine: "",
+				})
 			}
-			currentFrame = []string{trimmedLine}
+			currentFuncLine = trimmedLine
 		}
 	}
 
 	// Add the last section if there is one
 	if currentSection != nil {
 		// Add any remaining frame
-		if len(currentFrame) > 0 {
-			currentSection.StackFrames = append(currentSection.StackFrames, currentFrame)
+		if currentFuncLine != "" {
+			currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
+				FuncLine: currentFuncLine,
+				FileLine: "",
+			})
 		}
 		sections = append(sections, *currentSection)
 	}
@@ -176,26 +198,47 @@ func ParseGoRoutineStackTrace(stackTrace string) ([]ParsedGoRoutine, error) {
 		parseStateComponents(routine)
 
 		// Parse stack frames
-		for _, frameLines := range section.StackFrames {
-			if len(frameLines) == 2 {
-				if frame, ok := parseFrame(frameLines[0], frameLines[1]); ok {
-					routine.ParsedFrames = append(routine.ParsedFrames, frame)
+		for _, frame := range section.StackFrames {
+			if frame.FileLine != "" {
+				if parsedFrame, ok := parseFrame(frame.FuncLine, frame.FileLine); ok {
+					routine.ParsedFrames = append(routine.ParsedFrames, parsedFrame)
 				}
-			} else if len(frameLines) == 1 {
-				// Handle single-line frames if they exist
-				// This is just a safeguard; well-formed stack traces should have 2 lines per frame
 			}
+			// Skip frames that don't have a file line
 		}
 
 		// Parse created by information
-		if len(section.CreatedBy) > 0 {
-			parseCreatedBySection(section.CreatedBy, routine)
+		if section.CreatedBy.FuncLine != "" {
+			parseCreatedByFrame(section.CreatedBy, routine)
 		}
 
 		result = append(result, *routine)
 	}
 
 	return result, nil
+}
+
+// parseFileLine parses a file line from a stack trace
+// Example: /opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go:165 +0x1fc
+// Returns the file path, line number, and PC offset
+func parseFileLine(fileLine string) (string, int, string, bool) {
+	fileRegex := regexp.MustCompile(`^\s*(.*\.go):(\d+)(?:\s+(\+0x[0-9a-f]+))?$`)
+	if match := fileRegex.FindStringSubmatch(fileLine); match != nil {
+		filePath := match[1]
+		lineNumber, err := strconv.Atoi(match[2])
+		if err != nil {
+			return "", 0, "", false
+		}
+
+		pcOffset := ""
+		if len(match) > 3 && match[3] != "" {
+			pcOffset = match[3]
+		}
+
+		return filePath, lineNumber, pcOffset, true
+	}
+
+	return "", 0, "", false
 }
 
 // parseFrame parses a pair of stack trace lines into a Frame struct
@@ -248,32 +291,26 @@ func parseFrame(funcLine, fileLine string) (Frame, bool) {
 	}
 
 	// Parse file line
-	// Example: /opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go:165 +0x1fc
-	fileRegex := regexp.MustCompile(`^\s*(.*\.go):(\d+)(?:\s+(\+0x[0-9a-f]+))?$`)
-	if match := fileRegex.FindStringSubmatch(fileLine); match != nil {
-		frame.FilePath = match[1]
-		if lineNum, err := strconv.Atoi(match[2]); err == nil {
-			frame.LineNumber = lineNum
-		}
-		if len(match) > 3 && match[3] != "" {
-			frame.PCOffset = match[3]
-		}
-	} else {
-		// If we can't parse the file line, return false
+	filePath, lineNumber, pcOffset, ok := parseFileLine(fileLine)
+	if !ok {
 		return frame, false
 	}
+
+	frame.FilePath = filePath
+	frame.LineNumber = lineNumber
+	frame.PCOffset = pcOffset
 
 	return frame, true
 }
 
-// parseCreatedBySection parses the "created by" section of a goroutine stack trace
+// parseCreatedByFrame parses the "created by" frame of a goroutine stack trace
 // It extracts the goroutine ID that created the current goroutine and the function/file information
-func parseCreatedBySection(createdByLines []string, routine *ParsedGoRoutine) {
-	if len(createdByLines) == 0 {
+func parseCreatedByFrame(createdBy RawStackFrame, routine *ParsedGoRoutine) {
+	if createdBy.FuncLine == "" {
 		return
 	}
 
-	line := createdByLines[0]
+	line := createdBy.FuncLine
 
 	// Extract the goroutine ID
 	goIdRegex := regexp.MustCompile(`in goroutine (\d+)`)
@@ -299,60 +336,12 @@ func parseCreatedBySection(createdByLines []string, routine *ParsedGoRoutine) {
 	}
 
 	// Check if we have a file line
-	if len(createdByLines) > 1 && strings.Contains(createdByLines[1], ".go:") {
+	if createdBy.FileLine != "" && strings.Contains(createdBy.FileLine, ".go:") {
 		// Use the existing parseFrame function to parse the created by frame
-		if frame, ok := parseFrame(funcName, createdByLines[1]); ok {
+		if frame, ok := parseFrame(funcName, createdBy.FileLine); ok {
 			routine.CreatedByFrame = &frame
 		}
 	}
-}
-
-// parseCreatedBy parses the "created by" information in a goroutine stack trace
-// It extracts the goroutine ID that created the current goroutine and the function/file information
-// Returns the updated currentFrame slice and the next line index to process
-func parseCreatedBy(line string, lines []string, lineIndex int, currentRoutine *ParsedGoRoutine, currentFrame []string) ([]string, int) {
-	// Extract the goroutine ID
-	goIdRegex := regexp.MustCompile(`in goroutine (\d+)`)
-	if match := goIdRegex.FindStringSubmatch(line); match != nil {
-		if goId, err := strconv.ParseInt(match[1], 10, 64); err == nil {
-			currentRoutine.CreatedByGoId = goId
-		}
-	}
-
-	// Extract the function name from the "created by" line
-	// Format: "created by package.function in goroutine X"
-	funcNameRegex := regexp.MustCompile(`created by (.+) in goroutine`)
-	var funcName string
-	if match := funcNameRegex.FindStringSubmatch(line); match != nil {
-		funcName = match[1]
-	} else {
-		// If we can't extract with the regex, just take everything after "created by "
-		funcName = strings.TrimPrefix(line, "created by ")
-		// Remove " in goroutine X" if present
-		if idx := strings.Index(funcName, " in goroutine "); idx > 0 {
-			funcName = funcName[:idx]
-		}
-	}
-
-	// The next line might be the file location for the created by frame
-	if lineIndex < len(lines) {
-		fileLine := lines[lineIndex]
-		lineIndex++ // Move to the next line
-
-		// If this looks like a file line, parse it as part of the created by frame
-		if strings.Contains(fileLine, ".go:") {
-			// Use the existing parseFrame function to parse the created by frame
-			if frame, ok := parseFrame(funcName, fileLine); ok {
-				currentRoutine.CreatedByFrame = &frame
-			}
-		} else {
-			// If it's not a file line, we need to process it as a normal line
-			// by putting it back into processing
-			currentFrame = append(currentFrame, fileLine)
-		}
-	}
-
-	return currentFrame, lineIndex
 }
 
 // parseStateComponents parses the RawState into its components
@@ -389,11 +378,11 @@ func parseDuration(s string) (bool, int64) {
 	}
 
 	patterns := []durationPattern{
-		{regexp.MustCompile(`^(\d+)\s*minutes?$`), 60 * 1000},       // minutes to ms
-		{regexp.MustCompile(`^(\d+)\s*seconds?$`), 1000},            // seconds to ms
-		{regexp.MustCompile(`^(\d+)\s*hours?$`), 60 * 60 * 1000},    // hours to ms
-		{regexp.MustCompile(`^(\d+)\s*milliseconds?$`), 1},          // ms to ms
-		{regexp.MustCompile(`^(\d+)\s*nanoseconds?$`), 1 / 1000000}, // ns to ms (effectively 0 for small values)
+		{regexp.MustCompile(`^(\d+)\s*minutes?$`), 60 * 1000},    // minutes to ms
+		{regexp.MustCompile(`^(\d+)\s*seconds?$`), 1000},         // seconds to ms
+		{regexp.MustCompile(`^(\d+)\s*hours?$`), 60 * 60 * 1000}, // hours to ms
+		{regexp.MustCompile(`^(\d+)\s*milliseconds?$`), 1},       // ms to ms
+		{regexp.MustCompile(`^(\d+)\s*nanoseconds?$`), 0},        // ns to ms (effectively 0 for small values)
 	}
 
 	for _, pattern := range patterns {
