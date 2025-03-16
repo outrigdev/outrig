@@ -130,19 +130,28 @@ type StatusUpdateData struct {
 	NumGoRoutines int    `json:"numgoroutines"`
 }
 
+// BuildInfoData represents a simplified version of runtime/debug.BuildInfo
+type BuildInfoData struct {
+	GoVersion string            `json:"goversion"`
+	Path      string            `json:"path"`
+	Version   string            `json:"version,omitempty"`
+	Settings  map[string]string `json:"settings,omitempty"`
+}
+
 // App run data types
 type AppRunInfo struct {
-	AppRunId            string `json:"apprunid"`
-	AppName             string `json:"appname"`
-	StartTime           int64  `json:"starttime"`
-	IsRunning           bool   `json:"isrunning"`
-	Status              string `json:"status"`
-	NumLogs             int    `json:"numlogs"`
-	NumActiveGoRoutines int    `json:"numactivegoroutines"`
-	NumTotalGoRoutines  int    `json:"numtotalgoroutines"`
-	NumActiveWatches    int    `json:"numactivewatches"`
-	NumTotalWatches     int    `json:"numtotalwatches"`
-	LastModTime         int64  `json:"lastmodtime"`
+	AppRunId            string       `json:"apprunid"`
+	AppName             string       `json:"appname"`
+	StartTime           int64        `json:"starttime"`
+	IsRunning           bool         `json:"isrunning"`
+	Status              string       `json:"status"`
+	NumLogs             int          `json:"numlogs"`
+	NumActiveGoRoutines int          `json:"numactivegoroutines"`
+	NumTotalGoRoutines  int          `json:"numtotalgoroutines"`
+	NumActiveWatches    int          `json:"numactivewatches"`
+	NumTotalWatches     int          `json:"numtotalwatches"`
+	LastModTime         int64        `json:"lastmodtime"`
+	BuildInfo           *BuildInfoData `json:"buildinfo,omitempty"`
 }
 
 type AppRunsData struct {

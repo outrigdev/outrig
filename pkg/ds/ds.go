@@ -71,17 +71,26 @@ func (vw ViewWindow) End() int {
 	return vw.Start + vw.Size
 }
 
+// BuildInfoData represents a simplified version of runtime/debug.BuildInfo
+type BuildInfoData struct {
+	GoVersion string            `json:"goversion"`
+	Path      string            `json:"path"`
+	Version   string            `json:"version,omitempty"`
+	Settings  map[string]string `json:"settings,omitempty"`
+}
+
 type AppInfo struct {
-	AppRunId   string   `json:"apprunid"`
-	AppName    string   `json:"appname"`
-	ModuleName string   `json:"modulename"`
-	Executable string   `json:"executable"`
-	Args       []string `json:"args"`
-	Env        []string `json:"env"`
-	StartTime  int64    `json:"starttime"`
-	Pid        int      `json:"pid"`
-	User       string   `json:"user,omitempty"`
-	Hostname   string   `json:"hostname,omitempty"`
+	AppRunId   string       `json:"apprunid"`
+	AppName    string       `json:"appname"`
+	ModuleName string       `json:"modulename"`
+	Executable string       `json:"executable"`
+	Args       []string     `json:"args"`
+	Env        []string     `json:"env"`
+	StartTime  int64        `json:"starttime"`
+	Pid        int          `json:"pid"`
+	User       string       `json:"user,omitempty"`
+	Hostname   string       `json:"hostname,omitempty"`
+	BuildInfo  *BuildInfoData `json:"buildinfo,omitempty"`
 }
 
 type GoroutineInfo struct {

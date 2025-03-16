@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -71,6 +72,21 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	hostname, err := os.Hostname()
 	if err == nil {
 		c.AppInfo.Hostname = hostname
+	}
+
+	// Add build information
+	if buildInfo, ok := debug.ReadBuildInfo(); ok {
+		settings := make(map[string]string)
+		for _, setting := range buildInfo.Settings {
+			settings[setting.Key] = setting.Value
+		}
+		
+		c.AppInfo.BuildInfo = &ds.BuildInfoData{
+			GoVersion: buildInfo.GoVersion,
+			Path:      buildInfo.Path,
+			Version:   buildInfo.Main.Version,
+			Settings:  settings,
+		}
 	}
 
 	if !config.StartAsync {

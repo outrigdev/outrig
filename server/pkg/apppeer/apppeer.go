@@ -265,8 +265,8 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	numActiveWatches := len(p.ActiveWatches)
 	numTotalWatches := len(p.Watches.Keys())
 
-	// Create and return AppRunInfo
-	return rpctypes.AppRunInfo{
+	// Create AppRunInfo
+	appRunInfo := rpctypes.AppRunInfo{
 		AppRunId:            p.AppRunId,
 		AppName:             p.AppInfo.AppName,
 		StartTime:           p.AppInfo.StartTime,
@@ -279,4 +279,16 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 		NumTotalWatches:     numTotalWatches,
 		LastModTime:         p.LastModTime,
 	}
+
+	// Add build info if available
+	if p.AppInfo.BuildInfo != nil {
+		appRunInfo.BuildInfo = &rpctypes.BuildInfoData{
+			GoVersion: p.AppInfo.BuildInfo.GoVersion,
+			Path:      p.AppInfo.BuildInfo.Path,
+			Version:   p.AppInfo.BuildInfo.Version,
+			Settings:  p.AppInfo.BuildInfo.Settings,
+		}
+	}
+
+	return appRunInfo
 }

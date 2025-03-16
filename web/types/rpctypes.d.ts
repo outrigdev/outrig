@@ -25,6 +25,7 @@ declare global {
         numactivewatches: number;
         numtotalwatches: number;
         lastmodtime: number;
+        buildinfo?: BuildInfoData;
     };
 
     // rpctypes.AppRunLogsData
@@ -68,6 +69,14 @@ declare global {
     type BrowserTabUrlData = {
         url: string;
         apprunid?: string;
+    };
+
+    // rpctypes.BuildInfoData
+    type BuildInfoData = {
+        goversion: string;
+        path: string;
+        version?: string;
+        settings?: {[key: string]: string};
     };
 
     // rpctypes.CommandMessageData
