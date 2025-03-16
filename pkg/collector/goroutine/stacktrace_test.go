@@ -6,13 +6,15 @@ import (
 
 func TestParseGoRoutineStackTrace(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          string
-		expectedCount  int
-		expectedGoId   int64
-		expectedState  string
-		expectedFrames int
-		hasCreatedBy   bool
+		name                 string
+		input                string
+		expectedCount        int
+		expectedGoId         int64
+		expectedPrimaryState string
+		expectedFrames       int
+		hasCreatedBy         bool
+		expectedDurationMs   int64    // Expected duration in milliseconds
+		expectedExtraStates  []string // Expected extra states
 	}{
 		{
 			name: "IO wait goroutine",
@@ -33,11 +35,13 @@ github.com/outrigdev/outrig/pkg/collector/logprocess.(*DupWrap).Run(0x1400014670
 	/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl-posix.go:110 +0x64
 created by github.com/outrigdev/outrig/pkg/collector/logprocess.(*LogCollector).initInternal in goroutine 1
 	/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl.go:69 +0x3dc`,
-			expectedCount:  1,
-			expectedGoId:   38,
-			expectedState:  "IO wait",
-			expectedFrames: 15, // Actual number of frame lines parsed
-			hasCreatedBy:   true,
+			expectedCount:        1,
+			expectedGoId:         38,
+			expectedPrimaryState: "IO wait",
+			expectedFrames:       15, // Actual number of frame lines parsed
+			hasCreatedBy:         true,
+			expectedDurationMs:   0,   // No duration
+			expectedExtraStates:  nil, // No extra states
 		},
 		{
 			name: "chan receive goroutine with duration",
@@ -48,11 +52,52 @@ github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute.func2()
 	/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:326 +0x14c
 created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in goroutine 327
 	/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:315 +0x3cc`,
-			expectedCount:  1,
-			expectedGoId:   338,
-			expectedState:  "chan receive",
-			expectedFrames: 5, // Actual number of frame lines parsed
-			hasCreatedBy:   true,
+			expectedCount:        1,
+			expectedGoId:         338,
+			expectedPrimaryState: "chan receive",
+			expectedFrames:       5, // Actual number of frame lines parsed
+			hasCreatedBy:         true,
+			expectedDurationMs:   101 * 60 * 1000, // 101 minutes in milliseconds
+			expectedExtraStates:  nil,             // No extra states besides duration
+		},
+		{
+			name: "goroutine 1 with no created by",
+			input: `goroutine 1 [chan receive, 105 minutes]:
+main.main()
+	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
+			expectedCount:        1,
+			expectedGoId:         1,
+			expectedPrimaryState: "chan receive",
+			expectedFrames:       2, // 1 frame * 2 lines
+			hasCreatedBy:         false,
+			expectedDurationMs:   105 * 60 * 1000, // 105 minutes in milliseconds
+			expectedExtraStates:  nil,             // No extra states besides duration
+		},
+		{
+			name: "goroutine with multiple extra states",
+			input: `goroutine 42 [chan receive, 3 minutes, locked to thread]:
+main.main()
+	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
+			expectedCount:        1,
+			expectedGoId:         42,
+			expectedPrimaryState: "chan receive",
+			expectedFrames:       2, // 1 frame * 2 lines
+			hasCreatedBy:         false,
+			expectedDurationMs:   3 * 60 * 1000,                // 3 minutes in milliseconds
+			expectedExtraStates:  []string{"locked to thread"}, // Extra state
+		},
+		{
+			name: "goroutine with lock info",
+			input: `goroutine 55 [semacquire, 2 minutes]:
+main.main()
+	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
+			expectedCount:        1,
+			expectedGoId:         55,
+			expectedPrimaryState: "semacquire",
+			expectedFrames:       2, // 1 frame * 2 lines
+			hasCreatedBy:         false,
+			expectedDurationMs:   2 * 60 * 1000, // 2 minutes in milliseconds
+			expectedExtraStates:  nil,           // No extra states besides duration
 		},
 	}
 
@@ -77,8 +122,29 @@ created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in gor
 				t.Errorf("Expected GoId %d, got %d", tt.expectedGoId, routine.GoId)
 			}
 
-			if routine.State != tt.expectedState {
-				t.Errorf("Expected State %q, got %q", tt.expectedState, routine.State)
+			// Check that PrimaryState matches the expected state
+			if routine.PrimaryState != tt.expectedPrimaryState {
+				t.Errorf("Expected PrimaryState %q, got %q", tt.expectedPrimaryState, routine.PrimaryState)
+			}
+
+			// Check duration if expected
+			if routine.DurationMs != tt.expectedDurationMs {
+				t.Errorf("Expected DurationMs %d, got %d", tt.expectedDurationMs, routine.DurationMs)
+			}
+
+			// Check extra states if expected
+			if tt.expectedExtraStates != nil {
+				if len(routine.ExtraStates) != len(tt.expectedExtraStates) {
+					t.Errorf("Expected %d extra states, got %d", len(tt.expectedExtraStates), len(routine.ExtraStates))
+				} else {
+					for i, expectedExtra := range tt.expectedExtraStates {
+						if i < len(routine.ExtraStates) && routine.ExtraStates[i] != expectedExtra {
+							t.Errorf("Expected extra state %q at index %d, got %q", expectedExtra, i, routine.ExtraStates[i])
+						}
+					}
+				}
+			} else if len(routine.ExtraStates) > 0 {
+				t.Errorf("Expected no extra states, got %v", routine.ExtraStates)
 			}
 
 			if len(routine.Frames) != tt.expectedFrames {
