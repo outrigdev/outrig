@@ -175,7 +175,6 @@ func TestParseGoRoutineStackTrace(t *testing.T) {
 	tests := []struct {
 		name                  string
 		input                 string
-		expectedCount         int
 		expectedGoId          int64
 		expectedPrimaryState  string
 		expectedFrames        int
@@ -203,7 +202,6 @@ github.com/outrigdev/outrig/pkg/collector/logprocess.(*DupWrap).Run(0x1400014670
 	/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl-posix.go:110 +0x64
 created by github.com/outrigdev/outrig/pkg/collector/logprocess.(*LogCollector).initInternal in goroutine 1
 	/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl.go:69 +0x3dc`,
-			expectedCount:         1,
 			expectedGoId:          38,
 			expectedPrimaryState:  "IO wait",
 			expectedFrames:        7,
@@ -221,7 +219,6 @@ github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute.func2()
 	/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:326 +0x14c
 created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in goroutine 327
 	/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:315 +0x3cc`,
-			expectedCount:         1,
 			expectedGoId:          338,
 			expectedPrimaryState:  "chan receive",
 			expectedFrames:        2,
@@ -235,7 +232,6 @@ created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in gor
 			input: `goroutine 1 [chan receive, 105 minutes]:
 main.main()
 	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
-			expectedCount:         1,
 			expectedGoId:          1,
 			expectedPrimaryState:  "chan receive",
 			expectedFrames:        1,
@@ -249,7 +245,6 @@ main.main()
 			input: `goroutine 42 [chan receive, 3 minutes, locked to thread]:
 main.main()
 	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
-			expectedCount:         1,
 			expectedGoId:          42,
 			expectedPrimaryState:  "chan receive",
 			expectedFrames:        1,
@@ -263,7 +258,6 @@ main.main()
 			input: `goroutine 55 [semacquire, 2 minutes]:
 main.main()
 	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
-			expectedCount:         1,
 			expectedGoId:          55,
 			expectedPrimaryState:  "semacquire",
 			expectedFrames:        1,
@@ -276,20 +270,10 @@ main.main()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseGoRoutineStackTrace(tt.input)
+			routine, err := ParseGoRoutineStackTrace(tt.input)
 			if err != nil {
 				t.Fatalf("ParseGoRoutineStackTrace returned error: %v", err)
 			}
-
-			if len(result) != tt.expectedCount {
-				t.Errorf("Expected %d goroutines, got %d", tt.expectedCount, len(result))
-			}
-
-			if len(result) == 0 {
-				return
-			}
-
-			routine := result[0]
 
 			if routine.GoId != tt.expectedGoId {
 				t.Errorf("Expected GoId %d, got %d", tt.expectedGoId, routine.GoId)

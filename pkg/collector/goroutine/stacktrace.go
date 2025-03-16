@@ -44,21 +44,19 @@ type RawStackFrame struct {
 	FileLine string // The file location line (may be empty)
 }
 
-// GoRoutineSection represents a preprocessed section of a goroutine stack trace
-type GoRoutineSection struct {
+// PreprocessedGoRoutineLines represents a preprocessed goroutine stack trace
+type PreprocessedGoRoutineLines struct {
 	HeaderLine  string          // The goroutine header line (e.g., "goroutine 1 [running]:")
 	StackFrames []RawStackFrame // Stack frames, where each frame has a function line and optional file line
 	CreatedBy   RawStackFrame   // The "created by" information
 }
 
-// preprocessStackTrace splits a stack trace into sections for each goroutine
-// and groups the lines into header, stack frames, and created by sections
-func preprocessStackTrace(stackTrace string) []GoRoutineSection {
+// preprocessStackTrace processes a goroutine stack trace and groups the lines into header, stack frames, and created by sections
+func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 	// Split the stack trace into lines (don't trim yet to preserve indentation)
 	lines := strings.Split(stackTrace, "\n")
 
-	var sections []GoRoutineSection
-	var currentSection *GoRoutineSection
+	result := PreprocessedGoRoutineLines{}
 	var currentFuncLine string
 
 	headerRegex := regexp.MustCompile(`^goroutine\s+\d+\s+\[.*\]:$`)
@@ -73,38 +71,22 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 
 		// Check if this is a goroutine header line
 		if headerRegex.MatchString(line) {
-			// If we have a current section, add it to the result
-			if currentSection != nil {
-				// Add any remaining frame to the current section
-				if currentFuncLine != "" {
-					currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
-						FuncLine: currentFuncLine,
-						FileLine: "",
-					})
-				}
-				sections = append(sections, *currentSection)
-			}
-
-			// Start a new section
-			currentSection = &GoRoutineSection{
-				HeaderLine:  strings.TrimSpace(line),
-				StackFrames: []RawStackFrame{},
-				CreatedBy:   RawStackFrame{},
-			}
+			// Found the header line
+			result.HeaderLine = strings.TrimSpace(line)
 			currentFuncLine = ""
 			continue
 		}
 
 		// Skip if we haven't found a goroutine header yet
-		if currentSection == nil {
+		if result.HeaderLine == "" {
 			continue
 		}
 
 		// Check if this is a "created by" line
 		if strings.HasPrefix(strings.TrimSpace(line), "created by ") {
-			// Add any remaining frame to the current section
+			// Add any remaining frame
 			if currentFuncLine != "" {
-				currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
+				result.StackFrames = append(result.StackFrames, RawStackFrame{
 					FuncLine: currentFuncLine,
 					FileLine: "",
 				})
@@ -113,11 +95,11 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 
 			// Set the created by function line
 			createdByLine := strings.TrimSpace(line)
-			currentSection.CreatedBy.FuncLine = createdByLine
+			result.CreatedBy.FuncLine = createdByLine
 
 			// Check if the next line is indented (part of the created by frame)
 			if i+1 < len(lines) && len(lines[i+1]) > 0 && (lines[i+1][0] == ' ' || lines[i+1][0] == '\t') {
-				currentSection.CreatedBy.FileLine = strings.TrimSpace(lines[i+1])
+				result.CreatedBy.FileLine = strings.TrimSpace(lines[i+1])
 				i++ // Skip the next line since we've processed it
 			}
 
@@ -129,7 +111,7 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 		if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
 			// This is the second line of a frame
 			if currentFuncLine != "" {
-				currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
+				result.StackFrames = append(result.StackFrames, RawStackFrame{
 					FuncLine: currentFuncLine,
 					FileLine: trimmedLine,
 				})
@@ -143,7 +125,7 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 			// This is the first line of a new frame
 			if currentFuncLine != "" {
 				// Add the previous frame (which only had one line)
-				currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
+				result.StackFrames = append(result.StackFrames, RawStackFrame{
 					FuncLine: currentFuncLine,
 					FileLine: "",
 				})
@@ -152,70 +134,60 @@ func preprocessStackTrace(stackTrace string) []GoRoutineSection {
 		}
 	}
 
-	// Add the last section if there is one
-	if currentSection != nil {
-		// Add any remaining frame
-		if currentFuncLine != "" {
-			currentSection.StackFrames = append(currentSection.StackFrames, RawStackFrame{
-				FuncLine: currentFuncLine,
-				FileLine: "",
-			})
-		}
-		sections = append(sections, *currentSection)
+	// Add any remaining frame
+	if currentFuncLine != "" {
+		result.StackFrames = append(result.StackFrames, RawStackFrame{
+			FuncLine: currentFuncLine,
+			FileLine: "",
+		})
 	}
 
-	return sections
+	return result
 }
 
 // ParseGoRoutineStackTrace parses a Go routine stack trace string into a struct
-func ParseGoRoutineStackTrace(stackTrace string) ([]ParsedGoRoutine, error) {
-	var result []ParsedGoRoutine
-
-	// Preprocess the stack trace into sections
-	sections := preprocessStackTrace(stackTrace)
+func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
+	// Preprocess the stack trace
+	preprocessed := preprocessStackTrace(stackTrace)
 
 	headerRegex := regexp.MustCompile(`^goroutine\s+(\d+)\s+\[(.*)\]:$`)
 
-	for _, section := range sections {
-		// Parse the goroutine header
-		match := headerRegex.FindStringSubmatch(section.HeaderLine)
-		if match == nil {
-			continue // Skip if header doesn't match expected format
-		}
-
-		// Parse the goroutine ID and state
-		goId, _ := strconv.ParseInt(match[1], 10, 64)
-		state := match[2]
-
-		// Create a new routine
-		routine := &ParsedGoRoutine{
-			GoId:         goId,
-			RawState:     state,
-			ParsedFrames: []Frame{},
-		}
-
-		// Parse the state components
-		parseStateComponents(routine)
-
-		// Parse stack frames
-		for _, frame := range section.StackFrames {
-			if frame.FileLine != "" {
-				if parsedFrame, ok := parseFrame(frame.FuncLine, frame.FileLine); ok {
-					routine.ParsedFrames = append(routine.ParsedFrames, parsedFrame)
-				}
-			}
-			// Skip frames that don't have a file line
-		}
-
-		// Parse created by information
-		if section.CreatedBy.FuncLine != "" {
-			parseCreatedByFrame(section.CreatedBy, routine)
-		}
-
-		result = append(result, *routine)
+	// Parse the goroutine header
+	match := headerRegex.FindStringSubmatch(preprocessed.HeaderLine)
+	if match == nil {
+		return ParsedGoRoutine{}, nil // Return empty struct if header doesn't match expected format
 	}
 
-	return result, nil
+	// Parse the goroutine ID and state
+	goId, _ := strconv.ParseInt(match[1], 10, 64)
+	state := match[2]
+
+	// Create a new routine
+	routine := ParsedGoRoutine{
+		GoId:         goId,
+		RawState:     state,
+		ParsedFrames: []Frame{},
+	}
+
+	// Parse the state components
+	parseStateComponents(&routine)
+
+	// Parse stack frames
+	for _, frame := range preprocessed.StackFrames {
+		if frame.FileLine != "" {
+			if parsedFrame, ok := parseFrame(frame.FuncLine, frame.FileLine); ok {
+				routine.ParsedFrames = append(routine.ParsedFrames, parsedFrame)
+			}
+		}
+		// Skip frames that don't have a file line
+	}
+
+	// Parse created by information
+	if preprocessed.CreatedBy.FuncLine != "" {
+		parseCreatedByFrame(preprocessed.CreatedBy, &routine)
+	}
+
+	return routine, nil
 }
 
 // parseFileLine parses a file line from a stack trace
