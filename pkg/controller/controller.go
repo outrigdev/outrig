@@ -45,49 +45,9 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 		Collectors: make(map[string]collector.Collector),
 	}
 
-	// Initialize AppInfo
-	c.AppInfo.AppRunId = uuid.New().String()
-
-	if config.AppName == "" {
-		config.AppName = c.determineAppName()
-	}
-	c.AppInfo.AppName = config.AppName
-
-	if config.ModuleName == "" {
-		config.ModuleName = c.determineModuleName()
-	}
-	c.AppInfo.ModuleName = config.ModuleName
+	// Initialize AppInfo using the dedicated function
+	c.AppInfo = c.createAppInfo(&config)
 	c.config = &config
-
-	// Initialize the rest of AppInfo
-	c.AppInfo.StartTime = time.Now().UnixMilli()
-	c.AppInfo.Args = utilfn.CopyStrArr(os.Args)
-	c.AppInfo.Executable, _ = os.Executable()
-	c.AppInfo.Env = utilfn.CopyStrArr(os.Environ())
-	c.AppInfo.Pid = os.Getpid()
-	user, err := user.Current()
-	if err == nil {
-		c.AppInfo.User = user.Username
-	}
-	hostname, err := os.Hostname()
-	if err == nil {
-		c.AppInfo.Hostname = hostname
-	}
-
-	// Add build information
-	if buildInfo, ok := debug.ReadBuildInfo(); ok {
-		settings := make(map[string]string)
-		for _, setting := range buildInfo.Settings {
-			settings[setting.Key] = setting.Value
-		}
-		
-		c.AppInfo.BuildInfo = &ds.BuildInfoData{
-			GoVersion: buildInfo.GoVersion,
-			Path:      buildInfo.Path,
-			Version:   buildInfo.Main.Version,
-			Settings:  settings,
-		}
-	}
 
 	if !config.StartAsync {
 		c.Connect()
@@ -118,6 +78,64 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	}
 	go c.runConnPoller()
 	return c, nil
+}
+
+// createAppInfo creates and initializes the AppInfo structure
+func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
+	appInfo := ds.AppInfo{}
+
+	// Initialize basic AppInfo
+	appInfo.AppRunId = uuid.New().String()
+
+	// Set app name
+	appName := config.AppName
+	if appName == "" {
+		appName = c.determineAppName()
+	}
+	appInfo.AppName = appName
+
+	// Set module name
+	moduleName := config.ModuleName
+	if moduleName == "" {
+		moduleName = c.determineModuleName()
+	}
+	appInfo.ModuleName = moduleName
+
+	// Initialize the rest of AppInfo
+	appInfo.StartTime = time.Now().UnixMilli()
+	appInfo.Args = utilfn.CopyStrArr(os.Args)
+	appInfo.Executable, _ = os.Executable()
+	appInfo.Env = utilfn.CopyStrArr(os.Environ())
+	appInfo.Pid = os.Getpid()
+
+	// Get user information
+	user, err := user.Current()
+	if err == nil {
+		appInfo.User = user.Username
+	}
+
+	// Get hostname
+	hostname, err := os.Hostname()
+	if err == nil {
+		appInfo.Hostname = hostname
+	}
+
+	// Add build information
+	if buildInfo, ok := debug.ReadBuildInfo(); ok {
+		settings := make(map[string]string)
+		for _, setting := range buildInfo.Settings {
+			settings[setting.Key] = setting.Value
+		}
+
+		appInfo.BuildInfo = &ds.BuildInfoData{
+			GoVersion: buildInfo.GoVersion,
+			Path:      buildInfo.Path,
+			Version:   buildInfo.Main.Version,
+			Settings:  settings,
+		}
+	}
+
+	return appInfo
 }
 
 // Connection management methods
