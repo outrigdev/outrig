@@ -534,3 +534,93 @@ main.main()
 		})
 	}
 }
+
+func TestParseFileLine(t *testing.T) {
+	tests := []struct {
+		name             string
+		fileLine         string
+		expectSuccess    bool
+		expectedFilePath string
+		expectedLine     int
+		expectedPCOffset string
+	}{
+		{
+			name:             "Standard file line with PC offset",
+			fileLine:         "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go:165 +0x1fc",
+			expectSuccess:    true,
+			expectedFilePath: "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go",
+			expectedLine:     165,
+			expectedPCOffset: "+0x1fc",
+		},
+		{
+			name:             "File line without PC offset",
+			fileLine:         "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go:6329",
+			expectSuccess:    true,
+			expectedFilePath: "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go",
+			expectedLine:     6329,
+			expectedPCOffset: "",
+		},
+		{
+			name:             "File line with leading whitespace",
+			fileLine:         "  /Users/mike/work/outrig/pkg/rpc/rpcrouter.go:326 +0x14c",
+			expectSuccess:    true,
+			expectedFilePath: "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go",
+			expectedLine:     326,
+			expectedPCOffset: "+0x14c",
+		},
+		{
+			name:             "File line with different PC offset format",
+			fileLine:         "/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl.go:69 +0x3dc",
+			expectSuccess:    true,
+			expectedFilePath: "/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl.go",
+			expectedLine:     69,
+			expectedPCOffset: "+0x3dc",
+		},
+		{
+			name:          "Invalid file line - no line number",
+			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go",
+			expectSuccess: false,
+		},
+		{
+			name:          "Invalid file line - not a go file",
+			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.c:123",
+			expectSuccess: false,
+		},
+		{
+			name:          "Invalid file line - non-numeric line number",
+			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go:abc",
+			expectSuccess: false,
+		},
+		{
+			name:          "Empty file line",
+			fileLine:      "",
+			expectSuccess: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filePath, lineNumber, pcOffset, ok := parseFileLine(tt.fileLine)
+
+			if ok != tt.expectSuccess {
+				t.Fatalf("parseFileLine() success = %v, expected %v", ok, tt.expectSuccess)
+			}
+
+			if !tt.expectSuccess {
+				return
+			}
+
+			if filePath != tt.expectedFilePath {
+				t.Errorf("FilePath = %q, expected %q", filePath, tt.expectedFilePath)
+			}
+
+			if lineNumber != tt.expectedLine {
+				t.Errorf("LineNumber = %d, expected %d", lineNumber, tt.expectedLine)
+			}
+
+			if pcOffset != tt.expectedPCOffset {
+				t.Errorf("PCOffset = %q, expected %q", pcOffset, tt.expectedPCOffset)
+			}
+		})
+	}
+}
