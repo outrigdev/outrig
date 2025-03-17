@@ -19,7 +19,7 @@ class GoRoutinesModel {
     // Code link settings
     showCodeLinks: PrimitiveAtom<CodeLinkType> = atom<CodeLinkType>("vscode");
 
-    // Stacktrace display settings
+    // Stacktrace display settings - can be "raw", "simplified", or "simplified:files"
     simpleStacktraceMode: PrimitiveAtom<string> = atom("simplified");
 
     constructor(appRunId: string) {

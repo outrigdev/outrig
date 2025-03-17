@@ -4,7 +4,7 @@ import { Tooltip } from "@/elements/tooltip";
 import { useOutrigModel } from "@/util/hooks";
 import { cn } from "@/util/util";
 import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
-import { Filter, Layers } from "lucide-react";
+import { Filter, Layers, Layers2 } from "lucide-react";
 import React, { useCallback, useRef } from "react";
 import { Tag } from "../elements/tag";
 import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
@@ -17,30 +17,58 @@ interface StacktraceModeToggleProps {
 
 const StacktraceModeToggle: React.FC<StacktraceModeToggleProps> = ({ modeAtom }) => {
     const [mode, setMode] = useAtom(modeAtom);
-    
+
     const handleToggleMode = useCallback(() => {
-        setMode(mode === "simplified" ? "raw" : "simplified");
+        // Cycle through the three modes: "raw" -> "simplified" -> "simplified:files" -> "raw"
+        if (mode === "raw") {
+            setMode("simplified");
+        } else if (mode === "simplified") {
+            setMode("simplified:files");
+        } else {
+            setMode("raw");
+        }
     }, [mode, setMode]);
-    
+
+    // Determine tooltip content based on current mode
+    const tooltipContent = useCallback(() => {
+        switch (mode) {
+            case "raw":
+                return "Raw Stacktrace Mode (Click to Toggle)";
+            case "simplified":
+                return "Simplified Stacktrace Mode (Click to Toggle)";
+            case "simplified:files":
+                return "Simplified Stacktrace with Files Mode (Click to Toggle)";
+            default:
+                return "Toggle Stacktrace Mode";
+        }
+    }, [mode]);
+
+    // Render the appropriate icon based on the current mode
+    const renderIcon = useCallback(() => {
+        switch (mode) {
+            case "simplified":
+                return <Layers2 size={16} />;
+            case "simplified:files":
+                return <Layers size={16} />;
+            case "raw":
+            default:
+                return <Layers size={16} />;
+        }
+    }, [mode]);
+
     return (
-        <Tooltip
-            content={
-                mode === "simplified"
-                    ? "Simple Stacktrace Mode On (Click to Disable)"
-                    : "Simple Stacktrace Mode Off (Click to Enable)"
-            }
-        >
+        <Tooltip content={tooltipContent()}>
             <button
                 onClick={handleToggleMode}
                 className={cn(
                     "p-1 mr-1 rounded cursor-pointer transition-colors",
-                    mode === "simplified"
+                    mode !== "raw"
                         ? "bg-primary/20 text-primary hover:bg-primary/30"
                         : "text-muted hover:bg-buttonhover hover:text-primary"
                 )}
-                aria-pressed={mode === "simplified" ? "true" : "false"}
+                aria-pressed={mode !== "raw" ? "true" : "false"}
             >
-                <Layers size={16} />
+                {renderIcon()}
             </button>
         </Tooltip>
     );
@@ -179,12 +207,17 @@ interface StackTraceProps {
 const StackTrace: React.FC<StackTraceProps> = ({ goroutine, model, linkType, simpleMode }) => {
     const stackTraceRef = useRef<HTMLDivElement>(null);
 
-    // If simple mode is enabled and the goroutine is properly parsed
-    if (simpleMode === "simplified" && goroutine.parsed && goroutine.parsedframes && goroutine.parsedframes.length > 0) {
+    // Check if the goroutine is properly parsed for simplified views
+    const canUseSimplifiedView = goroutine.parsed && goroutine.parsedframes && goroutine.parsedframes.length > 0;
+
+    // Handle the different modes
+    if ((simpleMode === "simplified" || simpleMode === "simplified:files") && canUseSimplifiedView) {
+        // For now, both simplified modes use the same component
+        // In the future, "simplified:files" will have its own implementation
         return <SimplifiedStackTrace goroutine={goroutine} model={model} linkType={linkType} />;
     }
 
-    // Otherwise show raw stack trace
+    // Default to raw stack trace
     return <RawStackTrace goroutine={goroutine} model={model} linkType={linkType} />;
 };
 
