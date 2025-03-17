@@ -251,6 +251,10 @@ type StackFrame struct {
 	FilePath   string `json:"filepath"`           // Full path to the source file (e.g., "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go")
 	LineNumber int    `json:"linenumber"`         // Line number in the source file (e.g., 165)
 	PCOffset   string `json:"pcoffset,omitempty"` // Program counter offset (e.g., "+0x1fc")
+
+	// Classification flags
+	IsImportant bool `json:"isimportant,omitempty"` // True if the frame is from the user's own module
+	IsSys       bool `json:"issys,omitempty"`       // True if the frame is from a system module (e.g., "os", "net", "internal")
 }
 
 // ParsedGoRoutine represents a parsed goroutine stack trace

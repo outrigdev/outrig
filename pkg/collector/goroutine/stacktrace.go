@@ -26,8 +26,32 @@ type PreprocessedGoRoutineLines struct {
 	CreatedBy   rawStackFrame   // The "created by" information
 }
 
+// AnnotateFrame sets the IsImportant and IsSys flags on a stack frame
+// based on the module name and package information
+func AnnotateFrame(frame *StackFrame, moduleName string) {
+	if frame == nil {
+		return
+	}
+
+	// Mark as important if it belongs to the user's module and is not vendored.
+	if moduleName != "" && strings.HasPrefix(frame.Package, moduleName) && !strings.Contains(frame.Package, "/vendor/") {
+		frame.IsImportant = true
+		return
+	}
+
+	// Determine if the frame is from the standard library or extended runtime.
+	// Standard library packages have a first segment without a dot. (dot indicates a domain name, like "github.com/...")
+	parts := strings.Split(frame.Package, "/")
+	if len(parts) > 0 {
+		if !strings.Contains(parts[0], ".") || strings.HasPrefix(frame.Package, "golang.org/x/") {
+			frame.IsSys = true
+		}
+	}
+}
+
 // ParseGoRoutineStackTrace parses a Go routine stack trace string into a struct
-func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
+// moduleName is the name of the module that the app belongs to, used to identify important frames
+func ParseGoRoutineStackTrace(stackTrace string, moduleName string) (ParsedGoRoutine, error) {
 	// Create a basic ParsedGoRoutine with the raw data
 	routine := ParsedGoRoutine{
 		RawStackTrace: stackTrace,
@@ -60,6 +84,8 @@ func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
 	// Parse stack frames
 	for _, frame := range preprocessed.StackFrames {
 		if parsedFrame, ok := parseFrame(frame.FuncLine, frame.FileLine, true); ok {
+			// Annotate the frame with IsImportant and IsSys flags
+			AnnotateFrame(&parsedFrame, moduleName)
 			routine.ParsedFrames = append(routine.ParsedFrames, parsedFrame)
 		}
 	}
@@ -68,6 +94,8 @@ func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
 	if preprocessed.CreatedBy.FuncLine != "" {
 		frame, goId, ok := parseCreatedByFrame(preprocessed.CreatedBy.FuncLine, preprocessed.CreatedBy.FileLine)
 		if ok {
+			// Annotate the created by frame
+			AnnotateFrame(frame, moduleName)
 			routine.CreatedByGoId = int64(goId)
 			routine.CreatedByFrame = frame
 		}

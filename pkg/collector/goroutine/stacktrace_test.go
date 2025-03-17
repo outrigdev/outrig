@@ -341,6 +341,7 @@ func TestParseGoRoutineStackTrace(t *testing.T) {
 	tests := []struct {
 		name                  string
 		input                 string
+		moduleName            string
 		expectedGoId          int64
 		expectedPrimaryState  string
 		expectedFrames        int
@@ -436,7 +437,8 @@ main.main()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			routine, err := ParseGoRoutineStackTrace(tt.input)
+			// Use empty string for module name in tests
+			routine, err := ParseGoRoutineStackTrace(tt.input, "")
 			if err != nil {
 				t.Fatalf("ParseGoRoutineStackTrace returned error: %v", err)
 			}

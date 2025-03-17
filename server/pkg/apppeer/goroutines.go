@@ -36,8 +36,12 @@ func GetAppRunGoRoutinesCommand(ctx context.Context, req rpctypes.AppRunRequest)
 			continue
 		}
 
-		// Parse the stack trace
-		parsedGoRoutine, err := goroutine.ParseGoRoutineStackTrace(latestStack.StackTrace)
+		// Parse the stack trace, passing the module name from AppInfo
+		moduleName := ""
+		if peer.AppInfo != nil {
+			moduleName = peer.AppInfo.ModuleName
+		}
+		parsedGoRoutine, err := goroutine.ParseGoRoutineStackTrace(latestStack.StackTrace, moduleName)
 		if err != nil {
 			// If parsing fails, skip this goroutine
 			continue
