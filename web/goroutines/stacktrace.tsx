@@ -1,5 +1,5 @@
 import { cn } from "@/util/util";
-import React from "react";
+import React, { useState } from "react";
 import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
 
 // Component for displaying a single frame in the simplified stack trace
@@ -165,6 +165,89 @@ const RawStackTrace: React.FC<RawStackTraceProps> = ({ goroutine, model, linkTyp
     );
 };
 
+// Helper function to simplify package names based on their source
+const simplifyPackageName = (packagePath: string, isSys?: boolean): string => {
+    // For golang.org packages, strip the golang.org prefix (even if marked as system)
+    if (packagePath.startsWith("golang.org/")) {
+        return packagePath.substring("golang.org/".length);
+    }
+
+    // For system packages (except golang.org), use the full name
+    if (isSys) {
+        return packagePath;
+    }
+
+    // For GitHub/Bitbucket packages, use just the second part (the repo name)
+    if (packagePath.startsWith("github.com/") || packagePath.startsWith("bitbucket.org/")) {
+        const parts = packagePath.split("/");
+        if (parts.length >= 3) {
+            // Return just the repository name (parts[2])
+            return parts[2];
+        }
+    }
+
+    // For gopkg.in packages, take the first part after gopkg.in
+    if (packagePath.startsWith("gopkg.in/")) {
+        return packagePath.substring("gopkg.in/".length);
+    }
+
+    // For internal packages (no domain), use the last part
+    if (!packagePath.includes(".")) {
+        const parts = packagePath.split("/");
+        return parts[parts.length - 1];
+    }
+
+    // For anything else, use the full package path
+    return packagePath;
+};
+
+// Helper function to get the function display name (package.funcname)
+const getFunctionDisplayName = (frame: StackFrame): string => {
+    const packageName = simplifyPackageName(frame.package, frame.issys);
+    return `${packageName}.${frame.funcname}`;
+};
+
+// Component for displaying a collapsed section of stack frames
+interface CollapsedStackFramesProps {
+    frames: StackFrame[];
+    onExpand: () => void;
+}
+
+const CollapsedStackFrames: React.FC<CollapsedStackFramesProps> = ({ frames, onExpand }) => {
+    if (frames.length === 0) return null;
+
+    // Don't collapse if there's only 1 frame
+    if (frames.length === 1) {
+        return null; // This will be handled by the parent component
+    }
+
+    // Use a nicer arrow from Nerd Font
+    const arrow = " → ";
+
+    // Get unique package names from the frames (in original order - top to bottom)
+    const packageNames = new Set<string>();
+    frames.forEach((frame) => {
+        const simplifiedName = simplifyPackageName(frame.package, frame.issys);
+        packageNames.add(simplifiedName);
+    });
+
+    // Convert to array and limit to at most 3 packages
+    const uniquePackages = Array.from(packageNames);
+    const displayPackages =
+        uniquePackages.length <= 3
+            ? uniquePackages
+            : [uniquePackages[0], uniquePackages[1], "...", uniquePackages[uniquePackages.length - 1]];
+
+    // Format the display text
+    const displayText = `... // ${frames.length} frames - ${displayPackages.join(arrow)}`;
+
+    return (
+        <div className="border-l-[5px] border-l-transparent pl-3 cursor-pointer group" onClick={onExpand}>
+            <span className="text-secondary group-hover:text-primary">{displayText}</span>
+        </div>
+    );
+};
+
 // Component for displaying simplified stack trace
 interface SimplifiedStackTraceProps {
     goroutine: ParsedGoRoutine;
@@ -193,17 +276,99 @@ const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({
     linkType,
     showFileLinks = true, // Default to showing file links (for backward compatibility)
 }) => {
+    // State to track which sections are expanded
+    const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+
+    // Toggle expansion of a section
+    const toggleSection = (sectionIndex: number) => {
+        const newExpandedSections = new Set(expandedSections);
+        if (newExpandedSections.has(sectionIndex)) {
+            newExpandedSections.delete(sectionIndex);
+        } else {
+            newExpandedSections.add(sectionIndex);
+        }
+        setExpandedSections(newExpandedSections);
+    };
+
+    // Group frames into sections (important frames and non-important sections)
+    const renderFrames = () => {
+        if (!goroutine.parsedframes || goroutine.parsedframes.length === 0) {
+            return null;
+        }
+
+        const result: React.ReactNode[] = [];
+        let currentNonImportantFrames: StackFrame[] = [];
+        let sectionIndex = 0;
+
+        // Helper to add non-important frames as a collapsed section
+        const addNonImportantSection = () => {
+            if (currentNonImportantFrames.length > 0) {
+                const currentSectionIndex = sectionIndex++;
+
+                // If expanded or only 1 frame, show all frames individually
+                if (expandedSections.has(currentSectionIndex) || currentNonImportantFrames.length === 1) {
+                    currentNonImportantFrames.forEach((frame, frameIndex) => {
+                        result.push(
+                            <SimplifiedStackFrame
+                                key={`section-${currentSectionIndex}-frame-${frameIndex}`}
+                                frame={frame}
+                                model={model}
+                                linkType={linkType}
+                                showFileLink={showFileLinks}
+                            />
+                        );
+                    });
+                } else {
+                    // If collapsed and more than 1 frame, show as a single clickable element
+                    result.push(
+                        <CollapsedStackFrames
+                            key={`collapsed-section-${currentSectionIndex}`}
+                            frames={currentNonImportantFrames}
+                            onExpand={() => toggleSection(currentSectionIndex)}
+                        />
+                    );
+                }
+                currentNonImportantFrames = [];
+            }
+        };
+
+        // Process all frames
+        goroutine.parsedframes.forEach((frame, index) => {
+            // First frame is always important
+            const isFirstFrame = index === 0;
+            // Last frame before an important frame is also important (e.g., os.(*File).Read())
+            const isLastBeforeImportant =
+                index < goroutine.parsedframes.length - 1 && goroutine.parsedframes[index + 1].isimportant;
+
+            if (frame.isimportant || isFirstFrame || isLastBeforeImportant) {
+                // Add any accumulated non-important frames first
+                addNonImportantSection();
+
+                // Then add this important frame
+                result.push(
+                    <SimplifiedStackFrame
+                        key={`frame-${index}`}
+                        frame={frame}
+                        model={model}
+                        linkType={linkType}
+                        showFileLink={showFileLinks}
+                    />
+                );
+            } else {
+                // Accumulate non-important frames
+                currentNonImportantFrames.push(frame);
+            }
+        });
+
+        // Add any remaining non-important frames
+        addNonImportantSection();
+
+        return result;
+    };
+
     return (
         <div className="text-xs text-primary bg-panel py-1 px-0 rounded font-mono">
-            {goroutine.parsedframes.map((frame, index) => (
-                <SimplifiedStackFrame
-                    key={index}
-                    frame={frame}
-                    model={model}
-                    linkType={linkType}
-                    showFileLink={showFileLinks}
-                />
-            ))}
+            {renderFrames()}
 
             {goroutine.createdbygoid && goroutine.createdbyframe && (
                 <SimplifiedStackFrame
