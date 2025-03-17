@@ -5,11 +5,11 @@
 
 declare global {
 
-    // rpctypes.AppRunGoroutinesData
-    type AppRunGoroutinesData = {
+    // rpctypes.AppRunGoRoutinesData
+    type AppRunGoRoutinesData = {
         apprunid: string;
         appname: string;
-        goroutines: GoroutineData[];
+        goroutines: ParsedGoRoutine[];
     };
 
     // rpctypes.AppRunInfo
@@ -100,17 +100,10 @@ declare global {
 
     // EventType union (rpctypes.EventToTypeMap)
     type EventType = 
+        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
         | (EventCommonFields & { event: "route:down"; data?: null })
         | (EventCommonFields & { event: "route:up"; data?: null })
-        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
     ;
-
-    // rpctypes.GoroutineData
-    type GoroutineData = {
-        goid: number;
-        state: string;
-        stacktrace: string;
-    };
 
     // ds.LogLine
     type LogLine = {
@@ -173,6 +166,21 @@ declare global {
         lines: LogLine[];
     };
 
+    // rpctypes.ParsedGoRoutine
+    type ParsedGoRoutine = {
+        goid: number;
+        rawstacktrace: string;
+        rawstate: string;
+        primarystate: string;
+        statedurationms?: number;
+        extrastates?: string[];
+        parsedframes?: StackFrame[];
+        createdbygoid?: number;
+        createdbyframe?: StackFrame;
+        parsed: boolean;
+        parseerror?: string;
+    };
+
     // rpc.RpcMessage
     type RpcMessage = {
         command?: string;
@@ -232,6 +240,16 @@ declare global {
     // rpctypes.ServerCommandMeta
     type ServerCommandMeta = {
         commandtype: string;
+    };
+
+    // rpctypes.StackFrame
+    type StackFrame = {
+        package: string;
+        funcname: string;
+        funcargs?: string;
+        filepath: string;
+        linenumber: number;
+        pcoffset?: string;
     };
 
     // rpctypes.StatusUpdateData

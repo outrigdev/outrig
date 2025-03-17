@@ -40,7 +40,7 @@ type FullRpcInterface interface {
 	// app run commands
 	GetAppRunsCommand(ctx context.Context, data AppRunUpdatesRequest) (AppRunsData, error)
 	GetAppRunLogsCommand(ctx context.Context, data AppRunRequest) (AppRunLogsData, error)
-	GetAppRunGoroutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoroutinesData, error)
+	GetAppRunGoRoutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoRoutinesData, error)
 	GetAppRunWatchesCommand(ctx context.Context, data AppRunRequest) (AppRunWatchesData, error)
 	GetAppRunRuntimeStatsCommand(ctx context.Context, data AppRunRequest) (AppRunRuntimeStatsData, error)
 
@@ -173,16 +173,10 @@ type AppRunLogsData struct {
 	Logs     []ds.LogLine `json:"logs"`
 }
 
-type GoroutineData struct {
-	GoId       int64  `json:"goid"`
-	State      string `json:"state"`
-	StackTrace string `json:"stacktrace"`
-}
-
-type AppRunGoroutinesData struct {
-	AppRunId   string          `json:"apprunid"`
-	AppName    string          `json:"appname"`
-	GoRoutines []GoroutineData `json:"goroutines"`
+type AppRunGoRoutinesData struct {
+	AppRunId   string            `json:"apprunid"`
+	AppName    string            `json:"appname"`
+	GoRoutines []ParsedGoRoutine `json:"goroutines"`
 }
 
 type AppRunWatchesData struct {
@@ -247,29 +241,27 @@ type BrowserTabUrlData struct {
 // StackFrame represents a single frame in a goroutine stack trace
 type StackFrame struct {
 	// Function information
-	Package  string // The package name (e.g., "internal/poll")
-	FuncName string // Just the function/method name, may include the receiver (e.g., "Read")
-	FuncArgs string // Raw argument string, no parens (e.g., "0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd}")
+	Package  string `json:"package"`            // The package name (e.g., "internal/poll")
+	FuncName string `json:"funcname"`           // Just the function/method name, may include the receiver (e.g., "Read")
+	FuncArgs string `json:"funcargs,omitempty"` // Raw argument string, no parens (e.g., "0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd}")
 
 	// Source file information
-	FilePath   string // Full path to the source file (e.g., "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go")
-	LineNumber int    // Line number in the source file (e.g., 165)
-	PCOffset   string // Program counter offset (e.g., "+0x1fc")
-
-	// Raw lines for reference
-	FuncLine string // The raw function call line
-	FileLine string // The raw file location line
+	FilePath   string `json:"filepath"`           // Full path to the source file (e.g., "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go")
+	LineNumber int    `json:"linenumber"`         // Line number in the source file (e.g., 165)
+	PCOffset   string `json:"pcoffset,omitempty"` // Program counter offset (e.g., "+0x1fc")
 }
 
 // ParsedGoRoutine represents a parsed goroutine stack trace
 type ParsedGoRoutine struct {
-	GoId            int64
-	RawStackTrace   string       // The raw stack trace string
-	RawState        string       // The complete state information
-	PrimaryState    string       // The first part of the state (before any commas)
-	StateDurationMs int64        // Duration of state in milliseconds (if available)
-	ExtraStates     []string     // Array of additional state information
-	ParsedFrames    []StackFrame // Structured frame information
-	CreatedByGoId   int64        // ID of the goroutine that created this one
-	CreatedByFrame  *StackFrame  // Frame information for the creation point
+	GoId            int64        `json:"goid"`
+	RawStackTrace   string       `json:"rawstacktrace"`             // The raw stack trace string
+	RawState        string       `json:"rawstate"`                  // The complete state information
+	PrimaryState    string       `json:"primarystate"`              // The first part of the state (before any commas)
+	StateDurationMs int64        `json:"statedurationms,omitempty"` // Duration of state in milliseconds (if available)
+	ExtraStates     []string     `json:"extrastates,omitempty"`     // Array of additional state information
+	ParsedFrames    []StackFrame `json:"parsedframes,omitempty"`    // Structured frame information
+	CreatedByGoId   int64        `json:"createdbygoid,omitempty"`   // ID of the goroutine that created this one
+	CreatedByFrame  *StackFrame  `json:"createdbyframe,omitempty"`  // Frame information for the creation point
+	Parsed          bool         `json:"parsed"`                    // Whether the stack trace was successfully parsed
+	ParseError      string       `json:"parseerror,omitempty"`      // Error message if parsing failed
 }

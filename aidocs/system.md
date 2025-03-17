@@ -91,3 +91,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - **Go Application**: Monitored application that sends logs, goroutine information, and app info to the Outrig server.
 - **Outrig Server**: Collects and processes data from the monitored application, stores it in appropriate data structures (CirBuf, SyncMap), and makes it available via RPC.
 - **Web Frontend**: Retrieves data from the server via RPC calls, manages state with Jotai, and renders the UI components.
+
+### Notes
+
+In general when the file changes you fall back to writing the entire file. That wastes so much time as writing the whole file is often very slow.  If the file is longer than 100 lines, please try to re-read the file and create better diff edits rather than immediately falling back to a full file write.

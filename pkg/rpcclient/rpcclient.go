@@ -40,9 +40,9 @@ func EventUnsubAllCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) error {
 	return err
 }
 
-// command "getapprungoroutines", rpctypes.GetAppRunGoroutinesCommand
-func GetAppRunGoroutinesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunGoroutinesData, error) {
-	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunGoroutinesData](w, "getapprungoroutines", data, opts)
+// command "getapprungoroutines", rpctypes.GetAppRunGoRoutinesCommand
+func GetAppRunGoRoutinesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunGoRoutinesData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunGoRoutinesData](w, "getapprungoroutines", data, opts)
 	return resp, err
 }
 

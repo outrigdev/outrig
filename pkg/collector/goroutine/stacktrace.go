@@ -28,20 +28,34 @@ type PreprocessedGoRoutineLines struct {
 
 // ParseGoRoutineStackTrace parses a Go routine stack trace string into a struct
 func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
+	// Create a basic ParsedGoRoutine with the raw data
+	routine := ParsedGoRoutine{
+		RawStackTrace: stackTrace,
+		Parsed:        false, // Default to not parsed
+	}
+
 	// Preprocess the stack trace
 	preprocessed := preprocessStackTrace(stackTrace)
 
 	// Return empty struct and error if header line is empty
 	if preprocessed.HeaderLine == "" {
-		return ParsedGoRoutine{}, fmt.Errorf("no goroutine header found in stack trace")
+		routine.ParseError = "no goroutine header found in stack trace"
+		return routine, fmt.Errorf("no goroutine header found in stack trace")
 	}
 
 	// Parse the header line
-	routine, err := parseHeaderLine(preprocessed.HeaderLine)
+	parsedRoutine, err := parseHeaderLine(preprocessed.HeaderLine)
 	if err != nil {
-		return ParsedGoRoutine{}, err
+		routine.ParseError = fmt.Sprintf("failed to parse header: %v", err)
+		return routine, err
 	}
-	routine.RawStackTrace = stackTrace
+
+	// Copy the parsed header information
+	routine.GoId = parsedRoutine.GoId
+	routine.RawState = parsedRoutine.RawState
+	routine.PrimaryState = parsedRoutine.PrimaryState
+	routine.StateDurationMs = parsedRoutine.StateDurationMs
+	routine.ExtraStates = parsedRoutine.ExtraStates
 
 	// Parse stack frames
 	for _, frame := range preprocessed.StackFrames {
@@ -59,6 +73,8 @@ func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
 		}
 	}
 
+	// Mark as successfully parsed
+	routine.Parsed = true
 	return routine, nil
 }
 
@@ -215,10 +231,7 @@ func parseFileLine(fileLine string) (string, int, string, bool) {
 // parseFrame parses a pair of stack trace lines into a Frame struct
 // The first line contains the function call, the second line contains the file path and line number
 func parseFrame(funcLine, fileLine string, argsRequired bool) (StackFrame, bool) {
-	frame := StackFrame{
-		FuncLine: funcLine,
-		FileLine: fileLine,
-	}
+	frame := StackFrame{}
 	var ok bool
 	frame.Package, frame.FuncName, frame.FuncArgs, ok = parseFuncLine(funcLine, argsRequired)
 	if !ok {

@@ -8,11 +8,110 @@ import { Filter, Layers } from "lucide-react";
 import React, { useRef } from "react";
 import { Tag } from "../elements/tag";
 import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
-import { simplifyStackTrace } from "./stacktrace";
+// No longer need to import simplifyStackTrace from "./stacktrace"
+
+// Component for displaying raw stack trace
+interface RawStackTraceProps {
+    goroutine: ParsedGoRoutine;
+    model: GoRoutinesModel;
+    linkType: CodeLinkType;
+}
+
+const RawStackTrace: React.FC<RawStackTraceProps> = ({ goroutine, model, linkType }) => {
+    if (!goroutine) return null;
+
+    // Split the stacktrace into lines
+    const stacktraceLines = goroutine.rawstacktrace.split("\n");
+
+    return (
+        <pre className="text-xs text-primary whitespace-pre-wrap bg-panel p-2 rounded">
+            {stacktraceLines.map((line: string, index: number) => (
+                <StacktraceLine key={index} line={line} model={model} linkType={linkType} />
+            ))}
+        </pre>
+    );
+};
+
+// Component for displaying simplified stack trace
+interface SimplifiedStackTraceProps {
+    goroutine: ParsedGoRoutine;
+    model: GoRoutinesModel;
+    linkType: CodeLinkType;
+}
+
+const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({ goroutine, model, linkType }) => {
+    return (
+        <div className="text-xs text-primary bg-panel p-2 rounded font-mono">
+            {goroutine.parsedframes.map((frame, index) => (
+                <React.Fragment key={index}>
+                    <div>{frame.package}.{frame.funcname}()</div>
+                    <div className="ml-4">
+                        {linkType ? (
+                            <a
+                                href={model.generateCodeLink(frame.filepath, frame.linenumber, linkType)}
+                                className="group cursor-pointer"
+                            >
+                                <span className="group-hover:text-blue-500 group-hover:underline transition-colors duration-150">
+                                    {frame.filepath}:{frame.linenumber}
+                                </span>
+                            </a>
+                        ) : (
+                            <span>{frame.filepath}:{frame.linenumber}</span>
+                        )}
+                    </div>
+                </React.Fragment>
+            ))}
+            
+            {goroutine.createdbygoid && goroutine.createdbyframe && (
+                <React.Fragment>
+                    <div>created by {goroutine.createdbyframe.package}.{goroutine.createdbyframe.funcname}</div>
+                    <div className="ml-4">
+                        {linkType ? (
+                            <a
+                                href={model.generateCodeLink(
+                                    goroutine.createdbyframe.filepath,
+                                    goroutine.createdbyframe.linenumber,
+                                    linkType
+                                )}
+                                className="group cursor-pointer"
+                            >
+                                <span className="group-hover:text-blue-500 group-hover:underline transition-colors duration-150">
+                                    {goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}
+                                </span>
+                            </a>
+                        ) : (
+                            <span>{goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}</span>
+                        )}
+                    </div>
+                </React.Fragment>
+            )}
+        </div>
+    );
+};
+
+// StackTrace component that decides which stack trace view to show
+interface StackTraceProps {
+    goroutine: ParsedGoRoutine;
+    model: GoRoutinesModel;
+    linkType: CodeLinkType;
+    simpleMode: boolean;
+}
+
+const StackTrace: React.FC<StackTraceProps> = ({ goroutine, model, linkType, simpleMode }) => {
+    const stackTraceRef = useRef<HTMLDivElement>(null);
+
+    // If simple mode is enabled and the goroutine is properly parsed
+    if (simpleMode && goroutine.parsed && goroutine.parsedframes && goroutine.parsedframes.length > 0) {
+        return <SimplifiedStackTrace goroutine={goroutine} model={model} linkType={linkType} />;
+    }
+    
+    // Otherwise show raw stack trace
+    return <RawStackTrace goroutine={goroutine} model={model} linkType={linkType} />;
+};
 
 // Individual goroutine view component
 interface GoroutineViewProps {
-    goroutine: GoroutineData;
+    goroutine: ParsedGoRoutine;
     model: GoRoutinesModel;
 }
 
@@ -72,20 +171,21 @@ const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }
 const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     const linkType = useAtomValue(model.showCodeLinks);
     const simpleMode = useAtomValue(model.simpleStacktraceMode);
+    const stackTraceRef = useRef<HTMLDivElement>(null);
 
     if (!goroutine) {
         return null;
     }
 
-    // Apply simplification if simple mode is enabled
-    const displayStacktrace = simpleMode ? simplifyStackTrace(goroutine.stacktrace) : goroutine.stacktrace;
-
-    // Split the stacktrace into lines
-    const stacktraceLines = displayStacktrace.split("\n");
-
     const copyStackTrace = async () => {
         try {
-            await navigator.clipboard.writeText(goroutine.stacktrace);
+            // If we have a ref to the stack trace div, use its text content
+            if (stackTraceRef.current) {
+                await navigator.clipboard.writeText(stackTraceRef.current.innerText);
+            } else {
+                // Fallback to raw stack trace if ref is not available
+                await navigator.clipboard.writeText(goroutine.rawstacktrace);
+            }
             return Promise.resolve();
         } catch (error) {
             console.error("Failed to copy stack trace:", error);
@@ -98,7 +198,9 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
             <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
                     <div className="font-semibold text-primary w-[135px]">Goroutine {goroutine.goid}</div>
-                    <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">{goroutine.state}</div>
+                    <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">
+                        {goroutine.rawstate}
+                    </div>
                 </div>
                 <div>
                     <CopyButton
@@ -109,11 +211,14 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                     />
                 </div>
             </div>
-            <pre className="text-xs text-primary whitespace-pre-wrap bg-panel p-2 rounded">
-                {stacktraceLines.map((line, index) => (
-                    <StacktraceLine key={index} line={line} model={model} linkType={linkType} />
-                ))}
-            </pre>
+            <div ref={stackTraceRef}>
+                <StackTrace 
+                    goroutine={goroutine} 
+                    model={model} 
+                    linkType={linkType} 
+                    simpleMode={simpleMode} 
+                />
+            </div>
         </div>
     );
 };

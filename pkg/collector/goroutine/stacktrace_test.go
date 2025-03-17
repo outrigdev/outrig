@@ -24,8 +24,6 @@ func TestParseFrame(t *testing.T) {
 				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go",
 				LineNumber: 165,
 				PCOffset:   "+0x1fc",
-				FuncLine:   "internal/poll.(*FD).Read(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})",
-				FileLine:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go:165 +0x1fc",
 			},
 		},
 		{
@@ -40,8 +38,6 @@ func TestParseFrame(t *testing.T) {
 				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go",
 				LineNumber: 6329,
 				PCOffset:   "",
-				FuncLine:   "runtime.doInit(0x12f7be0)",
-				FileLine:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go:6329",
 			},
 		},
 		{
@@ -56,8 +52,6 @@ func TestParseFrame(t *testing.T) {
 				FilePath:   "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go",
 				LineNumber: 326,
 				PCOffset:   "+0x14c",
-				FuncLine:   "github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute.func2()",
-				FileLine:   "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:326 +0x14c",
 			},
 		},
 		{
@@ -72,8 +66,6 @@ func TestParseFrame(t *testing.T) {
 				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_poll_runtime.go",
 				LineNumber: 89,
 				PCOffset:   "",
-				FuncLine:   "internal/poll.(*pollDesc).waitRead(...)",
-				FileLine:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_poll_runtime.go:89",
 			},
 		},
 		{
@@ -88,8 +80,6 @@ func TestParseFrame(t *testing.T) {
 				FilePath:   "/Users/mike/work/outrig/server/main-server.go",
 				LineNumber: 291,
 				PCOffset:   "+0x714",
-				FuncLine:   "main.main()",
-				FileLine:   "/Users/mike/work/outrig/server/main-server.go:291 +0x714",
 			},
 		},
 		{
@@ -116,8 +106,6 @@ func TestParseFrame(t *testing.T) {
 				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/time/time.go",
 				LineNumber: 1076,
 				PCOffset:   "+0x1a4",
-				FuncLine:   "time.Time.Add(0x140003801e0, 0x140003ae723)",
-				FileLine:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/time/time.go:1076 +0x1a4",
 			},
 		},
 	}
@@ -799,10 +787,6 @@ func TestParseCreatedByFrame(t *testing.T) {
 			}
 
 			if tt.fileLine != "" {
-				if frame.FileLine != tt.fileLine {
-					t.Errorf("FileLine = %q, expected %q", frame.FileLine, tt.fileLine)
-				}
-
 				// Verify that file path and line number were parsed correctly
 				if frame.FilePath == "" {
 					t.Errorf("FilePath should not be empty")

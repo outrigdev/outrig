@@ -32,7 +32,7 @@ class RpcApiType {
     }
 
     // command "getapprungoroutines" [call]
-    GetAppRunGoroutinesCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunGoroutinesData> {
+    GetAppRunGoRoutinesCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunGoRoutinesData> {
         return client.rpcCall("getapprungoroutines", data, opts);
     }
 

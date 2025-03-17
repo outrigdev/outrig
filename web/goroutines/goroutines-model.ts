@@ -8,7 +8,7 @@ export type CodeLinkType = null | "vscode";
 class GoRoutinesModel {
     widgetId: string;
     appRunId: string;
-    appRunGoRoutines: PrimitiveAtom<GoroutineData[]> = atom<GoroutineData[]>([]);
+    appRunGoRoutines: PrimitiveAtom<ParsedGoRoutine[]> = atom<ParsedGoRoutine[]>([]);
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
 
@@ -40,14 +40,14 @@ class GoRoutinesModel {
         const statesSet = new Set<string>();
 
         goroutines.forEach((goroutine) => {
-            statesSet.add(goroutine.state);
+            statesSet.add(goroutine.rawstate);
         });
 
         return Array.from(statesSet).sort();
     });
 
     // Filtered goroutines based on search term and state filters
-    filteredGoroutines: Atom<GoroutineData[]> = atom((get) => {
+    filteredGoroutines: Atom<ParsedGoRoutine[]> = atom((get) => {
         const search = get(this.searchTerm);
         const showAll = get(this.showAll);
         const selectedStates = get(this.selectedStates);
@@ -59,7 +59,7 @@ class GoRoutinesModel {
         // Apply state filters if not showing all
         let stateFiltered = sortedGoroutines;
         if (!showAll && selectedStates.size > 0) {
-            stateFiltered = sortedGoroutines.filter((goroutine) => selectedStates.has(goroutine.state));
+            stateFiltered = sortedGoroutines.filter((goroutine) => selectedStates.has(goroutine.rawstate));
         }
 
         // Apply search filter if there's a search term
@@ -69,8 +69,8 @@ class GoRoutinesModel {
 
         return stateFiltered.filter(
             (goroutine) =>
-                goroutine.stacktrace.toLowerCase().includes(search.toLowerCase()) ||
-                goroutine.state.toLowerCase().includes(search.toLowerCase()) ||
+                goroutine.rawstacktrace.toLowerCase().includes(search.toLowerCase()) ||
+                goroutine.rawstate.toLowerCase().includes(search.toLowerCase()) ||
                 goroutine.goid.toString().includes(search)
         );
     });
@@ -113,7 +113,7 @@ class GoRoutinesModel {
 
     async fetchAppRunGoroutines() {
         try {
-            const result = await RpcApi.GetAppRunGoroutinesCommand(DefaultRpcClient, { apprunid: this.appRunId });
+            const result = await RpcApi.GetAppRunGoRoutinesCommand(DefaultRpcClient, { apprunid: this.appRunId });
             return result.goroutines;
         } catch (error) {
             console.error(`Failed to load goroutines for app run ${this.appRunId}:`, error);

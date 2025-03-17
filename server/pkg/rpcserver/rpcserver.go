@@ -89,9 +89,9 @@ func (*RpcServerImpl) GetAppRunLogsCommand(ctx context.Context, data rpctypes.Ap
 	}, nil
 }
 
-// GetAppRunGoroutinesCommand returns goroutines for a specific app run
-func (*RpcServerImpl) GetAppRunGoroutinesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunGoroutinesData, error) {
-	return apppeer.GetAppRunGoRoutines(ctx, data)
+// GetAppRunGoRoutinesCommand returns goroutines for a specific app run
+func (*RpcServerImpl) GetAppRunGoRoutinesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunGoRoutinesData, error) {
+	return apppeer.GetAppRunGoRoutinesCommand(ctx, data)
 }
 
 // GetAppRunWatchesCommand returns watches for a specific app run

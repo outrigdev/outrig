@@ -7,44 +7,48 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 )
 
-// GetAppRunGoRoutines retrieves goroutines for a specific app run
-func GetAppRunGoRoutines(ctx context.Context, req rpctypes.AppRunRequest) (rpctypes.AppRunGoroutinesData, error) {
+// GetAppRunGoRoutinesCommand retrieves goroutines for a specific app run
+func GetAppRunGoRoutinesCommand(ctx context.Context, req rpctypes.AppRunRequest) (rpctypes.AppRunGoRoutinesData, error) {
 	// Get the app run peer
 	peer := GetAppRunPeer(req.AppRunId)
 	if peer == nil || peer.AppInfo == nil {
-		return rpctypes.AppRunGoroutinesData{}, fmt.Errorf("app run not found: %s", req.AppRunId)
+		return rpctypes.AppRunGoRoutinesData{}, fmt.Errorf("app run not found: %s", req.AppRunId)
 	}
 
 	// Get all goroutine keys
 	goroutineKeys := peer.GoRoutines.Keys()
-	goroutines := make([]rpctypes.GoroutineData, 0, len(goroutineKeys))
+	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(goroutineKeys))
 
 	// For each goroutine, get the most recent stack trace
 	for _, key := range goroutineKeys {
-		goroutine, exists := peer.GoRoutines.GetEx(key)
+		goroutineObj, exists := peer.GoRoutines.GetEx(key)
 		if !exists {
 			continue
 		}
 
 		// Get the most recent stack trace using GetLast
-		latestStack, _, exists := goroutine.StackTraces.GetLast()
+		latestStack, _, exists := goroutineObj.StackTraces.GetLast()
 		if !exists {
 			continue
 		}
 
-		goroutines = append(goroutines, rpctypes.GoroutineData{
-			GoId:       latestStack.GoId,
-			State:      latestStack.State,
-			StackTrace: latestStack.StackTrace,
-		})
+		// Parse the stack trace
+		parsedGoRoutine, err := goroutine.ParseGoRoutineStackTrace(latestStack.StackTrace)
+		if err != nil {
+			// If parsing fails, skip this goroutine
+			continue
+		}
+
+		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
 	}
 
-	return rpctypes.AppRunGoroutinesData{
+	return rpctypes.AppRunGoRoutinesData{
 		AppRunId:   peer.AppRunId,
 		AppName:    peer.AppInfo.AppName,
-		GoRoutines: goroutines,
+		GoRoutines: parsedGoRoutines,
 	}, nil
 }
