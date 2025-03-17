@@ -1,6 +1,66 @@
 import React from "react";
 import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
 
+// Component for displaying a single frame in the simplified stack trace
+interface SimplifiedStackFrameProps {
+    frame: StackFrame;
+    model: GoRoutinesModel;
+    linkType: CodeLinkType;
+    createdByGoid?: number; // Optional goroutine ID for "created by" frames
+}
+
+const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({ frame, model, linkType, createdByGoid }) => {
+    return (
+        <div
+            className={
+                frame.isimportant ? "border-l-[5px] border-l-border pl-3" : "border-l-[5px] border-l-transparent pl-3"
+            }
+        >
+            <div>
+                {createdByGoid != null && (
+                    <span className="text-secondary">created in goroutine {createdByGoid} by </span>
+                )}
+                <HighlightLastPackagePart packagePath={frame.package} />
+                <span className="text-primary">
+                    .{frame.funcname}
+                    {createdByGoid == null ? "()" : ""}
+                </span>
+            </div>
+            {/* Only show file line for important frames */}
+            {frame.isimportant && (
+                <FrameLink filepath={frame.filepath} linenumber={frame.linenumber} model={model} linkType={linkType} />
+            )}
+        </div>
+    );
+};
+
+// Component for displaying a link to a code file and line number
+interface FrameLinkProps {
+    filepath: string;
+    linenumber: number;
+    model: GoRoutinesModel;
+    linkType: CodeLinkType;
+}
+
+const FrameLink: React.FC<FrameLinkProps> = ({ filepath, linenumber, model, linkType }) => {
+    return (
+        <div className="ml-4">
+            {linkType ? (
+                <a
+                    href={model.generateCodeLink(filepath, linenumber, linkType)}
+                    className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
+                >
+                    {filepath}:{linenumber}
+                </a>
+            ) : (
+                <span>
+                    {filepath}:{linenumber}
+                </span>
+            )}
+        </div>
+    );
+};
+
 // StackTrace component that decides which stack trace view to show
 interface StackTraceProps {
     goroutine: ParsedGoRoutine;
@@ -71,76 +131,16 @@ const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({ goroutine, 
     return (
         <div className="text-xs text-primary bg-panel py-1 px-0 rounded font-mono">
             {goroutine.parsedframes.map((frame, index) => (
-                <React.Fragment key={index}>
-                    <div
-                        className={
-                            frame.isimportant
-                                ? "border-l-[5px] border-l-border pl-3"
-                                : "border-l-[5px] border-l-transparent pl-3"
-                        }
-                    >
-                        <div>
-                            <HighlightLastPackagePart packagePath={frame.package} />
-                            <span className="text-primary">.{frame.funcname}()</span>
-                        </div>
-                        {/* Only show file line for important frames */}
-                        {frame.isimportant && (
-                            <div className="ml-4">
-                                {linkType ? (
-                                    <a
-                                        href={model.generateCodeLink(frame.filepath, frame.linenumber, linkType)}
-                                        className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
-                                    >
-                                        {frame.filepath}:{frame.linenumber}
-                                    </a>
-                                ) : (
-                                    <span>
-                                        {frame.filepath}:{frame.linenumber}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </React.Fragment>
+                <SimplifiedStackFrame key={index} frame={frame} model={model} linkType={linkType} />
             ))}
 
             {goroutine.createdbygoid && goroutine.createdbyframe && (
-                <React.Fragment>
-                    <div
-                        className={
-                            goroutine.createdbyframe.isimportant
-                                ? "border-l-[5px] border-l-border pl-3"
-                                : "border-l-[5px] border-l-transparent pl-3"
-                        }
-                    >
-                        <div>
-                            <span className="text-secondary">created in goroutine {goroutine.createdbygoid} by </span>
-                            <HighlightLastPackagePart packagePath={goroutine.createdbyframe.package} />
-                            <span className="text-primary">.{goroutine.createdbyframe.funcname}</span>
-                        </div>
-                        {/* Only show file line for important frames */}
-                        {goroutine.createdbyframe.isimportant && (
-                            <div className="ml-4">
-                                {linkType ? (
-                                    <a
-                                        href={model.generateCodeLink(
-                                            goroutine.createdbyframe.filepath,
-                                            goroutine.createdbyframe.linenumber,
-                                            linkType
-                                        )}
-                                        className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
-                                    >
-                                        {goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}
-                                    </a>
-                                ) : (
-                                    <span>
-                                        {goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </React.Fragment>
+                <SimplifiedStackFrame
+                    frame={goroutine.createdbyframe}
+                    model={model}
+                    linkType={linkType}
+                    createdByGoid={goroutine.createdbygoid}
+                />
             )}
         </div>
     );
