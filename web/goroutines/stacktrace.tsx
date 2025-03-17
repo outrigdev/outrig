@@ -50,12 +50,14 @@ const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
                             className={cn("cursor-pointer inline-block", createdByGoid != null ? "pl-4" : "")}
                         >
                             <span className="text-primary group-hover:text-blue-600 dark:group-hover:text-blue-300 group-hover:font-bold">
-                                {frame.package.split("/").pop()}.{frame.funcname}
-                                {createdByGoid == null ? "()" : ""}
+                                {frame.package.split("/").pop()}.{frame.funcname}()
                             </span>
-                            <span className="text-secondary ml-1 group-hover:text-blue-600 dark:group-hover:text-blue-300">
-                                in {frame.package}
-                            </span>
+                            {/* Only show "in package" if the package name is different from the last part of the path */}
+                            {frame.package.split("/").pop() !== frame.package && (
+                                <span className="text-secondary ml-1 group-hover:text-blue-600 dark:group-hover:text-blue-300">
+                                    in {frame.package}
+                                </span>
+                            )}
                             <span
                                 className="invisible group-hover:visible ml-2 text-secondary absolute italic"
                                 style={{ textDecoration: "none" }}
@@ -70,10 +72,12 @@ const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
                             <div className="text-secondary">created in goroutine {createdByGoid} by </div>
                         )}
                         <span className={cn("text-primary", createdByGoid != null ? "pl-4" : "")}>
-                            {frame.package.split("/").pop()}.{frame.funcname}
-                            {createdByGoid == null ? "()" : ""}
+                            {frame.package.split("/").pop()}.{frame.funcname}()
                         </span>
-                        <span className="text-secondary ml-1">in {frame.package}</span>
+                        {/* Only show "in package" if the package name is different from the last part of the path */}
+                        {frame.package.split("/").pop() !== frame.package && (
+                            <span className="text-secondary ml-1">in {frame.package}</span>
+                        )}
                     </>
                 )}
             </div>
@@ -241,7 +245,11 @@ const CollapsedStackFrames: React.FC<CollapsedStackFramesProps> = ({ frames, onE
     const displayText = `... // ${frames.length} frames - ${displayPackages.join(arrow)}`;
 
     return (
-        <div className="border-l-[5px] border-l-transparent pl-3 cursor-pointer group" onClick={onExpand}>
+        <div
+            className="border-l-[5px] border-l-transparent pl-3 cursor-pointer group"
+            onClick={onExpand}
+            title="Click to Expand"
+        >
             <span className="text-secondary group-hover:text-primary">{displayText}</span>
         </div>
     );
