@@ -2,9 +2,14 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 // CSS is now loaded via link tag in index.html
 import { AppLoader } from "./apploader";
-import { initRpcSystem } from "./init.ts";
+import { initRpcSystem, isDev } from "./init.ts";
 
 initRpcSystem();
+
+// Set document title based on development mode
+if (isDev) {
+    document.title = "Outrig (Dev)";
+}
 
 const params = new URLSearchParams(window.location.search);
 const isStrict = params.get("strict") != "0";
