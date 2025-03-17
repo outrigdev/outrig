@@ -39,50 +39,77 @@ interface SimplifiedStackTraceProps {
     linkType: CodeLinkType;
 }
 
+// Helper function to split package path and highlight only the last part
+const HighlightLastPackagePart: React.FC<{ packagePath: string }> = ({ packagePath }) => {
+    const parts = packagePath.split("/");
+    const lastPart = parts.pop() || "";
+    const prefix = parts.length > 0 ? parts.join("/") + "/" : "";
+
+    return (
+        <>
+            <span className="text-secondary">{prefix}</span>
+            <span className="text-primary">{lastPart}</span>
+        </>
+    );
+};
+
 const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({ goroutine, model, linkType }) => {
     return (
         <div className="text-xs text-primary bg-panel p-2 rounded font-mono">
             {goroutine.parsedframes.map((frame, index) => (
                 <React.Fragment key={index}>
-                    <div>{frame.package}.{frame.funcname}()</div>
-                    <div className="ml-4">
-                        {linkType ? (
-                            <a
-                                href={model.generateCodeLink(frame.filepath, frame.linenumber, linkType)}
-                                className="group cursor-pointer"
-                            >
-                                <span className="group-hover:text-blue-500 group-hover:underline transition-colors duration-150">
+                    <div>
+                        <HighlightLastPackagePart packagePath={frame.package} />
+                        <span className="text-primary">.{frame.funcname}()</span>
+                    </div>
+                    {/* Only show file line for important frames */}
+                    {frame.isimportant && (
+                        <div className="ml-4">
+                            {linkType ? (
+                                <a
+                                    href={model.generateCodeLink(frame.filepath, frame.linenumber, linkType)}
+                                    className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
+                                >
+                                    {frame.filepath}:{frame.linenumber}
+                                </a>
+                            ) : (
+                                <span>
                                     {frame.filepath}:{frame.linenumber}
                                 </span>
-                            </a>
-                        ) : (
-                            <span>{frame.filepath}:{frame.linenumber}</span>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                 </React.Fragment>
             ))}
-            
+
             {goroutine.createdbygoid && goroutine.createdbyframe && (
                 <React.Fragment>
-                    <div>created by {goroutine.createdbyframe.package}.{goroutine.createdbyframe.funcname}</div>
-                    <div className="ml-4">
-                        {linkType ? (
-                            <a
-                                href={model.generateCodeLink(
-                                    goroutine.createdbyframe.filepath,
-                                    goroutine.createdbyframe.linenumber,
-                                    linkType
-                                )}
-                                className="group cursor-pointer"
-                            >
-                                <span className="group-hover:text-blue-500 group-hover:underline transition-colors duration-150">
+                    <div>
+                        <span className="text-primary">created by </span>
+                        <HighlightLastPackagePart packagePath={goroutine.createdbyframe.package} />
+                        <span className="text-primary">.{goroutine.createdbyframe.funcname}</span>
+                    </div>
+                    {/* Only show file line for important frames */}
+                    {goroutine.createdbyframe.isimportant && (
+                        <div className="ml-4">
+                            {linkType ? (
+                                <a
+                                    href={model.generateCodeLink(
+                                        goroutine.createdbyframe.filepath,
+                                        goroutine.createdbyframe.linenumber,
+                                        linkType
+                                    )}
+                                    className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
+                                >
+                                    {goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}
+                                </a>
+                            ) : (
+                                <span>
                                     {goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}
                                 </span>
-                            </a>
-                        ) : (
-                            <span>{goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}</span>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                 </React.Fragment>
             )}
         </div>
@@ -104,7 +131,7 @@ const StackTrace: React.FC<StackTraceProps> = ({ goroutine, model, linkType, sim
     if (simpleMode && goroutine.parsed && goroutine.parsedframes && goroutine.parsedframes.length > 0) {
         return <SimplifiedStackTrace goroutine={goroutine} model={model} linkType={linkType} />;
     }
-    
+
     // Otherwise show raw stack trace
     return <RawStackTrace goroutine={goroutine} model={model} linkType={linkType} />;
 };
@@ -212,12 +239,7 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                 </div>
             </div>
             <div ref={stackTraceRef}>
-                <StackTrace 
-                    goroutine={goroutine} 
-                    model={model} 
-                    linkType={linkType} 
-                    simpleMode={simpleMode} 
-                />
+                <StackTrace goroutine={goroutine} model={model} linkType={linkType} simpleMode={simpleMode} />
             </div>
         </div>
     );

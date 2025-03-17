@@ -38,6 +38,11 @@ func AnnotateFrame(frame *StackFrame, moduleName string) {
 		frame.IsImportant = true
 		return
 	}
+	if frame.Package == "main" {
+		// Special case for main package
+		frame.IsImportant = true
+		return
+	}
 
 	// Determine if the frame is from the standard library or extended runtime.
 	// Standard library packages have a first segment without a dot. (dot indicates a domain name, like "github.com/...")
