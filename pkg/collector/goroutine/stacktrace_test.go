@@ -19,9 +19,8 @@ func TestParseFrame(t *testing.T) {
 			expectSuccess: true,
 			expectedFrame: Frame{
 				Package:    "internal/poll",
-				Receiver:   "(*FD)",
-				FuncName:   "Read",
-				Args:       "(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})",
+				FuncName:   "(*FD).Read",
+				FuncArgs:   "0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd}",
 				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go",
 				LineNumber: 165,
 				PCOffset:   "+0x1fc",
@@ -36,9 +35,8 @@ func TestParseFrame(t *testing.T) {
 			expectSuccess: true,
 			expectedFrame: Frame{
 				Package:    "runtime",
-				Receiver:   "",
 				FuncName:   "doInit",
-				Args:       "(0x12f7be0)",
+				FuncArgs:   "0x12f7be0",
 				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go",
 				LineNumber: 6329,
 				PCOffset:   "",
@@ -53,9 +51,8 @@ func TestParseFrame(t *testing.T) {
 			expectSuccess: true,
 			expectedFrame: Frame{
 				Package:    "github.com/outrigdev/outrig/pkg/rpc",
-				Receiver:   "(*WshRouter)",
-				FuncName:   "RegisterRoute.func2",
-				Args:       "()",
+				FuncName:   "(*WshRouter).RegisterRoute.func2",
+				FuncArgs:   "",
 				FilePath:   "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go",
 				LineNumber: 326,
 				PCOffset:   "+0x14c",
@@ -70,9 +67,8 @@ func TestParseFrame(t *testing.T) {
 			expectSuccess: true,
 			expectedFrame: Frame{
 				Package:    "internal/poll",
-				Receiver:   "(*pollDesc)",
-				FuncName:   "waitRead",
-				Args:       "(...)",
+				FuncName:   "(*pollDesc).waitRead",
+				FuncArgs:   "...",
 				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_poll_runtime.go",
 				LineNumber: 89,
 				PCOffset:   "",
@@ -87,9 +83,8 @@ func TestParseFrame(t *testing.T) {
 			expectSuccess: true,
 			expectedFrame: Frame{
 				Package:    "main",
-				Receiver:   "",
 				FuncName:   "main",
-				Args:       "()",
+				FuncArgs:   "",
 				FilePath:   "/Users/mike/work/outrig/server/main-server.go",
 				LineNumber: 291,
 				PCOffset:   "+0x714",
@@ -116,9 +111,8 @@ func TestParseFrame(t *testing.T) {
 			expectSuccess: true,
 			expectedFrame: Frame{
 				Package:    "time",
-				Receiver:   "Time",
-				FuncName:   "Add",
-				Args:       "(0x140003801e0, 0x140003ae723)",
+				FuncName:   "Time.Add",
+				FuncArgs:   "0x140003801e0, 0x140003ae723",
 				FilePath:   "/opt/homebrew/Cellar/go/1.23.4/libexec/src/time/time.go",
 				LineNumber: 1076,
 				PCOffset:   "+0x1a4",
@@ -131,39 +125,27 @@ func TestParseFrame(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			frame, ok := parseFrame(tt.funcLine, tt.fileLine)
-
 			if ok != tt.expectSuccess {
 				t.Fatalf("parseFrame() success = %v, expected %v", ok, tt.expectSuccess)
 			}
-
 			if !tt.expectSuccess {
 				return
 			}
-
 			if frame.Package != tt.expectedFrame.Package {
 				t.Errorf("Package = %q, expected %q", frame.Package, tt.expectedFrame.Package)
 			}
-
-			if frame.Receiver != tt.expectedFrame.Receiver {
-				t.Errorf("Receiver = %q, expected %q", frame.Receiver, tt.expectedFrame.Receiver)
-			}
-
 			if frame.FuncName != tt.expectedFrame.FuncName {
 				t.Errorf("FuncName = %q, expected %q", frame.FuncName, tt.expectedFrame.FuncName)
 			}
-
-			if frame.Args != tt.expectedFrame.Args {
-				t.Errorf("Args = %q, expected %q", frame.Args, tt.expectedFrame.Args)
+			if frame.FuncArgs != tt.expectedFrame.FuncArgs {
+				t.Errorf("Args = %q, expected %q", frame.FuncArgs, tt.expectedFrame.FuncArgs)
 			}
-
 			if frame.FilePath != tt.expectedFrame.FilePath {
 				t.Errorf("FilePath = %q, expected %q", frame.FilePath, tt.expectedFrame.FilePath)
 			}
-
 			if frame.LineNumber != tt.expectedFrame.LineNumber {
 				t.Errorf("LineNumber = %d, expected %d", frame.LineNumber, tt.expectedFrame.LineNumber)
 			}
-
 			if frame.PCOffset != tt.expectedFrame.PCOffset {
 				t.Errorf("PCOffset = %q, expected %q", frame.PCOffset, tt.expectedFrame.PCOffset)
 			}
@@ -620,6 +602,215 @@ func TestParseFileLine(t *testing.T) {
 
 			if pcOffset != tt.expectedPCOffset {
 				t.Errorf("PCOffset = %q, expected %q", pcOffset, tt.expectedPCOffset)
+			}
+		})
+	}
+}
+
+func TestParseFuncLine(t *testing.T) {
+	tests := []struct {
+		name             string
+		funcLine         string
+		expectSuccess    bool
+		expectedPackage  string
+		expectedFuncName string
+		expectedArgs     string
+	}{
+		{
+			name:             "Method with pointer receiver",
+			funcLine:         "github.com/outrigdev/outrig/pkg/collector/runtimestats.(*RuntimeStatsCollector).Enable.func1()",
+			expectSuccess:    true,
+			expectedPackage:  "github.com/outrigdev/outrig/pkg/collector/runtimestats",
+			expectedFuncName: "(*RuntimeStatsCollector).Enable.func1",
+			expectedArgs:     "",
+		},
+		{
+			name:             "Method with arguments",
+			funcLine:         "github.com/outrigdev/outrig/pkg/collector/runtimestats.(*RuntimeStatsCollector).CollectRuntimeStats(0x14000136400)",
+			expectSuccess:    true,
+			expectedPackage:  "github.com/outrigdev/outrig/pkg/collector/runtimestats",
+			expectedFuncName: "(*RuntimeStatsCollector).CollectRuntimeStats",
+			expectedArgs:     "0x14000136400",
+		},
+		{
+			name:             "Method with ellipsis",
+			funcLine:         "main.Foo.footest(...)",
+			expectSuccess:    true,
+			expectedPackage:  "main",
+			expectedFuncName: "Foo.footest",
+			expectedArgs:     "...",
+		},
+		{
+			name:             "Simple function",
+			funcLine:         "runtime.doInit(0x12f7be0, ...)",
+			expectSuccess:    true,
+			expectedPackage:  "runtime",
+			expectedFuncName: "doInit",
+			expectedArgs:     "0x12f7be0, ...",
+		},
+		{
+			name:             "Function without arguments",
+			funcLine:         "main.main()",
+			expectSuccess:    true,
+			expectedPackage:  "main",
+			expectedFuncName: "main",
+			expectedArgs:     "",
+		},
+		{
+			name:          "Invalid function line - no dot",
+			funcLine:      "invalidfunctionline",
+			expectSuccess: false,
+		},
+		{
+			name:          "Invalid function line - dot at start",
+			funcLine:      ".invalidfunctionline",
+			expectSuccess: false,
+		},
+		{
+			name:             "Function with complex arguments",
+			funcLine:         "internal/poll.(*FD).Read(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})",
+			expectSuccess:    true,
+			expectedPackage:  "internal/poll",
+			expectedFuncName: "(*FD).Read",
+			expectedArgs:     "0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd}",
+		},
+		{
+			name:             "Method with value receiver",
+			funcLine:         "time.Time.Add(0x140003801e0, 0x140003ae723)",
+			expectSuccess:    true,
+			expectedPackage:  "time",
+			expectedFuncName: "Time.Add",
+			expectedArgs:     "0x140003801e0, 0x140003ae723",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			packageName, funcName, args, ok := parseFuncLine(tt.funcLine)
+
+			if ok != tt.expectSuccess {
+				t.Fatalf("parseFuncLine() success = %v, expected %v", ok, tt.expectSuccess)
+			}
+
+			if !tt.expectSuccess {
+				return
+			}
+
+			if packageName != tt.expectedPackage {
+				t.Errorf("Package = %q, expected %q", packageName, tt.expectedPackage)
+			}
+
+			if funcName != tt.expectedFuncName {
+				t.Errorf("FuncName = %q, expected %q", funcName, tt.expectedFuncName)
+			}
+
+			if args != tt.expectedArgs {
+				t.Errorf("Args = %q, expected %q", args, tt.expectedArgs)
+			}
+		})
+	}
+}
+
+func TestParseCreatedByFrame(t *testing.T) {
+	tests := []struct {
+		name             string
+		funcLine         string
+		fileLine         string
+		expectSuccess    bool
+		expectedPackage  string
+		expectedFuncName string
+		expectedGoId     int
+	}{
+		{
+			name:             "Standard created by line with goroutine ID",
+			funcLine:         "created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in goroutine 327",
+			fileLine:         "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:315 +0x3cc",
+			expectSuccess:    true,
+			expectedPackage:  "github.com/outrigdev/outrig/pkg/rpc",
+			expectedFuncName: "(*WshRouter).RegisterRoute",
+			expectedGoId:     327,
+		},
+		{
+			name:             "Created by line with complex package name",
+			funcLine:         "created by github.com/outrigdev/outrig/pkg/collector/logprocess.(*LogCollector).initInternal in goroutine 1",
+			fileLine:         "/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl.go:69 +0x3dc",
+			expectSuccess:    true,
+			expectedPackage:  "github.com/outrigdev/outrig/pkg/collector/logprocess",
+			expectedFuncName: "(*LogCollector).initInternal",
+			expectedGoId:     1,
+		},
+		{
+			name:             "Created by line without file line",
+			funcLine:         "created by main.main in goroutine 1",
+			fileLine:         "",
+			expectSuccess:    true,
+			expectedPackage:  "main",
+			expectedFuncName: "main",
+			expectedGoId:     1,
+		},
+		{
+			name:          "Invalid created by line - missing prefix",
+			funcLine:      "github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in goroutine 327",
+			fileLine:      "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:315 +0x3cc",
+			expectSuccess: false,
+		},
+		{
+			name:          "Invalid created by line - invalid function format",
+			funcLine:      "created by invalidfunction in goroutine 1",
+			fileLine:      "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:315 +0x3cc",
+			expectSuccess: false,
+		},
+		{
+			name:          "Invalid created by line - invalid goroutine ID",
+			funcLine:      "created by main.main in goroutine abc",
+			fileLine:      "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:315 +0x3cc",
+			expectSuccess: false,
+		},
+		{
+			name:          "Invalid file line",
+			funcLine:      "created by main.main in goroutine 1",
+			fileLine:      "this is not a valid file line",
+			expectSuccess: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			frame, goId, ok := parseCreatedByFrame(tt.funcLine, tt.fileLine)
+
+			if ok != tt.expectSuccess {
+				t.Fatalf("parseCreatedByFrame() success = %v, expected %v", ok, tt.expectSuccess)
+			}
+
+			if !tt.expectSuccess {
+				return
+			}
+
+			if frame.Package != tt.expectedPackage {
+				t.Errorf("Package = %q, expected %q", frame.Package, tt.expectedPackage)
+			}
+
+			if frame.FuncName != tt.expectedFuncName {
+				t.Errorf("FuncName = %q, expected %q", frame.FuncName, tt.expectedFuncName)
+			}
+
+			if goId != tt.expectedGoId {
+				t.Errorf("GoId = %d, expected %d", goId, tt.expectedGoId)
+			}
+
+			if tt.fileLine != "" {
+				if frame.FileLine != tt.fileLine {
+					t.Errorf("FileLine = %q, expected %q", frame.FileLine, tt.fileLine)
+				}
+				
+				// Verify that file path and line number were parsed correctly
+				if frame.FilePath == "" {
+					t.Errorf("FilePath should not be empty")
+				}
+				
+				if frame.LineNumber == 0 {
+					t.Errorf("LineNumber should not be zero")
+				}
 			}
 		})
 	}

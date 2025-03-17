@@ -2,6 +2,7 @@ package goroutine
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,11 +12,8 @@ import (
 type Frame struct {
 	// Function information
 	Package  string // The package name (e.g., "internal/poll")
-	Receiver string // The receiver type if it's a method (e.g., "(*FD)")
-	FuncName string // Just the function/method name (e.g., "Read")
-
-	// Arguments
-	Args string // Raw argument string (e.g., "(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})")
+	FuncName string // Just the function/method name, may include the receiver (e.g., "Read")
+	FuncArgs string // Raw argument string, no parens (e.g., "0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd}")
 
 	// Source file information
 	FilePath   string // Full path to the source file (e.g., "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go")
@@ -146,12 +144,12 @@ func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 	return result
 }
 
+var headerRe = regexp.MustCompile(`^goroutine\s+(\d+)\s+\[(.*)\]:$`)
+
 // parseHeaderLine parses a goroutine header line and returns a ParsedGoRoutine
 func parseHeaderLine(headerLine string) (ParsedGoRoutine, error) {
-	headerRegex := regexp.MustCompile(`^goroutine\s+(\d+)\s+\[(.*)\]:$`)
-
 	// Parse the goroutine header
-	match := headerRegex.FindStringSubmatch(headerLine)
+	match := headerRe.FindStringSubmatch(headerLine)
 	if match == nil {
 		return ParsedGoRoutine{}, fmt.Errorf("invalid header format: %s", headerLine)
 	}
@@ -204,7 +202,11 @@ func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
 
 	// Parse created by information
 	if preprocessed.CreatedBy.FuncLine != "" {
-		parseCreatedByFrame(preprocessed.CreatedBy, &routine)
+		frame, goId, ok := parseCreatedByFrame(preprocessed.CreatedBy.FuncLine, preprocessed.CreatedBy.FileLine)
+		if ok {
+			routine.CreatedByGoId = int64(goId)
+			routine.CreatedByFrame = frame
+		}
 	}
 
 	return routine, nil
@@ -240,48 +242,11 @@ func parseFrame(funcLine, fileLine string) (Frame, bool) {
 		FuncLine: funcLine,
 		FileLine: fileLine,
 	}
-
-	// Use regular expressions to parse the function line
-	// We need to handle several cases:
-	// 1. Method with pointer receiver: internal/poll.(*FD).Read(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})
-	// 2. Method with value receiver: time.Time.Add(0x140003801e0, 0x140003ae723)
-	// 3. Function without receiver: runtime.doInit(0x12f7be0)
-
-	// Pattern for method with pointer receiver: package.(*Type).Method(args)
-	// The args part is optional for "created by" lines
-	pointerReceiverRegex := regexp.MustCompile(`^(.+)\.(\(\*[^)]+\))\.([^(]+)(\(.+)?$`)
-
-	// Pattern for method with value receiver: package.Type.Method(args)
-	// The args part is optional for "created by" lines
-	valueReceiverRegex := regexp.MustCompile(`^(.+)\.([^.(]+)\.([^(]+)(\(.+)?$`)
-
-	// Pattern for function without receiver: package.Function(args)
-	// The args part is optional for "created by" lines
-	// This needs to handle package names with dots (e.g., github.com/outrigdev/outrig/pkg/collector/logprocess.initLogger)
-	functionRegex := regexp.MustCompile(`^((?:[^.]+(?:\.[^.]+)*(?:/[^.]+)*)+)\.([^.(]+)(\(.+)?$`)
-
-	// Try to match with pointer receiver pattern first
-	if match := pointerReceiverRegex.FindStringSubmatch(funcLine); match != nil {
-		frame.Package = match[1]
-		frame.Receiver = match[2]
-		frame.FuncName = match[3]
-		frame.Args = match[4]
-	} else if match := valueReceiverRegex.FindStringSubmatch(funcLine); match != nil {
-		// Try to match with value receiver pattern
-		frame.Package = match[1]
-		frame.Receiver = match[2]
-		frame.FuncName = match[3]
-		frame.Args = match[4]
-	} else if match := functionRegex.FindStringSubmatch(funcLine); match != nil {
-		// Try to match with function pattern
-		frame.Package = match[1]
-		frame.FuncName = match[2]
-		frame.Args = match[3]
-	} else {
-		// If none of the patterns match, return false
+	var ok bool
+	frame.Package, frame.FuncName, frame.FuncArgs, ok = parseFuncLine(funcLine)
+	if !ok {
 		return frame, false
 	}
-
 	// Parse file line
 	if fileLine != "" {
 		filePath, lineNumber, pcOffset, ok := parseFileLine(fileLine)
@@ -295,45 +260,37 @@ func parseFrame(funcLine, fileLine string) (Frame, bool) {
 	return frame, true
 }
 
+var inGoRoutineRe = regexp.MustCompile(`\s*in goroutine (\d+)`)
+
 // parseCreatedByFrame parses the "created by" frame of a goroutine stack trace
-// It extracts the goroutine ID that created the current goroutine and the function/file information
-func parseCreatedByFrame(createdBy RawStackFrame, routine *ParsedGoRoutine) {
-	if createdBy.FuncLine == "" {
-		return
+// returns a Frame struct, goId, and a boolean indicating success
+func parseCreatedByFrame(funcLine string, fileLine string) (*Frame, int, bool) {
+	// the trick is just removing "created by" off the front and "in goroutine X" off the end
+	if !strings.HasPrefix(funcLine, "created by ") {
+		log.Printf("no created by in %s\n", funcLine)
+		return nil, 0, false
 	}
-
-	line := createdBy.FuncLine
-
-	// Extract the goroutine ID
-	goIdRegex := regexp.MustCompile(`in goroutine (\d+)`)
-	if match := goIdRegex.FindStringSubmatch(line); match != nil {
-		if goId, err := strconv.ParseInt(match[1], 10, 64); err == nil {
-			routine.CreatedByGoId = goId
-		}
+	funcLine = strings.TrimPrefix(funcLine, "created by ")
+	// now parse the goroutine id and remove it
+	var goId int
+	match := inGoRoutineRe.FindStringSubmatch(funcLine)
+	if match == nil {
+		return nil, 0, false
 	}
-
-	// Extract the function name from the "created by" line
-	// Format: "created by package.function in goroutine X"
-	funcNameRegex := regexp.MustCompile(`created by (.+) in goroutine`)
-	var funcName string
-	if match := funcNameRegex.FindStringSubmatch(line); match != nil {
-		funcName = match[1]
-	} else {
-		// If we can't extract with the regex, just take everything after "created by "
-		funcName = strings.TrimPrefix(line, "created by ")
-		// Remove " in goroutine X" if present
-		if idx := strings.Index(funcName, " in goroutine "); idx > 0 {
-			funcName = funcName[:idx]
-		}
+	funcLine = strings.TrimSuffix(funcLine, match[0])
+	goId, err := strconv.Atoi(match[1])
+	if err != nil {
+		log.Printf("failed to parse goroutine ID: %v\n", err)
+		return nil, 0, false
 	}
-
-	// Check if we have a file line
-	if createdBy.FileLine != "" && strings.Contains(createdBy.FileLine, ".go:") {
-		// Use the existing parseFrame function to parse the created by frame
-		if frame, ok := parseFrame(funcName, createdBy.FileLine); ok {
-			routine.CreatedByFrame = &frame
-		}
+	// now parse the frame
+	frame, ok := parseFrame(funcLine, fileLine)
+	if !ok {
+		log.Printf("failed to parse created by frame: %q\n", funcLine)
+		return nil, 0, false
 	}
+	log.Printf("parsed created by frame: %s\n", funcLine)
+	return &frame, goId, true
 }
 
 // parseStateComponents parses a raw state string into its components
@@ -367,6 +324,39 @@ func parseStateComponents(rawState string) (string, int64, []string) {
 	return primaryState, stateDurationMs, extraStates
 }
 
+// parseFuncLine parses a function line from a stack trace and extracts the package, function name, and args
+// The function name includes the receiver if present
+func parseFuncLine(funcLine string) (pkgName string, funcName string, funcArgs string, valid bool) {
+	// first extract the arguments, we can find the arguments by the last parens
+
+	if strings.HasSuffix(funcLine, ")") {
+		// Find the last opening parenthesis
+		lastOpenParenIdx := strings.LastIndex(funcLine, "(")
+		if lastOpenParenIdx < 0 {
+			return "", "", "", false
+		}
+		// Extract everything from the last opening parenthesis to the end
+		funcArgs = funcLine[lastOpenParenIdx+1 : len(funcLine)-1]
+		funcLine = funcLine[:lastOpenParenIdx]
+	}
+	// now we strip the package name
+	// we find the final "/", and then the first "." after that
+	finalSlashIdx := strings.LastIndex(funcLine, "/")
+	if finalSlashIdx < 0 {
+		finalSlashIdx = 0 // this is fine, for a package like "os" which won't have any slashes
+	}
+	firstDotIdx := strings.Index(funcLine[finalSlashIdx:], ".")
+	if firstDotIdx < 0 {
+		return "", "", "", false
+	}
+	firstDotIdx += finalSlashIdx // adjust for the offset of the last slash
+	pkgName = funcLine[:firstDotIdx]
+	funcLine = funcLine[firstDotIdx+1:] // remove the package name
+	// now the funcName is what's left!
+	funcName = funcLine
+	return pkgName, funcName, funcArgs, true
+}
+
 // parseDuration attempts to parse a duration string and convert it to milliseconds
 func parseDuration(s string) (bool, int64) {
 	// Common duration formats in goroutine states
@@ -376,11 +366,13 @@ func parseDuration(s string) (bool, int64) {
 	}
 
 	patterns := []durationPattern{
-		{regexp.MustCompile(`^(\d+)\s*minutes?$`), 60 * 1000},    // minutes to ms
-		{regexp.MustCompile(`^(\d+)\s*seconds?$`), 1000},         // seconds to ms
-		{regexp.MustCompile(`^(\d+)\s*hours?$`), 60 * 60 * 1000}, // hours to ms
-		{regexp.MustCompile(`^(\d+)\s*milliseconds?$`), 1},       // ms to ms
-		{regexp.MustCompile(`^(\d+)\s*nanoseconds?$`), 0},        // ns to ms (effectively 0 for small values)
+		{regexp.MustCompile(`^(\d+)\s*days?$`), 24 * 60 * 60 * 1000}, // days to ms
+		{regexp.MustCompile(`^(\d+)\s*hours?$`), 60 * 60 * 1000},     // hours to ms
+		{regexp.MustCompile(`^(\d+)\s*minutes?$`), 60 * 1000},        // minutes to ms
+		{regexp.MustCompile(`^(\d+)\s*seconds?$`), 1000},             // seconds to ms
+		{regexp.MustCompile(`^(\d+)\s*(milliseconds?|ms)$`), 1},      // ms to ms
+		{regexp.MustCompile(`^(\d+)\s*(microseconds?|us|µs)$`), 0},   // µs to ms (effectively 0 for small values)
+		{regexp.MustCompile(`^(\d+)\s*(nanoseconds?|ns)$`), 0},       // ns to ms (effectively 0 for small values)
 	}
 
 	for _, pattern := range patterns {

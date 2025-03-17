@@ -15,10 +15,9 @@ import (
 
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
 type GoroutineCollector struct {
-	lock             sync.Mutex
-	firstConnectOnce sync.Once
-	controller       ds.Controller
-	ticker           *time.Ticker
+	lock       sync.Mutex
+	controller ds.Controller
+	ticker     *time.Ticker
 }
 
 // CollectorName returns the unique name of the collector
