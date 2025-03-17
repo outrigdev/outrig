@@ -152,6 +152,8 @@ type AppRunInfo struct {
 	NumTotalWatches     int            `json:"numtotalwatches"`
 	LastModTime         int64          `json:"lastmodtime"`
 	BuildInfo           *BuildInfoData `json:"buildinfo,omitempty"`
+	ModuleName          string         `json:"modulename,omitempty"`
+	Executable          string         `json:"executable,omitempty"`
 }
 
 type AppRunsData struct {

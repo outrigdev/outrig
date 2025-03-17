@@ -26,6 +26,8 @@ declare global {
         numtotalwatches: number;
         lastmodtime: number;
         buildinfo?: BuildInfoData;
+        modulename?: string;
+        executable?: string;
     };
 
     // rpctypes.AppRunLogsData
@@ -100,9 +102,9 @@ declare global {
 
     // EventType union (rpctypes.EventToTypeMap)
     type EventType = 
-        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
         | (EventCommonFields & { event: "route:down"; data?: null })
         | (EventCommonFields & { event: "route:up"; data?: null })
+        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
     ;
 
     // ds.LogLine

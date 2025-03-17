@@ -1,3 +1,4 @@
+import { AppModel } from "@/appmodel";
 import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { useOutrigModel } from "@/util/hooks";
@@ -301,6 +302,9 @@ interface RuntimeStatsContentProps {
 const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
     const stats = useAtomValue(model.runtimeStats);
     const isRefreshing = useAtomValue(model.isRefreshing);
+    // Get the app run info from the model
+    const appRunInfoAtom = React.useMemo(() => AppModel.getAppRunInfoAtom(model.appRunId), [model.appRunId]);
+    const appRunInfo = useAtomValue(appRunInfoAtom);
 
     if (isRefreshing && !stats) {
         return (
@@ -333,6 +337,16 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
         { key: "platform", label: "Platform", value: `${stats.goos}/${stats.goarch}` },
         { key: "goVersion", label: "Go Version", value: stats.goversion },
     ];
+
+    // Add Module and Executable from appRunInfo if available
+    if (appRunInfo) {
+        if (appRunInfo.modulename) {
+            infoItems.push({ key: "moduleName", label: "Module", value: appRunInfo.modulename });
+        }
+        if (appRunInfo.executable) {
+            infoItems.push({ key: "executable", label: "Executable", value: appRunInfo.executable });
+        }
+    }
 
     // Metric items that should be displayed as StatItems
     const metricKeys = [

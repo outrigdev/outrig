@@ -278,6 +278,8 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 		NumActiveWatches:    numActiveWatches,
 		NumTotalWatches:     numTotalWatches,
 		LastModTime:         p.LastModTime,
+		ModuleName:          p.AppInfo.ModuleName,
+		Executable:          p.AppInfo.Executable,
 	}
 
 	// Add build info if available
