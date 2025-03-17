@@ -3,12 +3,48 @@ import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
 import { useOutrigModel } from "@/util/hooks";
 import { cn } from "@/util/util";
-import { useAtom, useAtomValue } from "jotai";
+import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
 import { Filter, Layers } from "lucide-react";
-import React, { useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import { Tag } from "../elements/tag";
 import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
 // No longer need to import simplifyStackTrace from "./stacktrace"
+
+// StacktraceModeToggle component for toggling between raw and simplified stacktrace modes
+interface StacktraceModeToggleProps {
+    modeAtom: PrimitiveAtom<string>;
+}
+
+const StacktraceModeToggle: React.FC<StacktraceModeToggleProps> = ({ modeAtom }) => {
+    const [mode, setMode] = useAtom(modeAtom);
+    
+    const handleToggleMode = useCallback(() => {
+        setMode(mode === "simplified" ? "raw" : "simplified");
+    }, [mode, setMode]);
+    
+    return (
+        <Tooltip
+            content={
+                mode === "simplified"
+                    ? "Simple Stacktrace Mode On (Click to Disable)"
+                    : "Simple Stacktrace Mode Off (Click to Enable)"
+            }
+        >
+            <button
+                onClick={handleToggleMode}
+                className={cn(
+                    "p-1 mr-1 rounded cursor-pointer transition-colors",
+                    mode === "simplified"
+                        ? "bg-primary/20 text-primary hover:bg-primary/30"
+                        : "text-muted hover:bg-buttonhover hover:text-primary"
+                )}
+                aria-pressed={mode === "simplified" ? "true" : "false"}
+            >
+                <Layers size={16} />
+            </button>
+        </Tooltip>
+    );
+};
 
 // Component for displaying raw stack trace
 interface RawStackTraceProps {
@@ -100,7 +136,7 @@ const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({ goroutine, 
                         }
                     >
                         <div>
-                            <span className="text-secondary">created by </span>
+                            <span className="text-secondary">created in goroutine {goroutine.createdbygoid} by </span>
                             <HighlightLastPackagePart packagePath={goroutine.createdbyframe.package} />
                             <span className="text-primary">.{goroutine.createdbyframe.funcname}</span>
                         </div>
@@ -137,14 +173,14 @@ interface StackTraceProps {
     goroutine: ParsedGoRoutine;
     model: GoRoutinesModel;
     linkType: CodeLinkType;
-    simpleMode: boolean;
+    simpleMode: string;
 }
 
 const StackTrace: React.FC<StackTraceProps> = ({ goroutine, model, linkType, simpleMode }) => {
     const stackTraceRef = useRef<HTMLDivElement>(null);
 
     // If simple mode is enabled and the goroutine is properly parsed
-    if (simpleMode && goroutine.parsed && goroutine.parsedframes && goroutine.parsedframes.length > 0) {
+    if (simpleMode === "simplified" && goroutine.parsed && goroutine.parsedframes && goroutine.parsedframes.length > 0) {
         return <SimplifiedStackTrace goroutine={goroutine} model={model} linkType={linkType} />;
     }
 
@@ -237,8 +273,8 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     };
 
     return (
-        <div className="mb-3 p-2 border border-border rounded-md">
-            <div className="flex justify-between items-center">
+        <div className="mb-0">
+            <div className="flex justify-between items-center py-2">
                 <div className="flex items-center gap-2">
                     <div className="font-semibold text-primary w-[135px]">Goroutine {goroutine.goid}</div>
                     <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">
@@ -254,7 +290,7 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                     />
                 </div>
             </div>
-            <div ref={stackTraceRef}>
+            <div ref={stackTraceRef} className="pb-2">
                 <StackTrace goroutine={goroutine} model={model} linkType={linkType} simpleMode={simpleMode} />
             </div>
         </div>
@@ -309,26 +345,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                         />
                     </div>
                     <div className="flex items-center gap-2">
-                        <Tooltip
-                            content={
-                                simpleMode
-                                    ? "Simple Stacktrace Mode On (Click to Disable)"
-                                    : "Simple Stacktrace Mode Off (Click to Enable)"
-                            }
-                        >
-                            <button
-                                onClick={() => setSimpleMode(!simpleMode)}
-                                className={cn(
-                                    "p-1 mr-1 rounded cursor-pointer transition-colors",
-                                    simpleMode
-                                        ? "bg-primary/20 text-primary hover:bg-primary/30"
-                                        : "text-muted hover:bg-buttonhover hover:text-primary"
-                                )}
-                                aria-pressed={simpleMode}
-                            >
-                                <Layers size={16} />
-                            </button>
-                        </Tooltip>
+                        <StacktraceModeToggle modeAtom={model.simpleStacktraceMode} />
                         <RefreshButton
                             isRefreshingAtom={model.isRefreshing}
                             onRefresh={() => model.refresh()}
@@ -386,8 +403,12 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
             ) : (
                 <div>
                     <div className="mb-2 text-sm text-secondary">{filteredGoroutines.length} goroutines</div>
-                    {filteredGoroutines.map((goroutine) => (
-                        <GoroutineView key={goroutine.goid} goroutine={goroutine} model={model} />
+                    {filteredGoroutines.map((goroutine, index) => (
+                        <React.Fragment key={goroutine.goid}>
+                            <GoroutineView goroutine={goroutine} model={model} />
+                            {/* Add divider after each goroutine except the last one */}
+                            {index < filteredGoroutines.length - 1 && <div className="h-px bg-border my-2"></div>}
+                        </React.Fragment>
                     ))}
                 </div>
             )}

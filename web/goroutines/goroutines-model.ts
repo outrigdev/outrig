@@ -20,7 +20,7 @@ class GoRoutinesModel {
     showCodeLinks: PrimitiveAtom<CodeLinkType> = atom<CodeLinkType>("vscode");
 
     // Stacktrace display settings
-    simpleStacktraceMode: PrimitiveAtom<boolean> = atom(true);
+    simpleStacktraceMode: PrimitiveAtom<string> = atom("simplified");
 
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();
