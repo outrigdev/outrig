@@ -55,61 +55,77 @@ const HighlightLastPackagePart: React.FC<{ packagePath: string }> = ({ packagePa
 
 const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({ goroutine, model, linkType }) => {
     return (
-        <div className="text-xs text-primary bg-panel p-2 rounded font-mono">
+        <div className="text-xs text-primary bg-panel py-1 px-0 rounded font-mono">
             {goroutine.parsedframes.map((frame, index) => (
                 <React.Fragment key={index}>
-                    <div>
-                        <HighlightLastPackagePart packagePath={frame.package} />
-                        <span className="text-primary">.{frame.funcname}()</span>
-                    </div>
-                    {/* Only show file line for important frames */}
-                    {frame.isimportant && (
-                        <div className="ml-4">
-                            {linkType ? (
-                                <a
-                                    href={model.generateCodeLink(frame.filepath, frame.linenumber, linkType)}
-                                    className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
-                                >
-                                    {frame.filepath}:{frame.linenumber}
-                                </a>
-                            ) : (
-                                <span>
-                                    {frame.filepath}:{frame.linenumber}
-                                </span>
-                            )}
+                    <div
+                        className={
+                            frame.isimportant
+                                ? "border-l-[5px] border-l-border pl-3"
+                                : "border-l-[5px] border-l-transparent pl-3"
+                        }
+                    >
+                        <div>
+                            <HighlightLastPackagePart packagePath={frame.package} />
+                            <span className="text-primary">.{frame.funcname}()</span>
                         </div>
-                    )}
+                        {/* Only show file line for important frames */}
+                        {frame.isimportant && (
+                            <div className="ml-4">
+                                {linkType ? (
+                                    <a
+                                        href={model.generateCodeLink(frame.filepath, frame.linenumber, linkType)}
+                                        className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
+                                    >
+                                        {frame.filepath}:{frame.linenumber}
+                                    </a>
+                                ) : (
+                                    <span>
+                                        {frame.filepath}:{frame.linenumber}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </React.Fragment>
             ))}
 
             {goroutine.createdbygoid && goroutine.createdbyframe && (
                 <React.Fragment>
-                    <div>
-                        <span className="text-primary">created by </span>
-                        <HighlightLastPackagePart packagePath={goroutine.createdbyframe.package} />
-                        <span className="text-primary">.{goroutine.createdbyframe.funcname}</span>
-                    </div>
-                    {/* Only show file line for important frames */}
-                    {goroutine.createdbyframe.isimportant && (
-                        <div className="ml-4">
-                            {linkType ? (
-                                <a
-                                    href={model.generateCodeLink(
-                                        goroutine.createdbyframe.filepath,
-                                        goroutine.createdbyframe.linenumber,
-                                        linkType
-                                    )}
-                                    className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
-                                >
-                                    {goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}
-                                </a>
-                            ) : (
-                                <span>
-                                    {goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}
-                                </span>
-                            )}
+                    <div
+                        className={
+                            goroutine.createdbyframe.isimportant
+                                ? "border-l-[5px] border-l-border pl-3"
+                                : "border-l-[5px] border-l-transparent pl-3"
+                        }
+                    >
+                        <div>
+                            <span className="text-secondary">created by </span>
+                            <HighlightLastPackagePart packagePath={goroutine.createdbyframe.package} />
+                            <span className="text-primary">.{goroutine.createdbyframe.funcname}</span>
                         </div>
-                    )}
+                        {/* Only show file line for important frames */}
+                        {goroutine.createdbyframe.isimportant && (
+                            <div className="ml-4">
+                                {linkType ? (
+                                    <a
+                                        href={model.generateCodeLink(
+                                            goroutine.createdbyframe.filepath,
+                                            goroutine.createdbyframe.linenumber,
+                                            linkType
+                                        )}
+                                        className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
+                                    >
+                                        {goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}
+                                    </a>
+                                ) : (
+                                    <span>
+                                        {goroutine.createdbyframe.filepath}:{goroutine.createdbyframe.linenumber}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </React.Fragment>
             )}
         </div>
@@ -221,8 +237,8 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     };
 
     return (
-        <div className="mb-4 p-3 border border-border rounded-md">
-            <div className="flex justify-between items-center mb-2">
+        <div className="mb-3 p-2 border border-border rounded-md">
+            <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                     <div className="font-semibold text-primary w-[135px]">Goroutine {goroutine.goid}</div>
                     <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">
