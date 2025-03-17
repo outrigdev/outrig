@@ -10,14 +10,14 @@ func TestParseFrame(t *testing.T) {
 		funcLine      string
 		fileLine      string
 		expectSuccess bool
-		expectedFrame Frame
+		expectedFrame StackFrame
 	}{
 		{
 			name:          "Method with receiver",
 			funcLine:      "internal/poll.(*FD).Read(0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd})",
 			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go:165 +0x1fc",
 			expectSuccess: true,
-			expectedFrame: Frame{
+			expectedFrame: StackFrame{
 				Package:    "internal/poll",
 				FuncName:   "(*FD).Read",
 				FuncArgs:   "0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd}",
@@ -33,7 +33,7 @@ func TestParseFrame(t *testing.T) {
 			funcLine:      "runtime.doInit(0x12f7be0)",
 			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/proc.go:6329",
 			expectSuccess: true,
-			expectedFrame: Frame{
+			expectedFrame: StackFrame{
 				Package:    "runtime",
 				FuncName:   "doInit",
 				FuncArgs:   "0x12f7be0",
@@ -49,7 +49,7 @@ func TestParseFrame(t *testing.T) {
 			funcLine:      "github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute.func2()",
 			fileLine:      "/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:326 +0x14c",
 			expectSuccess: true,
-			expectedFrame: Frame{
+			expectedFrame: StackFrame{
 				Package:    "github.com/outrigdev/outrig/pkg/rpc",
 				FuncName:   "(*WshRouter).RegisterRoute.func2",
 				FuncArgs:   "",
@@ -65,7 +65,7 @@ func TestParseFrame(t *testing.T) {
 			funcLine:      "internal/poll.(*pollDesc).waitRead(...)",
 			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_poll_runtime.go:89",
 			expectSuccess: true,
-			expectedFrame: Frame{
+			expectedFrame: StackFrame{
 				Package:    "internal/poll",
 				FuncName:   "(*pollDesc).waitRead",
 				FuncArgs:   "...",
@@ -81,7 +81,7 @@ func TestParseFrame(t *testing.T) {
 			funcLine:      "main.main()",
 			fileLine:      "/Users/mike/work/outrig/server/main-server.go:291 +0x714",
 			expectSuccess: true,
-			expectedFrame: Frame{
+			expectedFrame: StackFrame{
 				Package:    "main",
 				FuncName:   "main",
 				FuncArgs:   "",
@@ -109,7 +109,7 @@ func TestParseFrame(t *testing.T) {
 			funcLine:      "time.Time.Add(0x140003801e0, 0x140003ae723)",
 			fileLine:      "/opt/homebrew/Cellar/go/1.23.4/libexec/src/time/time.go:1076 +0x1a4",
 			expectSuccess: true,
-			expectedFrame: Frame{
+			expectedFrame: StackFrame{
 				Package:    "time",
 				FuncName:   "Time.Add",
 				FuncArgs:   "0x140003801e0, 0x140003ae723",
@@ -124,7 +124,7 @@ func TestParseFrame(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			frame, ok := parseFrame(tt.funcLine, tt.fileLine)
+			frame, ok := parseFrame(tt.funcLine, tt.fileLine, true)
 			if ok != tt.expectSuccess {
 				t.Fatalf("parseFrame() success = %v, expected %v", ok, tt.expectSuccess)
 			}
@@ -686,7 +686,7 @@ func TestParseFuncLine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			packageName, funcName, args, ok := parseFuncLine(tt.funcLine)
+			packageName, funcName, args, ok := parseFuncLine(tt.funcLine, true)
 
 			if ok != tt.expectSuccess {
 				t.Fatalf("parseFuncLine() success = %v, expected %v", ok, tt.expectSuccess)
@@ -802,12 +802,12 @@ func TestParseCreatedByFrame(t *testing.T) {
 				if frame.FileLine != tt.fileLine {
 					t.Errorf("FileLine = %q, expected %q", frame.FileLine, tt.fileLine)
 				}
-				
+
 				// Verify that file path and line number were parsed correctly
 				if frame.FilePath == "" {
 					t.Errorf("FilePath should not be empty")
 				}
-				
+
 				if frame.LineNumber == 0 {
 					t.Errorf("LineNumber should not be zero")
 				}

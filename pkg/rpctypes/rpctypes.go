@@ -140,17 +140,17 @@ type BuildInfoData struct {
 
 // App run data types
 type AppRunInfo struct {
-	AppRunId            string       `json:"apprunid"`
-	AppName             string       `json:"appname"`
-	StartTime           int64        `json:"starttime"`
-	IsRunning           bool         `json:"isrunning"`
-	Status              string       `json:"status"`
-	NumLogs             int          `json:"numlogs"`
-	NumActiveGoRoutines int          `json:"numactivegoroutines"`
-	NumTotalGoRoutines  int          `json:"numtotalgoroutines"`
-	NumActiveWatches    int          `json:"numactivewatches"`
-	NumTotalWatches     int          `json:"numtotalwatches"`
-	LastModTime         int64        `json:"lastmodtime"`
+	AppRunId            string         `json:"apprunid"`
+	AppName             string         `json:"appname"`
+	StartTime           int64          `json:"starttime"`
+	IsRunning           bool           `json:"isrunning"`
+	Status              string         `json:"status"`
+	NumLogs             int            `json:"numlogs"`
+	NumActiveGoRoutines int            `json:"numactivegoroutines"`
+	NumTotalGoRoutines  int            `json:"numtotalgoroutines"`
+	NumActiveWatches    int            `json:"numactivewatches"`
+	NumTotalWatches     int            `json:"numtotalwatches"`
+	LastModTime         int64          `json:"lastmodtime"`
 	BuildInfo           *BuildInfoData `json:"buildinfo,omitempty"`
 }
 
@@ -206,8 +206,8 @@ type RuntimeStatData struct {
 }
 
 type AppRunRuntimeStatsData struct {
-	AppRunId string           `json:"apprunid"`
-	AppName  string           `json:"appname"`
+	AppRunId string            `json:"apprunid"`
+	AppName  string            `json:"appname"`
 	Stats    []RuntimeStatData `json:"stats"`
 }
 
@@ -242,4 +242,34 @@ type SubscriptionRequest struct {
 type BrowserTabUrlData struct {
 	Url      string `json:"url"`
 	AppRunId string `json:"apprunid,omitempty"`
+}
+
+// StackFrame represents a single frame in a goroutine stack trace
+type StackFrame struct {
+	// Function information
+	Package  string // The package name (e.g., "internal/poll")
+	FuncName string // Just the function/method name, may include the receiver (e.g., "Read")
+	FuncArgs string // Raw argument string, no parens (e.g., "0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd}")
+
+	// Source file information
+	FilePath   string // Full path to the source file (e.g., "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go")
+	LineNumber int    // Line number in the source file (e.g., 165)
+	PCOffset   string // Program counter offset (e.g., "+0x1fc")
+
+	// Raw lines for reference
+	FuncLine string // The raw function call line
+	FileLine string // The raw file location line
+}
+
+// ParsedGoRoutine represents a parsed goroutine stack trace
+type ParsedGoRoutine struct {
+	GoId            int64
+	RawStackTrace   string       // The raw stack trace string
+	RawState        string       // The complete state information
+	PrimaryState    string       // The first part of the state (before any commas)
+	StateDurationMs int64        // Duration of state in milliseconds (if available)
+	ExtraStates     []string     // Array of additional state information
+	ParsedFrames    []StackFrame // Structured frame information
+	CreatedByGoId   int64        // ID of the goroutine that created this one
+	CreatedByFrame  *StackFrame  // Frame information for the creation point
 }

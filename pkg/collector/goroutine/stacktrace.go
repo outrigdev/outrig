@@ -6,39 +6,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/outrigdev/outrig/pkg/rpctypes"
 )
 
-// Frame represents a single frame in a goroutine stack trace
-type Frame struct {
-	// Function information
-	Package  string // The package name (e.g., "internal/poll")
-	FuncName string // Just the function/method name, may include the receiver (e.g., "Read")
-	FuncArgs string // Raw argument string, no parens (e.g., "0x140003801e0, {0x140003ae723, 0x8dd, 0x8dd}")
+type ParsedGoRoutine = rpctypes.ParsedGoRoutine
+type StackFrame = rpctypes.StackFrame
 
-	// Source file information
-	FilePath   string // Full path to the source file (e.g., "/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go")
-	LineNumber int    // Line number in the source file (e.g., 165)
-	PCOffset   string // Program counter offset (e.g., "+0x1fc")
-
-	// Raw lines for reference
-	FuncLine string // The raw function call line
-	FileLine string // The raw file location line
-}
-
-// ParsedGoRoutine represents a parsed goroutine stack trace
-type ParsedGoRoutine struct {
-	GoId            int64
-	RawState        string   // The complete state information
-	PrimaryState    string   // The first part of the state (before any commas)
-	StateDurationMs int64    // Duration of state in milliseconds (if available)
-	ExtraStates     []string // Array of additional state information
-	ParsedFrames    []Frame  // Structured frame information
-	CreatedByGoId   int64    // ID of the goroutine that created this one
-	CreatedByFrame  *Frame   // Frame information for the creation point
-}
-
-// RawStackFrame represents a pair of lines in a stack trace
-type RawStackFrame struct {
+// rawStackFrame represents a pair of lines in a stack trace
+type rawStackFrame struct {
 	FuncLine string // The function call line
 	FileLine string // The file location line (may be empty)
 }
@@ -46,8 +22,44 @@ type RawStackFrame struct {
 // PreprocessedGoRoutineLines represents a preprocessed goroutine stack trace
 type PreprocessedGoRoutineLines struct {
 	HeaderLine  string          // The goroutine header line (e.g., "goroutine 1 [running]:")
-	StackFrames []RawStackFrame // Stack frames, where each frame has a function line and optional file line
-	CreatedBy   RawStackFrame   // The "created by" information
+	StackFrames []rawStackFrame // Stack frames, where each frame has a function line and optional file line
+	CreatedBy   rawStackFrame   // The "created by" information
+}
+
+// ParseGoRoutineStackTrace parses a Go routine stack trace string into a struct
+func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
+	// Preprocess the stack trace
+	preprocessed := preprocessStackTrace(stackTrace)
+
+	// Return empty struct and error if header line is empty
+	if preprocessed.HeaderLine == "" {
+		return ParsedGoRoutine{}, fmt.Errorf("no goroutine header found in stack trace")
+	}
+
+	// Parse the header line
+	routine, err := parseHeaderLine(preprocessed.HeaderLine)
+	if err != nil {
+		return ParsedGoRoutine{}, err
+	}
+	routine.RawStackTrace = stackTrace
+
+	// Parse stack frames
+	for _, frame := range preprocessed.StackFrames {
+		if parsedFrame, ok := parseFrame(frame.FuncLine, frame.FileLine, true); ok {
+			routine.ParsedFrames = append(routine.ParsedFrames, parsedFrame)
+		}
+	}
+
+	// Parse created by information
+	if preprocessed.CreatedBy.FuncLine != "" {
+		frame, goId, ok := parseCreatedByFrame(preprocessed.CreatedBy.FuncLine, preprocessed.CreatedBy.FileLine)
+		if ok {
+			routine.CreatedByGoId = int64(goId)
+			routine.CreatedByFrame = frame
+		}
+	}
+
+	return routine, nil
 }
 
 // preprocessStackTrace processes a goroutine stack trace and groups the lines into header, stack frames, and created by sections
@@ -85,7 +97,7 @@ func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 		if strings.HasPrefix(strings.TrimSpace(line), "created by ") {
 			// Add any remaining frame
 			if currentFuncLine != "" {
-				result.StackFrames = append(result.StackFrames, RawStackFrame{
+				result.StackFrames = append(result.StackFrames, rawStackFrame{
 					FuncLine: currentFuncLine,
 					FileLine: "",
 				})
@@ -110,7 +122,7 @@ func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 		if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
 			// This is the second line of a frame
 			if currentFuncLine != "" {
-				result.StackFrames = append(result.StackFrames, RawStackFrame{
+				result.StackFrames = append(result.StackFrames, rawStackFrame{
 					FuncLine: currentFuncLine,
 					FileLine: trimmedLine,
 				})
@@ -124,7 +136,7 @@ func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 			// This is the first line of a new frame
 			if currentFuncLine != "" {
 				// Add the previous frame (which only had one line)
-				result.StackFrames = append(result.StackFrames, RawStackFrame{
+				result.StackFrames = append(result.StackFrames, rawStackFrame{
 					FuncLine: currentFuncLine,
 					FileLine: "",
 				})
@@ -135,7 +147,7 @@ func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 
 	// Add any remaining frame
 	if currentFuncLine != "" {
-		result.StackFrames = append(result.StackFrames, RawStackFrame{
+		result.StackFrames = append(result.StackFrames, rawStackFrame{
 			FuncLine: currentFuncLine,
 			FileLine: "",
 		})
@@ -171,42 +183,7 @@ func parseHeaderLine(headerLine string) (ParsedGoRoutine, error) {
 		PrimaryState:    primaryState,
 		StateDurationMs: stateDurationMs,
 		ExtraStates:     extraStates,
-		ParsedFrames:    []Frame{},
-	}
-
-	return routine, nil
-}
-
-// ParseGoRoutineStackTrace parses a Go routine stack trace string into a struct
-func ParseGoRoutineStackTrace(stackTrace string) (ParsedGoRoutine, error) {
-	// Preprocess the stack trace
-	preprocessed := preprocessStackTrace(stackTrace)
-
-	// Return empty struct and error if header line is empty
-	if preprocessed.HeaderLine == "" {
-		return ParsedGoRoutine{}, fmt.Errorf("no goroutine header found in stack trace")
-	}
-
-	// Parse the header line
-	routine, err := parseHeaderLine(preprocessed.HeaderLine)
-	if err != nil {
-		return ParsedGoRoutine{}, err
-	}
-
-	// Parse stack frames
-	for _, frame := range preprocessed.StackFrames {
-		if parsedFrame, ok := parseFrame(frame.FuncLine, frame.FileLine); ok {
-			routine.ParsedFrames = append(routine.ParsedFrames, parsedFrame)
-		}
-	}
-
-	// Parse created by information
-	if preprocessed.CreatedBy.FuncLine != "" {
-		frame, goId, ok := parseCreatedByFrame(preprocessed.CreatedBy.FuncLine, preprocessed.CreatedBy.FileLine)
-		if ok {
-			routine.CreatedByGoId = int64(goId)
-			routine.CreatedByFrame = frame
-		}
+		ParsedFrames:    []StackFrame{},
 	}
 
 	return routine, nil
@@ -237,13 +214,13 @@ func parseFileLine(fileLine string) (string, int, string, bool) {
 
 // parseFrame parses a pair of stack trace lines into a Frame struct
 // The first line contains the function call, the second line contains the file path and line number
-func parseFrame(funcLine, fileLine string) (Frame, bool) {
-	frame := Frame{
+func parseFrame(funcLine, fileLine string, argsRequired bool) (StackFrame, bool) {
+	frame := StackFrame{
 		FuncLine: funcLine,
 		FileLine: fileLine,
 	}
 	var ok bool
-	frame.Package, frame.FuncName, frame.FuncArgs, ok = parseFuncLine(funcLine)
+	frame.Package, frame.FuncName, frame.FuncArgs, ok = parseFuncLine(funcLine, argsRequired)
 	if !ok {
 		return frame, false
 	}
@@ -264,7 +241,7 @@ var inGoRoutineRe = regexp.MustCompile(`\s*in goroutine (\d+)`)
 
 // parseCreatedByFrame parses the "created by" frame of a goroutine stack trace
 // returns a Frame struct, goId, and a boolean indicating success
-func parseCreatedByFrame(funcLine string, fileLine string) (*Frame, int, bool) {
+func parseCreatedByFrame(funcLine string, fileLine string) (*StackFrame, int, bool) {
 	// the trick is just removing "created by" off the front and "in goroutine X" off the end
 	if !strings.HasPrefix(funcLine, "created by ") {
 		log.Printf("no created by in %s\n", funcLine)
@@ -284,7 +261,7 @@ func parseCreatedByFrame(funcLine string, fileLine string) (*Frame, int, bool) {
 		return nil, 0, false
 	}
 	// now parse the frame
-	frame, ok := parseFrame(funcLine, fileLine)
+	frame, ok := parseFrame(funcLine, fileLine, false)
 	if !ok {
 		log.Printf("failed to parse created by frame: %q\n", funcLine)
 		return nil, 0, false
@@ -326,7 +303,7 @@ func parseStateComponents(rawState string) (string, int64, []string) {
 
 // parseFuncLine parses a function line from a stack trace and extracts the package, function name, and args
 // The function name includes the receiver if present
-func parseFuncLine(funcLine string) (pkgName string, funcName string, funcArgs string, valid bool) {
+func parseFuncLine(funcLine string, argsRequired bool) (pkgName string, funcName string, funcArgs string, valid bool) {
 	// first extract the arguments, we can find the arguments by the last parens
 
 	if strings.HasSuffix(funcLine, ")") {
@@ -338,7 +315,11 @@ func parseFuncLine(funcLine string) (pkgName string, funcName string, funcArgs s
 		// Extract everything from the last opening parenthesis to the end
 		funcArgs = funcLine[lastOpenParenIdx+1 : len(funcLine)-1]
 		funcLine = funcLine[:lastOpenParenIdx]
+	} else if argsRequired {
+		// If we require args but there are none, return false
+		return "", "", "", false
 	}
+
 	// now we strip the package name
 	// we find the final "/", and then the first "." after that
 	finalSlashIdx := strings.LastIndex(funcLine, "/")
