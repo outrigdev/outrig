@@ -49,13 +49,12 @@ const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
                             href={codeLink}
                             className={cn("cursor-pointer inline-block", createdByGoid != null ? "pl-4" : "")}
                         >
-                            <span className="text-secondary group-hover:text-blue-500 dark:group-hover:text-blue-400  group-hover:decoration-blue-500 dark:group-hover:decoration-blue-400">
-                                {frame.package.split("/").slice(0, -1).join("/")}
-                                {frame.package.split("/").length > 1 ? "/" : ""}
-                            </span>
-                            <span className="text-primary group-hover:text-blue-600 dark:group-hover:text-blue-300  group-hover:decoration-blue-600 dark:group-hover:decoration-blue-300">
+                            <span className="text-primary group-hover:text-blue-600 dark:group-hover:text-blue-300 group-hover:font-bold">
                                 {frame.package.split("/").pop()}.{frame.funcname}
                                 {createdByGoid == null ? "()" : ""}
+                            </span>
+                            <span className="text-secondary ml-1 group-hover:text-blue-600 dark:group-hover:text-blue-300">
+                                in {frame.package}
                             </span>
                             <span
                                 className="invisible group-hover:visible ml-2 text-secondary absolute italic"
@@ -70,11 +69,11 @@ const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
                         {createdByGoid != null && (
                             <div className="text-secondary">created in goroutine {createdByGoid} by </div>
                         )}
-                        <HighlightLastPackagePart indent={createdByGoid != null} packagePath={frame.package} />
-                        <span className="text-primary">
-                            .{frame.funcname}
+                        <span className={cn("text-primary", createdByGoid != null ? "pl-4" : "")}>
+                            {frame.package.split("/").pop()}.{frame.funcname}
                             {createdByGoid == null ? "()" : ""}
                         </span>
+                        <span className="text-secondary ml-1">in {frame.package}</span>
                     </>
                 )}
             </div>
@@ -423,10 +422,12 @@ const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }
                 // If this part matches the file:line pattern, make it a link
                 if (part === `${filePath}:${lineNumber}`) {
                     return (
-                        <a key={index} href={link} className="group cursor-pointer">
-                            <span className="group-hover:text-blue-500 group-hover:underline transition-colors duration-150">
-                                {part}
-                            </span>
+                        <a
+                            key={index}
+                            href={link}
+                            className="cursor-pointer hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-150"
+                        >
+                            {part}
                         </a>
                     );
                 }

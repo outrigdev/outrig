@@ -29,6 +29,8 @@
         monospace;
 }
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 [data-theme="light"] {
     --themecolor-white: white;
     --themecolor-black: black;
