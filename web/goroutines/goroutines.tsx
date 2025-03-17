@@ -239,8 +239,8 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
                     {filteredGoroutines.map((goroutine, index) => (
                         <React.Fragment key={goroutine.goid}>
                             <GoroutineView goroutine={goroutine} model={model} />
-                            {/* Add divider after each goroutine except the last one */}
-                            {index < filteredGoroutines.length - 1 && <div className="h-px bg-border my-2"></div>}
+                        {/* Add divider after each goroutine except the last one */}
+                        {index < filteredGoroutines.length - 1 && <div className="h-px bg-border my-2" style={{ minWidth: '100%', width: '9999px' }}></div>}
                         </React.Fragment>
                     ))}
                 </div>

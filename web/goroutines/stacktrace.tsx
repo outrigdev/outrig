@@ -1,3 +1,4 @@
+import { cn } from "@/util/util";
 import React from "react";
 import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
 
@@ -7,9 +8,28 @@ interface SimplifiedStackFrameProps {
     model: GoRoutinesModel;
     linkType: CodeLinkType;
     createdByGoid?: number; // Optional goroutine ID for "created by" frames
+    showFileLink?: boolean; // Whether to show the file link separately (true for simplified:files, false for simplified)
 }
 
-const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({ frame, model, linkType, createdByGoid }) => {
+// Helper function to get just the base filename from a path
+const getBaseFileName = (filepath: string): string => {
+    const parts = filepath.split("/");
+    return parts[parts.length - 1];
+};
+
+const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
+    frame,
+    model,
+    linkType,
+    createdByGoid,
+    showFileLink = true, // Default to showing file link (for backward compatibility)
+}) => {
+    // Generate the code link if we have a valid linkType
+    const codeLink = linkType ? model.generateCodeLink(frame.filepath, frame.linenumber, linkType) : null;
+
+    // Format for the tooltip - (basefilename.go:linenum)
+    const fileLocationTip = `(${getBaseFileName(frame.filepath)}:${frame.linenumber})`;
+
     return (
         <div
             className={
@@ -17,18 +37,55 @@ const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({ frame, mode
             }
         >
             <div>
-                {createdByGoid != null && (
-                    <span className="text-secondary">created in goroutine {createdByGoid} by </span>
+                {/* If not showing file link separately and frame is important, make the entire line clickable */}
+                {!showFileLink && codeLink ? (
+                    <div className="group relative">
+                        {createdByGoid != null && (
+                            <div>
+                                <span className="text-secondary">created in goroutine {createdByGoid} by </span>
+                            </div>
+                        )}
+                        <a
+                            href={codeLink}
+                            className={cn("cursor-pointer inline-block", createdByGoid != null ? "pl-4" : "")}
+                        >
+                            <span className="text-secondary group-hover:text-blue-500 dark:group-hover:text-blue-400  group-hover:decoration-blue-500 dark:group-hover:decoration-blue-400">
+                                {frame.package.split("/").slice(0, -1).join("/")}
+                                {frame.package.split("/").length > 1 ? "/" : ""}
+                            </span>
+                            <span className="text-primary group-hover:text-blue-600 dark:group-hover:text-blue-300  group-hover:decoration-blue-600 dark:group-hover:decoration-blue-300">
+                                {frame.package.split("/").pop()}.{frame.funcname}
+                                {createdByGoid == null ? "()" : ""}
+                            </span>
+                            <span
+                                className="invisible group-hover:visible ml-2 text-secondary absolute italic"
+                                style={{ textDecoration: "none" }}
+                            >
+                                {fileLocationTip}
+                            </span>
+                        </a>
+                    </div>
+                ) : (
+                    <>
+                        {createdByGoid != null && (
+                            <div className="text-secondary">created in goroutine {createdByGoid} by </div>
+                        )}
+                        <HighlightLastPackagePart indent={createdByGoid != null} packagePath={frame.package} />
+                        <span className="text-primary">
+                            .{frame.funcname}
+                            {createdByGoid == null ? "()" : ""}
+                        </span>
+                    </>
                 )}
-                <HighlightLastPackagePart packagePath={frame.package} />
-                <span className="text-primary">
-                    .{frame.funcname}
-                    {createdByGoid == null ? "()" : ""}
-                </span>
             </div>
-            {/* Only show file line for important frames */}
-            {frame.isimportant && (
-                <FrameLink filepath={frame.filepath} linenumber={frame.linenumber} model={model} linkType={linkType} />
+            {/* Only show file line for important frames and when showFileLink is true */}
+            {frame.isimportant && showFileLink && (
+                <FrameFileLink
+                    filepath={frame.filepath}
+                    linenumber={frame.linenumber}
+                    model={model}
+                    linkType={linkType}
+                />
             )}
         </div>
     );
@@ -42,13 +99,13 @@ interface FrameLinkProps {
     linkType: CodeLinkType;
 }
 
-const FrameLink: React.FC<FrameLinkProps> = ({ filepath, linenumber, model, linkType }) => {
+const FrameFileLink: React.FC<FrameLinkProps> = ({ filepath, linenumber, model, linkType }) => {
     return (
         <div className="ml-4">
             {linkType ? (
                 <a
                     href={model.generateCodeLink(filepath, linenumber, linkType)}
-                    className="cursor-pointer hover:text-blue-500 hover:underline text-secondary transition-colors duration-150"
+                    className="cursor-pointer hover:text-blue-500 text-secondary transition-colors duration-150"
                 >
                     {filepath}:{linenumber}
                 </a>
@@ -74,10 +131,12 @@ export const StackTrace: React.FC<StackTraceProps> = ({ goroutine, model, linkTy
     const canUseSimplifiedView = goroutine.parsed && goroutine.parsedframes && goroutine.parsedframes.length > 0;
 
     // Handle the different modes
-    if ((simpleMode === "simplified" || simpleMode === "simplified:files") && canUseSimplifiedView) {
-        // For now, both simplified modes use the same component
-        // In the future, "simplified:files" will have its own implementation
-        return <SimplifiedStackTrace goroutine={goroutine} model={model} linkType={linkType} />;
+    if (simpleMode === "simplified:files" && canUseSimplifiedView) {
+        // Show file links separately (original behavior)
+        return <SimplifiedStackTrace goroutine={goroutine} model={model} linkType={linkType} showFileLinks={true} />;
+    } else if (simpleMode === "simplified" && canUseSimplifiedView) {
+        // Don't show file links separately, instead link the function name
+        return <SimplifiedStackTrace goroutine={goroutine} model={model} linkType={linkType} showFileLinks={false} />;
     }
 
     // Default to raw stack trace
@@ -111,27 +170,39 @@ interface SimplifiedStackTraceProps {
     goroutine: ParsedGoRoutine;
     model: GoRoutinesModel;
     linkType: CodeLinkType;
+    showFileLinks?: boolean; // Whether to show file links separately
 }
 
 // Helper function to split package path and highlight only the last part
-const HighlightLastPackagePart: React.FC<{ packagePath: string }> = ({ packagePath }) => {
+const HighlightLastPackagePart: React.FC<{ packagePath: string; indent?: boolean }> = ({ packagePath, indent }) => {
     const parts = packagePath.split("/");
     const lastPart = parts.pop() || "";
     const prefix = parts.length > 0 ? parts.join("/") + "/" : "";
 
     return (
         <>
-            <span className="text-secondary">{prefix}</span>
+            <span className={cn("text-secondary", indent ? "pl-4" : null)}>{prefix}</span>
             <span className="text-primary">{lastPart}</span>
         </>
     );
 };
 
-const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({ goroutine, model, linkType }) => {
+const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({
+    goroutine,
+    model,
+    linkType,
+    showFileLinks = true, // Default to showing file links (for backward compatibility)
+}) => {
     return (
         <div className="text-xs text-primary bg-panel py-1 px-0 rounded font-mono">
             {goroutine.parsedframes.map((frame, index) => (
-                <SimplifiedStackFrame key={index} frame={frame} model={model} linkType={linkType} />
+                <SimplifiedStackFrame
+                    key={index}
+                    frame={frame}
+                    model={model}
+                    linkType={linkType}
+                    showFileLink={showFileLinks}
+                />
             ))}
 
             {goroutine.createdbygoid && goroutine.createdbyframe && (
@@ -140,6 +211,7 @@ const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({ goroutine, 
                     model={model}
                     linkType={linkType}
                     createdByGoid={goroutine.createdbygoid}
+                    showFileLink={showFileLinks}
                 />
             )}
         </div>
