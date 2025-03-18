@@ -23,19 +23,23 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - Use named exports exclusively; avoid default exports. It's acceptable to export functions directly (e.g., React Components).
 - **JSON Field Naming**: All fields must be lowercase, without underscores.
 - **TypeScript Conventions**
-    - In TypeScript we have strict null checks off, so no need to add "| null" to all the types.
-    - In TypeScript for Jotai atoms, if we want to write, we need to type the atom as a PrimitiveAtom<Type>
-    - Jotai has a bug with strick null checks off where if you create a null atom, e.g. atom(null) it does not "type" correctly. That's no issue, just cast it to the proper PrimitiveAtom type (no "| null") and it will work fine.
-    - generally never use "=== undefined" or "!== undefined". this is bad style. just use a "== null" or "!= null" unless it is a very specific case where we need to distinguish undefined from null.
-    - use all lowercase filenames (except where case is actually important like Taskfile.yml)
-    - import the "cn" function from "@/util/util" to do classname / clsx class merge (it uses twMerge underneath)
-    - make sure to add cursor-pointer to buttons/links and clickable items
-    - for element variants use class-variance-authority
-    - useAtom() and useAtomValue() are react HOOKS, so they must be called at the component level not inline in JSX
+    - **Type Handling**:
+        - In TypeScript we have strict null checks off, so no need to add "| null" to all the types.
+        - In TypeScript for Jotai atoms, if we want to write, we need to type the atom as a PrimitiveAtom<Type>
+        - Jotai has a bug with strict null checks off where if you create a null atom, e.g. atom(null) it does not "type" correctly. That's no issue, just cast it to the proper PrimitiveAtom type (no "| null") and it will work fine.
+        - Generally never use "=== undefined" or "!== undefined". This is bad style. Just use a "== null" or "!= null" unless it is a very specific case where we need to distinguish undefined from null.
+    - **Coding Style**:
+        - Use all lowercase filenames (except where case is actually important like Taskfile.yml)
+        - Import the "cn" function from "@/util/util" to do classname / clsx class merge (it uses twMerge underneath)
+        - For element variants use class-variance-authority
+    - **Component Practices**:
+        - Make sure to add cursor-pointer to buttons/links and clickable items
+        - useAtom() and useAtomValue() are react HOOKS, so they must be called at the component level not inline in JSX
 
 ### Styling
 
-- We use tailwind v4 to style. Custom stuff is defined in app.css. We have both light/dark mode styles that are defined via CSS variables.
+- We use tailwind v4 to style. Custom stuff is defined in app.css. We have both light/dark mode styles that are defined via CSS variables. Note this means there is not a tailwind.config.ts file! Tailwind v4 uses CSS variables (defined in app.css) to produce custom tailwind classes and overrides.
+- The app must support both light and dark modes. We prefer to use the same tailwind clases for both light/dark and define overrides in the light/dark sections in app.css. So text-primary is a black color in light mode, but a white color in dark mode.
 
 ### Code Generation
 
@@ -71,18 +75,14 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - When working with Jotai atoms that need to be updated, define them as `PrimitiveAtom<Type>` rather than just `atom<Type>`.
 - The frontend is organized into components for different views (LogViewer, AppRunList, etc.) that use the AppModel to access shared state.
 - The app uses a tab-based navigation system where the selected tab determines which component is displayed.
-- To handle keyboard events, use keymodel.ts. Regsiter global keys in registerGlobalKeys() and hook them up to the appropriate handlers.
+- To handle keyboard events, use keymodel.ts. Register global keys in registerGlobalKeys() and hook them up to the appropriate handlers.
 
 ### Data Flow
 
-- The SDK only communicates with the Server. It does so through packets sent through the controller (via SendPacket).
-- The server collects and processes data. Each connected SDK client creates an AppRunPeer (the peer of each individual application "run"). Go is more efficient at holding and scanning data than JavaScript so we prefer to do storage and processing on the server (e.g. log search).
-- The Web frontend is a React application. After loading it primarily communicates to the server via a websocket connection. But instead of exchanging raw packets we make RPC calls using our custom RPC library.
-- Normally the web frontend and server will be running on the same host (localhost) so the communication is very fast, and latency is near zero.
-
-* **Go Application**: Monitored application that sends logs, goroutine information, and app info to the Outrig server.
-* **Outrig Server**: Collects and processes data from the monitored application, stores it in appropriate data structures (CirBuf, SyncMap), and makes it available via RPC.
-* **Web Frontend**: Retrieves data from the server via RPC calls, manages state with Jotai, and renders the UI components.
+- **Go Application**: Monitored application that sends logs, goroutine information, and app info to the Outrig server through packets sent via the controller (SendPacket).
+- **Outrig Server**: Collects and processes data from the monitored application, stores it in appropriate data structures (CirBuf, SyncMap), and makes it available via RPC. Each connected SDK client creates an AppRunPeer. Go is more efficient at holding and scanning data than JavaScript so we prefer to do storage and processing on the server.
+- **Web Frontend**: React application that communicates with the server via WebSocket using RPC calls (not raw packets). Retrieves data from the server, manages state with Jotai, and renders the UI components.
+- Normally the web frontend and server run on the same host (localhost) so communication is very fast with near-zero latency.
 
 ### Notes
 
