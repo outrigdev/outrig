@@ -204,6 +204,18 @@ func (ls *AppPeerLogSource) SearchNextChunk() ([]ds.LogLine, bool, error) {
 	if !ls.IsActive {
 		return nil, false, fmt.Errorf("log source is not active")
 	}
+	
+	// Ensure ChunkSize is positive
+	if ls.ChunkSize <= 0 {
+		return nil, true, fmt.Errorf("invalid chunk size: %d", ls.ChunkSize)
+	}
+	
+	// Check if logs are available
+	totalCount, _ := ls.AppPeer.Logs.GetTotalCountAndHeadOffset()
+	if totalCount == 0 || ls.Offset >= totalCount {
+		return nil, true, nil // EOF, no logs available
+	}
+	
 	lines, _, eof := ls.AppPeer.Logs.GetRange(ls.Offset, ls.Offset+ls.ChunkSize)
 	ls.Offset += len(lines)
 	var filteredLines []ds.LogLine

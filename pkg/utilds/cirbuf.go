@@ -177,7 +177,10 @@ func (cb *CirBuf[T]) GetRange(start int, end int) ([]T, int, bool) {
 	realStartOffset := start - cb.HeadOffset
 	realEndOffset := end - cb.HeadOffset
 	rtnCount := realEndOffset - realStartOffset
-	if rtnCount == 0 {
+	if rtnCount <= 0 {
+		return nil, start, eof
+	}
+	if len(cb.Buf) == 0 {
 		return nil, start, eof
 	}
 	startPos := (cb.Head + realStartOffset) % len(cb.Buf)
