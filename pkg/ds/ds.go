@@ -22,6 +22,8 @@ type PacketType struct {
 type LogProcessorConfig struct {
 	WrapStdout bool
 	WrapStderr bool
+	// CaptureUnhandledCrashes enables capturing crash output using Go 1.23+'s SetCrashOutput API
+	CaptureUnhandledCrashes bool
 }
 
 type Config struct {

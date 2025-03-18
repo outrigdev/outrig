@@ -11,8 +11,10 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -45,8 +47,53 @@ func handleDomainSocketConn(conn net.Conn) {
 	}()
 
 	scanner := bufio.NewScanner(conn)
+	var isCrashOutput bool
+	var crashOutputAppRunId string
+
 	for scanner.Scan() {
 		line := scanner.Text()
+
+		// Check if this is a crash output sentinel message
+		if !isCrashOutput && strings.HasPrefix(line, "CRASHOUTPUT ") {
+			isCrashOutput = true
+			crashOutputAppRunId = strings.TrimPrefix(line, "CRASHOUTPUT ")
+
+			// Get the AppRunPeer for this connection
+			peer = apppeer.GetAppRunPeer(crashOutputAppRunId)
+			if peer == nil {
+				log.Printf("Error: No AppRunPeer found for crash output app run ID: %s\n", crashOutputAppRunId)
+				return
+			}
+			log.Printf("Received crash output connection for app run ID: %s\n", crashOutputAppRunId)
+			continue
+		}
+
+		// If this is a crash output connection, handle the line as crash output
+		if isCrashOutput {
+			// Create a log line packet
+			logLine := &ds.LogLine{
+				LineNum: time.Now().UnixNano(), // Use timestamp as line number
+				Ts:      time.Now().UnixMilli(),
+				Msg:     line,
+				Source:  "crash",
+			}
+			log.Printf("got #crashoutput line for apprun: %s\n", crashOutputAppRunId)
+
+			// Marshal the log line to JSON
+			logData, err := json.Marshal(logLine)
+			if err != nil {
+				log.Printf("Error marshaling crash output log line: %v\n", err)
+				continue
+			}
+
+			// Handle the packet
+			if err := peer.HandlePacket(ds.PacketTypeLog, logData); err != nil {
+				log.Printf("Error handling crash output log line: %v\n", err)
+			}
+			continue
+		}
+
+		// Normal packet handling
 		var pkt PacketUnmarshalHelper
 		if err := json.Unmarshal([]byte(line), &pkt); err != nil {
 			fmt.Printf("failed to unmarshal packet: %v\n", err)

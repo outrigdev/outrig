@@ -77,6 +77,10 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 		}
 	}
 	go c.runConnPoller()
+	
+	// Initialize crash output handling if enabled
+	c.initCrashOutput()
+	
 	return c, nil
 }
 

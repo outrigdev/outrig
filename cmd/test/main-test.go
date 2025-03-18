@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"math/rand"
 	"runtime/debug"
@@ -11,6 +12,9 @@ import (
 
 	"github.com/outrigdev/outrig"
 )
+
+// Command line flags
+var crashFlag = flag.Bool("crash", false, "Cause an unhandled panic after a few seconds")
 
 // Log levels for more diverse output
 const (
@@ -135,11 +139,23 @@ func generateStructuredLog() string {
 }
 
 func main() {
+	// Parse command line flags
+	flag.Parse()
+
 	fmt.Printf("log before init\n")
 	config := outrig.DefaultDevConfig()
-	// config.LogProcessorConfig.WrapStderr = false
+	config.LogProcessorConfig.WrapStderr = false
 	outrig.Init(config)
 	defer outrig.AppDone()
+
+	// Set up crash timer if flag is enabled
+	if *crashFlag {
+		fmt.Println("WARNING: --crash flag detected, will panic in 3 seconds")
+		go func() {
+			time.Sleep(1 * time.Second)
+			panic("Intentional crash triggered by --crash flag")
+		}()
+	}
 	outrig.WatchSync("test-count", LogCounterLock, &LogCounter)
 	outrig.WatchAtomicCounter("test-count-atomic", &LogCounterAtomic)
 	fmt.Printf("hello outrig!\n")
