@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig"
@@ -40,6 +41,7 @@ type AppRunPeer struct {
 	RuntimeStats     *utilds.CirBuf[ds.RuntimeStatsInfo] // History of runtime stats
 	Status           string                              // Current status of the application
 	LastModTime      int64                               // Last modification time in milliseconds
+	LineNum          atomic.Int64                        // Atomic counter for log line numbers
 }
 
 type GoRoutine struct {
@@ -144,6 +146,9 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		if err := json.Unmarshal(packetData, &logLine); err != nil {
 			return fmt.Errorf("failed to unmarshal LogLine: %w", err)
 		}
+
+		// Set the line number using the atomic counter
+		logLine.LineNum = p.LineNum.Add(1)
 
 		// Add log line to circular buffer
 		p.Logs.Write(logLine)

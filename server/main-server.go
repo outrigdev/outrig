@@ -72,7 +72,7 @@ func handleDomainSocketConn(conn net.Conn) {
 		if isCrashOutput {
 			// Create a log line packet
 			logLine := &ds.LogLine{
-				LineNum: time.Now().UnixNano(), // Use timestamp as line number
+				LineNum: 0, // LineNum will be set by AppRunPeer.HandlePacket
 				Ts:      time.Now().UnixMilli(),
 				Msg:     line,
 				Source:  "crash",

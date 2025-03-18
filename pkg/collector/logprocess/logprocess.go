@@ -2,7 +2,6 @@ package logprocess
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -16,7 +15,6 @@ type LogCollector struct {
 	firstConnectOnce sync.Once
 	logChan          chan *ds.LogLine
 	controller       ds.Controller
-	LineNum          int64
 }
 
 // CollectorName returns the unique name of the collector
@@ -65,9 +63,8 @@ func (lc *LogCollector) addLogLine(line string, source string) {
 	if !global.OutrigEnabled.Load() {
 		return
 	}
-	nextNum := atomic.AddInt64(&lc.LineNum, 1)
 	logLine := &ds.LogLine{
-		LineNum: nextNum,
+		LineNum: 0, // Server will set the actual line number
 		Ts:      time.Now().UnixMilli(),
 		Msg:     line,
 		Source:  source,

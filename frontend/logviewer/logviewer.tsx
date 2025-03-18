@@ -41,7 +41,7 @@ function formatSource(source: string): React.ReactNode {
     if (srcStr.startsWith("/dev/")) {
         srcStr = srcStr.slice(5);
     }
-    const padded = srcStr.padEnd(6, " ");
+    const padded = srcStr.padStart(6, " ");
     return <span className={srcStr === "stderr" ? "text-error" : "text-muted"}>[{padded}]</span>;
 }
 
