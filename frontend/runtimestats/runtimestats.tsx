@@ -17,6 +17,7 @@ import { useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
 import {
     RuntimeStatMetadata,
+    formatUptime,
     getDetailedOtherMemoryBreakdown,
     memoryChartMetadata,
     runtimeStatsMetadata,
@@ -249,6 +250,47 @@ interface StatItemProps {
     stats: LegacyRuntimeStatsData;
 }
 
+// Component for displaying uptime
+interface UptimeStatItemProps {
+    appRunInfo: AppRunInfo;
+}
+
+const UptimeStatItem: React.FC<UptimeStatItemProps> = ({ appRunInfo }) => {
+    // Calculate uptime
+    const startTime = appRunInfo.starttime;
+    const endTime = appRunInfo.isrunning && appRunInfo.status === "running" 
+        ? Date.now() 
+        : appRunInfo.lastmodtime;
+    const uptimeDuration = endTime - startTime;
+    const uptimeText = formatUptime(uptimeDuration);
+    
+    const isRunning = appRunInfo.isrunning && appRunInfo.status === "running";
+    
+    const tooltipContent = (
+        <div>
+            <div className="font-medium mb-1">Uptime</div>
+            <div className="text-xs">How long the application has been running since it started.</div>
+        </div>
+    );
+    
+    const content = (
+        <div className="mb-4 p-4 border border-border rounded-md bg-panel">
+            <div className="text-sm text-secondary mb-1">Uptime</div>
+            <div className="text-2xl font-semibold text-primary flex items-center">
+                {uptimeText}
+                {isRunning && (
+                    <span 
+                        className="ml-2 inline-block w-2 h-2 rounded-full bg-green-500" 
+                        title="Running"
+                    />
+                )}
+            </div>
+        </div>
+    );
+    
+    return <RuntimeStatsTooltip content={tooltipContent}>{content}</RuntimeStatsTooltip>;
+};
+
 const StatItem: React.FC<StatItemProps> = ({ metadata, stats }) => {
     const value = metadata.statFn(stats);
 
@@ -387,7 +429,10 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
 
             {/* Metrics grid */}
             <div className="grid grid-cols-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Render only metric stats as StatItems */}
+                {/* Uptime stat with status indicator */}
+                {appRunInfo && <UptimeStatItem appRunInfo={appRunInfo} />}
+                
+                {/* Render other metric stats as StatItems */}
                 {metricKeys.map((key) => (
                     <StatItem key={key} metadata={runtimeStatsMetadata[key]} stats={stats} />
                 ))}

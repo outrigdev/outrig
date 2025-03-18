@@ -1,6 +1,31 @@
 // Import the LegacyRuntimeStatsData type from the model
 import { LegacyRuntimeStatsData } from "./runtimestats-model";
 
+// Helper function to format uptime in a human-readable way
+export function formatUptime(milliseconds: number): string {
+    if (milliseconds < 0) return "0s";
+    
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    // Format based on duration
+    if (seconds < 60) {
+        // Less than a minute: show seconds
+        return `${seconds}s`;
+    } else if (minutes < 60) {
+        // Less than an hour: show minutes and seconds
+        return `${minutes}m ${seconds % 60}s`;
+    } else if (hours < 24) {
+        // Less than a day: show hours, minutes, and seconds
+        return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    } else {
+        // More than a day: show days, hours, minutes, and seconds
+        return `${days}d ${hours % 24}h ${minutes % 60}m ${seconds % 60}s`;
+    }
+}
+
 export interface RuntimeStatMetadata {
     statFn: (stat: LegacyRuntimeStatsData) => string | number;
     label: string;
@@ -10,6 +35,15 @@ export interface RuntimeStatMetadata {
 
 // Metadata for all runtime stats
 export const runtimeStatsMetadata: Record<string, RuntimeStatMetadata> = {
+    uptime: {
+        statFn: (stat) => {
+            // Calculate uptime based on current time and app start time
+            // This will be replaced with actual implementation in the component
+            return "Calculating...";
+        },
+        label: "Uptime",
+        desc: "How long the application has been running since it started.",
+    },
     heapMemory: {
         statFn: (stat) => (stat.memstats.heapalloc / (1024 * 1024)).toFixed(2),
         label: "Memory Usage (Heap)",
