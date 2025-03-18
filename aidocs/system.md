@@ -2,7 +2,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Project Structure
 
-- **Frontend**: React app located in `web/`.
+- **Frontend**: React app located in `frontend/`.
 - **Client SDK (Go)**: Main library at project root (`outrig.go`) and additional SDK packages in `pkg/`. Data structures are in ds.go. Main coordination happens in controller.go. Various stats are collected by the collectors in pkg/collector/\*
 - **Server (Go)**: Server code in `server/`, entry point `server/main-server.go`, and server-specific packages in `server/pkg/`.
 
@@ -18,7 +18,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - Use string constants for status values, packet types, and other string-based enumerations.
     - in Go code, prefer using Printf() vs Println()
 - **TypeScript Imports**:
-    - Use `@/...` for imports from different parts of the project (configured in `tsconfig.json` as `"@/*": ["web/*"]`).
+    - Use `@/...` for imports from different parts of the project (configured in `tsconfig.json` as `"@/*": ["frontend/*"]`).
     - Prefer relative imports (`"./name"`) within the same or child directories.
     - Use named exports exclusively; avoid default exports. It's acceptable to export functions directly (e.g., React Components).
 - **JSON Field Naming**: All fields must be lowercase, without underscores.
@@ -43,9 +43,9 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Code Generation
 
-- **TypeScript Types**: TypeScript types are automatically generated from Go types. After modifying Go types in `pkg/rpctypes/rpctypes.go`, run `task generate` to update the TypeScript type definitions in `web/types/rpctypes.d.ts`.
+- **TypeScript Types**: TypeScript types are automatically generated from Go types. After modifying Go types in `pkg/rpctypes/rpctypes.go`, run `task generate` to update the TypeScript type definitions in `frontend/types/rpctypes.d.ts`.
 - **RPC Client API**: The RPC client API is also generated from Go types. The `task generate` command updates both the TypeScript types and the RPC client API.
-- **Manual Edits**: Do not manually edit generated files like `web/types/rpctypes.d.ts` or `web/rpc/rpcclientapi.ts`. Instead, modify the source Go types and run `task generate`.
+- **Manual Edits**: Do not manually edit generated files like `frontend/types/rpctypes.d.ts` or `frontend/rpc/rpcclientapi.ts`. Instead, modify the source Go types and run `task generate`.
 
 ### Documentation References
 
@@ -60,7 +60,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 - Use the Outrig RPC system to communicate between the TypeScript frontend and Go backend. Methods are defined in `rpctypes.go` and exposed through generated code in `rpcclientapi.ts`. Refer to `aidocs/rpc.md` for details on usage and options.
 - RPC calls are highly performant, typically running over WebSockets locally on the same machine.
-- The RPC system is initialized in `web/init.ts` which creates a global `DefaultRpcClient` that should be used throughout the application. Don't create new RPC clients in components.
+- The RPC system is initialized in `frontend/init.ts` which creates a global `DefaultRpcClient` that should be used throughout the application. Don't create new RPC clients in components.
 - To use the RPC client in a component, import `DefaultRpcClient` from `./init` and set it in the AppModel using `AppModel.setRpcClient(DefaultRpcClient)`.
 
 ### Data Structures
@@ -71,7 +71,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Frontend Architecture
 
-- The application uses Jotai for state management. The main app state is defined in `web/appmodel.ts`. For detailed information on state management, refer to `aidocs/state-management.md`.
+- The application uses Jotai for state management. The main app state is defined in `frontend/appmodel.ts`. For detailed information on state management, refer to `aidocs/state-management.md`.
 - When working with Jotai atoms that need to be updated, define them as `PrimitiveAtom<Type>` rather than just `atom<Type>`.
 - The frontend is organized into components for different views (LogViewer, AppRunList, etc.) that use the AppModel to access shared state.
 - The app uses a tab-based navigation system where the selected tab determines which component is displayed.

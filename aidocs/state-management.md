@@ -15,7 +15,7 @@ The main advantages of Jotai in our application:
 
 ## AppModel
 
-The central state store for the application is defined in `web/appmodel.ts`. This singleton class contains atoms for:
+The central state store for the application is defined in `frontend/appmodel.ts`. This singleton class contains atoms for:
 
 - UI state (selected tab, dark mode)
 - Status metrics (number of goroutines, log lines)
@@ -28,12 +28,12 @@ class AppModel {
     // UI state
     selectedTab: PrimitiveAtom<string> = atom("appruns");
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
-    
+
     // App runs data
     appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);
     selectedAppRunId: PrimitiveAtom<string> = atom<string>("");
     appRunLogs: PrimitiveAtom<LogLine[]> = atom<LogLine[]>([]);
-    
+
     // Methods to update state...
 }
 ```
@@ -67,7 +67,7 @@ filteredGoroutines: Atom<GoroutineData[]> = atom((get) => {
     const showAll = get(this.showAll);
     const selectedStates = get(this.selectedStates);
     const goroutines = get(AppModel.appRunGoroutines);
-    
+
     // Apply filters and return filtered data
     // ...
 });
@@ -101,7 +101,7 @@ import { AppModel } from "../appmodel";
 
 function MyComponent() {
     const [selectedTab, setSelectedTab] = useAtom(AppModel.selectedTab);
-    
+
     const handleTabChange = (tab) => {
         setSelectedTab(tab);
     };
@@ -145,7 +145,7 @@ For state updates that involve side effects (like API calls), we use methods in 
 // In AppModel
 async loadAppRunGoroutines(appRunId: string) {
     if (!this.rpcClient) return;
-    
+
     try {
         getDefaultStore().set(this.isLoadingGoroutines, true);
         const result = await RpcApi.GetAppRunGoroutinesCommand(this.rpcClient, { apprunid: appRunId });
@@ -192,12 +192,12 @@ This allows us to access and update atoms from non-React code:
 toggleShowAll(): void {
     const store = window.jotaiStore;
     const showAll = store.get(this.showAll);
-    
+
     if (!showAll) {
         // If enabling "show all", clear selected states
         store.set(this.selectedStates, new Set<string>());
     }
-    
+
     store.set(this.showAll, !showAll);
 }
 ```
@@ -227,30 +227,30 @@ class GoRoutinesModel {
     searchTerm: PrimitiveAtom<string> = atom("");
     showAll: PrimitiveAtom<boolean> = atom(true);
     selectedStates: PrimitiveAtom<Set<string>> = atom(new Set<string>());
-    
+
     // Derived state for available filter options
     availableStates: Atom<string[]> = atom((get) => {
         const goroutines = get(AppModel.appRunGoroutines);
         const statesSet = new Set<string>();
-        
-        goroutines.forEach(goroutine => {
+
+        goroutines.forEach((goroutine) => {
             statesSet.add(goroutine.state);
         });
-        
+
         return Array.from(statesSet).sort();
     });
-    
+
     // Derived state for filtered data
     filteredGoroutines: Atom<GoroutineData[]> = atom((get) => {
         const search = get(this.searchTerm);
         const showAll = get(this.showAll);
         const selectedStates = get(this.selectedStates);
         const goroutines = get(AppModel.appRunGoroutines);
-        
+
         // Apply filters and return filtered data
         // ...
     });
-    
+
     // Methods to toggle filters
     // ...
 }

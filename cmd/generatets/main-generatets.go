@@ -16,8 +16,8 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-const TypesFileName = "web/types/rpctypes.d.ts"
-const ClientApiFileName = "web/rpc/rpcclientapi.ts"
+const TypesFileName = "frontend/types/rpctypes.d.ts"
+const ClientApiFileName = "frontend/rpc/rpcclientapi.ts"
 
 func generateTypesFile(tsTypesMap map[reflect.Type]string) error {
 	fmt.Fprintf(os.Stderr, "generating types file to %s\n", TypesFileName)

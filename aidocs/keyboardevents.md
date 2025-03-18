@@ -1,6 +1,6 @@
 # Keyboard Event Handling in Outrig
 
-This document describes how to handle keyboard events in the Outrig application using the utilities provided in `web/util/keyutil.ts`.
+This document describes how to handle keyboard events in the Outrig application using the utilities provided in `frontend/util/keyutil.ts`.
 
 ## Key Concepts
 
@@ -41,13 +41,13 @@ const handleKeyDown = useCallback(
             doSomething();
             return true; // Returning true prevents default and stops propagation
         }
-        
+
         if (checkKeyPressed(keyEvent, "PageUp")) {
             // Handle PageUp
             doSomethingElse();
             return true;
         }
-        
+
         return false; // Event not handled, continue normal processing
     }),
     [dependencies]
@@ -110,7 +110,7 @@ if (checkKeyPressed(keyEvent, "c{KeyS}")) {
 
 For global keyboard shortcuts that work throughout the application, use the `keymodel.ts` module:
 
-1. Add your shortcut to the `registerGlobalKeys` function in `web/keymodel.ts`
+1. Add your shortcut to the `registerGlobalKeys` function in `frontend/keymodel.ts`
 2. The shortcut will be available throughout the application
 
 ## Component-Specific Shortcuts
@@ -126,6 +126,7 @@ For shortcuts that only apply to a specific component:
 - `event.code`: Represents the physical key on the keyboard, regardless of the character it would produce. It's not affected by keyboard layout or language.
 
 When to use which:
+
 - Use `key` (default) when you care about the character being typed (e.g., "a", "A", "ArrowDown")
 - Use `code` with `c{}` syntax when you care about the physical key position (e.g., "c{KeyA}" for the A key regardless of layout)
 

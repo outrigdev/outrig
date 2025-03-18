@@ -27,8 +27,8 @@
         "baseUrl": "./",
 
         "paths": {
-            "@/*": ["web/*"]
+            "@/*": ["frontend/*"]
         }
     },
-    "include": ["web"]
+    "include": ["frontend"]
 }
