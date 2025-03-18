@@ -31,6 +31,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - import the "cn" function from "@/util/util" to do classname / clsx class merge (it uses twMerge underneath)
     - make sure to add cursor-pointer to buttons/links and clickable items
     - for element variants use class-variance-authority
+    - useAtom() and useAtomValue() are react HOOKS, so they must be called at the component level not inline in JSX
 
 ### Styling
 
