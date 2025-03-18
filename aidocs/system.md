@@ -3,7 +3,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 ### Project Structure
 
 - **Frontend**: React app located in `web/`.
-- **Client SDK (Go)**: Main library at project root (`outrig.go`) and additional SDK packages in `pkg/`.
+- **Client SDK (Go)**: Main library at project root (`outrig.go`) and additional SDK packages in `pkg/`. Data structures are in ds.go. Main coordination happens in controller.go. Various stats are collected by the collectors in pkg/collector/\*
 - **Server (Go)**: Server code in `server/`, entry point `server/main-server.go`, and server-specific packages in `server/pkg/`.
 
 ### Coding Guidelines
@@ -75,26 +75,17 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Data Flow
 
-```
-┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│                 │      │                 │      │                 │
-│  Go Application │◄────►│  Outrig Server  │◄────►│  Web Frontend   │
-│                 │      │                 │      │                 │
-└─────────────────┘      └─────────────────┘      └─────────────────┘
-       │                        │                        │
-       │                        │                        │
-       ▼                        ▼                        ▼
-  Sends logs,             Collects and              Displays data
-  goroutines,             processes data            and provides
-  app info                                          user interface
-```
+- The SDK only communicates with the Server. It does so through packets sent through the controller (via SendPacket).
+- The server collects and processes data. Each connected SDK client creates an AppRunPeer (the peer of each individual application "run"). Go is more efficient at holding and scanning data than JavaScript so we prefer to do storage and processing on the server (e.g. log search).
+- The Web frontend is a React application. After loading it primarily communicates to the server via a websocket connection. But instead of exchanging raw packets we make RPC calls using our custom RPC library.
+- Normally the web frontend and server will be running on the same host (localhost) so the communication is very fast, and latency is near zero.
 
-- **Go Application**: Monitored application that sends logs, goroutine information, and app info to the Outrig server.
-- **Outrig Server**: Collects and processes data from the monitored application, stores it in appropriate data structures (CirBuf, SyncMap), and makes it available via RPC.
-- **Web Frontend**: Retrieves data from the server via RPC calls, manages state with Jotai, and renders the UI components.
+* **Go Application**: Monitored application that sends logs, goroutine information, and app info to the Outrig server.
+* **Outrig Server**: Collects and processes data from the monitored application, stores it in appropriate data structures (CirBuf, SyncMap), and makes it available via RPC.
+* **Web Frontend**: Retrieves data from the server via RPC calls, manages state with Jotai, and renders the UI components.
 
 ### Notes
 
-In general when the file changes you fall back to writing the entire file. That wastes so much time as writing the whole file is often very slow. If the file is longer than 100 lines, please try to re-read the file and create better diff edits rather than immediately falling back to a full file write.
+In general when the file changes you fall back to write_to_file. That wastes so much time as writing the whole file is often very slow. If the file is longer than 100 lines, please try to re-read the file and use replace_in_file, just create better diff edits rather than immediately falling back to a full file write.
 
 Also I don't find much value in your Task Completed summaries. Please keep them VERY short.
