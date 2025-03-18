@@ -59,7 +59,7 @@ declare global {
     type AppRunWatchesData = {
         apprunid: string;
         appname: string;
-        watches: Watch[];
+        watches: WatchSample[];
     };
 
     // rpctypes.AppRunsData
@@ -102,9 +102,9 @@ declare global {
 
     // EventType union (rpctypes.EventToTypeMap)
     type EventType = 
-        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
         | (EventCommonFields & { event: "route:down"; data?: null })
         | (EventCommonFields & { event: "route:up"; data?: null })
+        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
     ;
 
     // ds.LogLine
@@ -278,10 +278,11 @@ declare global {
         allscopes?: boolean;
     };
 
-    // ds.Watch
-    type Watch = {
-        ts: number;
+    // ds.WatchSample
+    type WatchSample = {
         name: string;
+        ts: number;
+        flags?: number;
         value?: string;
         type: string;
         error?: string;

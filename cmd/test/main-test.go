@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig"
@@ -21,6 +22,8 @@ const (
 
 var LogCounter int
 var LogCounterLock = &sync.Mutex{}
+
+var LogCounterAtomic atomic.Int64
 
 // Sample words for random log generation
 var (
@@ -138,6 +141,7 @@ func main() {
 	outrig.Init(config)
 	defer outrig.AppDone()
 	outrig.WatchSync("test-count", LogCounterLock, &LogCounter)
+	outrig.WatchAtomicCounter("test-count-atomic", &LogCounterAtomic)
 	fmt.Printf("hello outrig!\n")
 	time.Sleep(200 * time.Millisecond)
 	outrig.Disable(false)
@@ -146,6 +150,9 @@ func main() {
 	outrig.Enable()
 	fmt.Printf("after enable\n")
 	fmt.Printf("again\n")
+
+	outrig.TrackValue("push1", "hello world!")
+	outrig.TrackValue("push2", 55.23)
 
 	// Output some initial structured logs for testing
 	fmt.Printf("--- Starting log generation ---\n")
@@ -159,6 +166,7 @@ func main() {
 		LogCounterLock.Lock()
 		LogCounter = counter
 		LogCounterLock.Unlock()
+		LogCounterAtomic.Store(int64(counter))
 
 		// Every 20th message is still the counter for continuity
 		if counter%20 == 0 {

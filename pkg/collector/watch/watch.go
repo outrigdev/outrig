@@ -45,7 +45,7 @@ type WatchCollector struct {
 	ticker     *time.Ticker
 
 	watchDecls map[string]*WatchDecl
-	watchVals  []ds.Watch
+	watchVals  []ds.WatchSample
 }
 
 type WatchDecl struct {
@@ -193,13 +193,13 @@ func (wc *WatchCollector) getWatchDecl(name string) *WatchDecl {
 	return wc.watchDecls[name]
 }
 
-func (wc *WatchCollector) PushWatchValue(w *ds.Watch) {
+func (wc *WatchCollector) PushWatchValue(w *ds.WatchSample) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 	wc.watchVals = append(wc.watchVals, *w)
 }
 
-func (wc *WatchCollector) getAndClearWatchVals() []ds.Watch {
+func (wc *WatchCollector) getAndClearWatchVals() []ds.WatchSample {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 	watchVals := wc.watchVals
@@ -235,7 +235,7 @@ func (wc *WatchCollector) collectWatch(decl *WatchDecl) {
 			return
 		}
 		decl.HookSent.Store(true)
-		watch := ds.Watch{
+		watch := ds.WatchSample{
 			Name:  decl.Name,
 			Ts:    time.Now().UnixMilli(),
 			Flags: decl.Flags,
@@ -277,7 +277,7 @@ func (wc *WatchCollector) CollectWatches() {
 	wc.controller.SendPacket(pk)
 }
 
-func (wc *WatchCollector) recordWatch(watch ds.Watch) {
+func (wc *WatchCollector) recordWatch(watch ds.WatchSample) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 	if len(wc.watchVals) > MaxWatchVals {
@@ -289,7 +289,7 @@ func (wc *WatchCollector) recordWatch(watch ds.Watch) {
 const MaxWatchWaitTime = 10 * time.Millisecond
 
 func (wc *WatchCollector) RecordWatchValue(name string, lock sync.Locker, rval reflect.Value, typeStr string, flags int) {
-	watch := ds.Watch{Name: name, Flags: flags}
+	watch := ds.WatchSample{Name: name, Flags: flags}
 	watch.Type = typeStr
 	if lock != nil {
 		locked, waitDuration := utilfn.TryLockWithTimeout(lock, MaxWatchWaitTime)

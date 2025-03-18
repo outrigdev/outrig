@@ -106,8 +106,8 @@ type GoRoutineStack struct {
 }
 
 type WatchInfo struct {
-	Ts      int64   `json:"ts"`
-	Watches []Watch `json:"watches"`
+	Ts      int64         `json:"ts"`
+	Watches []WatchSample `json:"watches"`
 }
 
 type MemoryStatsInfo struct {
@@ -146,7 +146,7 @@ type RuntimeStatsInfo struct {
 	MemStats       MemoryStatsInfo `json:"memstats"`
 }
 
-type Watch struct {
+type WatchSample struct {
 	Name     string   `json:"name"`
 	Ts       int64    `json:"ts"`
 	Flags    int      `json:"flags,omitempty"`

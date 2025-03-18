@@ -23,7 +23,7 @@ func GetAppRunWatches(ctx context.Context, req rpctypes.AppRunRequest) (rpctypes
 	watchNames := peer.Watches.Keys()
 
 	// Create a slice to hold all watch data
-	watches := make([]ds.Watch, 0, len(watchNames))
+	watches := make([]ds.WatchSample, 0, len(watchNames))
 
 	// For each watch, get the most recent value
 	for _, name := range watchNames {

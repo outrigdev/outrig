@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
@@ -48,11 +49,17 @@ type GoRoutine struct {
 
 type Watch struct {
 	Name      string
-	WatchVals *utilds.CirBuf[ds.Watch]
+	WatchVals *utilds.CirBuf[ds.WatchSample]
 }
 
 // Global synchronized map to hold all AppRunPeers
 var appRunPeers = utilds.MakeSyncMap[*AppRunPeer]()
+
+func init() {
+	outrig.WatchFunc("apppeer.keys", func() []string {
+		return appRunPeers.Keys()
+	}, nil)
+}
 
 // GetAppRunPeer gets an existing AppRunPeer by ID or creates a new one if it doesn't exist
 func GetAppRunPeer(appRunId string) *AppRunPeer {
@@ -201,7 +208,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 				// New watch
 				watch = Watch{
 					Name:      watchName,
-					WatchVals: utilds.MakeCirBuf[ds.Watch](WatchBufferSize),
+					WatchVals: utilds.MakeCirBuf[ds.WatchSample](WatchBufferSize),
 				}
 			}
 			// Add watch value to the circular buffer

@@ -9,7 +9,7 @@ import { WatchesModel } from "./watches-model";
 
 // Individual watch view component
 interface WatchViewProps {
-    watch: Watch;
+    watch: WatchSample;
 }
 
 const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
@@ -18,7 +18,7 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
     }
 
     // Format the watch value for display
-    const formatValue = (watch: Watch) => {
+    const formatValue = (watch: WatchSample) => {
         if (watch.error) {
             return <span className="text-error">{watch.error}</span>;
         }

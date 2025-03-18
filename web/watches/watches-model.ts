@@ -6,22 +6,22 @@ import { RpcApi } from "../rpc/rpcclientapi";
 class WatchesModel {
     widgetId: string;
     appRunId: string;
-    appRunWatches: PrimitiveAtom<Watch[]> = atom<Watch[]>([]);
+    appRunWatches: PrimitiveAtom<WatchSample[]> = atom<WatchSample[]>([]);
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
 
-constructor(appRunId: string) {
-    this.widgetId = crypto.randomUUID();
-    this.appRunId = appRunId;
+    constructor(appRunId: string) {
+        this.widgetId = crypto.randomUUID();
+        this.appRunId = appRunId;
 
-    // Initial refresh
-    this.quietRefresh(true);
-    
-    // Start auto-refresh interval since default is on
-    this.startAutoRefreshInterval();
-}
+        // Initial refresh
+        this.quietRefresh(true);
+
+        // Start auto-refresh interval since default is on
+        this.startAutoRefreshInterval();
+    }
 
     // Toggle auto-refresh state
     toggleAutoRefresh() {
@@ -63,7 +63,7 @@ constructor(appRunId: string) {
     }
 
     // Filtered watches based on search term
-    filteredWatches: Atom<Watch[]> = atom((get): Watch[] => {
+    filteredWatches: Atom<WatchSample[]> = atom((get): WatchSample[] => {
         const search = get(this.searchTerm);
         const watches = get(this.appRunWatches);
 
