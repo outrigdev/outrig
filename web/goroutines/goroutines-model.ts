@@ -52,7 +52,13 @@ class GoRoutinesModel {
         const statesSet = new Set<string>();
 
         goroutines.forEach((goroutine) => {
-            statesSet.add(goroutine.rawstate);
+            // Split rawstate by commas and add each trimmed state
+            goroutine.rawstate.split(',').forEach(state => {
+                const trimmedState = state.trim();
+                if (trimmedState) {
+                    statesSet.add(trimmedState);
+                }
+            });
         });
 
         return Array.from(statesSet).sort();
@@ -71,7 +77,11 @@ class GoRoutinesModel {
         // Apply state filters if not showing all
         let stateFiltered = sortedGoroutines;
         if (!showAll && selectedStates.size > 0) {
-            stateFiltered = sortedGoroutines.filter((goroutine) => selectedStates.has(goroutine.rawstate));
+            stateFiltered = sortedGoroutines.filter((goroutine) => {
+                // Split the rawstate by commas and check if any of the states are selected
+                const states = goroutine.rawstate.split(',').map(s => s.trim());
+                return states.some(state => selectedStates.has(state));
+            });
         }
 
         // Apply search filter if there's a search term

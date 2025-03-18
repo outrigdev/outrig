@@ -14,16 +14,12 @@ export const Tag: React.FC<TagProps> = ({ label, isSelected, onToggle, variant =
     return onToggle ? (
         <button
             onClick={onToggle}
-            className={`px-2 py-1 text-xs rounded-md mr-2 mb-2 transition-colors ${getTagStyles(variant, isSelected)}`}
+            className={`px-2 py-1 text-xs rounded-md transition-colors ${getTagStyles(variant, isSelected)}`}
         >
             {label}
         </button>
     ) : (
-        <span
-            className={`px-2 py-1 text-xs rounded-md mr-2 mb-2 ${getTagStyles(variant, isSelected)}`}
-        >
-            {label}
-        </span>
+        <span className={`px-2 py-1 text-xs rounded-md ${getTagStyles(variant, isSelected)}`}>{label}</span>
     );
 };
 

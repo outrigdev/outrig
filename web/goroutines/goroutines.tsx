@@ -106,12 +106,14 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     };
 
     return (
-        <div className="mb-0">
+        <div className="pl-4 pr-2">
             <div className="flex justify-between items-center py-2">
                 <div className="flex items-center gap-2">
                     <div className="font-semibold text-primary w-[135px]">Goroutine {goroutine.goid}</div>
-                    <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">
-                        {goroutine.rawstate}
+                    <div className="flex flex-wrap gap-1">
+                        {goroutine.rawstate.split(",").map((state, index) => (
+                            <Tag key={index} label={state.trim()} isSelected={false} variant="secondary" />
+                        ))}
                     </div>
                 </div>
                 <div>
@@ -160,7 +162,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
             <div className="py-1 px-1 border-b border-border">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center flex-grow">
-                        <div className="select-none pr-2 text-muted w-12 text-right font-mono flex justify-end items-center">
+                        <div className="select-none pr-2 text-muted w-10 text-right font-mono flex justify-end items-center">
                             <Filter
                                 size={16}
                                 className="text-muted"
@@ -202,7 +204,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
 
             {/* State filters */}
             <div className="px-4 py-2 border-b border-border">
-                <div className="flex flex-wrap items-center">
+                <div className="flex flex-wrap items-center gap-x-1.5">
                     <Tag label="Show All" isSelected={showAll} onToggle={handleToggleShowAll} />
                     {availableStates.map((state) => (
                         <Tag
@@ -230,7 +232,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
     const showAll = useAtomValue(model.showAll);
 
     return (
-        <div className="w-full h-full overflow-auto flex-1 p-4">
+        <div className="w-full h-full overflow-auto flex-1 px-0 py-2">
             {isRefreshing ? (
                 <div className="flex items-center justify-center h-full">
                     <div className="flex items-center gap-2 text-primary">

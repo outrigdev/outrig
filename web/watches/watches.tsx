@@ -1,11 +1,21 @@
 import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
+import { Tag } from "@/elements/tag";
 import { useOutrigModel } from "@/util/hooks";
 import { useAtom, useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
 import React, { useRef } from "react";
 import { WatchesModel } from "./watches-model";
+
+// Constants for watch flags
+const WatchFlag_Push = 1;
+const WatchFlag_Counter = 2;
+const WatchFlag_Atomic = 4;
+const WatchFlag_Sync = 8;
+const WatchFlag_Func = 16;
+const WatchFlag_Hook = 32;
+const WatchFlag_Settable = 64;
 
 // Individual watch view component
 interface WatchViewProps {
@@ -40,12 +50,40 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
         return <span>{watch.value}</span>;
     };
 
+    // Get flag tags based on the watch flags
+    const getFlagTags = (flags?: number) => {
+        if (!flags) return null;
+
+        const tags = [];
+
+        if (flags & WatchFlag_Push) tags.push({ label: "Push", variant: "info" });
+        if (flags & WatchFlag_Counter) tags.push({ label: "Counter", variant: "success" });
+        if (flags & WatchFlag_Atomic) tags.push({ label: "Atomic", variant: "warning" });
+        if (flags & WatchFlag_Sync) tags.push({ label: "Sync", variant: "primary" });
+        if (flags & WatchFlag_Func) tags.push({ label: "Func", variant: "secondary" });
+        if (flags & WatchFlag_Hook) tags.push({ label: "Hook", variant: "link" });
+        if (flags & WatchFlag_Settable) tags.push({ label: "Settable", variant: "info" });
+
+        return tags;
+    };
+
+    const flagTags = getFlagTags(watch.flags) ?? [];
+
     return (
-        <div className="mb-4 p-3 border border-border rounded-md">
-            <div className="flex justify-between items-center mb-2">
-                <div className="font-semibold text-primary">{watch.name}</div>
+        <div className="pl-4 pr-2">
+            <div className="flex justify-between items-center py-2">
                 <div className="flex items-center gap-2">
-                    <div className="text-xs px-2 py-1 rounded-full bg-secondary/10 text-secondary">{watch.type}</div>
+                    <div className="font-semibold text-primary flex-grow">{watch.name}</div>
+                    <div className="text-sm px-2 py-0.5 rounded-md bg-secondary/10 text-secondary font-mono">
+                        {watch.type}
+                    </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    {flagTags.map((tag, index) => (
+                        <span key={index} className="-translate-y-0.5">
+                            <Tag label={tag.label} isSelected={false} variant="secondary" />
+                        </span>
+                    ))}
                     <CopyButton
                         size={14}
                         tooltipText="Copy value"
@@ -57,16 +95,15 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
                     />
                 </div>
             </div>
-            <div className="text-sm text-primary bg-panel p-2 rounded">{formatValue(watch)}</div>
-            {(watch.len != null || watch.cap != null) && (
-                <div className="mt-2 text-xs text-muted">
-                    {watch.len != null && <span>Length: {watch.len}</span>}
-                    {watch.len != null && watch.cap != null && <span> | </span>}
-                    {watch.cap != null && <span>Capacity: {watch.cap}</span>}
+            <div className="text-sm text-primary pb-2">{formatValue(watch)}</div>
+            {(watch.len != null || watch.cap != null || (watch.waittime != null && watch.waittime > 0)) && (
+                <div className="pb-2 flex gap-3">
+                    {watch.len != null && <span className="text-xs text-muted">Length: {watch.len}</span>}
+                    {watch.cap != null && <span className="text-xs text-muted">Capacity: {watch.cap}</span>}
+                    {watch.waittime != null && watch.waittime > 0 && (
+                        <span className="text-xs text-warning">Wait time: {watch.waittime}μs</span>
+                    )}
                 </div>
-            )}
-            {watch.waittime != null && watch.waittime > 0 && (
-                <div className="mt-1 text-xs text-warning">Wait time: {watch.waittime}μs</div>
             )}
         </div>
     );
@@ -87,7 +124,7 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
         <div className="py-1 px-1 border-b border-border">
             <div className="flex items-center justify-between">
                 <div className="flex items-center flex-grow">
-                    <div className="select-none pr-2 text-muted w-12 text-right font-mono flex justify-end items-center">
+                    <div className="select-none pr-2 text-muted w-10 text-right font-mono flex justify-end items-center">
                         <Filter
                             size={16}
                             className="text-muted"
@@ -106,12 +143,12 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
-                
+
                 {/* Search stats */}
                 <div className="text-xs text-muted mr-2 select-none">
                     {filteredCount}/{totalCount}
                 </div>
-                
+
                 <AutoRefreshButton autoRefreshAtom={model.autoRefresh} onToggle={() => model.toggleAutoRefresh()} />
                 <RefreshButton
                     isRefreshingAtom={model.isRefreshing}
@@ -135,7 +172,7 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
     const search = useAtomValue(model.searchTerm);
 
     return (
-        <div className="w-full h-full overflow-auto flex-1 p-4">
+        <div className="w-full h-full overflow-auto flex-1 px-0 py-2">
             {isRefreshing ? (
                 <div className="flex items-center justify-center h-full">
                     <div className="flex items-center gap-2 text-primary">
@@ -148,8 +185,17 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                 </div>
             ) : (
                 <div>
-                    {filteredWatches.map((watch) => (
-                        <WatchView key={watch.name} watch={watch} />
+                    {filteredWatches.map((watch, index) => (
+                        <React.Fragment key={watch.name}>
+                            <WatchView watch={watch} />
+                            {/* Add divider after each watch except the last one */}
+                            {index < filteredWatches.length - 1 && (
+                                <div
+                                    className="h-px bg-border my-2"
+                                    style={{ minWidth: "100%", width: "9999px" }}
+                                ></div>
+                            )}
+                        </React.Fragment>
                     ))}
                 </div>
             )}
