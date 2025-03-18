@@ -10,6 +10,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"golang.org/x/exp/constraints"
 )
 
 // Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:
@@ -103,11 +104,90 @@ func AppDone() {
 	}
 }
 
+type AtomicLoader[T any] interface {
+	Load() T
+}
+
+type AtomicStorer[T any] interface {
+	Store(val T)
+}
+
+func WatchCounterSync[T constraints.Integer | constraints.Float](name string, lock sync.Locker, val *T) {
+	if val == nil {
+		return
+	}
+	wc := watch.GetInstance()
+	rval := reflect.ValueOf(val)
+	wc.RegisterWatchSync(name, lock, rval, watch.WatchFlag_Sync|watch.WatchFlag_Settable|watch.WatchFlag_Counter)
+}
+
 func WatchSync[T any](name string, lock sync.Locker, val *T) {
 	if val == nil {
 		return
 	}
 	wc := watch.GetInstance()
 	rval := reflect.ValueOf(val)
-	wc.RegisterWatchSync(name, lock, rval)
+	wc.RegisterWatchSync(name, lock, rval, watch.WatchFlag_Sync|watch.WatchFlag_Settable)
+}
+
+func WatchAtomicCounter[T constraints.Integer | constraints.Float](name string, val AtomicLoader[T]) {
+	if val == nil {
+		return
+	}
+	wc := watch.GetInstance()
+	wc.RegisterWatchAtomic(name, val, watch.WatchFlag_Atomic|watch.WatchFlag_Counter)
+}
+
+func WatchAtomic[T any](name string, val AtomicLoader[T]) {
+	if val == nil {
+		return
+	}
+	wc := watch.GetInstance()
+	wc.RegisterWatchAtomic(name, val, watch.WatchFlag_Atomic|watch.WatchFlag_Settable)
+}
+
+func WatchCounterFunc[T constraints.Integer | constraints.Float](name string, getFn func() T) {
+	if getFn == nil {
+		return
+	}
+	wc := watch.GetInstance()
+	wc.RegisterWatchFunc(name, getFn, nil, watch.WatchFlag_Func|watch.WatchFlag_Counter)
+}
+
+func WatchFunc[T any](name string, getFn func() T, setFn func(T)) {
+	if getFn == nil {
+		return
+	}
+	wc := watch.GetInstance()
+	flags := watch.WatchFlag_Func
+	if setFn != nil {
+		flags |= watch.WatchFlag_Settable
+	}
+	wc.RegisterWatchFunc(name, getFn, setFn, flags)
+}
+
+func TrackValue(name string, val any) {
+	if !global.OutrigEnabled.Load() {
+		return
+	}
+	wc := watch.GetInstance()
+	rval := reflect.ValueOf(val)
+	wc.RecordWatchValue(name, nil, rval, rval.Type().String(), watch.WatchFlag_Push)
+}
+
+func TrackCounter[T constraints.Integer | constraints.Float](name string, val T) {
+	if !global.OutrigEnabled.Load() {
+		return
+	}
+	wc := watch.GetInstance()
+	rval := reflect.ValueOf(val)
+	wc.RecordWatchValue(name, nil, rval, rval.Type().String(), watch.WatchFlag_Push|watch.WatchFlag_Counter)
+}
+
+func RegisterHook(name string, hookFn any) {
+	if hookFn == nil {
+		return
+	}
+	wc := watch.GetInstance()
+	wc.RegisterHook(name, hookFn, watch.WatchFlag_Hook|watch.WatchFlag_Settable)
 }

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -17,7 +18,25 @@ const (
 	WatchTypeSync = "sync"
 )
 
+const (
+	WatchFlag_Push     = 1
+	WatchFlag_Counter  = 2
+	WatchFlag_Atomic   = 4
+	WatchFlag_Sync     = 8
+	WatchFlag_Func     = 16
+	WatchFlag_Hook     = 32
+	WatchFlag_Settable = 64
+)
+
 const MaxWatchVals = 10000
+
+type AtomicLoader[T any] interface {
+	Load() T
+}
+
+type AtomicStorer[T any] interface {
+	Store(val T)
+}
 
 // WatchCollector implements the collector.Collector interface for watch collection
 type WatchCollector struct {
@@ -30,10 +49,31 @@ type WatchCollector struct {
 }
 
 type WatchDecl struct {
-	WatchType string
 	Name      string
-	Lock      sync.Locker
-	PtrVal    reflect.Value
+	Flags     int           // denotes the type of watch (Sync, Func, Atomic)
+	Lock      sync.Locker   // for Sync
+	PtrVal    reflect.Value // for Sync
+	GetFn     any           // for Func
+	SetFn     any           // for Func
+	HookFn    any           // for Hook
+	AtomicVal any           // for Atomic (AtomicLoader)
+	HookSent  atomic.Bool
+}
+
+func (d *WatchDecl) IsSync() bool {
+	return d.Flags&WatchFlag_Sync != 0
+}
+
+func (d *WatchDecl) IsFunc() bool {
+	return d.Flags&WatchFlag_Func != 0
+}
+
+func (d *WatchDecl) IsAtomic() bool {
+	return d.Flags&WatchFlag_Atomic != 0
+}
+
+func (d *WatchDecl) IsHook() bool {
+	return d.Flags&WatchFlag_Hook != 0
 }
 
 // CollectorName returns the unique name of the collector
@@ -55,14 +95,45 @@ func GetInstance() *WatchCollector {
 	return instance
 }
 
-func (wc *WatchCollector) RegisterWatchSync(name string, lock sync.Locker, rval reflect.Value) {
+func (wc *WatchCollector) RegisterWatchSync(name string, lock sync.Locker, rval reflect.Value, flags int) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 	wc.watchDecls[name] = &WatchDecl{
-		WatchType: WatchTypeSync,
+		Name:   name,
+		Lock:   lock,
+		PtrVal: rval,
+		Flags:  flags,
+	}
+}
+
+func (wc *WatchCollector) RegisterWatchFunc(name string, getFn any, setFn any, flags int) {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+	wc.watchDecls[name] = &WatchDecl{
+		Name:  name,
+		GetFn: getFn,
+		SetFn: setFn,
+		Flags: flags,
+	}
+}
+
+func (wc *WatchCollector) RegisterWatchAtomic(name string, atomicVal any, flags int) {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+	wc.watchDecls[name] = &WatchDecl{
 		Name:      name,
-		Lock:      lock,
-		PtrVal:    rval,
+		AtomicVal: atomicVal,
+		Flags:     flags,
+	}
+}
+
+func (wc *WatchCollector) RegisterHook(name string, hook any, flags int) {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+	wc.watchDecls[name] = &WatchDecl{
+		Name:   name,
+		HookFn: hook,
+		Flags:  flags,
 	}
 }
 
@@ -122,12 +193,58 @@ func (wc *WatchCollector) getWatchDecl(name string) *WatchDecl {
 	return wc.watchDecls[name]
 }
 
+func (wc *WatchCollector) PushWatchValue(w *ds.Watch) {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+	wc.watchVals = append(wc.watchVals, *w)
+}
+
 func (wc *WatchCollector) getAndClearWatchVals() []ds.Watch {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 	watchVals := wc.watchVals
 	wc.watchVals = nil
 	return watchVals
+}
+
+func (wc *WatchCollector) collectWatch(decl *WatchDecl) {
+	if decl.IsSync() {
+		typeStr := decl.PtrVal.Elem().Type().String()
+		wc.RecordWatchValue(decl.Name, decl.Lock, decl.PtrVal, typeStr, decl.Flags)
+		return
+	}
+	if decl.IsFunc() {
+		getFnValue := reflect.ValueOf(decl.GetFn)
+		results := getFnValue.Call(nil)
+		typeStr := getFnValue.Type().Out(0).String()
+		value := results[0]
+		wc.RecordWatchValue(decl.Name, nil, value, typeStr, decl.Flags)
+		return
+	}
+	if decl.IsAtomic() {
+		typeStr := reflect.TypeOf(decl.AtomicVal).String()
+		atomicValue := reflect.ValueOf(decl.AtomicVal)
+		loadMethod := atomicValue.MethodByName("Load")
+		results := loadMethod.Call(nil)
+		value := results[0]
+		wc.RecordWatchValue(decl.Name, nil, value, typeStr, decl.Flags)
+		return
+	}
+	if decl.IsHook() {
+		if decl.HookSent.Load() {
+			return
+		}
+		decl.HookSent.Store(true)
+		watch := ds.Watch{
+			Name:  decl.Name,
+			Ts:    time.Now().UnixMilli(),
+			Flags: decl.Flags,
+			Type:  reflect.TypeOf(decl.HookFn).String(),
+			Addr:  []string{fmt.Sprintf("%p", decl.HookFn)},
+		}
+		wc.PushWatchValue(&watch)
+		return
+	}
 }
 
 // CollectWatches collects watch information and sends it to the controller
@@ -142,12 +259,7 @@ func (wc *WatchCollector) CollectWatches() {
 		if watchDecl == nil {
 			continue
 		}
-		switch watchDecl.WatchType {
-		case WatchTypeSync:
-			wc.doWatchSync(name, watchDecl.Lock, watchDecl.PtrVal)
-		default:
-			continue
-		}
+		wc.collectWatch(watchDecl)
 	}
 
 	// For now, we're just stubbing this out
@@ -176,9 +288,9 @@ func (wc *WatchCollector) recordWatch(watch ds.Watch) {
 
 const MaxWatchWaitTime = 10 * time.Millisecond
 
-func (wc *WatchCollector) doWatchSync(name string, lock sync.Locker, rval reflect.Value) {
-	watch := ds.Watch{Name: name}
-	watch.Type = rval.Elem().Type().String()
+func (wc *WatchCollector) RecordWatchValue(name string, lock sync.Locker, rval reflect.Value, typeStr string, flags int) {
+	watch := ds.Watch{Name: name, Flags: flags}
+	watch.Type = typeStr
 	if lock != nil {
 		locked, waitDuration := utilfn.TryLockWithTimeout(lock, MaxWatchWaitTime)
 		watch.WaitTime = int64(waitDuration / time.Microsecond)

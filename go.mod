@@ -11,6 +11,7 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/junegunn/fzf v0.60.3
 	github.com/shirou/gopsutil/v4 v4.25.2
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	golang.org/x/sys v0.30.0
 )
 
