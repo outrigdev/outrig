@@ -22,8 +22,6 @@ const DurationStateFilters: React.FC<DurationStateFiltersProps> = ({ model, sele
     const durationStates = useAtomValue(model.durationStates);
     const stateCounts = useAtomValue(model.stateCounts);
 
-    console.log("Duration states:", durationStates);
-
     if (durationStates.length === 0) {
         return null;
     }
@@ -121,16 +119,6 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     if (!goroutine) {
         return null;
     }
-
-    // Log goroutine state information for debugging
-    console.log("Goroutine state:", {
-        goid: goroutine.goid,
-        rawstate: goroutine.rawstate,
-        primarystate: goroutine.primarystate,
-        extrastates: goroutine.extrastates,
-        stateduration: goroutine.stateduration,
-        statedurationms: goroutine.statedurationms,
-    });
 
     const copyStackTrace = async () => {
         try {
@@ -317,7 +305,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
     const search = useAtomValue(model.searchTerm);
     const showAll = useAtomValue(model.showAll);
     const contentRef = useRef<HTMLDivElement>(null);
-    
+
     // Set the content ref in the model when it changes
     useEffect(() => {
         model.setContentRef(contentRef);
@@ -362,8 +350,6 @@ interface GoRoutinesProps {
 
 export const GoRoutines: React.FC<GoRoutinesProps> = ({ appRunId }) => {
     const model = useOutrigModel(GoRoutinesModel, appRunId);
-
-    console.log("Render goroutines", appRunId, model);
 
     if (!model) {
         return null;

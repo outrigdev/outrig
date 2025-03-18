@@ -314,7 +314,6 @@ func parseCreatedByFrame(funcLine string, fileLine string) (*StackFrame, int, bo
 		log.Printf("failed to parse created by frame: %q\n", funcLine)
 		return nil, 0, false
 	}
-	log.Printf("parsed created by frame: %s\n", funcLine)
 	return &frame, goId, true
 }
 
