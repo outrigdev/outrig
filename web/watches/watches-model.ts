@@ -11,6 +11,7 @@ class WatchesModel {
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
+    contentRef: React.RefObject<HTMLDivElement> = null;
     
     // Total count of watches (derived from appRunWatches)
     totalCount: Atom<number> = atom((get) => {
@@ -33,6 +34,31 @@ class WatchesModel {
 
         // Start auto-refresh interval since default is on
         this.startAutoRefreshInterval();
+    }
+
+    // Set the content div reference for scrolling
+    setContentRef(ref: React.RefObject<HTMLDivElement>) {
+        this.contentRef = ref;
+    }
+
+    // Page up in the content view
+    pageUp() {
+        if (!this.contentRef?.current) return;
+        
+        this.contentRef.current.scrollBy({
+            top: -500,
+            behavior: "auto",
+        });
+    }
+
+    // Page down in the content view
+    pageDown() {
+        if (!this.contentRef?.current) return;
+        
+        this.contentRef.current.scrollBy({
+            top: 500,
+            behavior: "auto",
+        });
     }
 
     // Toggle auto-refresh state

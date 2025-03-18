@@ -452,6 +452,15 @@ const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
         model.onSearchTermUpdate(searchTerm);
     }, [model, searchTerm]);
 
+    // Focus the search input when the component mounts
+    useEffect(() => {
+        // Use a small timeout to ensure the input is ready
+        const timer = setTimeout(() => {
+            searchRef.current?.focus();
+        }, 50);
+        return () => clearTimeout(timer);
+    }, []);
+
     useEffect(() => {
         // on window focus, focus the search input
         const onFocus = () => {

@@ -94,6 +94,14 @@ function registerGlobalKeys() {
         AppModel.selectGoRoutinesTab();
         return true;
     });
+    globalKeyMap.set("Ctrl:4", () => {
+        AppModel.selectWatchesTab();
+        return true;
+    });
+    globalKeyMap.set("Ctrl:5", () => {
+        AppModel.selectRuntimeStatsTab();
+        return true;
+    });
 }
 
 function getAllGlobalKeyBindings(): string[] {

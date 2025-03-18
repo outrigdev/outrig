@@ -11,6 +11,7 @@ class GoRoutinesModel {
     appRunGoRoutines: PrimitiveAtom<ParsedGoRoutine[]> = atom<ParsedGoRoutine[]>([]);
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
+    contentRef: React.RefObject<HTMLDivElement> = null;
 
     // State filters
     showAll: PrimitiveAtom<boolean> = atom(true);
@@ -44,6 +45,31 @@ class GoRoutinesModel {
     dispose() {
         // Currently no resources to clean up, but this method is added
         // for consistency with other models and future-proofing
+    }
+
+    // Set the content div reference for scrolling
+    setContentRef(ref: React.RefObject<HTMLDivElement>) {
+        this.contentRef = ref;
+    }
+
+    // Page up in the content view
+    pageUp() {
+        if (!this.contentRef?.current) return;
+        
+        this.contentRef.current.scrollBy({
+            top: -500,
+            behavior: "auto",
+        });
+    }
+
+    // Page down in the content view
+    pageDown() {
+        if (!this.contentRef?.current) return;
+        
+        this.contentRef.current.scrollBy({
+            top: 500,
+            behavior: "auto",
+        });
     }
 
     // Derived atom for primary states

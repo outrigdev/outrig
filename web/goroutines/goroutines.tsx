@@ -2,10 +2,11 @@ import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
 import { useOutrigModel } from "@/util/hooks";
+import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
 import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
 import { Filter, Layers, Layers2 } from "lucide-react";
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
 import { StackTrace } from "./stacktrace";
@@ -194,6 +195,15 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const durationStates = useAtomValue(model.durationStates);
     const stateCounts = useAtomValue(model.stateCounts);
 
+    // Focus the search input when the component mounts
+    useEffect(() => {
+        // Use a small timeout to ensure the input is ready
+        const timer = setTimeout(() => {
+            searchRef.current?.focus();
+        }, 50);
+        return () => clearTimeout(timer);
+    }, []);
+
     const handleToggleShowAll = () => {
         model.toggleShowAll();
     };
@@ -223,6 +233,21 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                             placeholder="Filter goroutines..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
+                                if (checkKeyPressed(keyEvent, "Escape")) {
+                                    setSearch("");
+                                    return true;
+                                }
+                                if (checkKeyPressed(keyEvent, "PageUp")) {
+                                    model.pageUp();
+                                    return true;
+                                }
+                                if (checkKeyPressed(keyEvent, "PageDown")) {
+                                    model.pageDown();
+                                    return true;
+                                }
+                                return false;
+                            })}
                             className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                         />
@@ -291,9 +316,15 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
     const isRefreshing = useAtomValue(model.isRefreshing);
     const search = useAtomValue(model.searchTerm);
     const showAll = useAtomValue(model.showAll);
+    const contentRef = useRef<HTMLDivElement>(null);
+    
+    // Set the content ref in the model when it changes
+    useEffect(() => {
+        model.setContentRef(contentRef);
+    }, [model]);
 
     return (
-        <div className="w-full h-full overflow-auto flex-1 px-0 py-2">
+        <div ref={contentRef} className="w-full h-full overflow-auto flex-1 px-0 py-2">
             {isRefreshing ? (
                 <div className="flex items-center justify-center h-full">
                     <div className="flex items-center gap-2 text-primary">
