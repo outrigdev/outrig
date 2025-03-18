@@ -80,6 +80,8 @@ interface WatchesFiltersProps {
 const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
     const searchRef = useRef<HTMLInputElement>(null);
+    const filteredCount = useAtomValue(model.filteredCount);
+    const totalCount = useAtomValue(model.totalCount);
 
     return (
         <div className="py-1 px-1 border-b border-border">
@@ -104,6 +106,12 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
                     />
                 </div>
+                
+                {/* Search stats */}
+                <div className="text-xs text-muted mr-2 select-none">
+                    {filteredCount}/{totalCount}
+                </div>
+                
                 <AutoRefreshButton autoRefreshAtom={model.autoRefresh} onToggle={() => model.toggleAutoRefresh()} />
                 <RefreshButton
                     isRefreshingAtom={model.isRefreshing}
@@ -140,7 +148,6 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                 </div>
             ) : (
                 <div>
-                    <div className="mb-2 text-sm text-secondary">{filteredWatches.length} watches</div>
                     {filteredWatches.map((watch) => (
                         <WatchView key={watch.name} watch={watch} />
                     ))}

@@ -94,4 +94,6 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Notes
 
-In general when the file changes you fall back to writing the entire file. That wastes so much time as writing the whole file is often very slow.  If the file is longer than 100 lines, please try to re-read the file and create better diff edits rather than immediately falling back to a full file write.
+In general when the file changes you fall back to writing the entire file. That wastes so much time as writing the whole file is often very slow. If the file is longer than 100 lines, please try to re-read the file and create better diff edits rather than immediately falling back to a full file write.
+
+Also I don't find much value in your Task Completed summaries. Please keep them VERY short.

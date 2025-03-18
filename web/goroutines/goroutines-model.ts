@@ -21,6 +21,18 @@ class GoRoutinesModel {
 
     // Stacktrace display settings - can be "raw", "simplified", or "simplified:files"
     simpleStacktraceMode: PrimitiveAtom<string> = atom("simplified");
+    
+    // Total count of goroutines (derived from appRunGoRoutines)
+    totalCount: Atom<number> = atom((get) => {
+        const goroutines = get(this.appRunGoRoutines);
+        return goroutines.length;
+    });
+    
+    // Filtered count of goroutines (derived from filteredGoroutines)
+    filteredCount: Atom<number> = atom((get) => {
+        const filtered = get(this.filteredGoroutines);
+        return filtered.length;
+    });
 
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();

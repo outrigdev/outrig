@@ -11,6 +11,18 @@ class WatchesModel {
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
+    
+    // Total count of watches (derived from appRunWatches)
+    totalCount: Atom<number> = atom((get) => {
+        const watches = get(this.appRunWatches);
+        return watches.length;
+    });
+    
+    // Filtered count of watches (derived from filteredWatches)
+    filteredCount: Atom<number> = atom((get) => {
+        const filtered = get(this.filteredWatches);
+        return filtered.length;
+    });
 
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();

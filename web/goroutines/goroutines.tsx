@@ -143,6 +143,8 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const availableStates = useAtomValue(model.availableStates);
     const searchRef = useRef<HTMLInputElement>(null);
     const isRefreshing = useAtomValue(model.isRefreshing);
+    const filteredCount = useAtomValue(model.filteredCount);
+    const totalCount = useAtomValue(model.totalCount);
 
     const handleToggleShowAll = () => {
         model.toggleShowAll();
@@ -174,9 +176,15 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
-                                    border-none ring-0 outline-none focus:outline-none focus:ring-0"
+                                border-none ring-0 outline-none focus:outline-none focus:ring-0"
                         />
                     </div>
+
+                    {/* Search stats */}
+                    <div className="text-xs text-muted mr-2 select-none">
+                        {filteredCount}/{totalCount}
+                    </div>
+
                     <div className="flex items-center gap-2">
                         <StacktraceModeToggle modeAtom={model.simpleStacktraceMode} />
                         <RefreshButton
@@ -235,12 +243,16 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
                 </div>
             ) : (
                 <div>
-                    <div className="mb-2 text-sm text-secondary">{filteredGoroutines.length} goroutines</div>
                     {filteredGoroutines.map((goroutine, index) => (
                         <React.Fragment key={goroutine.goid}>
                             <GoroutineView goroutine={goroutine} model={model} />
-                        {/* Add divider after each goroutine except the last one */}
-                        {index < filteredGoroutines.length - 1 && <div className="h-px bg-border my-2" style={{ minWidth: '100%', width: '9999px' }}></div>}
+                            {/* Add divider after each goroutine except the last one */}
+                            {index < filteredGoroutines.length - 1 && (
+                                <div
+                                    className="h-px bg-border my-2"
+                                    style={{ minWidth: "100%", width: "9999px" }}
+                                ></div>
+                            )}
                         </React.Fragment>
                     ))}
                 </div>
