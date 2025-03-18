@@ -147,6 +147,7 @@ func TestParseStateComponents(t *testing.T) {
 		rawState            string
 		expectedPrimary     string
 		expectedDurationMs  int64
+		expectedDuration    string
 		expectedExtraStates []string
 	}{
 		{
@@ -154,6 +155,7 @@ func TestParseStateComponents(t *testing.T) {
 			rawState:            "running",
 			expectedPrimary:     "running",
 			expectedDurationMs:  0,
+			expectedDuration:    "",
 			expectedExtraStates: nil,
 		},
 		{
@@ -161,6 +163,7 @@ func TestParseStateComponents(t *testing.T) {
 			rawState:            "chan receive, 101 minutes",
 			expectedPrimary:     "chan receive",
 			expectedDurationMs:  101 * 60 * 1000,
+			expectedDuration:    "101 minutes",
 			expectedExtraStates: nil,
 		},
 		{
@@ -168,6 +171,7 @@ func TestParseStateComponents(t *testing.T) {
 			rawState:            "chan receive, locked to thread",
 			expectedPrimary:     "chan receive",
 			expectedDurationMs:  0,
+			expectedDuration:    "",
 			expectedExtraStates: []string{"locked to thread"},
 		},
 		{
@@ -175,6 +179,7 @@ func TestParseStateComponents(t *testing.T) {
 			rawState:            "chan receive, 3 minutes, locked to thread",
 			expectedPrimary:     "chan receive",
 			expectedDurationMs:  3 * 60 * 1000,
+			expectedDuration:    "3 minutes",
 			expectedExtraStates: []string{"locked to thread"},
 		},
 		{
@@ -182,6 +187,7 @@ func TestParseStateComponents(t *testing.T) {
 			rawState:            "chan receive, locked to thread, syscall",
 			expectedPrimary:     "chan receive",
 			expectedDurationMs:  0,
+			expectedDuration:    "",
 			expectedExtraStates: []string{"locked to thread", "syscall"},
 		},
 		{
@@ -189,13 +195,14 @@ func TestParseStateComponents(t *testing.T) {
 			rawState:            "chan receive, 45 seconds",
 			expectedPrimary:     "chan receive",
 			expectedDurationMs:  45 * 1000,
+			expectedDuration:    "45 seconds",
 			expectedExtraStates: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			primaryState, durationMs, extraStates := parseStateComponents(tt.rawState)
+			primaryState, durationMs, duration, extraStates := parseStateComponents(tt.rawState)
 
 			if primaryState != tt.expectedPrimary {
 				t.Errorf("Expected primary state %q, got %q", tt.expectedPrimary, primaryState)
@@ -203,6 +210,10 @@ func TestParseStateComponents(t *testing.T) {
 
 			if durationMs != tt.expectedDurationMs {
 				t.Errorf("Expected duration %d ms, got %d ms", tt.expectedDurationMs, durationMs)
+			}
+			
+			if duration != tt.expectedDuration {
+				t.Errorf("Expected duration string %q, got %q", tt.expectedDuration, duration)
 			}
 
 			if tt.expectedExtraStates == nil {

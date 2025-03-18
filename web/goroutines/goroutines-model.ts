@@ -21,13 +21,13 @@ class GoRoutinesModel {
 
     // Stacktrace display settings - can be "raw", "simplified", or "simplified:files"
     simpleStacktraceMode: PrimitiveAtom<string> = atom("simplified");
-    
+
     // Total count of goroutines (derived from appRunGoRoutines)
     totalCount: Atom<number> = atom((get) => {
         const goroutines = get(this.appRunGoRoutines);
         return goroutines.length;
     });
-    
+
     // Filtered count of goroutines (derived from filteredGoroutines)
     filteredCount: Atom<number> = atom((get) => {
         const filtered = get(this.filteredGoroutines);
@@ -46,22 +46,102 @@ class GoRoutinesModel {
         // for consistency with other models and future-proofing
     }
 
-    // Derived atom for all available states
-    availableStates: Atom<string[]> = atom((get) => {
+    // Derived atom for primary states
+    primaryStates: Atom<string[]> = atom((get) => {
         const goroutines = get(this.appRunGoRoutines);
         const statesSet = new Set<string>();
 
         goroutines.forEach((goroutine) => {
-            // Split rawstate by commas and add each trimmed state
-            goroutine.rawstate.split(',').forEach(state => {
-                const trimmedState = state.trim();
-                if (trimmedState) {
-                    statesSet.add(trimmedState);
-                }
-            });
+            if (goroutine.primarystate) {
+                statesSet.add(goroutine.primarystate);
+            }
         });
 
         return Array.from(statesSet).sort();
+    });
+
+    // Derived atom for extra states
+    extraStates: Atom<string[]> = atom((get) => {
+        const goroutines = get(this.appRunGoRoutines);
+        const statesSet = new Set<string>();
+
+        goroutines.forEach((goroutine) => {
+            if (goroutine.extrastates) {
+                goroutine.extrastates.forEach(state => {
+                    if (state) {
+                        statesSet.add(state);
+                    }
+                });
+            }
+        });
+
+        return Array.from(statesSet).sort();
+    });
+
+    // Derived atom for duration states, sorted by millisecond value
+    durationStates: Atom<string[]> = atom((get) => {
+        const goroutines = get(this.appRunGoRoutines);
+        // Create a map of duration string to millisecond value
+        const durationMap = new Map<string, number>();
+        
+        goroutines.forEach((goroutine) => {
+            if (goroutine.stateduration && goroutine.statedurationms != null) {
+                durationMap.set(goroutine.stateduration, goroutine.statedurationms);
+            }
+        });
+        
+        // Convert to array of [string, number] pairs and sort by millisecond value
+        return Array.from(durationMap.entries())
+            .sort((a, b) => a[1] - b[1]) // Sort by millisecond value (ascending)
+            .map(entry => entry[0]); // Extract just the duration string
+    });
+
+    // Derived atom for all available states (for backward compatibility)
+    availableStates: Atom<string[]> = atom((get) => {
+        const primaryStates = get(this.primaryStates);
+        const extraStates = get(this.extraStates);
+        const durationStates = get(this.durationStates);
+        
+        return [...primaryStates, ...extraStates, ...durationStates];
+    });
+
+    // Derived atom for state counts - returns a map of state name to count
+    stateCounts: Atom<Map<string, number>> = atom((get) => {
+        const goroutines = get(this.appRunGoRoutines);
+        const counts = new Map<string, number>();
+        
+        // Initialize counts for all states
+        const primaryStates = get(this.primaryStates);
+        const extraStates = get(this.extraStates);
+        const durationStates = get(this.durationStates);
+        
+        [...primaryStates, ...extraStates, ...durationStates].forEach(state => {
+            counts.set(state, 0);
+        });
+        
+        // Count goroutines for each state
+        goroutines.forEach(goroutine => {
+            // Count primary state
+            if (goroutine.primarystate) {
+                counts.set(goroutine.primarystate, (counts.get(goroutine.primarystate) || 0) + 1);
+            }
+            
+            // Count extra states
+            if (goroutine.extrastates) {
+                goroutine.extrastates.forEach(state => {
+                    if (state) {
+                        counts.set(state, (counts.get(state) || 0) + 1);
+                    }
+                });
+            }
+            
+            // Count duration state
+            if (goroutine.stateduration) {
+                counts.set(goroutine.stateduration, (counts.get(goroutine.stateduration) || 0) + 1);
+            }
+        });
+        
+        return counts;
     });
 
     // Filtered goroutines based on search term and state filters
@@ -70,6 +150,7 @@ class GoRoutinesModel {
         const showAll = get(this.showAll);
         const selectedStates = get(this.selectedStates);
         const goroutines = get(this.appRunGoRoutines);
+        const durationStates = get(this.durationStates);
 
         // First sort by goroutine ID
         const sortedGoroutines = [...goroutines].sort((a, b) => a.goid - b.goid);
@@ -77,10 +158,34 @@ class GoRoutinesModel {
         // Apply state filters if not showing all
         let stateFiltered = sortedGoroutines;
         if (!showAll && selectedStates.size > 0) {
+            // Get the selected duration states and regular states separately
+            const selectedDurationStates = new Set<string>();
+            const selectedRegularStates = new Set<string>();
+            
+            selectedStates.forEach(state => {
+                if (durationStates.includes(state)) {
+                    selectedDurationStates.add(state);
+                } else {
+                    selectedRegularStates.add(state);
+                }
+            });
+
             stateFiltered = sortedGoroutines.filter((goroutine) => {
-                // Split the rawstate by commas and check if any of the states are selected
-                const states = goroutine.rawstate.split(',').map(s => s.trim());
-                return states.some(state => selectedStates.has(state));
+                // Split the rawstate by commas and get all states for this goroutine
+                const states = goroutine.rawstate.split(",").map((s) => s.trim());
+                
+                // If no regular states are selected, consider it a match for regular states
+                // If regular states are selected, at least one must match (OR)
+                const matchesRegularStates = selectedRegularStates.size === 0 || 
+                    states.some((state) => selectedRegularStates.has(state));
+                
+                // If no duration states are selected, consider it a match for duration states
+                // If duration states are selected, at least one must match (OR)
+                const matchesDurationStates = selectedDurationStates.size === 0 || 
+                    (goroutine.stateduration && selectedDurationStates.has(goroutine.stateduration));
+                
+                // Both conditions must be true (AND)
+                return matchesRegularStates && matchesDurationStates;
             });
         }
 

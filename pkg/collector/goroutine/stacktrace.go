@@ -84,6 +84,7 @@ func ParseGoRoutineStackTrace(stackTrace string, moduleName string) (ParsedGoRou
 	routine.RawState = parsedRoutine.RawState
 	routine.PrimaryState = parsedRoutine.PrimaryState
 	routine.StateDurationMs = parsedRoutine.StateDurationMs
+	routine.StateDuration = parsedRoutine.StateDuration
 	routine.ExtraStates = parsedRoutine.ExtraStates
 
 	// Parse stack frames
@@ -223,7 +224,7 @@ func parseHeaderLine(headerLine string) (ParsedGoRoutine, error) {
 	state := match[2]
 
 	// Parse the state components
-	primaryState, stateDurationMs, extraStates := parseStateComponents(state)
+	primaryState, stateDurationMs, stateDuration, extraStates := parseStateComponents(state)
 
 	// Create a new routine
 	routine := ParsedGoRoutine{
@@ -231,6 +232,7 @@ func parseHeaderLine(headerLine string) (ParsedGoRoutine, error) {
 		RawState:        state,
 		PrimaryState:    primaryState,
 		StateDurationMs: stateDurationMs,
+		StateDuration:   stateDuration,
 		ExtraStates:     extraStates,
 		ParsedFrames:    []StackFrame{},
 	}
@@ -317,7 +319,7 @@ func parseCreatedByFrame(funcLine string, fileLine string) (*StackFrame, int, bo
 }
 
 // parseStateComponents parses a raw state string into its components
-func parseStateComponents(rawState string) (string, int64, []string) {
+func parseStateComponents(rawState string) (string, int64, string, []string) {
 	// Split the state by commas
 	components := strings.Split(rawState, ",")
 
@@ -326,6 +328,7 @@ func parseStateComponents(rawState string) (string, int64, []string) {
 
 	// Initialize variables for additional components
 	var stateDurationMs int64
+	var stateDuration string
 	var extraStates []string
 
 	// Process additional components
@@ -338,13 +341,14 @@ func parseStateComponents(rawState string) (string, int64, []string) {
 			// Check if this component is a duration
 			if isDuration, durationMs := parseDuration(component); isDuration {
 				stateDurationMs = durationMs
+				stateDuration = component
 			} else {
 				extraStates = append(extraStates, component)
 			}
 		}
 	}
 
-	return primaryState, stateDurationMs, extraStates
+	return primaryState, stateDurationMs, stateDuration, extraStates
 }
 
 // parseFuncLine parses a function line from a stack trace and extracts the package, function name, and args

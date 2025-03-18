@@ -10,6 +10,38 @@ import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
 import { StackTrace } from "./stacktrace";
 
+// Duration state filters component
+interface DurationStateFiltersProps {
+    model: GoRoutinesModel;
+    selectedStates: Set<string>;
+    onToggleState: (state: string) => void;
+}
+
+const DurationStateFilters: React.FC<DurationStateFiltersProps> = ({ model, selectedStates, onToggleState }) => {
+    const durationStates = useAtomValue(model.durationStates);
+    const stateCounts = useAtomValue(model.stateCounts);
+
+    console.log("Duration states:", durationStates);
+
+    if (durationStates.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-x-1.5 mt-2">
+            <div className="w-[70px]"></div>
+            {durationStates.map((state) => (
+                <Tag
+                    key={state}
+                    label={`${state} (${stateCounts.get(state) || 0})`}
+                    isSelected={selectedStates.has(state)}
+                    onToggle={() => onToggleState(state)}
+                />
+            ))}
+        </div>
+    );
+};
+
 // StacktraceModeToggle component for toggling between raw and simplified stacktrace modes
 interface StacktraceModeToggleProps {
     modeAtom: PrimitiveAtom<string>;
@@ -89,6 +121,16 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
         return null;
     }
 
+    // Log goroutine state information for debugging
+    console.log("Goroutine state:", {
+        goid: goroutine.goid,
+        rawstate: goroutine.rawstate,
+        primarystate: goroutine.primarystate,
+        extrastates: goroutine.extrastates,
+        stateduration: goroutine.stateduration,
+        statedurationms: goroutine.statedurationms,
+    });
+
     const copyStackTrace = async () => {
         try {
             // If we have a ref to the stack trace div, use its text content
@@ -147,6 +189,10 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const isRefreshing = useAtomValue(model.isRefreshing);
     const filteredCount = useAtomValue(model.filteredCount);
     const totalCount = useAtomValue(model.totalCount);
+    const primaryStates = useAtomValue(model.primaryStates);
+    const extraStates = useAtomValue(model.extraStates);
+    const durationStates = useAtomValue(model.durationStates);
+    const stateCounts = useAtomValue(model.stateCounts);
 
     const handleToggleShowAll = () => {
         model.toggleShowAll();
@@ -205,16 +251,31 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
             {/* State filters */}
             <div className="px-4 py-2 border-b border-border">
                 <div className="flex flex-wrap items-center gap-x-1.5">
-                    <Tag label="Show All" isSelected={showAll} onToggle={handleToggleShowAll} />
-                    {availableStates.map((state) => (
+                    {/* Show All in its own column */}
+                    <div className="w-[70px]">
+                        <Tag label="Show All" isSelected={showAll} onToggle={handleToggleShowAll} />
+                    </div>
+                    {/* Primary states first */}
+                    {primaryStates.map((state) => (
                         <Tag
                             key={state}
-                            label={state}
+                            label={`${state} (${stateCounts.get(state) || 0})`}
+                            isSelected={selectedStates.has(state)}
+                            onToggle={() => handleToggleState(state)}
+                        />
+                    ))}
+                    {/* Extra states next */}
+                    {extraStates.map((state) => (
+                        <Tag
+                            key={state}
+                            label={`${state} (${stateCounts.get(state) || 0})`}
                             isSelected={selectedStates.has(state)}
                             onToggle={() => handleToggleState(state)}
                         />
                     ))}
                 </div>
+                {/* Duration states on a new line, indented to align with "Show All" */}
+                <DurationStateFilters model={model} selectedStates={selectedStates} onToggleState={handleToggleState} />
             </div>
         </>
     );
