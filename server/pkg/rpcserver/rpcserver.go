@@ -106,10 +106,7 @@ func (*RpcServerImpl) GetAppRunRuntimeStatsCommand(ctx context.Context, data rpc
 
 // LogSearchRequestCommand handles search requests for logs
 func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
-	// Get or create a search manager for this widget
 	manager := logsearch.GetOrCreateManager(data.WidgetId, data.AppRunId)
-
-	// Delegate the search request to the manager
 	return manager.SearchRequest(ctx, data)
 }
 

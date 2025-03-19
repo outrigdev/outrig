@@ -218,9 +218,19 @@ class LogViewerModel {
         }
 
         store.set(this.isRefreshing, true);
-        this.logItemCache = [];
-        getDefaultStore().set(this.logItemCacheVersion, (version) => version + 1);
+
         try {
+            // First, drop the widget to clear the backend cache
+            await RpcApi.LogWidgetAdminCommand(DefaultRpcClient, {
+                widgetid: this.widgetId,
+                drop: true,
+            });
+
+            // Then clear the frontend cache
+            this.logItemCache = [];
+            getDefaultStore().set(this.logItemCacheVersion, (version) => version + 1);
+
+            // Finally, re-run the search which will create a new SearchManager
             await this.onSearchTermUpdate(store.get(this.searchTerm));
         } finally {
             // Set refreshing state to false
