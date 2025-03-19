@@ -43,6 +43,7 @@ func handleLogMode(connWrap *comm.ConnWrap, appRunId string, source string) {
 			fmt.Printf("error reading from log connection: %v\n", err)
 			break
 		}
+		line = strings.TrimSuffix(line, "\n")
 
 		// Create a log line packet (note: we don't trim the line)
 		logLine := &ds.LogLine{
@@ -51,7 +52,6 @@ func handleLogMode(connWrap *comm.ConnWrap, appRunId string, source string) {
 			Msg:     line,
 			Source:  source,
 		}
-		log.Printf("got #log line for apprun: %s from source: %s\n", appRunId, source)
 
 		// Marshal the log line to JSON
 		logData, err := json.Marshal(logLine)

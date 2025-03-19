@@ -3,7 +3,6 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -90,7 +89,10 @@ func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
 	appInfo := ds.AppInfo{}
 
 	// Initialize basic AppInfo
-	appInfo.AppRunId = uuid.New().String()
+	appInfo.AppRunId = os.Getenv("OUTRIG_APPRUNID")
+	if appInfo.AppRunId == "" {
+		appInfo.AppRunId = uuid.New().String()
+	}
 
 	// Set app name
 	appName := config.AppName
@@ -157,45 +159,23 @@ func (c *ControllerImpl) Connect() bool {
 	}
 
 	atomic.StoreInt64(&c.TransportErrors, 0)
-	var connWrap *comm.ConnWrap
 
-	// Attempt domain socket if not disabled
-	if c.config.DomainSocketPath != "-" {
-		dsPath := utilfn.ExpandHomeDir(c.config.DomainSocketPath)
-		if _, errStat := os.Stat(dsPath); errStat == nil {
-			conn, err := net.DialTimeout("unix", dsPath, 2*time.Second)
-			if err == nil {
-				connWrap = comm.MakeConnWrap(conn, dsPath)
-			}
-		}
+	// Use the new Connect function to establish a connection
+	connWrap, err := comm.Connect(base.ConnectionModePacket, "", c.AppInfo.AppRunId, 
+		c.config.DomainSocketPath, c.config.ServerAddr)
+	
+	if err != nil {
+		// Connection failed
+		return false
 	}
-
-	// Fall back to TCP if domain socket failed and TCP is not disabled
-	if connWrap == nil && c.config.ServerAddr != "-" {
-		conn, err := net.DialTimeout("tcp", c.config.ServerAddr, 2*time.Second)
-		if err == nil {
-			connWrap = comm.MakeConnWrap(conn, c.config.ServerAddr)
-		}
-	}
-
-	// If we have a connection, perform the handshake and setup
-	if connWrap != nil {
-		// Perform the handshake
-		err := connWrap.ClientHandshake(base.ConnectionModePacket, "", c.AppInfo.AppRunId)
-		if err != nil {
-			connWrap.Close()
-			fmt.Printf("Handshake failed with %s: %v\n", connWrap.PeerName, err)
-		} else {
-			fmt.Printf("Outrig connected via %s\n", connWrap.PeerName)
-			c.conn.Store(connWrap)
-			c.sendAppInfo()
-			c.setEnabled(true)
-			c.OutrigConnected = true
-			return true
-		}
-	}
-
-	return false
+	
+	// Connection and handshake successful
+	fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
+	c.conn.Store(connWrap)
+	c.sendAppInfo()
+	c.setEnabled(true)
+	c.OutrigConnected = true
+	return true
 }
 
 func (c *ControllerImpl) Disconnect() {
