@@ -8,6 +8,14 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
+// OutrigVersion is the current version of Outrig
+// This gets set from main-server.go during initialization
+var OutrigVersion = "v0.0.0"
+
+// OutrigBuildTime is the build timestamp of Outrig
+// This gets set from main-server.go during initialization
+var OutrigBuildTime = ""
+
 const OutrigLockFile = "outrig.lock"
 const OutrigDataDir = "data"
 
