@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -253,5 +254,32 @@ func TryLockWithTimeout(locker sync.Locker, timeout time.Duration) (bool, time.D
 		startTime := time.Now()
 		locker.Lock()
 		return true, time.Since(startTime)
+	}
+}
+
+// TeeCopy copies data from src to dst and calls dataCallbackFn with each chunk of data
+func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
+	buf := make([]byte, 4096)
+	for {
+		n, err := src.Read(buf)
+		if n > 0 {
+			// Write to destination
+			_, werr := dst.Write(buf[:n])
+			if werr != nil {
+				return werr
+			}
+			
+			// Call callback if provided
+			if dataCallbackFn != nil {
+				dataCallbackFn(buf[:n])
+			}
+		}
+		
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
 	}
 }

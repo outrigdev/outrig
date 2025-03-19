@@ -14,11 +14,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
 	"github.com/outrigdev/outrig/pkg/collector/runtimestats"
 	"github.com/outrigdev/outrig/pkg/collector/watch"
+	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -27,10 +29,9 @@ import (
 const ConnPollTime = 1 * time.Second
 
 type ControllerImpl struct {
-	Lock                 sync.Mutex               // lock for this struct
-	conn                 atomic.Pointer[net.Conn] // connection to server (atomic pointer for lock-free access)
+	Lock                 sync.Mutex                    // lock for this struct
+	conn                 atomic.Pointer[comm.ConnWrap] // connection to server (atomic pointer for lock-free access)
 	config               *ds.Config
-	ClientAddr           string                         // client address
 	pollerOnce           sync.Once                      // ensures poller is started only once
 	AppInfo              ds.AppInfo                     // combined application information
 	TransportErrors      int64                          // count of transport errors
@@ -77,10 +78,10 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 		}
 	}
 	go c.runConnPoller()
-	
+
 	// Initialize crash output handling if enabled
 	c.initCrashOutput()
-	
+
 	return c, nil
 }
 
@@ -156,33 +157,37 @@ func (c *ControllerImpl) Connect() bool {
 	}
 
 	atomic.StoreInt64(&c.TransportErrors, 0)
-	var conn net.Conn
-	var err error
+	var connWrap *comm.ConnWrap
 
 	// Attempt domain socket if not disabled
 	if c.config.DomainSocketPath != "-" {
 		dsPath := utilfn.ExpandHomeDir(c.config.DomainSocketPath)
 		if _, errStat := os.Stat(dsPath); errStat == nil {
-			conn, err = net.DialTimeout("unix", dsPath, 2*time.Second)
+			conn, err := net.DialTimeout("unix", dsPath, 2*time.Second)
 			if err == nil {
-				fmt.Printf("Outrig connected via domain socket: %v\n", dsPath)
-				c.conn.Store(&conn)
-				c.ClientAddr = c.config.DomainSocketPath
-				c.sendAppInfo()
-				c.setEnabled(true)
-				c.OutrigConnected = true
-				return true
+				connWrap = comm.MakeConnWrap(conn, dsPath)
 			}
 		}
 	}
 
-	// Fall back to TCP if not disabled
-	if c.config.ServerAddr != "-" {
-		conn, err = net.DialTimeout("tcp", c.config.ServerAddr, 2*time.Second)
+	// Fall back to TCP if domain socket failed and TCP is not disabled
+	if connWrap == nil && c.config.ServerAddr != "-" {
+		conn, err := net.DialTimeout("tcp", c.config.ServerAddr, 2*time.Second)
 		if err == nil {
-			fmt.Printf("Outrig connected via TCP: %v\n", c.config.ServerAddr)
-			c.conn.Store(&conn)
-			c.ClientAddr = c.config.ServerAddr
+			connWrap = comm.MakeConnWrap(conn, c.config.ServerAddr)
+		}
+	}
+
+	// If we have a connection, perform the handshake and setup
+	if connWrap != nil {
+		// Perform the handshake
+		err := connWrap.ClientHandshake(base.ConnectionModePacket, c.AppInfo.AppRunId)
+		if err != nil {
+			connWrap.Close()
+			fmt.Printf("Handshake failed with %s: %v\n", connWrap.PeerName, err)
+		} else {
+			fmt.Printf("Outrig connected via %s\n", connWrap.PeerName)
+			c.conn.Store(connWrap)
 			c.sendAppInfo()
 			c.setEnabled(true)
 			c.OutrigConnected = true
@@ -197,19 +202,17 @@ func (c *ControllerImpl) Disconnect() {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 
-	fmt.Printf("Outrig disconnected from %s\n", c.ClientAddr)
-	c.OutrigConnected = false
-	c.setEnabled(false)
-
 	connPtr := c.conn.Load()
-	if connPtr == nil {
-		return
+	if connPtr != nil {
+		conn := *connPtr
+		fmt.Printf("Outrig disconnected from %s\n", conn.PeerName)
+		c.conn.Store(nil)
+		time.Sleep(50 * time.Millisecond)
+		conn.Close()
 	}
 
-	conn := *connPtr
-	c.conn.Store(nil)
-	time.Sleep(50 * time.Millisecond)
-	conn.Close()
+	c.OutrigConnected = false
+	c.setEnabled(false)
 }
 
 func (c *ControllerImpl) Enable() {
@@ -256,8 +259,9 @@ func (c *ControllerImpl) sendPacketInternal(pk *ds.PacketType) (bool, error) {
 		return false, err
 	}
 
-	barr = append(barr, '\n')
-	_, err = conn.Write(barr)
+	// Convert to string and write with newline
+	jsonStr := string(barr)
+	err = conn.WriteLine(jsonStr)
 	if err != nil {
 		atomic.AddInt64(&c.TransportErrors, 1) // this will force a disconnect later
 		return false, nil

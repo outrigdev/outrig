@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
@@ -44,12 +46,14 @@ func (c *ControllerImpl) setupCrashOutput() (*os.File, error) {
 		return nil, fmt.Errorf("failed to connect to domain socket: %v", err)
 	}
 
-	// Send the sentinel message to identify this as a crash output connection
-	sentinelMsg := fmt.Sprintf("CRASHOUTPUT %s\n", c.AppInfo.AppRunId)
-	_, err = conn.Write([]byte(sentinelMsg))
+	// Create a ConnWrap for the connection
+	connWrap := comm.MakeConnWrap(conn, dsPath)
+	
+	// Perform the handshake
+	err = connWrap.ClientHandshake(base.ConnectionModeCrashOutput, c.AppInfo.AppRunId)
 	if err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("failed to send sentinel message: %v", err)
+		return nil, fmt.Errorf("handshake failed: %v", err)
 	}
 
 	// Get the underlying file descriptor from the connection
