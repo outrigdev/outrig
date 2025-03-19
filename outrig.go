@@ -41,9 +41,9 @@ func getDefaultConfig(isDev bool) *ds.Config {
 		Dev:              isDev,
 		StartAsync:       false,
 		LogProcessorConfig: &ds.LogProcessorConfig{
-			WrapStdout: true,
-			WrapStderr: true,
-			CaptureUnhandledCrashes: true, // Enable crash output capture by default
+			WrapStdout:              false,
+			WrapStderr:              false,
+			CaptureUnhandledCrashes: false,
 		},
 	}
 }
