@@ -20,6 +20,9 @@ class AppRunModel {
 
     appRunsTimeoutId: NodeJS.Timeout = null;
 
+    // Map to track previous running states of app runs
+    previousRunningStates = new Map<string, boolean>();
+
     constructor() {
         this.appRunsTimeoutId = setInterval(() => {
             // Catch errors in the interval to prevent it from stopping
@@ -45,7 +48,7 @@ class AppRunModel {
 
     async loadAppRuns() {
         console.log("[AppRunModel] Loading app runs, isInitialLoad:", this.isInitialLoad);
-        
+
         // If we need a full refresh, reset the lastUpdateTime to 0
         if (this.needsFullAppRunsRefresh) {
             console.log("[AppRunModel] Performing full refresh of app runs after reconnection");
@@ -55,15 +58,30 @@ class AppRunModel {
         // Get app runs with incremental updates (or full list if since=0)
         const result = await RpcApi.GetAppRunsCommand(DefaultRpcClient, { since: this.appRunsInfoLastUpdateTime });
 
+        // Get current app runs before updating
+        const currentAppRuns = getDefaultStore().get(this.appRuns);
+
+        let updatedAppRuns: AppRunInfo[];
         if (this.needsFullAppRunsRefresh) {
             // For a full refresh, completely replace the app runs list
-            getDefaultStore().set(this.appRuns, result.appruns);
+            updatedAppRuns = result.appruns;
+            getDefaultStore().set(this.appRuns, updatedAppRuns);
             this.needsFullAppRunsRefresh = false;
         } else {
             // For incremental updates, merge with existing app runs
-            const currentAppRuns = getDefaultStore().get(this.appRuns);
-            const updatedAppRuns = mergeArraysByKey(currentAppRuns, result.appruns, (run) => run.apprunid);
+            updatedAppRuns = mergeArraysByKey(currentAppRuns, result.appruns, (run) => run.apprunid);
             getDefaultStore().set(this.appRuns, updatedAppRuns);
+        }
+
+        // Check for running status changes and show notifications
+        // Skip on initial load to avoid showing notifications for all app runs
+        if (!this.isInitialLoad) {
+            this.checkForRunningStatusChanges(currentAppRuns, updatedAppRuns);
+        } else {
+            // On initial load, just store the current states without notifications
+            updatedAppRuns.forEach((run) => {
+                this.previousRunningStates.set(run.apprunid, run.isrunning);
+            });
         }
 
         // Update the last update time to the maximum lastmodtime from all app runs
@@ -79,11 +97,51 @@ class AppRunModel {
 
         // Handle auto-follow functionality, but skip toast on initial load
         this.handleAutoFollow(this.isInitialLoad);
-        
+
         // After first load, set isInitialLoad to false
         if (this.isInitialLoad) {
             this.isInitialLoad = false;
         }
+    }
+
+    // Check for changes in running status and show notifications
+    checkForRunningStatusChanges(previousAppRuns: AppRunInfo[], currentAppRuns: AppRunInfo[]) {
+        // Get the currently selected app run ID
+        const selectedAppRunId = getDefaultStore().get(AppModel.selectedAppRunId);
+        if (!selectedAppRunId) return; // No app run selected, no need to check
+
+        // Find the selected app run in the current list
+        const currentAppRun = currentAppRuns.find((run) => run.apprunid === selectedAppRunId);
+        if (!currentAppRun) return; // Selected app run not found in current list
+
+        // Get the previous running state
+        const previousRunningState = this.previousRunningStates.get(selectedAppRunId);
+
+        // If we have a previous state and it's different from the current state
+        if (previousRunningState !== undefined && previousRunningState !== currentAppRun.isrunning) {
+            // Running state changed, show notification
+            if (currentAppRun.isrunning) {
+                // Changed from not running to running
+                AppModel.showToast(
+                    "App Run Re-Connected",
+                    `App run ${currentAppRun.appname || "Unknown"} (${selectedAppRunId.substring(0, 8)}) has reconnected`,
+                    5000
+                );
+            } else {
+                // Changed from running to not running
+                const statusMessage = currentAppRun.status === "done" ? "completed" : "disconnected";
+                AppModel.showToast(
+                    "App Run Disconnected",
+                    `App run ${currentAppRun.appname || "Unknown"} (${selectedAppRunId.substring(0, 8)}) has ${statusMessage}`,
+                    5000
+                );
+            }
+        }
+
+        // Update the previous running state for all app runs
+        currentAppRuns.forEach((run) => {
+            this.previousRunningStates.set(run.apprunid, run.isrunning);
+        });
     }
 
     // Find the "best" app run (running with latest start time)
@@ -129,7 +187,7 @@ class AppRunModel {
         if (!bestAppRun || !bestAppRun.apprunid) {
             return;
         }
-        
+
         // Check if we're already on the best app run
         if (bestAppRun.apprunid === currentAppRunId) {
             // We're already on the best app run, no need to switch or show toast
@@ -137,47 +195,55 @@ class AppRunModel {
         }
 
         // If our current app run is not the best, switch to the best but stay on current tab
-        console.log(`[AutoFollow] Switching from ${currentAppRunId || 'none'} to ${bestAppRun.apprunid}`);
+        console.log(`[AutoFollow] Switching from ${currentAppRunId || "none"} to ${bestAppRun.apprunid}`);
+
+        // Get the current tab
+        const currentTab = getDefaultStore().get(AppModel.selectedTab);
         
-        // First switch to the new app run
-        AppModel.selectAppRunKeepTab(bestAppRun.apprunid, true); // true indicates this is an auto-follow selection
-        
+        // If we're on the app-runs tab AND this is not the initial load, switch to logs tab
+        // Otherwise keep the current tab
+        if (currentTab === "appruns" && !isInitialLoad) {
+            AppModel.selectAppRun(bestAppRun.apprunid, true); // Switch to logs tab
+        } else {
+            AppModel.selectAppRunKeepTab(bestAppRun.apprunid, true); // Keep current tab
+        }
+
         // Only show a toast notification if we're actually switching to a different app run
         // AND this is not the initial page load
         if (!isInitialLoad) {
             const appName = bestAppRun.appname || "Unknown";
             const shortId = bestAppRun.apprunid.substring(0, 8); // First 8 chars of the ID
-            
+
             // Format the start time information
             const startTimeInfo = this.formatStartTimeInfo(bestAppRun.starttime);
-            
+
             AppModel.showToast(
-                "App Run Switched", 
-                `Auto-switched to App Run ${appName} (${shortId}) ${startTimeInfo}`,
+                "App Run Switched",
+                `Auto-switched to app run ${appName} (${shortId}) ${startTimeInfo}`,
                 3000 // 3 seconds timeout
             );
         }
     }
-    
+
     // Format the start time information based on how recent it is
-    private formatStartTimeInfo(startTimeMs: number): string {
+    formatStartTimeInfo(startTimeMs: number): string {
         const now = Date.now();
         const diffSeconds = (now - startTimeMs) / 1000;
-        
+
         // If started within the last 5 seconds
         if (diffSeconds < 5) {
             return "started just now";
         }
-        
+
         // Format the date/time
         const startDate = new Date(startTimeMs);
-        
+
         // If it's today, just show the time
         const today = new Date();
         if (startDate.toDateString() === today.toDateString()) {
             return `started at ${startDate.toLocaleTimeString()}`;
         }
-        
+
         // Otherwise show the full date and time
         return `started at ${startDate.toLocaleString()}`;
     }

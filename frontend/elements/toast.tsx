@@ -18,16 +18,27 @@ export function Toast({ toast, onClose }: ToastProps) {
     const { id, title, message, timeout } = toast;
     const [isVisible, setIsVisible] = useState(true);
     const [isExiting, setIsExiting] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
+    const [remainingTime, setRemainingTime] = useState(timeout);
+    const [startTime, setStartTime] = useState<number | null>(null);
 
-    // Handle automatic timeout
+    // Handle automatic timeout with hover pause
     useEffect(() => {
-        if (timeout != null) {
+        if (timeout != null && remainingTime != null && !isHovered) {
+            setStartTime(Date.now());
             const timer = setTimeout(() => {
                 handleClose();
-            }, timeout);
-            return () => clearTimeout(timer);
+            }, remainingTime);
+            
+            return () => {
+                clearTimeout(timer);
+                if (startTime !== null) {
+                    const elapsed = Date.now() - startTime;
+                    setRemainingTime(prev => prev != null ? Math.max(0, prev - elapsed) : null);
+                }
+            };
         }
-    }, [timeout]);
+    }, [timeout, isHovered, remainingTime]);
 
     // Handle close with animation
     const handleClose = () => {
@@ -48,6 +59,8 @@ export function Toast({ toast, onClose }: ToastProps) {
                 "transition-all duration-300 ease-in-out",
                 isExiting ? "opacity-0 translate-x-5" : "opacity-100 translate-x-0"
             )}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
         >
             <div className="flex justify-between items-start">
                 <div className="font-medium text-primary">{title}</div>
