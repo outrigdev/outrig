@@ -129,6 +129,19 @@ class AppModel {
         this.selectLogsTab();
     }
 
+    // Select an app run without changing the current tab
+    selectAppRunKeepTab(appRunId: string) {
+        getDefaultStore().set(this.selectedAppRunId, appRunId);
+        this.updateUrl({ appRunId: appRunId });
+    }
+
+    // Clear the selected app run and go to app runs tab
+    clearAppRunSelection() {
+        getDefaultStore().set(this.selectedAppRunId, "");
+        this.updateUrl({ appRunId: null });
+        this.selectAppRunsTab();
+    }
+
     selectLogsTab() {
         // Note: Logs are loaded by the LogViewer component when it mounts
         getDefaultStore().set(this.selectedTab, "logs");

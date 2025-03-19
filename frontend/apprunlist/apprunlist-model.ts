@@ -1,5 +1,6 @@
 import { DefaultRpcClient } from "@/init";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
+import { AppModel } from "../appmodel";
 import { RpcApi } from "../rpc/rpcclientapi";
 import { mergeArraysByKey } from "../util/util";
 import { addWSReconnectHandler } from "../websocket/client";
@@ -19,7 +20,7 @@ class AppRunModel {
     constructor() {
         this.appRunsTimeoutId = setInterval(() => {
             // Catch errors in the interval to prevent it from stopping
-            this.loadAppRuns().catch(error => {
+            this.loadAppRuns().catch((error) => {
                 console.error("Failed to load app runs in interval:", error);
             });
         }, 1000);
@@ -32,9 +33,9 @@ class AppRunModel {
     handleServerReconnect() {
         console.log("[AppRunModel] WebSocket reconnected, will perform full refresh of app runs");
         this.needsFullAppRunsRefresh = true;
-        
+
         // Trigger an immediate refresh but catch any errors to prevent unhandled rejections
-        this.loadAppRuns().catch(error => {
+        this.loadAppRuns().catch((error) => {
             console.error("[AppRunModel] Error refreshing app runs after reconnection:", error);
         });
     }
@@ -70,6 +71,57 @@ class AppRunModel {
             }
         }
         // If there are no app runs or no newer timestamps, keep the previous lastUpdateTime value
+
+        // Handle auto-follow functionality
+        this.handleAutoFollow();
+    }
+
+    // Find the "best" app run (running with latest start time)
+    findBestAppRun(): AppRunInfo {
+        const appRuns = getDefaultStore().get(this.appRuns);
+        if (!appRuns || appRuns.length === 0) {
+            return null;
+        }
+
+        // Sort app runs: first by running status (running first), then by start time (newest first)
+        const sortedAppRuns = [...appRuns].sort((a, b) => {
+            // First sort by running status
+            if (a.isrunning && !b.isrunning) return -1;
+            if (!a.isrunning && b.isrunning) return 1;
+
+            // Then sort by start time (newest first)
+            return b.starttime - a.starttime;
+        });
+
+        // Return the first (best) app run
+        return sortedAppRuns[0];
+    }
+
+    // Handle auto-follow logic
+    handleAutoFollow() {
+        const autoFollow = getDefaultStore().get(AppModel.autoFollow);
+        if (!autoFollow) {
+            return; // Auto-follow is disabled, do nothing
+        }
+
+        const currentAppRunId = getDefaultStore().get(AppModel.selectedAppRunId);
+        const bestAppRun = this.findBestAppRun();
+
+        // If there's no best app run and we have a current selection, clear it and go to app runs tab
+        if (!bestAppRun && currentAppRunId) {
+            console.log(`[AutoFollow] No app runs available, clearing selection`);
+            AppModel.clearAppRunSelection();
+            return;
+        }
+
+        // If there's no best app run or no current selection, or they match, do nothing
+        if (!bestAppRun || !bestAppRun.apprunid || bestAppRun.apprunid === currentAppRunId) {
+            return;
+        }
+
+        // If our current app run is not the best, switch to the best but stay on current tab
+        console.log(`[AutoFollow] Switching from ${currentAppRunId || "none"} to ${bestAppRun.apprunid}`);
+        AppModel.selectAppRunKeepTab(bestAppRun.apprunid);
     }
 }
 
