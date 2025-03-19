@@ -2,12 +2,14 @@ package serverbase
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 const OutrigLockFile = "outrig.lock"
+const OutrigDataDir = "data"
 
 // Default production ports for server
 const ProdWebServerPort = 5005
@@ -55,7 +57,18 @@ func GetWebSocketPort() int {
 	return ProdWebSocketPort
 }
 
+// GetOutrigDataDir returns the path to the data directory
+func GetOutrigDataDir() string {
+	return filepath.Join(GetOutrigHome(), OutrigDataDir)
+}
+
 func EnsureHomeDir() error {
 	outrigHomeDir := utilfn.ExpandHomeDir(GetOutrigHome())
 	return os.MkdirAll(outrigHomeDir, 0755)
+}
+
+// EnsureDataDir creates the data directory if it doesn't exist
+func EnsureDataDir() error {
+	dataDir := utilfn.ExpandHomeDir(GetOutrigDataDir())
+	return os.MkdirAll(dataDir, 0755)
 }

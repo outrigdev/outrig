@@ -40,9 +40,9 @@ func handleDomainSocketConn(conn net.Conn) {
 
 	defer func() {
 		conn.Close()
-		// If we have a peer, mark the connection as closed
+		// If we have a peer, release the reference
 		if peer != nil {
-			peer.SetConnectionClosed()
+			peer.Release()
 		}
 	}()
 
@@ -270,6 +270,12 @@ func main() {
 	err := serverbase.EnsureHomeDir()
 	if err != nil {
 		log.Printf("error cannot create outrig home directory (%s): %v\n", serverbase.GetOutrigHome(), err)
+		return
+	}
+
+	err = serverbase.EnsureDataDir()
+	if err != nil {
+		log.Printf("error cannot create outrig data directory (%s): %v\n", serverbase.GetOutrigDataDir(), err)
 		return
 	}
 
