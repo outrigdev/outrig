@@ -14,7 +14,7 @@ import (
 // GetAppRunWatches retrieves all watches for a specific app run
 func GetAppRunWatches(ctx context.Context, req rpctypes.AppRunRequest) (rpctypes.AppRunWatchesData, error) {
 	// Get the app run peer
-	peer := GetAppRunPeer(req.AppRunId)
+	peer := GetAppRunPeer(req.AppRunId, false)
 	if peer == nil || peer.AppInfo == nil {
 		return rpctypes.AppRunWatchesData{}, fmt.Errorf("app run not found: %s", req.AppRunId)
 	}

@@ -92,7 +92,7 @@ func GetBrowserTabsForAppName(appName string) []string {
 	for routeId, info := range browserTabs {
 		if info.AppRunId != "" {
 			// Get the app run peer to check the app name
-			peer := apppeer.GetAppRunPeer(info.AppRunId)
+			peer := apppeer.GetAppRunPeer(info.AppRunId, false)
 			if peer != nil && peer.AppInfo != nil && peer.AppInfo.AppName == appName {
 				result = append(result, routeId)
 			}

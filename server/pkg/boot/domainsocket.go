@@ -27,7 +27,7 @@ type PacketUnmarshalHelper struct {
 // The source is set to the part after "log:" in the mode line
 // Unlike other modes, lines are not trimmed
 func handleLogMode(connWrap *comm.ConnWrap, appRunId string, source string) {
-	peer := apppeer.GetAppRunPeer(appRunId)
+	peer := apppeer.GetAppRunPeer(appRunId, true)
 	if peer == nil {
 		log.Printf("Error: No AppRunPeer found for log mode app run ID: %s\n", appRunId)
 		return
@@ -70,7 +70,7 @@ func handleLogMode(connWrap *comm.ConnWrap, appRunId string, source string) {
 // handlePacketMode handles a connection in packet mode
 func handlePacketMode(connWrap *comm.ConnWrap, appRunId string) {
 	// Get the AppRunPeer for this connection
-	peer := apppeer.GetAppRunPeer(appRunId)
+	peer := apppeer.GetAppRunPeer(appRunId, true)
 	if peer == nil {
 		log.Printf("Error: No AppRunPeer found for app run ID: %s\n", appRunId)
 		return

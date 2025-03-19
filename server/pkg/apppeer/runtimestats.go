@@ -15,7 +15,7 @@ import (
 // If sinceTs is provided, it returns all stats with timestamps greater than sinceTs
 func GetAppRunRuntimeStats(ctx context.Context, req rpctypes.AppRunRequest) (rpctypes.AppRunRuntimeStatsData, error) {
 	// Get the app run peer
-	peer := GetAppRunPeer(req.AppRunId)
+	peer := GetAppRunPeer(req.AppRunId, false)
 	if peer == nil || peer.AppInfo == nil {
 		return rpctypes.AppRunRuntimeStatsData{}, fmt.Errorf("app run not found: %s", req.AppRunId)
 	}

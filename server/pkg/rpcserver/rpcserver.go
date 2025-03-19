@@ -74,7 +74,7 @@ func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context, data rpctypes.AppRu
 // GetAppRunLogsCommand returns logs for a specific app run
 func (*RpcServerImpl) GetAppRunLogsCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunLogsData, error) {
 	// Get the app run peer
-	peer := apppeer.GetAppRunPeer(data.AppRunId)
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
 	if peer == nil || peer.AppInfo == nil {
 		return rpctypes.AppRunLogsData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
 	}

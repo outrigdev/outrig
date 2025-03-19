@@ -14,7 +14,7 @@ import (
 // GetAppRunGoRoutinesCommand retrieves goroutines for a specific app run
 func GetAppRunGoRoutinesCommand(ctx context.Context, req rpctypes.AppRunRequest) (rpctypes.AppRunGoRoutinesData, error) {
 	// Get the app run peer
-	peer := GetAppRunPeer(req.AppRunId)
+	peer := GetAppRunPeer(req.AppRunId, false)
 	if peer == nil || peer.AppInfo == nil {
 		return rpctypes.AppRunGoRoutinesData{}, fmt.Errorf("app run not found: %s", req.AppRunId)
 	}

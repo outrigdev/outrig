@@ -93,7 +93,7 @@ func GetManager(widgetId string) *SearchManager {
 // GetOrCreateManager gets or creates a SearchManager for the given widget ID and app peer
 func GetOrCreateManager(widgetId string, appRunId string) *SearchManager {
 	// Get the app peer
-	appPeer := apppeer.GetAppRunPeer(appRunId)
+	appPeer := apppeer.GetAppRunPeer(appRunId, false)
 
 	manager, created := widgetManagers.GetOrCreate(widgetId, func() *SearchManager {
 		return NewSearchManager(widgetId, appPeer)
@@ -296,7 +296,7 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	// Calculate total number of pages
 	filteredSize := m.Cache.GetFilteredSize()
 	totalPages := filteredSize / data.PageSize
-	if filteredSize % data.PageSize != 0 {
+	if filteredSize%data.PageSize != 0 {
 		totalPages++
 	}
 
@@ -306,12 +306,12 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 
 	for _, pageNum := range data.RequestPages {
 		resolvedPageNum := pageNum
-		
+
 		// Handle negative page numbers (counting from the end)
 		if pageNum < 0 {
 			resolvedPageNum = totalPages + pageNum // e.g., -1 becomes totalPages-1 (last page)
 		}
-		
+
 		// Ensure page number is within valid range [0, totalPages-1]
 		if resolvedPageNum >= 0 && resolvedPageNum < totalPages {
 			// Only add each page once (avoid duplicates)

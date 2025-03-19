@@ -79,8 +79,8 @@ func getAppRunDir(appRunId string) string {
 // These functions have been moved to the logwriter package
 
 // GetAppRunPeer gets an existing AppRunPeer by ID or creates a new one if it doesn't exist
-// Increments the reference counter
-func GetAppRunPeer(appRunId string) *AppRunPeer {
+// If incRefCount is true, increments the reference counter
+func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 	peer, _ := appRunPeers.GetOrCreate(appRunId, func() *AppRunPeer {
 		// Create a directory for this app run
 		appRunDir := getAppRunDir(appRunId)
@@ -102,10 +102,12 @@ func GetAppRunPeer(appRunId string) *AppRunPeer {
 		}
 	})
 
-	// Increment reference counter
-	peer.refLock.Lock()
-	defer peer.refLock.Unlock()
-	peer.refCount++
+	// Increment reference counter if requested
+	if incRefCount {
+		peer.refLock.Lock()
+		defer peer.refLock.Unlock()
+		peer.refCount++
+	}
 
 	return peer
 }
