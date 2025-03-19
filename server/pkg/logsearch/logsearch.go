@@ -336,6 +336,7 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 
 	return rpctypes.SearchResultData{
 		FilteredCount: filteredSize,
+		SearchedCount: m.Cache.GetSearchedSize(),
 		TotalCount:    m.Cache.GetTotalSize(),
 		Pages:         pages,
 	}, nil

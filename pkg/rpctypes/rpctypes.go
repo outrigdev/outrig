@@ -86,12 +86,14 @@ type PageData struct {
 
 type SearchResultData struct {
 	FilteredCount int        `json:"filteredcount"`
+	SearchedCount int        `json:"searchedcount"`
 	TotalCount    int        `json:"totalcount"`
 	Pages         []PageData `json:"pages"`
 }
 
 type StreamUpdateData struct {
 	FilteredCount int          `json:"filteredcount"`
+	SearchedCount int          `json:"searchedcount"`
 	TotalCount    int          `json:"totalcount"`
 	Lines         []ds.LogLine `json:"lines"`
 }

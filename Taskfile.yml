@@ -46,4 +46,4 @@ tasks:
     testrun:
         desc: run main-test.go to generate some fake data
         cmds:
-            - go run cmd/test/main-test.go
+            - go run server/main-server.go --dev run cmd/test/main-test.go

@@ -17,6 +17,7 @@ type RawLogSource interface {
 	TotalSize() (int, error)
 	InitSource(searcher LogSearcher, startOffset int, chunkSize int)
 	GetPageSize() int
+	GetSearchedSize() int
 
 	// returns (results, window, eof, error)
 	SearchNextChunk() ([]ds.LogLine, bool, error)
@@ -139,6 +140,14 @@ func (lc *LogCache) GetTotalSize() int {
 	return lc.TotalCount
 }
 
+func (lc *LogCache) GetSearchedSize() int {
+	lc.Lock.Lock()
+	defer lc.Lock.Unlock()
+	// Return the size of the circular buffer, which is the number of entries
+	// that were actually searched (may be less than TotalCount if the buffer is limited)
+	return lc.LogSource.GetSearchedSize()
+}
+
 func (lc *LogCache) IsDone() bool {
 	lc.Lock.Lock()
 	defer lc.Lock.Unlock()
@@ -198,6 +207,13 @@ func (ls *AppPeerLogSource) TotalSize() (int, error) {
 
 func (ls *AppPeerLogSource) GetPageSize() int {
 	return ls.ChunkSize
+}
+
+func (ls *AppPeerLogSource) GetSearchedSize() int {
+	// Return the size of the circular buffer, which is the number of entries
+	// that were actually searched (may be less than TotalCount if the buffer is limited)
+	size := ls.AppPeer.Logs.Size()
+	return size
 }
 
 func (ls *AppPeerLogSource) SearchNextChunk() ([]ds.LogLine, bool, error) {

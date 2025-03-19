@@ -26,6 +26,7 @@ class LogViewerModel {
     lastVisibleEndIndex: number = 0;
 
     totalItemCount: PrimitiveAtom<number> = atom(0);
+    searchedItemCount: PrimitiveAtom<number> = atom(0);
     filteredItemCount: PrimitiveAtom<number> = atom(0);
 
     logItemCacheVersion: PrimitiveAtom<number> = atom(0);
@@ -95,6 +96,7 @@ class LogViewerModel {
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
             this.logItemCache = [];
             getDefaultStore().set(this.totalItemCount, results.totalcount);
+            getDefaultStore().set(this.searchedItemCount, results.searchedcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
             for (let i = 0; i < results.pages.length; i++) {
                 const page = results.pages[i];
@@ -198,6 +200,7 @@ class LogViewerModel {
             this.setLogCacheEntry(page, "loading", []);
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
             getDefaultStore().set(this.totalItemCount, results.totalcount);
+            getDefaultStore().set(this.searchedItemCount, results.searchedcount);
             getDefaultStore().set(this.filteredItemCount, results.filteredcount);
             // Get lines from the requested page
             const lines = results.pages.find((p) => p.pagenum === page)?.lines || [];

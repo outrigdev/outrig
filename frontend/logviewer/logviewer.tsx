@@ -149,38 +149,42 @@ interface LogViewerFilterProps {
 const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, className }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
     const filteredCount = useAtomValue(model.filteredItemCount);
+    const searchedCount = useAtomValue(model.searchedItemCount);
     const totalCount = useAtomValue(model.totalItemCount);
 
-    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-        return keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
-            if (checkKeyPressed(keyEvent, "Cmd:ArrowDown")) {
-                model.scrollToBottom();
-                return true;
-            }
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            return keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
+                if (checkKeyPressed(keyEvent, "Cmd:ArrowDown")) {
+                    model.scrollToBottom();
+                    return true;
+                }
 
-            if (checkKeyPressed(keyEvent, "Cmd:ArrowUp")) {
-                model.scrollToTop();
-                return true;
-            }
+                if (checkKeyPressed(keyEvent, "Cmd:ArrowUp")) {
+                    model.scrollToTop();
+                    return true;
+                }
 
-            if (checkKeyPressed(keyEvent, "PageUp")) {
-                model.pageUp();
-                return true;
-            }
+                if (checkKeyPressed(keyEvent, "PageUp")) {
+                    model.pageUp();
+                    return true;
+                }
 
-            if (checkKeyPressed(keyEvent, "PageDown")) {
-                model.pageDown();
-                return true;
-            }
+                if (checkKeyPressed(keyEvent, "PageDown")) {
+                    model.pageDown();
+                    return true;
+                }
 
-            if (checkKeyPressed(keyEvent, "Escape")) {
-                setSearch("");
-                return true;
-            }
+                if (checkKeyPressed(keyEvent, "Escape")) {
+                    setSearch("");
+                    return true;
+                }
 
-            return false;
-        })(e);
-    }, [model, setSearch]);
+                return false;
+            })(e);
+        },
+        [model, setSearch]
+    );
 
     return (
         <div className={`py-1 px-1 border-b border-border ${className || ""}`}>
@@ -211,9 +215,12 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
                 </div>
 
                 {/* Search stats */}
-                <div className="text-xs text-muted mr-2 select-none">
-                    {filteredCount}/{totalCount}
-                </div>
+                <Tooltip content={`${filteredCount} matched / ${searchedCount} searched / ${totalCount} ingested`}>
+                    <div className="text-xs text-muted mr-2 select-none cursor-pointer">
+                        {filteredCount}/{searchedCount}
+                        {totalCount > searchedCount ? "+" : ""}
+                    </div>
+                </Tooltip>
 
                 <FollowButton model={model} />
                 <RefreshButton
@@ -253,18 +260,18 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         const currentContainer = containerRef.current;
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'PageUp') {
+            if (e.key === "PageUp") {
                 e.preventDefault();
                 model.pageUp();
-            } else if (e.key === 'PageDown') {
+            } else if (e.key === "PageDown") {
                 e.preventDefault();
                 model.pageDown();
             }
         };
 
-        currentContainer.addEventListener('keydown', handleKeyDown);
+        currentContainer.addEventListener("keydown", handleKeyDown);
         return () => {
-            currentContainer.removeEventListener('keydown', handleKeyDown);
+            currentContainer.removeEventListener("keydown", handleKeyDown);
         };
     }, [model]);
 
@@ -317,9 +324,12 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         };
     }, [containerRef]);
 
-    const onRangeChanged = useCallback((range: ListRange) => {
-        model.setRenderedRange(range.startIndex, range.endIndex);
-    }, [model]);
+    const onRangeChanged = useCallback(
+        (range: ListRange) => {
+            model.setRenderedRange(range.startIndex, range.endIndex);
+        },
+        [model]
+    );
 
     // Handle scroll position changes to update follow mode
     const handleAtBottomStateChange = useCallback(
