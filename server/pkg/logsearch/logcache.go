@@ -216,8 +216,8 @@ func (ls *AppPeerLogSource) SearchNextChunk() ([]ds.LogLine, bool, error) {
 		return nil, true, nil // EOF, no logs available
 	}
 	
-	lines, _, eof := ls.AppPeer.Logs.GetRange(ls.Offset, ls.Offset+ls.ChunkSize)
-	ls.Offset += len(lines)
+	lines, trueOffset, eof := ls.AppPeer.Logs.GetRange(ls.Offset, ls.Offset+ls.ChunkSize)
+	ls.Offset = trueOffset + len(lines)
 	var filteredLines []ds.LogLine
 
 	for _, line := range lines {
