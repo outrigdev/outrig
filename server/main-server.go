@@ -25,7 +25,14 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/rpcserver"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/web"
+	"github.com/spf13/cobra"
 )
+
+// OutrigVersion is the current version of Outrig
+var OutrigVersion = "v0.0.0"
+
+// OutrigBuildTime is the build timestamp of Outrig
+var OutrigBuildTime = ""
 
 // PacketUnmarshalHelper is the envelope for incoming JSON packets.
 type PacketUnmarshalHelper struct {
@@ -240,7 +247,7 @@ func startViteServer(ctx context.Context) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func main() {
+func runServer() error {
 	if serverbase.IsDev() {
 		outrigConfig := outrig.DefaultConfig()
 		outrig.Init(outrigConfig)
@@ -269,20 +276,17 @@ func main() {
 
 	err := serverbase.EnsureHomeDir()
 	if err != nil {
-		log.Printf("error cannot create outrig home directory (%s): %v\n", serverbase.GetOutrigHome(), err)
-		return
+		return fmt.Errorf("cannot create outrig home directory (%s): %w", serverbase.GetOutrigHome(), err)
 	}
 
 	err = serverbase.EnsureDataDir()
 	if err != nil {
-		log.Printf("error cannot create outrig data directory (%s): %v\n", serverbase.GetOutrigDataDir(), err)
-		return
+		return fmt.Errorf("cannot create outrig data directory (%s): %w", serverbase.GetOutrigDataDir(), err)
 	}
 
 	lock, err := serverbase.AcquireOutrigServerLock()
 	if err != nil {
-		log.Printf("error acquiring outrig lock (another instance of Outrig Server is likely running): %v\n", err)
-		return
+		return fmt.Errorf("error acquiring outrig lock (another instance of Outrig Server is likely running): %w", err)
 	}
 	defer lock.Close() // the defer statement will keep the lock alive
 
@@ -296,15 +300,13 @@ func main() {
 	// Run domain socket server
 	err = runDomainSocketServer()
 	if err != nil {
-		log.Printf("Error starting domain socket server: %v\n", err)
-		return
+		return fmt.Errorf("error starting domain socket server: %w", err)
 	}
 
 	// Run web servers (HTTP and WebSocket)
 	err = runWebServers()
 	if err != nil {
-		log.Printf("Error starting web servers: %v\n", err)
-		return
+		return fmt.Errorf("error starting web servers: %w", err)
 	}
 
 	log.Printf("All servers started successfully\n")
@@ -313,8 +315,7 @@ func main() {
 	if serverbase.IsDev() {
 		viteCmd, err := startViteServer(ctx)
 		if err != nil {
-			log.Printf("Error starting Vite server: %v\n", err)
-			return
+			return fmt.Errorf("error starting Vite server: %w", err)
 		}
 
 		// Add to WaitGroup before starting the goroutine
@@ -348,4 +349,49 @@ func main() {
 	log.Printf("Waiting for all processes to complete...\n")
 	wg.Wait()
 	log.Printf("All processes shutdown complete\n")
+	return nil
+}
+
+func main() {
+	// Create the root command
+	rootCmd := &cobra.Command{
+		Use:   "outrig",
+		Short: "Outrig provides real-time debugging for Go programs",
+		Long:  `Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.`,
+		// No Run function for root command - it will just display help and exit
+	}
+
+	// Create the server command
+	serverCmd := &cobra.Command{
+		Use:   "server",
+		Short: "Run the Outrig server",
+		Long:  `Run the Outrig server which provides real-time debugging capabilities.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runServer()
+		},
+	}
+
+	// Create the version command
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print the version number of Outrig",
+		Long:  `Print the version number of Outrig and exit.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			if OutrigBuildTime != "" {
+				fmt.Printf("%s+%s\n", OutrigVersion, OutrigBuildTime)
+			} else {
+				fmt.Printf("%s+dev\n", OutrigVersion)
+			}
+		},
+	}
+
+	// Add commands to the root command
+	rootCmd.AddCommand(serverCmd)
+	rootCmd.AddCommand(versionCmd)
+
+	// Execute the root command
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
