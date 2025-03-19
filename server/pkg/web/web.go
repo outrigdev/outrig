@@ -9,10 +9,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
 
 // Header constants
@@ -119,26 +121,21 @@ func MakeUnixListener(socketPath string) (net.Listener, error) {
 func RunWebServer(listener net.Listener) {
 	gr := mux.NewRouter()
 
-	// API endpoints
 	apiRouter := gr.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/health", WebFnWrap(WebFnOpts{AllowCaching: false, JsonErrors: true}, handleHealth))
 
 	// Add more API endpoints here as needed
 
-	// Static file serving
 	fileSystem := GetFileSystem()
 
-	// For any path not matched by the API, try to serve a static file
-	// or fall back to index.html for SPA routing
+	// Handle SPA routing - serve static files or fall back to index.html
 	gr.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ServeIndexOrFile(w, r, fileSystem)
 	})
 
 	handler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")
 
-	// In development mode, enable CORS
-	isDev := os.Getenv("OUTRIG_DEV") == "1"
-	if isDev {
+	if serverbase.IsDev() {
 		handler = handlers.CORS(handlers.AllowedOrigins([]string{"*"}))(handler)
 	}
 
@@ -154,4 +151,27 @@ func RunWebServer(listener net.Listener) {
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)
 	}
+}
+
+// RunAllWebServers initializes and runs the HTTP and WebSocket servers
+func RunAllWebServers() error {
+	webServerPort := serverbase.GetWebServerPort()
+	webSocketPort := serverbase.GetWebSocketPort()
+
+	httpListener, err := MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(webServerPort))
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP listener: %w", err)
+	}
+	log.Printf("HTTP server listening on http://%s\n", httpListener.Addr().String())
+
+	wsListener, err := MakeTCPListener("websocket", "127.0.0.1:"+strconv.Itoa(webSocketPort))
+	if err != nil {
+		return fmt.Errorf("failed to create WebSocket listener: %w", err)
+	}
+	log.Printf("WebSocket server listening on ws://%s\n", wsListener.Addr().String())
+
+	go RunWebServer(httpListener)
+	go RunWebSocketServer(wsListener)
+
+	return nil
 }

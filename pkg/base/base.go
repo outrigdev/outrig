@@ -1,7 +1,5 @@
 package base
 
-import "os"
-
 // Home directory paths
 const OutrigHome = "~/.outrig"
 const DevOutrigHome = "~/.outrig-dev"
@@ -20,12 +18,6 @@ const DevTCPAddr = "http://localhost:6005"
 // Default constants for backward compatibility
 const DefaultTCPPort = ProdTCPPort
 const DefaultTCPAddr = ProdTCPAddr
-
-// IsDev returns true if the application is running in development mode
-// This is used by the server, not the client
-func IsDev() bool {
-	return os.Getenv("OUTRIG_DEV") == "1"
-}
 
 // Client-specific functions that use the client's Dev flag
 

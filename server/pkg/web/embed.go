@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+
+	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
 
 //go:embed dist
@@ -18,13 +20,10 @@ var distFS embed.FS
 // In development mode, it returns the local filesystem
 // In production mode, it returns the embedded filesystem
 func GetFileSystem() http.FileSystem {
-	// Check if we're in development mode
-	if os.Getenv("OUTRIG_DEV") == "1" {
-		// In development, return the local filesystem
+	if serverbase.IsDev() {
 		return http.Dir(".")
 	}
 
-	// In production, use the embedded filesystem
 	distSubFS, err := fs.Sub(distFS, "dist")
 	if err != nil {
 		panic(err)
@@ -38,7 +37,6 @@ func ServeIndexOrFile(w http.ResponseWriter, r *http.Request, fs http.FileSystem
 	// Clean the path to prevent directory traversal
 	urlPath := path.Clean(r.URL.Path)
 
-	// Try to open the file
 	f, err := fs.Open(urlPath)
 	if os.IsNotExist(err) {
 		// If file doesn't exist, serve index.html for SPA routing
@@ -61,14 +59,12 @@ func ServeIndexOrFile(w http.ResponseWriter, r *http.Request, fs http.FileSystem
 	}
 	defer f.Close()
 
-	// Get file info
 	fi, err := f.Stat()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// If it's a directory, look for index.html
 	if fi.IsDir() {
 		indexFile, err := fs.Open(path.Join(urlPath, "index.html"))
 		if err != nil {
@@ -85,6 +81,5 @@ func ServeIndexOrFile(w http.ResponseWriter, r *http.Request, fs http.FileSystem
 		return
 	}
 
-	// Serve the file
 	http.ServeContent(w, r, fi.Name(), fi.ModTime(), f.(io.ReadSeeker))
 }

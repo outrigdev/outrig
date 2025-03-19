@@ -31,9 +31,9 @@ type FDLock interface {
 	Close() error
 }
 
-// IsDev is a wrapper around base.IsDev for convenience
+// IsDev returns true if the server is running in development mode
 func IsDev() bool {
-	return base.IsDev()
+	return os.Getenv("OUTRIG_DEV") == "1"
 }
 
 // GetOutrigHome returns the appropriate home directory based on mode
@@ -75,7 +75,6 @@ func EnsureHomeDir() error {
 	return os.MkdirAll(outrigHomeDir, 0755)
 }
 
-// EnsureDataDir creates the data directory if it doesn't exist
 func EnsureDataDir() error {
 	dataDir := utilfn.ExpandHomeDir(GetOutrigDataDir())
 	return os.MkdirAll(dataDir, 0755)

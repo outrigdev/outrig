@@ -8,9 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/exec"
 	"os/signal"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -168,77 +166,6 @@ func runDomainSocketServer() error {
 	return nil
 }
 
-func runWebServers() error {
-	webServerPort := serverbase.GetWebServerPort()
-	webSocketPort := serverbase.GetWebSocketPort()
-
-	// Create TCP listener for HTTP server
-	httpListener, err := web.MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(webServerPort))
-	if err != nil {
-		return fmt.Errorf("failed to create HTTP listener: %w", err)
-	}
-	log.Printf("HTTP server listening on http://%s\n", httpListener.Addr().String())
-
-	// Create TCP listener for WebSocket server
-	wsListener, err := web.MakeTCPListener("websocket", "127.0.0.1:"+strconv.Itoa(webSocketPort))
-	if err != nil {
-		return fmt.Errorf("failed to create WebSocket listener: %w", err)
-	}
-	log.Printf("WebSocket server listening on ws://%s\n", wsListener.Addr().String())
-
-	// Run HTTP server
-	go web.RunWebServer(httpListener)
-
-	// Run WebSocket server
-	go web.RunWebSocketServer(wsListener)
-
-	return nil
-}
-
-// startViteServer starts the Vite development server as a subprocess
-// and pipes its stdout/stderr to the Go server's stdout/stderr.
-// It returns a function that can be called to stop the Vite server.
-func startViteServer(ctx context.Context) (*exec.Cmd, error) {
-	log.Printf("Starting Vite development server...\n")
-
-	// Create the command to run task dev:vite
-	cmd := exec.CommandContext(ctx, "task", "dev:vite")
-
-	// Get pipes for stdout and stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stdout pipe: %w", err)
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stderr pipe: %w", err)
-	}
-
-	// Start the command
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start Vite server: %w", err)
-	}
-
-	// Copy stdout to our stdout
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			fmt.Printf("[vite] %s\n", scanner.Text())
-		}
-	}()
-
-	// Copy stderr to our stderr
-	go func() {
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			fmt.Fprintln(os.Stderr, "[vite]", scanner.Text())
-		}
-	}()
-
-	log.Printf("Vite development server started\n")
-	return cmd, nil
-}
 
 // RunServer initializes and runs the Outrig server
 func RunServer() error {
@@ -298,7 +225,7 @@ func RunServer() error {
 	}
 
 	// Run web servers (HTTP and WebSocket)
-	err = runWebServers()
+	err = web.RunAllWebServers()
 	if err != nil {
 		return fmt.Errorf("error starting web servers: %w", err)
 	}
