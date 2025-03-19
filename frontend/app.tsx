@@ -4,6 +4,7 @@ import { Check, Moon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
+import { ToastContainer } from "./elements/toast";
 import { Tooltip } from "./elements/tooltip";
 import { GoRoutines } from "./goroutines/goroutines";
 import { DefaultRpcClient } from "./init";
@@ -158,6 +159,7 @@ function App() {
     const darkMode = useAtomValue(AppModel.darkMode);
     const selectedTab = useAtomValue(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
+    const [toasts, setToasts] = useAtom(AppModel.toasts);
 
     useEffect(() => {
         AppModel.applyTheme();
@@ -209,6 +211,11 @@ function App() {
         };
     }, [selectedAppRunId, selectedTab]); // Re-run when selectedAppRunId or selectedTab changes
 
+    // Handle toast removal
+    const handleToastClose = (id: string) => {
+        AppModel.removeToast(id);
+    };
+
     return (
         <div className="h-screen w-screen flex flex-col bg-panel">
             <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
@@ -256,6 +263,9 @@ function App() {
 
             {/* Status bar */}
             <StatusBar />
+
+            {/* Toast container */}
+            <ToastContainer toasts={toasts} onClose={handleToastClose} />
         </div>
     );
 }

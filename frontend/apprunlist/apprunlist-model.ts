@@ -15,6 +15,9 @@ class AppRunModel {
     // Flag to indicate we need a full refresh of app runs data after reconnection
     needsFullAppRunsRefresh: boolean = false;
 
+    // Flag to track if this is the first load after page initialization
+    isInitialLoad: boolean = true;
+
     appRunsTimeoutId: NodeJS.Timeout = null;
 
     constructor() {
@@ -41,6 +44,8 @@ class AppRunModel {
     }
 
     async loadAppRuns() {
+        console.log("[AppRunModel] Loading app runs, isInitialLoad:", this.isInitialLoad);
+        
         // If we need a full refresh, reset the lastUpdateTime to 0
         if (this.needsFullAppRunsRefresh) {
             console.log("[AppRunModel] Performing full refresh of app runs after reconnection");
@@ -72,8 +77,13 @@ class AppRunModel {
         }
         // If there are no app runs or no newer timestamps, keep the previous lastUpdateTime value
 
-        // Handle auto-follow functionality
-        this.handleAutoFollow();
+        // Handle auto-follow functionality, but skip toast on initial load
+        this.handleAutoFollow(this.isInitialLoad);
+        
+        // After first load, set isInitialLoad to false
+        if (this.isInitialLoad) {
+            this.isInitialLoad = false;
+        }
     }
 
     // Find the "best" app run (running with latest start time)
@@ -98,7 +108,8 @@ class AppRunModel {
     }
 
     // Handle auto-follow logic
-    handleAutoFollow() {
+    handleAutoFollow(isInitialLoad: boolean) {
+        console.log("[AppRunModel] Handling auto-follow, isInitialLoad:", isInitialLoad);
         const autoFollow = getDefaultStore().get(AppModel.autoFollow);
         if (!autoFollow) {
             return; // Auto-follow is disabled, do nothing
@@ -114,14 +125,61 @@ class AppRunModel {
             return;
         }
 
-        // If there's no best app run or no current selection, or they match, do nothing
-        if (!bestAppRun || !bestAppRun.apprunid || bestAppRun.apprunid === currentAppRunId) {
+        // If there's no best app run or no current selection, do nothing
+        if (!bestAppRun || !bestAppRun.apprunid) {
+            return;
+        }
+        
+        // Check if we're already on the best app run
+        if (bestAppRun.apprunid === currentAppRunId) {
+            // We're already on the best app run, no need to switch or show toast
             return;
         }
 
         // If our current app run is not the best, switch to the best but stay on current tab
-        console.log(`[AutoFollow] Switching from ${currentAppRunId || "none"} to ${bestAppRun.apprunid}`);
-        AppModel.selectAppRunKeepTab(bestAppRun.apprunid);
+        console.log(`[AutoFollow] Switching from ${currentAppRunId || 'none'} to ${bestAppRun.apprunid}`);
+        
+        // First switch to the new app run
+        AppModel.selectAppRunKeepTab(bestAppRun.apprunid, true); // true indicates this is an auto-follow selection
+        
+        // Only show a toast notification if we're actually switching to a different app run
+        // AND this is not the initial page load
+        if (!isInitialLoad) {
+            const appName = bestAppRun.appname || "Unknown";
+            const shortId = bestAppRun.apprunid.substring(0, 8); // First 8 chars of the ID
+            
+            // Format the start time information
+            const startTimeInfo = this.formatStartTimeInfo(bestAppRun.starttime);
+            
+            AppModel.showToast(
+                "App Run Switched", 
+                `Auto-switched to App Run ${appName} (${shortId}) ${startTimeInfo}`,
+                3000 // 3 seconds timeout
+            );
+        }
+    }
+    
+    // Format the start time information based on how recent it is
+    private formatStartTimeInfo(startTimeMs: number): string {
+        const now = Date.now();
+        const diffSeconds = (now - startTimeMs) / 1000;
+        
+        // If started within the last 5 seconds
+        if (diffSeconds < 5) {
+            return "started just now";
+        }
+        
+        // Format the date/time
+        const startDate = new Date(startTimeMs);
+        
+        // If it's today, just show the time
+        const today = new Date();
+        if (startDate.toDateString() === today.toDateString()) {
+            return `started at ${startDate.toLocaleTimeString()}`;
+        }
+        
+        // Otherwise show the full date and time
+        return `started at ${startDate.toLocaleString()}`;
     }
 }
 

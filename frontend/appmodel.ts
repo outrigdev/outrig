@@ -1,5 +1,6 @@
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { AppRunModel } from "./apprunlist/apprunlist-model";
+import { Toast } from "./elements/toast";
 
 const AUTO_FOLLOW_STORAGE_KEY = "outrig:autoFollow";
 
@@ -15,6 +16,9 @@ class AppModel {
     selectedTab: PrimitiveAtom<string> = atom("appruns"); // Default to app runs list view
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
     autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AUTO_FOLLOW_STORAGE_KEY) !== "false"); // Default to true if not set
+
+    // Toast notifications
+    toasts: PrimitiveAtom<Toast[]> = atom<Toast[]>([]);
 
     // App run selection
     selectedAppRunId: PrimitiveAtom<string> = atom<string>("");
@@ -123,16 +127,44 @@ class AppModel {
 
     // loadAppRunGoroutines is now handled by the GoRoutinesModel
 
-    selectAppRun(appRunId: string) {
+    selectAppRun(appRunId: string, isAutoFollowSelection = false) {
         getDefaultStore().set(this.selectedAppRunId, appRunId);
         this.updateUrl({ appRunId: appRunId });
         this.selectLogsTab();
+
+        // If this is a manual selection (not from auto-follow), check if we should disable auto-follow
+        if (!isAutoFollowSelection) {
+            this.checkAndDisableAutoFollow(appRunId);
+        }
     }
 
     // Select an app run without changing the current tab
-    selectAppRunKeepTab(appRunId: string) {
+    selectAppRunKeepTab(appRunId: string, isAutoFollowSelection = false) {
         getDefaultStore().set(this.selectedAppRunId, appRunId);
         this.updateUrl({ appRunId: appRunId });
+
+        // If this is a manual selection (not from auto-follow), check if we should disable auto-follow
+        if (!isAutoFollowSelection) {
+            this.checkAndDisableAutoFollow(appRunId);
+        }
+    }
+
+    // Check if the selected app run is not the "best" one, and if so, disable auto-follow
+    private checkAndDisableAutoFollow(appRunId: string) {
+        const bestAppRun = this.appRunModel.findBestAppRun();
+        if (bestAppRun && bestAppRun.apprunid !== appRunId) {
+            // The selected app run is not the best one, disable auto-follow
+            const autoFollow = getDefaultStore().get(this.autoFollow);
+            if (autoFollow) {
+                console.log(`[AppModel] Disabling auto-follow because user selected a non-best app run`);
+                this.setAutoFollow(false);
+                this.showToast(
+                    "Auto-Follow Disabled",
+                    "Auto-follow was disabled because you selected an older app run.",
+                    3000
+                );
+            }
+        }
     }
 
     // Clear the selected app run and go to app runs tab
@@ -199,6 +231,25 @@ class AppModel {
             const appRuns = get(this.appRunModel.appRuns);
             return appRuns.find((run) => run.apprunid === appRunId);
         });
+    }
+
+    // Toast management
+    showToast(title: string, message: string, timeout?: number): string {
+        const id = Date.now().toString();
+        const toast: Toast = { id, title, message, timeout };
+
+        const currentToasts = getDefaultStore().get(this.toasts);
+        getDefaultStore().set(this.toasts, [...currentToasts, toast]);
+
+        return id;
+    }
+
+    removeToast(id: string) {
+        const currentToasts = getDefaultStore().get(this.toasts);
+        getDefaultStore().set(
+            this.toasts,
+            currentToasts.filter((toast) => toast.id !== id)
+        );
     }
 }
 
