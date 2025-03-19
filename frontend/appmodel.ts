@@ -1,6 +1,8 @@
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { AppRunModel } from "./apprunlist/apprunlist-model";
 
+const AUTO_FOLLOW_STORAGE_KEY = "outrig:autoFollow";
+
 // Define URL state type
 interface UrlState {
     tab?: string | null;
@@ -12,6 +14,7 @@ class AppModel {
     // UI state
     selectedTab: PrimitiveAtom<string> = atom("appruns"); // Default to app runs list view
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
+    autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AUTO_FOLLOW_STORAGE_KEY) !== "false"); // Default to true if not set
 
     // App run selection
     selectedAppRunId: PrimitiveAtom<string> = atom<string>("");
@@ -171,6 +174,11 @@ class AppModel {
         }
         this.applyTheme();
         getDefaultStore().set(this.darkMode, update);
+    }
+
+    setAutoFollow(update: boolean): void {
+        sessionStorage.setItem(AUTO_FOLLOW_STORAGE_KEY, update.toString());
+        getDefaultStore().set(this.autoFollow, update);
     }
 
     getAppRunInfoAtom(appRunId: string): Atom<AppRunInfo> {

@@ -1,9 +1,10 @@
 import { keydownWrapper } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
-import { Moon, Sun } from "lucide-react";
+import { Check, Moon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
+import { Tooltip } from "./elements/tooltip";
 import { GoRoutines } from "./goroutines/goroutines";
 import { DefaultRpcClient } from "./init";
 import { appHandleKeyDown } from "./keymodel";
@@ -59,6 +60,52 @@ function AppLogo() {
         <div className="flex items-center space-x-2">
             <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
         </div>
+    );
+}
+
+function AutoFollowButton() {
+    const autoFollow = useAtomValue(AppModel.autoFollow);
+
+    const handleToggle = () => {
+        AppModel.setAutoFollow(!autoFollow);
+    };
+
+    return (
+        <Tooltip
+            content={
+                <span>
+                    When selected, auto-follow will automatically
+                    <br />
+                    switch you to the most recent active app run.
+                </span>
+            }
+        >
+            <button
+                onClick={handleToggle}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded border transition-colors cursor-pointer ${
+                    autoFollow
+                        ? "bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20"
+                        : "bg-gray-200/30 border-gray-300 dark:bg-gray-700/30 dark:border-gray-600 hover:bg-gray-200/50 dark:hover:bg-gray-700/50"
+                }`}
+            >
+                <div
+                    className={`flex items-center justify-center w-3.5 h-3.5 rounded border ${
+                        autoFollow
+                            ? "bg-sky-500 border-sky-600"
+                            : "bg-gray-200 border-gray-300 dark:bg-gray-700 dark:border-gray-600"
+                    }`}
+                >
+                    {autoFollow && <Check size={10} className="text-white" />}
+                </div>
+                <span
+                    className={`text-xs ${
+                        autoFollow ? "text-sky-500 font-medium" : "text-gray-500 dark:text-gray-400"
+                    }`}
+                >
+                    auto-follow
+                </span>
+            </button>
+        </Tooltip>
     );
 }
 
@@ -182,12 +229,15 @@ function App() {
                         )}
                     </div>
                 </div>
-                <button
-                    onClick={() => AppModel.setDarkMode(!darkMode)}
-                    className="p-1 border-none text-secondary hover:bg-buttonhover transition-colors cursor-pointer"
-                >
-                    {darkMode ? <Moon size={16} /> : <Sun size={16} />}
-                </button>
+                <div className="flex items-center gap-2">
+                    <AutoFollowButton />
+                    <button
+                        onClick={() => AppModel.setDarkMode(!darkMode)}
+                        className="p-1 border-none text-secondary hover:bg-buttonhover transition-colors cursor-pointer"
+                    >
+                        {darkMode ? <Moon size={16} /> : <Sun size={16} />}
+                    </button>
+                </div>
             </nav>
 
             {/* Main content */}

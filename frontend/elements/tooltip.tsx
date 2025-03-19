@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 
 interface TooltipProps {
     children: React.ReactNode;
-    content: string;
+    content: React.ReactNode;
     placement?: "top" | "bottom" | "left" | "right";
 }
 
