@@ -2,8 +2,8 @@ package base
 
 // Connection mode constants
 const (
-	ConnectionModeCrashOutput = "crashoutput"
-	ConnectionModePacket      = "packet"
+	ConnectionModePacket = "packet"
+	ConnectionModeLog    = "log"
 )
 
 // Home directory paths

@@ -49,8 +49,8 @@ func (c *ControllerImpl) setupCrashOutput() (*os.File, error) {
 	// Create a ConnWrap for the connection
 	connWrap := comm.MakeConnWrap(conn, dsPath)
 	
-	// Perform the handshake
-	err = connWrap.ClientHandshake(base.ConnectionModeCrashOutput, c.AppInfo.AppRunId)
+	// Perform the handshake with log mode and crash submode
+	err = connWrap.ClientHandshake(base.ConnectionModeLog, "crash", c.AppInfo.AppRunId)
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("handshake failed: %v", err)

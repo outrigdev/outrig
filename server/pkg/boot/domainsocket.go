@@ -23,14 +23,16 @@ type PacketUnmarshalHelper struct {
 	Data json.RawMessage `json:"data"`
 }
 
-// handleCrashOutputMode handles a connection in crash output mode
-func handleCrashOutputMode(connWrap *comm.ConnWrap, appRunId string) {
+// handleLogMode handles a connection in log mode
+// The source is set to the part after "log:" in the mode line
+// Unlike other modes, lines are not trimmed
+func handleLogMode(connWrap *comm.ConnWrap, appRunId string, source string) {
 	peer := apppeer.GetAppRunPeer(appRunId)
 	if peer == nil {
-		log.Printf("Error: No AppRunPeer found for crash output app run ID: %s\n", appRunId)
+		log.Printf("Error: No AppRunPeer found for log mode app run ID: %s\n", appRunId)
 		return
 	}
-	log.Printf("Received crash output connection for app run ID: %s\n", appRunId)
+	log.Printf("Received log connection for app run ID: %s with source: %s\n", appRunId, source)
 
 	defer peer.Release()
 
@@ -38,29 +40,29 @@ func handleCrashOutputMode(connWrap *comm.ConnWrap, appRunId string) {
 	for {
 		line, err := connWrap.ReadLine()
 		if err != nil {
-			fmt.Printf("error reading from crash output connection: %v\n", err)
+			fmt.Printf("error reading from log connection: %v\n", err)
 			break
 		}
 
-		// Create a log line packet
+		// Create a log line packet (note: we don't trim the line)
 		logLine := &ds.LogLine{
 			LineNum: 0, // LineNum will be set by AppRunPeer.HandlePacket
 			Ts:      time.Now().UnixMilli(),
 			Msg:     line,
-			Source:  "crash",
+			Source:  source,
 		}
-		log.Printf("got #crashoutput line for apprun: %s\n", appRunId)
+		log.Printf("got #log line for apprun: %s from source: %s\n", appRunId, source)
 
 		// Marshal the log line to JSON
 		logData, err := json.Marshal(logLine)
 		if err != nil {
-			log.Printf("Error marshaling crash output log line: %v\n", err)
+			log.Printf("Error marshaling log line: %v\n", err)
 			continue
 		}
 
 		// Handle the packet
 		if err := peer.HandlePacket(ds.PacketTypeLog, logData); err != nil {
-			log.Printf("Error handling crash output log line: %v\n", err)
+			log.Printf("Error handling log line: %v\n", err)
 		}
 	}
 }
@@ -109,20 +111,22 @@ func handleDomainSocketConn(conn net.Conn) {
 	connWrap := comm.MakeConnWrap(conn, "domain-socket-client")
 
 	// Perform the handshake
-	mode, appRunId, err := connWrap.ServerHandshake()
+	mode, submode, appRunId, err := connWrap.ServerHandshake()
 	if err != nil {
 		log.Printf("Handshake failed: %v\n", err)
 		return
 	}
 
-	log.Printf("Connection mode: %s, app run ID: %s\n", mode, appRunId)
+	log.Printf("Connection mode: %s, submode: %s, app run ID: %s\n", mode, submode, appRunId)
 
 	// Dispatch to the appropriate handler based on the mode
 	switch mode {
-	case base.ConnectionModeCrashOutput:
-		handleCrashOutputMode(connWrap, appRunId)
 	case base.ConnectionModePacket:
 		handlePacketMode(connWrap, appRunId)
+	case base.ConnectionModeLog:
+		handleLogMode(connWrap, appRunId, submode)
+	default:
+		log.Printf("Unhandled connection mode: %s\n", mode)
 	}
 }
 

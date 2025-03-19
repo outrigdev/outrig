@@ -181,7 +181,7 @@ func (c *ControllerImpl) Connect() bool {
 	// If we have a connection, perform the handshake and setup
 	if connWrap != nil {
 		// Perform the handshake
-		err := connWrap.ClientHandshake(base.ConnectionModePacket, c.AppInfo.AppRunId)
+		err := connWrap.ClientHandshake(base.ConnectionModePacket, "", c.AppInfo.AppRunId)
 		if err != nil {
 			connWrap.Close()
 			fmt.Printf("Handshake failed with %s: %v\n", connWrap.PeerName, err)
