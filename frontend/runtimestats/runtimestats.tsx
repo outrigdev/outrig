@@ -88,7 +88,7 @@ const RuntimeStatsTooltip: React.FC<RuntimeStatsTooltipProps> = ({
 
     return (
         <>
-            <div ref={refs.setReference} {...getReferenceProps()} className="cursor-pointer">
+            <div ref={refs.setReference} {...getReferenceProps()}>
                 {children}
             </div>
             {isOpen && (
@@ -201,7 +201,7 @@ const MemoryUsageChart: React.FC<MemoryUsageChartProps> = ({ memStats }) => {
                                 segmentRefs.current[segment.id] = el;
                             }
                         }}
-                        className={`${segment.color} h-full cursor-pointer`}
+                        className={`${segment.color} h-full`}
                         style={{ width: `${segment.percent}%` }}
                         onMouseEnter={() => {
                             const element = segmentRefs.current[segment.id];
@@ -228,7 +228,7 @@ const MemoryUsageChart: React.FC<MemoryUsageChartProps> = ({ memStats }) => {
             <div className="flex flex-wrap text-xs gap-3 mb-2">
                 {segments.map((segment) => (
                     <RuntimeStatsTooltip key={segment.id} content={createTooltipContent(segment)}>
-                        <div className="flex items-center cursor-pointer">
+                        <div className="flex items-center">
                             <div className={`w-3 h-3 ${segment.color} mr-1 rounded-sm`}></div>
                             <span className="text-primary">
                                 {segment.label}: {segment.valueMB} MB

@@ -3,6 +3,9 @@ import { DefaultRpcClient } from "@/init";
 import { RpcApi } from "@/rpc/rpcclientapi";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 
+// Maximum number of runtime stats entries to keep (10 minutes of data at 1s intervals)
+const MAX_RUNTIME_STATS_ENTRIES = 600;
+
 // Create a type that combines the AppRunRuntimeStatsData with a single RuntimeStatData
 // This is for backward compatibility with the existing UI
 export type LegacyRuntimeStatsData = {
@@ -171,7 +174,12 @@ class RuntimeStatsModel {
                 const currentStats = store.get(this.allRuntimeStats);
                 
                 // Append new stats
-                const updatedStats = [...currentStats, ...result.stats];
+                let updatedStats = [...currentStats, ...result.stats];
+                
+                // Limit the array size to MAX_RUNTIME_STATS_ENTRIES
+                if (updatedStats.length > MAX_RUNTIME_STATS_ENTRIES) {
+                    updatedStats = updatedStats.slice(-MAX_RUNTIME_STATS_ENTRIES);
+                }
                 
                 // Update all stats atom
                 store.set(this.allRuntimeStats, updatedStats);
@@ -213,7 +221,12 @@ class RuntimeStatsModel {
                 const currentStats = store.get(this.allRuntimeStats);
                 
                 // Append new stats
-                const updatedStats = [...currentStats, ...result.stats];
+                let updatedStats = [...currentStats, ...result.stats];
+                
+                // Limit the array size to MAX_RUNTIME_STATS_ENTRIES
+                if (updatedStats.length > MAX_RUNTIME_STATS_ENTRIES) {
+                    updatedStats = updatedStats.slice(-MAX_RUNTIME_STATS_ENTRIES);
+                }
                 
                 // Update all stats atom
                 store.set(this.allRuntimeStats, updatedStats);
