@@ -30,6 +30,7 @@ type SearchManager struct {
 	AppPeer       *apppeer.AppRunPeer
 	LastUsed      time.Time // Timestamp of when this manager was last used
 	SearchTerm    string
+	Searcher      LogSearcher    // Cached searcher for the current search term
 	TotalCount    int            // Total number of log lines in the AppRunPeer
 	SearchedCount int            // Number of log lines that were actually searched
 	FilteredLogs  []ds.LogLine   // Filtered log lines matching the search criteria
@@ -297,9 +298,12 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 		if err != nil {
 			return rpctypes.SearchResultData{}, fmt.Errorf("failed to create searcher: %w", err)
 		}
+		// Cache the searcher
+		m.Searcher = searcher
 		err = m.performSearch_nolock(data.SearchTerm, searcher)
 		if err != nil {
 			m.SearchTerm = uuid.New().String() // set to random value to prevent using cache
+			m.Searcher = nil                   // Clear the cached searcher on error
 			return rpctypes.SearchResultData{}, err
 		}
 	}
