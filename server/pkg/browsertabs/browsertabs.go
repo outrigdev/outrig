@@ -18,8 +18,10 @@ const (
 
 // BrowserTabInfo stores information about a browser tab
 type BrowserTabInfo struct {
-	AppRunId string `json:"apprunid"`
-	Url      string `json:"url"`
+	AppRunId   string `json:"apprunid"`
+	Url        string `json:"url"`
+	Focused    bool   `json:"focused"`
+	AutoFollow bool   `json:"autofollow"`
 }
 
 // Global map to store route ID to browser tab info mapping
@@ -60,13 +62,15 @@ func Initialize() {
 }
 
 // UpdateBrowserTab updates or adds a browser tab in the tracking map
-func UpdateBrowserTab(routeId string, url string, appRunId string) {
+func UpdateBrowserTab(routeId string, data rpctypes.BrowserTabUrlData) {
 	browserTabsMutex.Lock()
 	defer browserTabsMutex.Unlock()
 
 	browserTabs[routeId] = BrowserTabInfo{
-		Url:      url,
-		AppRunId: appRunId,
+		Url:        data.Url,
+		AppRunId:   data.AppRunId,
+		Focused:    data.Focused,
+		AutoFollow: data.AutoFollow,
 	}
 }
 
@@ -125,8 +129,6 @@ func UpdateBrowserTabUrl(routeId string, data rpctypes.BrowserTabUrlData) error 
 	if routeId == "" {
 		return fmt.Errorf("no route ID provided")
 	}
-
-	log.Printf("[browsertabs] Updating browser tab for route %s: URL=%s, AppRunId=%s", routeId, data.Url, data.AppRunId)
-	UpdateBrowserTab(routeId, data.Url, data.AppRunId)
+	UpdateBrowserTab(routeId, data)
 	return nil
 }

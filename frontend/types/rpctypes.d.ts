@@ -71,6 +71,8 @@ declare global {
     type BrowserTabUrlData = {
         url: string;
         apprunid?: string;
+        focused: boolean;
+        autofollow: boolean;
     };
 
     // rpctypes.BuildInfoData

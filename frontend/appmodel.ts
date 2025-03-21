@@ -1,6 +1,8 @@
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { AppRunModel } from "./apprunlist/apprunlist-model";
 import { Toast } from "./elements/toast";
+import { DefaultRpcClient } from "./init";
+import { RpcApi } from "./rpc/rpcclientapi";
 
 const AUTO_FOLLOW_STORAGE_KEY = "outrig:autoFollow";
 
@@ -224,6 +226,9 @@ class AppModel {
     setAutoFollow(update: boolean): void {
         sessionStorage.setItem(AUTO_FOLLOW_STORAGE_KEY, update.toString());
         getDefaultStore().set(this.autoFollow, update);
+        
+        // Send updated browser tab info to the backend
+        this.sendBrowserTabUrl();
     }
 
     getAppRunInfoAtom(appRunId: string): Atom<AppRunInfo> {
@@ -250,6 +255,25 @@ class AppModel {
             this.toasts,
             currentToasts.filter((toast) => toast.id !== id)
         );
+    }
+
+    // Send the current browser tab URL to the backend
+    sendBrowserTabUrl() {
+        if (!DefaultRpcClient) return;
+
+        const currentUrl = window.location.href;
+        const selectedAppRunId = getDefaultStore().get(this.selectedAppRunId);
+        const autoFollow = getDefaultStore().get(this.autoFollow);
+
+        // Send the URL, app run ID, focus state, and autofollow state to the backend
+        RpcApi.UpdateBrowserTabUrlCommand(DefaultRpcClient, {
+            url: currentUrl,
+            apprunid: selectedAppRunId || "",
+            focused: document.hasFocus(),
+            autofollow: autoFollow,
+        }).catch((err: Error) => {
+            console.error("Failed to send URL to backend:", err);
+        });
     }
 }
 

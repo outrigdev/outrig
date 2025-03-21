@@ -173,41 +173,39 @@ function App() {
 
     // Track URL changes and send them to the backend
     useEffect(() => {
-        // Function to send the current URL to the backend
-        const sendUrlToBackend = () => {
-            if (!DefaultRpcClient) return;
-
-            const currentUrl = window.location.href;
-
-            // Send the URL and app run ID to the backend
-            RpcApi.UpdateBrowserTabUrlCommand(DefaultRpcClient, {
-                url: currentUrl,
-                apprunid: selectedAppRunId || "",
-            }).catch((err: Error) => {
-                console.error("Failed to send URL to backend:", err);
-            });
-        };
-
         // Send the URL when the component mounts or when tab/appRunId changes
-        sendUrlToBackend();
+        AppModel.sendBrowserTabUrl();
 
         // Listen for popstate events (browser back/forward buttons)
         const handlePopState = () => {
-            sendUrlToBackend();
+            AppModel.sendBrowserTabUrl();
         };
 
         // Listen for hashchange events
         const handleHashChange = () => {
-            sendUrlToBackend();
+            AppModel.sendBrowserTabUrl();
+        };
+
+        // Listen for focus/blur events to update the focused state
+        const handleFocus = () => {
+            AppModel.sendBrowserTabUrl();
+        };
+
+        const handleBlur = () => {
+            AppModel.sendBrowserTabUrl();
         };
 
         window.addEventListener("popstate", handlePopState);
         window.addEventListener("hashchange", handleHashChange);
+        window.addEventListener("focus", handleFocus);
+        window.addEventListener("blur", handleBlur);
 
         // Clean up event listeners
         return () => {
             window.removeEventListener("popstate", handlePopState);
             window.removeEventListener("hashchange", handleHashChange);
+            window.removeEventListener("focus", handleFocus);
+            window.removeEventListener("blur", handleBlur);
         };
     }, [selectedAppRunId, selectedTab]); // Re-run when selectedAppRunId or selectedTab changes
 

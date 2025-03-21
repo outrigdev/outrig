@@ -236,8 +236,10 @@ type SubscriptionRequest struct {
 
 // BrowserTabUrlData represents the data for tracking browser tabs
 type BrowserTabUrlData struct {
-	Url      string `json:"url"`
-	AppRunId string `json:"apprunid,omitempty"`
+	Url        string `json:"url"`
+	AppRunId   string `json:"apprunid,omitempty"`
+	Focused    bool   `json:"focused"`
+	AutoFollow bool   `json:"autofollow"`
 }
 
 // StackFrame represents a single frame in a goroutine stack trace
