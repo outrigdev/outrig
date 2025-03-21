@@ -3,7 +3,7 @@
 
 // Generated Code. DO NOT EDIT.
 
-package wshclient
+package rpcclient
 
 import (
 	"github.com/outrigdev/outrig/pkg/rpc"
@@ -43,12 +43,6 @@ func EventUnsubAllCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) error {
 // command "getapprungoroutines", rpctypes.GetAppRunGoRoutinesCommand
 func GetAppRunGoRoutinesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunGoRoutinesData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunGoRoutinesData](w, "getapprungoroutines", data, opts)
-	return resp, err
-}
-
-// command "getapprunlogs", rpctypes.GetAppRunLogsCommand
-func GetAppRunLogsCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunLogsData, error) {
-	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunLogsData](w, "getapprunlogs", data, opts)
 	return resp, err
 }
 

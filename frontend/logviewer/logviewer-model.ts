@@ -74,11 +74,11 @@ class LogViewerModel {
             getDefaultStore().set(this.isLoading, true);
         }, 200);
         const followOutput = getDefaultStore().get(this.followOutput);
-        
+
         const visibleItemCount = this.lastVisibleEndIndex - this.lastVisibleStartIndex + 1;
         let pagesNeeded = Math.max(1, Math.ceil(visibleItemCount / PAGESIZE));
         let requestPages: number[];
-        
+
         if (followOutput) {
             // For follow mode, add 1 to account for potentially partial last page
             pagesNeeded += 1;
@@ -99,12 +99,13 @@ class LogViewerModel {
         };
         try {
             console.log(
-                "searchtermupdate, loading page 0 for search term",
+                "searchtermupdate, loading results for search term",
                 searchTerm,
                 "@" + (Date.now() - this.createTs) + "ms"
             );
             this.setLogCacheEntry(0, "loading", []);
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
+            console.log("searchresults", results);
             this.logItemCache = [];
             getDefaultStore().set(this.totalItemCount, results.totalcount);
             getDefaultStore().set(this.searchedItemCount, results.searchedcount);
@@ -346,7 +347,7 @@ class LogViewerModel {
             },
             { noresponse: true }
         );
-        
+
         // Refresh search results after clearing all marked lines
         this.refresh();
     }

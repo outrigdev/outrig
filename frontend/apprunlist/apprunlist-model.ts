@@ -47,8 +47,6 @@ class AppRunModel {
     }
 
     async loadAppRuns() {
-        console.log("[AppRunModel] Loading app runs, isInitialLoad:", this.isInitialLoad);
-
         // If we need a full refresh, reset the lastUpdateTime to 0
         if (this.needsFullAppRunsRefresh) {
             console.log("[AppRunModel] Performing full refresh of app runs after reconnection");
@@ -167,7 +165,6 @@ class AppRunModel {
 
     // Handle auto-follow logic
     handleAutoFollow(isInitialLoad: boolean) {
-        console.log("[AppRunModel] Handling auto-follow, isInitialLoad:", isInitialLoad);
         const autoFollow = getDefaultStore().get(AppModel.autoFollow);
         if (!autoFollow) {
             return; // Auto-follow is disabled, do nothing
@@ -199,7 +196,7 @@ class AppRunModel {
 
         // Get the current tab
         const currentTab = getDefaultStore().get(AppModel.selectedTab);
-        
+
         // If we're on the app-runs tab AND this is not the initial load, switch to logs tab
         // Otherwise keep the current tab
         if (currentTab === "appruns" && !isInitialLoad) {

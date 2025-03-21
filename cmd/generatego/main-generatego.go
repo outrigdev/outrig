@@ -13,18 +13,18 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-const WshClientFileName = "pkg/rpcclient/rpcclient.go"
+const RpcClientFileName = "pkg/rpcclient/rpcclient.go"
 
 func GenerateRpcClient() error {
-	fmt.Fprintf(os.Stderr, "generating wshclient file to %s\n", WshClientFileName)
+	fmt.Fprintf(os.Stderr, "generating rpcclient file to %s\n", RpcClientFileName)
 	var buf strings.Builder
-	gogen.GenerateBoilerplate(&buf, "wshclient", []string{
+	gogen.GenerateBoilerplate(&buf, "rpcclient", []string{
 		"github.com/outrigdev/outrig/pkg/rpc",
 		"github.com/outrigdev/outrig/pkg/rpctypes",
 	})
-	wshDeclMap := rpc.GenerateRpcCommandDeclMap()
-	for _, key := range utilfn.GetOrderedMapKeys(wshDeclMap) {
-		methodDecl := wshDeclMap[key]
+	rpcDeclMap := rpc.GenerateRpcCommandDeclMap()
+	for _, key := range utilfn.GetOrderedMapKeys(rpcDeclMap) {
+		methodDecl := rpcDeclMap[key]
 		if methodDecl.CommandType == rpc.RpcType_ResponseStream {
 			gogen.GenMethod_ResponseStream(&buf, methodDecl)
 		} else if methodDecl.CommandType == rpc.RpcType_Call {
@@ -34,9 +34,9 @@ func GenerateRpcClient() error {
 		}
 	}
 	buf.WriteString("\n")
-	written, err := utilfn.WriteFileIfDifferent(WshClientFileName, []byte(buf.String()))
+	written, err := utilfn.WriteFileIfDifferent(RpcClientFileName, []byte(buf.String()))
 	if !written {
-		fmt.Fprintf(os.Stderr, "no changes to %s\n", WshClientFileName)
+		fmt.Fprintf(os.Stderr, "no changes to %s\n", RpcClientFileName)
 	}
 	return err
 }
@@ -44,7 +44,7 @@ func GenerateRpcClient() error {
 func main() {
 	err := GenerateRpcClient()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error generating wshclient: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error generating rpcclient: %v\n", err)
 		return
 	}
 }

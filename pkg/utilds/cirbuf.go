@@ -127,19 +127,20 @@ func (cb *CirBuf[T]) IsFull() bool {
 
 // GetAll returns a slice containing all elements in the buffer in order from oldest to newest.
 // This does not remove elements from the buffer.
-func (cb *CirBuf[T]) GetAll() []T {
+// It also returns the HeadOffset, which is the offset of the first element in the buffer.
+func (cb *CirBuf[T]) GetAll() ([]T, int) {
 	cb.Lock.Lock()
 	defer cb.Lock.Unlock()
 
 	size := cb.size_nolock()
 	if size == 0 {
-		return []T{}
+		return []T{}, cb.HeadOffset
 	}
 
 	result := make([]T, size)
 
 	if cb.Buf == nil {
-		return result
+		return result, cb.HeadOffset
 	}
 
 	// Copy elements from head to end of buffer
@@ -152,7 +153,7 @@ func (cb *CirBuf[T]) GetAll() []T {
 		copy(result[n:], cb.Buf[:cb.Tail])
 	}
 
-	return result
+	return result, cb.HeadOffset
 }
 
 func (cb *CirBuf[T]) GetTotalCountAndHeadOffset() (int, int) {

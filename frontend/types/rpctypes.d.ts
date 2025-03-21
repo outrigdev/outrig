@@ -30,13 +30,6 @@ declare global {
         executable?: string;
     };
 
-    // rpctypes.AppRunLogsData
-    type AppRunLogsData = {
-        apprunid: string;
-        appname: string;
-        logs: LogLine[];
-    };
-
     // rpctypes.AppRunRequest
     type AppRunRequest = {
         apprunid: string;
@@ -238,6 +231,7 @@ declare global {
         filteredcount: number;
         searchedcount: number;
         totalcount: number;
+        maxcount: number;
         pages: PageData[];
     };
 
@@ -268,9 +262,12 @@ declare global {
 
     // rpctypes.StreamUpdateData
     type StreamUpdateData = {
+        widgetid: string;
         filteredcount: number;
         searchedcount: number;
         totalcount: number;
+        trimmedlines: number;
+        offset: number;
         lines: LogLine[];
     };
 

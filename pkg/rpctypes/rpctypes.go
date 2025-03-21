@@ -39,7 +39,6 @@ type FullRpcInterface interface {
 
 	// app run commands
 	GetAppRunsCommand(ctx context.Context, data AppRunUpdatesRequest) (AppRunsData, error)
-	GetAppRunLogsCommand(ctx context.Context, data AppRunRequest) (AppRunLogsData, error)
 	GetAppRunGoRoutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoRoutinesData, error)
 	GetAppRunWatchesCommand(ctx context.Context, data AppRunRequest) (AppRunWatchesData, error)
 	GetAppRunRuntimeStatsCommand(ctx context.Context, data AppRunRequest) (AppRunRuntimeStatsData, error)
@@ -86,13 +85,17 @@ type SearchResultData struct {
 	FilteredCount int        `json:"filteredcount"`
 	SearchedCount int        `json:"searchedcount"`
 	TotalCount    int        `json:"totalcount"`
+	MaxCount      int        `json:"maxcount"`
 	Pages         []PageData `json:"pages"`
 }
 
 type StreamUpdateData struct {
+	WidgetId      string       `json:"widgetid"`
 	FilteredCount int          `json:"filteredcount"`
 	SearchedCount int          `json:"searchedcount"`
 	TotalCount    int          `json:"totalcount"`
+	TrimmedLines  int          `json:"trimmedlines"`
+	Offset        int          `json:"offset"`
 	Lines         []ds.LogLine `json:"lines"`
 }
 

@@ -71,24 +71,6 @@ func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context, data rpctypes.AppRu
 	}, nil
 }
 
-// GetAppRunLogsCommand returns logs for a specific app run
-func (*RpcServerImpl) GetAppRunLogsCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunLogsData, error) {
-	// Get the app run peer
-	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
-	if peer == nil || peer.AppInfo == nil {
-		return rpctypes.AppRunLogsData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
-	}
-
-	// Get logs from the circular buffer
-	logLines := peer.Logs.GetAll()
-
-	return rpctypes.AppRunLogsData{
-		AppRunId: peer.AppRunId,
-		AppName:  peer.AppInfo.AppName,
-		Logs:     logLines,
-	}, nil
-}
-
 // GetAppRunGoRoutinesCommand returns goroutines for a specific app run
 func (*RpcServerImpl) GetAppRunGoRoutinesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunGoRoutinesData, error) {
 	return apppeer.GetAppRunGoRoutinesCommand(ctx, data)

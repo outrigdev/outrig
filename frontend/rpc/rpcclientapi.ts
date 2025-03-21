@@ -36,11 +36,6 @@ class RpcApiType {
         return client.rpcCall("getapprungoroutines", data, opts);
     }
 
-    // command "getapprunlogs" [call]
-    GetAppRunLogsCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunLogsData> {
-        return client.rpcCall("getapprunlogs", data, opts);
-    }
-
     // command "getapprunruntimestats" [call]
     GetAppRunRuntimeStatsCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunRuntimeStatsData> {
         return client.rpcCall("getapprunruntimestats", data, opts);
