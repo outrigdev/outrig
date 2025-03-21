@@ -132,21 +132,13 @@ func (m *SearchManager) GetLastUsed() time.Time {
 func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string, searchType string, searcher LogSearcher) error {
 	m.SearchTerm = searchTerm
 	m.SearchType = searchType
-	rawSource := MakeAppPeerLogSource(m.AppPeer)
-	rawSource.InitSource(searcher, 0, DefaultBackendChunkSize)
-	logCache, err := MakeLogCache(rawSource)
+	
+	logCache, err := MakeLogCache(m.AppPeer, searcher)
 	if err != nil {
 		m.SearchTerm = uuid.New().String() // set to random value to prevent using cache
 		return fmt.Errorf("failed to create log cache: %w", err)
 	}
 	m.Cache = logCache
-	doneCh := make(chan bool)
-	m.Cache.RunSearch(func() {
-		if m.Cache.IsDone() {
-			close(doneCh)
-		}
-	})
-	<-doneCh
 	return nil
 }
 
@@ -224,27 +216,17 @@ func (m *SearchManager) GetMarkedLinesMap() map[int64]bool {
 
 // RunFullSearch performs a full search using the provided searcher and returns all matching log lines
 func (m *SearchManager) RunFullSearch(searcher LogSearcher) ([]ds.LogLine, error) {
-	// Create a log source
-	logSource := MakeAppPeerLogSource(m.AppPeer)
-
-	// Initialize the source with the searcher
-	logSource.InitSource(searcher, 0, DefaultBackendChunkSize)
-
-	// Collect all matching log lines
+	// Get all log lines from the AppPeer
+	allLogs := m.AppPeer.Logs.GetAll()
+	
+	// Filter the logs based on the search criteria
 	var matchingLines []ds.LogLine
-	for {
-		lines, eof, err := logSource.SearchNextChunk()
-		if err != nil {
-			return nil, fmt.Errorf("error searching logs: %w", err)
-		}
-
-		matchingLines = append(matchingLines, lines...)
-
-		if eof {
-			break
+	for _, line := range allLogs {
+		if searcher == nil || searcher.Match(line) {
+			matchingLines = append(matchingLines, line)
 		}
 	}
-
+	
 	return matchingLines, nil
 }
 
