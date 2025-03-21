@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -150,7 +151,7 @@ func (p *AppRunPeer) RegisterSearchManager(manager SearchManagerInterface) {
 func (p *AppRunPeer) UnregisterSearchManager(manager SearchManagerInterface) {
 	p.searchLock.Lock()
 	defer p.searchLock.Unlock()
-	
+
 	// Find and remove the search manager
 	for i, m := range p.searchManagers {
 		if m == manager {
@@ -166,7 +167,7 @@ func (p *AppRunPeer) UnregisterSearchManager(manager SearchManagerInterface) {
 func (p *AppRunPeer) NotifySearchManagers(line ds.LogLine) {
 	p.searchLock.RLock()
 	defer p.searchLock.RUnlock()
-	
+
 	// Notify all registered search managers
 	for _, manager := range p.searchManagers {
 		manager.ProcessNewLine(line)
@@ -242,9 +243,12 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		// Set the line number using the atomic counter
 		logLine.LineNum = p.LineNum.Add(1)
 
+		// Normalize line endings in the log message
+		logLine.Msg = normalizeLineEndings(logLine.Msg)
+
 		// Add log line to circular buffer
 		p.Logs.Write(logLine)
-		
+
 		// Notify all registered search managers about the new log line
 		p.NotifySearchManagers(logLine)
 
@@ -343,6 +347,25 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 	}
 
 	return nil
+}
+
+// normalizeLineEndings ensures consistent line endings in log messages
+func normalizeLineEndings(msg string) string {
+	// remove all \r characters (converts windows-style line endings to unix-style)
+	// internal \r characters are also likely problematic
+	msg = strings.ReplaceAll(msg, "\r", "")
+
+	// Ensure the message has at least one newline at the end
+	if !strings.HasSuffix(msg, "\n") {
+		msg = msg + "\n"
+	}
+
+	// Replace multiple consecutive newlines at the end with a single newline
+	for strings.HasSuffix(msg, "\n\n") {
+		msg = msg[:len(msg)-1]
+	}
+
+	return msg
 }
 
 // SetConnectionClosed is deprecated, use Release instead
