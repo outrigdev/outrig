@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/boot"
-	"github.com/outrigdev/outrig/server/pkg/gorun"
+	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/spf13/cobra"
 )
@@ -65,7 +65,7 @@ func captureLogsSource(source string, input io.Reader, output io.Writer) error {
 func runCaptureLogs(cmd *cobra.Command, args []string) error {
 	// Create a file for fd 3 (stderr input)
 	stderrIn := os.NewFile(3, "stderr-in")
-	
+
 	// Get the source flag value
 	source, _ := cmd.Flags().GetString("source")
 	if source == "" {
@@ -102,21 +102,25 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// processDevFlag checks if the --dev flag is present in the arguments and returns
+// the filtered arguments (without --dev) and a boolean indicating if --dev was found
+func processDevFlag(args []string) ([]string, bool) {
+	isDev := false
+	filteredArgs := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg == "--dev" {
+			isDev = true
+		} else {
+			filteredArgs = append(filteredArgs, arg)
+		}
+	}
+	return filteredArgs, isDev
+}
+
 func main() {
 	// Set serverbase version from main version (which gets overridden by build tags)
 	serverbase.OutrigVersion = OutrigVersion
 	serverbase.OutrigBuildTime = OutrigBuildTime
-
-	// Check if we should run the go command
-	args, isDev, shouldRun := gorun.ShouldRunGoCommand()
-	if shouldRun {
-		err := gorun.RunGoCommand(args, isDev)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error executing command: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
 
 	// Create the root command
 	rootCmd := &cobra.Command{
@@ -157,14 +161,52 @@ func main() {
 		Long:  `Capture logs from stdin (stdout of the process) and fd 3 (stderr of the process) and write them to stdout and stderr respectively.`,
 		RunE:  runCaptureLogs,
 	}
-	
+
 	// Add source flag to capturelogs command
 	captureLogsCmd.Flags().String("source", "", "Override the source name for stdout logs (default: /dev/stdout)")
+
+	// Create the run command
+	runCmd := &cobra.Command{
+		Use:   "run [go-args]",
+		Short: "Run a Go program with Outrig logging",
+		Long: `Run a Go program with Outrig logging. All arguments after run are passed to the go command.
+Note: The --dev flag must come before the run command to be recognized as an Outrig flag.
+Example: outrig --dev run main.go`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			filteredArgs, isDev := processDevFlag(args)
+			goArgs := append([]string{"go", "run"}, filteredArgs...)
+			return execlogwrap.ExecCommand(goArgs, isDev)
+		},
+		// Disable flag parsing for this command so all flags are passed to the go command
+		DisableFlagParsing: true,
+	}
+
+	// Create the exec command
+	execCmd := &cobra.Command{
+		Use:   "exec [command]",
+		Short: "Execute a command with Outrig logging",
+		Long: `Execute a command with Outrig logging. All arguments after exec are passed to the command.
+Note: The --dev flag must come before the exec command to be recognized as an Outrig flag.
+Example: outrig --dev exec ls -latrh`,
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			filteredArgs, isDev := processDevFlag(args)
+			return execlogwrap.ExecCommand(filteredArgs, isDev)
+		},
+		// Disable flag parsing for this command so all flags are passed to the executed command
+		DisableFlagParsing: true,
+	}
 
 	// Add commands to the root command
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(captureLogsCmd)
+	rootCmd.AddCommand(execCmd)
+	rootCmd.AddCommand(runCmd)
+
+	// Add dev flag to root command (will be inherited by all subcommands)
+	rootCmd.PersistentFlags().Bool("dev", false, "Run in development mode")
 
 	// Execute the root command
 	if err := rootCmd.Execute(); err != nil {

@@ -1,11 +1,10 @@
-package gorun
+package execlogwrap
 
 import (
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -117,41 +116,8 @@ func ProcessLogData(source string, data []byte) {
 	}
 }
 
-// shouldRunGoCommand checks if the command line arguments indicate we should run the go command
-// It returns the processed arguments, a flag indicating if dev mode is enabled, and a flag indicating if we should run the go command
-func ShouldRunGoCommand() ([]string, bool, bool) {
-	newArgs := make([]string, 0, len(os.Args))
-	newArgs = append(newArgs, "go") // Replace "outrig" with "go"
-
-	isDev := false
-	foundRun := false
-
-	// Process all arguments
-	for i := 1; i < len(os.Args); i++ {
-		// Check for --dev flag before the "run" command
-		if os.Args[i] == "--dev" && !foundRun {
-			isDev = true
-			continue // Skip this argument
-		}
-
-		// If we find a non-flag argument that isn't "run", we're not running a go command
-		if !strings.HasPrefix(os.Args[i], "-") && !foundRun {
-			if os.Args[i] != "run" {
-				// Not a "run" command, so we're not running a go command
-				return nil, false, false
-			}
-			foundRun = true
-		}
-
-		// Add the argument to the new args list
-		newArgs = append(newArgs, os.Args[i])
-	}
-
-	return newArgs, isDev, foundRun
-}
-
 // runGoCommand executes a go command with the provided arguments
-func RunGoCommand(args []string, isDev bool) error {
+func ExecCommand(args []string, isDev bool) error {
 	// Generate a UUID for the app run ID
 	appRunId := uuid.New().String()
 
