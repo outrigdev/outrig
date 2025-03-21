@@ -46,7 +46,7 @@ func MakeLogCache(appPeer *apppeer.AppRunPeer, searcher LogSearcher) (*LogCache,
 			lc.FilteredLogs = append(lc.FilteredLogs, line)
 		}
 	}
-	log.Printf("LogCache: filtered %d lines in %sms\n", len(lc.FilteredLogs), time.Since(startTs).Milliseconds())
+	log.Printf("LogCache: filtered %d lines in %dms\n", len(lc.FilteredLogs), time.Since(startTs).Milliseconds())
 
 	return lc, nil
 }

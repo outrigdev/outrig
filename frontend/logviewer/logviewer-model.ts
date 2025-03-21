@@ -74,7 +74,19 @@ class LogViewerModel {
             getDefaultStore().set(this.isLoading, true);
         }, 200);
         const followOutput = getDefaultStore().get(this.followOutput);
-        const requestPages = followOutput ? [-1] : [0];
+        
+        const visibleItemCount = this.lastVisibleEndIndex - this.lastVisibleStartIndex + 1;
+        let pagesNeeded = Math.max(1, Math.ceil(visibleItemCount / PAGESIZE));
+        let requestPages: number[];
+        
+        if (followOutput) {
+            // For follow mode, add 1 to account for potentially partial last page
+            pagesNeeded += 1;
+            requestPages = Array.from({ length: pagesNeeded }, (_, i) => -pagesNeeded + i);
+        } else {
+            const startPage = Math.floor(this.lastVisibleStartIndex / PAGESIZE);
+            requestPages = Array.from({ length: pagesNeeded }, (_, i) => startPage + i);
+        }
 
         const cmdPromiseFn = () => {
             return RpcApi.LogSearchRequestCommand(DefaultRpcClient, {
