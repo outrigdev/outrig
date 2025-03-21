@@ -47,9 +47,11 @@ func Initialize() {
 
 	// Register an event handler for route down events
 	browserTabsRpcClient.EventListener.On(rpctypes.Event_RouteDown, func(event *rpctypes.EventType) {
-		routeId := event.Sender
-		log.Printf("[browsertabs] Route down event for %s", routeId)
-		RemoveBrowserTab(routeId)
+		if len(event.Scopes) > 0 {
+			routeId := event.Scopes[0]
+			log.Printf("[browsertabs] Route down event for %s", routeId)
+			RemoveBrowserTab(routeId)
+		}
 	})
 
 	outrig.WatchSync("browsertabs", &browserTabsMutex, &browserTabs)

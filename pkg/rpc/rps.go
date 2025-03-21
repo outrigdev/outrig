@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
@@ -26,6 +27,7 @@ var Broker = &BrokerType{
 
 func init() {
 	Broker.SetClient(DefaultRouter)
+	outrig.WatchSync("rpc-brokersubs", Broker.Lock, &Broker.SubMap)
 }
 
 type EventType = rpctypes.EventType

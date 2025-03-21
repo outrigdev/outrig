@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 )
@@ -75,7 +77,29 @@ func MakeFeBlockRouteId(blockId string) string {
 	return "feblock:" + blockId
 }
 
+func init() {
+	// Register a watch function that returns a sorted list of RouteMap keys
+	outrig.WatchFunc("rpcroutes", func() []string {
+		return DefaultRouter.GetRouteKeys()
+	}, nil)
+}
+
 var DefaultRouter = NewWshRouter()
+
+// GetRouteKeys returns a sorted list of all route keys in the router
+func (router *WshRouter) GetRouteKeys() []string {
+	router.Lock.Lock()
+	defer router.Lock.Unlock()
+	
+	keys := make([]string, 0, len(router.RouteMap))
+	for key := range router.RouteMap {
+		keys = append(keys, key)
+	}
+	
+	// Sort the keys for consistent ordering
+	sort.Strings(keys)
+	return keys
+}
 
 func NewWshRouter() *WshRouter {
 	rtn := &WshRouter{
