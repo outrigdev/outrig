@@ -16,7 +16,7 @@ type ExactSearcher struct {
 }
 
 // MakeExactSearcher creates a new exact match searcher
-func MakeExactSearcher(searchTerm string, caseSensitive bool) *ExactSearcher {
+func MakeExactSearcher(searchTerm string, caseSensitive bool) LogSearcher {
 	if !caseSensitive {
 		searchTerm = strings.ToLower(searchTerm)
 	}
@@ -27,7 +27,7 @@ func MakeExactSearcher(searchTerm string, caseSensitive bool) *ExactSearcher {
 }
 
 // Match checks if the log line contains the search term
-func (s *ExactSearcher) Match(line ds.LogLine) bool {
+func (s *ExactSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
 	msg := line.Msg
 	if !s.caseSensitive {
 		msg = strings.ToLower(msg)

@@ -18,7 +18,7 @@ type RegexpSearcher struct {
 }
 
 // MakeRegexpSearcher creates a new regexp searcher
-func MakeRegexpSearcher(searchTerm string, caseSensitive bool) (*RegexpSearcher, error) {
+func MakeRegexpSearcher(searchTerm string, caseSensitive bool) (LogSearcher, error) {
 	var regex *regexp.Regexp
 	var err error
 	
@@ -42,7 +42,7 @@ func MakeRegexpSearcher(searchTerm string, caseSensitive bool) (*RegexpSearcher,
 }
 
 // Match checks if the log line matches the regular expression
-func (s *RegexpSearcher) Match(line ds.LogLine) bool {
+func (s *RegexpSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
 	return s.regex.MatchString(line.Msg)
 }
 

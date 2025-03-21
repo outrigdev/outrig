@@ -147,9 +147,15 @@ func (m *SearchManager) performSearch_nolock(searchTerm string, searcher LogSear
 	// Clear previous filtered logs
 	m.FilteredLogs = []ds.LogLine{}
 
+	// Create search context with marked lines
+	// We can use the MarkedLines map directly since we're holding the lock
+	sctx := &SearchContext{
+		MarkedLines: m.MarkedLines,
+	}
+
 	// Filter the logs based on the search criteria
 	for _, line := range allLogs {
-		if searcher == nil || searcher.Match(line) {
+		if searcher == nil || searcher.Match(sctx, line) {
 			m.FilteredLogs = append(m.FilteredLogs, line)
 		}
 	}
@@ -232,13 +238,22 @@ func (m *SearchManager) GetMarkedLinesMap() map[int64]bool {
 
 // RunFullSearch performs a full search using the provided searcher and returns all matching log lines
 func (m *SearchManager) RunFullSearch(searcher LogSearcher) ([]ds.LogLine, error) {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+
 	// Get all log lines from the AppPeer
 	allLogs := m.AppPeer.Logs.GetAll()
+
+	// Create search context with marked lines
+	// We can use the MarkedLines map directly since we're holding the lock
+	sctx := &SearchContext{
+		MarkedLines: m.MarkedLines,
+	}
 
 	// Filter the logs based on the search criteria
 	var matchingLines []ds.LogLine
 	for _, line := range allLogs {
-		if searcher == nil || searcher.Match(line) {
+		if searcher == nil || searcher.Match(sctx, line) {
 			matchingLines = append(matchingLines, line)
 		}
 	}
@@ -254,7 +269,7 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 	}
 
 	// Create a marked searcher
-	searcher := MakeMarkedSearcher(m)
+	searcher := MakeMarkedSearcher()
 
 	// Run the full search with the marked searcher
 	markedLines, err := m.RunFullSearch(searcher)
@@ -268,7 +283,7 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 // SearchRequest handles a search request for logs
 func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
 	// Create searcher before acquiring the lock
-	searcher, err := GetSearcher(data.SearchTerm, m)
+	searcher, err := GetSearcher(data.SearchTerm)
 	if err != nil {
 		return rpctypes.SearchResultData{}, fmt.Errorf("failed to create searcher: %w", err)
 	}

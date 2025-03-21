@@ -13,14 +13,14 @@ type OrSearcher struct {
 }
 
 // MakeOrSearcher creates a new OR searcher from a slice of searchers
-func MakeOrSearcher(searchers []LogSearcher) *OrSearcher {
+func MakeOrSearcher(searchers []LogSearcher) LogSearcher {
 	return &OrSearcher{
 		searchers: searchers,
 	}
 }
 
 // Match checks if the log line matches any contained searcher
-func (s *OrSearcher) Match(line ds.LogLine) bool {
+func (s *OrSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
 	// If we have no searchers, nothing matches
 	if len(s.searchers) == 0 {
 		return false
@@ -28,7 +28,7 @@ func (s *OrSearcher) Match(line ds.LogLine) bool {
 	
 	// Check if the line matches any searcher
 	for _, searcher := range s.searchers {
-		if searcher.Match(line) {
+		if searcher.Match(sctx, line) {
 			return true
 		}
 	}

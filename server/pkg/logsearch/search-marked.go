@@ -8,23 +8,16 @@ import (
 )
 
 // MarkedSearcher is a searcher that matches lines that are marked
-type MarkedSearcher struct {
-	markedLines map[int64]bool
-}
+type MarkedSearcher struct {}
 
 // MakeMarkedSearcher creates a new MarkedSearcher
-func MakeMarkedSearcher(manager *SearchManager) LogSearcher {
-	// Get a copy of the marked lines map
-	markedLines := manager.GetMarkedLinesMap()
-
-	return &MarkedSearcher{
-		markedLines: markedLines,
-	}
+func MakeMarkedSearcher() LogSearcher {
+	return &MarkedSearcher{}
 }
 
 // Match checks if a log line is marked
-func (s *MarkedSearcher) Match(line ds.LogLine) bool {
-	_, exists := s.markedLines[line.LineNum]
+func (s *MarkedSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
+	_, exists := sctx.MarkedLines[line.LineNum]
 	return exists
 }
 

@@ -20,7 +20,7 @@ type FzfSearcher struct {
 }
 
 // MakeFzfSearcher creates a new FZF searcher
-func MakeFzfSearcher(searchTerm string, caseSensitive bool) (*FzfSearcher, error) {
+func MakeFzfSearcher(searchTerm string, caseSensitive bool) (LogSearcher, error) {
 	pattern := []rune(searchTerm)
 	slab := util.MakeSlab(64, 4096)
 
@@ -33,7 +33,7 @@ func MakeFzfSearcher(searchTerm string, caseSensitive bool) (*FzfSearcher, error
 }
 
 // Match checks if the log line matches the fuzzy search pattern
-func (s *FzfSearcher) Match(line ds.LogLine) bool {
+func (s *FzfSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
 	var msg string
 	
 	// Apply case sensitivity

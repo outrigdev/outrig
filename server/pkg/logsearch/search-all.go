@@ -12,12 +12,12 @@ import (
 type AllSearcher struct{}
 
 // MakeAllSearcher creates a new searcher that matches all log lines
-func MakeAllSearcher() *AllSearcher {
+func MakeAllSearcher() LogSearcher {
 	return &AllSearcher{}
 }
 
 // Match always returns true
-func (s *AllSearcher) Match(line ds.LogLine) bool {
+func (s *AllSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
 	return true
 }
 

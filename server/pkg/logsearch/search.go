@@ -22,24 +22,29 @@ const (
 	SearchTypeNot        = "not"
 )
 
+// SearchContext contains runtime context for search operations
+type SearchContext struct {
+	MarkedLines map[int64]bool
+	// Future fields can be added here without changing the interface
+}
+
 // LogSearcher defines the interface for different search strategies
 type LogSearcher interface {
 	// Match checks if a log line matches the search criteria
-	Match(line ds.LogLine) bool
+	Match(sctx *SearchContext, line ds.LogLine) bool
 
 	// GetType returns the search type identifier
 	GetType() string
 }
 
 // GetSearcher returns the appropriate searcher based on the search term
-// The manager parameter is required for creating marked searchers
-func GetSearcher(searchTerm string, manager *SearchManager) (LogSearcher, error) {
+func GetSearcher(searchTerm string) (LogSearcher, error) {
 	tokens := searchparser.TokenizeSearch(searchTerm)
 	if len(tokens) == 0 {
 		return MakeAllSearcher(), nil
 	}
 	if len(tokens) == 1 {
-		return MakeSearcherFromToken(tokens[0], manager)
+		return MakeSearcherFromToken(tokens[0])
 	}
 	
 	// Check if we have OR tokens
@@ -52,7 +57,7 @@ func GetSearcher(searchTerm string, manager *SearchManager) (LogSearcher, error)
 	}
 	
 	// Create searchers from tokens
-	searchers, err := CreateSearchersFromTokens(tokens, manager)
+	searchers, err := CreateSearchersFromTokens(tokens)
 	if err != nil {
 		return nil, err
 	}

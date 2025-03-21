@@ -13,14 +13,14 @@ type AndSearcher struct {
 }
 
 // MakeAndSearcher creates a new AND searcher from a slice of searchers
-func MakeAndSearcher(searchers []LogSearcher) *AndSearcher {
+func MakeAndSearcher(searchers []LogSearcher) LogSearcher {
 	return &AndSearcher{
 		searchers: searchers,
 	}
 }
 
 // Match checks if the log line matches all contained searchers
-func (s *AndSearcher) Match(line ds.LogLine) bool {
+func (s *AndSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
 	// If we have no searchers, everything matches
 	if len(s.searchers) == 0 {
 		return true
@@ -28,7 +28,7 @@ func (s *AndSearcher) Match(line ds.LogLine) bool {
 	
 	// Check if the line matches all searchers
 	for _, searcher := range s.searchers {
-		if !searcher.Match(line) {
+		if !searcher.Match(sctx, line) {
 			return false
 		}
 	}

@@ -13,16 +13,16 @@ type NotSearcher struct {
 }
 
 // MakeNotSearcher creates a new NOT searcher that inverts the result of the provided searcher
-func MakeNotSearcher(searcher LogSearcher) *NotSearcher {
+func MakeNotSearcher(searcher LogSearcher) LogSearcher {
 	return &NotSearcher{
 		searcher: searcher,
 	}
 }
 
 // Match checks if the log line does NOT match the contained searcher
-func (s *NotSearcher) Match(line ds.LogLine) bool {
+func (s *NotSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
 	// Invert the match result of the contained searcher
-	return !s.searcher.Match(line)
+	return !s.searcher.Match(sctx, line)
 }
 
 // GetType returns the search type identifier

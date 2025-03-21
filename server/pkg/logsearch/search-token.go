@@ -4,8 +4,6 @@
 package logsearch
 
 import (
-	"fmt"
-
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
@@ -13,13 +11,10 @@ import (
 type SearchToken = searchparser.SearchToken
 
 // createSearcherFromUnmodifiedToken creates a searcher from a token without considering the IsNot field
-func createSearcherFromUnmodifiedToken(token SearchToken, manager *SearchManager) (LogSearcher, error) {
+func createSearcherFromUnmodifiedToken(token SearchToken) (LogSearcher, error) {
 	// Handle empty search term and special case for marked searcher
 	if token.Type == SearchTypeMarked {
-		if manager == nil {
-			return nil, fmt.Errorf("marked searcher requires a search manager")
-		}
-		return MakeMarkedSearcher(manager), nil
+		return MakeMarkedSearcher(), nil
 	}
 
 	// Handle empty search term
@@ -48,9 +43,9 @@ func createSearcherFromUnmodifiedToken(token SearchToken, manager *SearchManager
 }
 
 // MakeSearcherFromToken creates a searcher from a single token
-func MakeSearcherFromToken(token SearchToken, manager *SearchManager) (LogSearcher, error) {
+func MakeSearcherFromToken(token SearchToken) (LogSearcher, error) {
 	// Create the base searcher
-	searcher, err := createSearcherFromUnmodifiedToken(token, manager)
+	searcher, err := createSearcherFromUnmodifiedToken(token)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +59,7 @@ func MakeSearcherFromToken(token SearchToken, manager *SearchManager) (LogSearch
 }
 
 // CreateSearchersFromTokens creates a slice of searchers from tokens
-func CreateSearchersFromTokens(tokens []SearchToken, manager *SearchManager) ([]LogSearcher, error) {
+func CreateSearchersFromTokens(tokens []SearchToken) ([]LogSearcher, error) {
 	// Handle empty tokens list
 	if len(tokens) == 0 {
 		return []LogSearcher{MakeAllSearcher()}, nil
@@ -83,7 +78,7 @@ func CreateSearchersFromTokens(tokens []SearchToken, manager *SearchManager) ([]
 	if !hasOrToken {
 		searchers := make([]LogSearcher, len(tokens))
 		for i, token := range tokens {
-			searcher, err := MakeSearcherFromToken(token, manager)
+			searcher, err := MakeSearcherFromToken(token)
 			if err != nil {
 				return nil, err
 			}
@@ -113,7 +108,7 @@ func CreateSearchersFromTokens(tokens []SearchToken, manager *SearchManager) ([]
 		}
 		
 		// Regular token, add to current group
-		searcher, err := MakeSearcherFromToken(token, manager)
+		searcher, err := MakeSearcherFromToken(token)
 		if err != nil {
 			return nil, err
 		}
