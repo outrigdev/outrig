@@ -14,10 +14,43 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
+
+// WSInfo contains information about a WebSocket connection
+type WSInfo struct {
+	ConnId  string `json:"connid"`
+	RouteId string `json:"routeid"`
+}
+
+func init() {
+	// Register a watch function that returns a map of connection ID to WSInfo
+	outrig.WatchFunc("websockets", func() map[string]WSInfo {
+		return GetAllWSInfo()
+	}, nil)
+}
+
+// GetAllWSInfo returns a map of connection ID to WSInfo for all WebSocket connections
+func GetAllWSInfo() map[string]WSInfo {
+	keys := ConnMap.Keys()
+	result := make(map[string]WSInfo, len(keys))
+	
+	for _, key := range keys {
+		wsModel := ConnMap.Get(key)
+		if wsModel != nil {
+			info := WSInfo{
+				ConnId:  wsModel.ConnId,
+				RouteId: wsModel.RouteId,
+			}
+			result[key] = info
+		}
+	}
+	
+	return result
+}
 
 const wsReadWaitTimeout = 15 * time.Second
 const wsWriteWaitTimeout = 10 * time.Second
