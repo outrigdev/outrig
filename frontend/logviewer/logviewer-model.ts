@@ -143,6 +143,22 @@ class LogViewerModel {
         this.lastVisibleStartIndex = start;
         this.lastVisibleEndIndex = end;
 
+        if (getDefaultStore().get(this.isLoading)) {
+            // If loading, don't fetch pages
+            return;
+        }
+
+        // virtuoso is slow to update, so we need to do this adjustment
+        const followOutput = getDefaultStore().get(this.followOutput);
+        if (followOutput) {
+            const totalCount = getDefaultStore().get(this.totalItemCount);
+            const visibleCount = end - start;
+            end = totalCount;
+            start = Math.max(0, totalCount - visibleCount);
+            this.lastVisibleStartIndex = start;
+            this.lastVisibleEndIndex = end;
+        }
+
         const startPage = Math.floor(start / PAGESIZE);
         const endPage = Math.floor(end / PAGESIZE);
         console.log("setRenderedRange", start, end, startPage, endPage);
@@ -212,7 +228,6 @@ class LogViewerModel {
         const startTime = Date.now();
         try {
             console.log("fetchlogpage, loading page " + page + " for search term", searchTerm);
-            console.trace();
             this.setLogCacheEntry(page, "loading", []);
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
             getDefaultStore().set(this.totalItemCount, results.totalcount);
