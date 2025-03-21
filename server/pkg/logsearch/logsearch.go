@@ -291,56 +291,35 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 		}
 	}
 
-	// Calculate total number of pages
+	// Get requested pages of log lines
 	filteredSize := len(m.FilteredLogs)
-	totalPages := filteredSize / data.PageSize
-	if filteredSize%data.PageSize != 0 {
-		totalPages++
-	}
+	totalPages := (filteredSize + data.PageSize - 1) / data.PageSize // Ceiling division
 
-	// Resolve page numbers (handle negative indices)
-	resolvedPages := make(map[int]bool)
-	resolvedPageNums := make([]int, 0, len(data.RequestPages))
+	// Process requested pages and collect results
+	pages := make([]rpctypes.PageData, 0, len(data.RequestPages))
+	seenPages := make(map[int]bool)
 
 	for _, pageNum := range data.RequestPages {
-		resolvedPageNum := pageNum
-
-		// Handle negative page numbers (counting from the end)
+		// Handle negative indices (counting from end)
+		resolvedPage := pageNum
 		if pageNum < 0 {
-			resolvedPageNum = totalPages + pageNum // e.g., -1 becomes totalPages-1 (last page)
+			resolvedPage = totalPages + pageNum
 		}
 
-		// Ensure page number is within valid range [0, totalPages-1]
-		if resolvedPageNum >= 0 && resolvedPageNum < totalPages {
-			// Only add each page once (avoid duplicates)
-			if _, exists := resolvedPages[resolvedPageNum]; !exists {
-				resolvedPages[resolvedPageNum] = true
-				resolvedPageNums = append(resolvedPageNums, resolvedPageNum)
-			}
+		// Skip if out of range or already processed
+		if resolvedPage < 0 || resolvedPage >= totalPages || seenPages[resolvedPage] {
+			continue
 		}
-	}
+		seenPages[resolvedPage] = true
 
-	// Collect pages of log lines
-	pages := make([]rpctypes.PageData, 0, len(resolvedPageNums))
-	for _, pageNum := range resolvedPageNums {
-		startIndex := pageNum * data.PageSize
-		endIndex := startIndex + data.PageSize
+		// Calculate slice bounds
+		startIndex := resolvedPage * data.PageSize
+		endIndex := utilfn.BoundValue(startIndex+data.PageSize, startIndex, filteredSize)
 
-		// Ensure indices are within valid bounds
-		startIndex = utilfn.BoundValue(startIndex, 0, filteredSize)
-		endIndex = utilfn.BoundValue(endIndex, startIndex, filteredSize)
-
-		// Get the page lines
-		var pageLines []ds.LogLine
-		if startIndex < endIndex {
-			pageLines = m.FilteredLogs[startIndex:endIndex]
-		} else {
-			pageLines = []ds.LogLine{}
-		}
-
+		// Add page to results
 		pages = append(pages, rpctypes.PageData{
-			PageNum: pageNum,
-			Lines:   pageLines,
+			PageNum: resolvedPage,
+			Lines:   m.FilteredLogs[startIndex:endIndex],
 		})
 	}
 
