@@ -252,7 +252,7 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 // SearchRequest handles a search request for logs
 func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
 	// Create searcher before acquiring the lock
-	searcher, err := GetSearcher(data.SearchType, data.SearchTerm, m)
+	searcher, err := GetSearcher(data.SearchTerm, m)
 	if err != nil {
 		return rpctypes.SearchResultData{}, fmt.Errorf("failed to create searcher: %w", err)
 	}
@@ -269,7 +269,7 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	// If the search term has changed, create a new cache
 	// Note: searchType is now optional and will be determined by the parser
 	if data.SearchTerm != m.SearchTerm {
-		err := m.setUpNewLogCache_nolock(data.SearchTerm, data.SearchType, searcher)
+		err := m.setUpNewLogCache_nolock(data.SearchTerm, "", searcher)
 		if err != nil {
 			return rpctypes.SearchResultData{}, err
 		}
