@@ -1,6 +1,7 @@
 import { DefaultRpcClient } from "@/init";
 import { PromiseQueue } from "@/util/promisequeue";
 import { Atom, atom, getDefaultStore, Getter, PrimitiveAtom } from "jotai";
+import { unstable_batchedUpdates } from "react-dom";
 import { VirtuosoHandle } from "react-virtuoso";
 import { RpcApi } from "../rpc/rpcclientapi";
 
@@ -107,17 +108,19 @@ class LogViewerModel {
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
             console.log("searchresults", results);
             this.logItemCache = [];
-            getDefaultStore().set(this.totalItemCount, results.totalcount);
-            getDefaultStore().set(this.searchedItemCount, results.searchedcount);
-            getDefaultStore().set(this.filteredItemCount, results.filteredcount);
-            for (let i = 0; i < results.pages.length; i++) {
-                const page = results.pages[i];
-                this.setLogCacheEntry(page.pagenum, "loaded", page.lines ?? []);
-            }
-            // If following output, scroll to bottom
-            if (followOutput) {
-                this.scrollToBottom();
-            }
+            unstable_batchedUpdates(() => {
+                getDefaultStore().set(this.totalItemCount, results.totalcount);
+                getDefaultStore().set(this.searchedItemCount, results.searchedcount);
+                getDefaultStore().set(this.filteredItemCount, results.filteredcount);
+                for (let i = 0; i < results.pages.length; i++) {
+                    const page = results.pages[i];
+                    this.setLogCacheEntry(page.pagenum, "loaded", page.lines ?? []);
+                }
+                // If following output, scroll to bottom
+                if (followOutput) {
+                    this.scrollToBottom();
+                }
+            });
             // Use setTimeout to allow any scrolling to complete
             setTimeout(() => {
                 // Fetch the pages for the last visible range
@@ -142,6 +145,7 @@ class LogViewerModel {
 
         const startPage = Math.floor(start / PAGESIZE);
         const endPage = Math.floor(end / PAGESIZE);
+        console.log("setRenderedRange", start, end, startPage, endPage);
         for (let i = startPage; i <= endPage; i++) {
             this.fetchLogPage(i);
         }
@@ -208,6 +212,7 @@ class LogViewerModel {
         const startTime = Date.now();
         try {
             console.log("fetchlogpage, loading page " + page + " for search term", searchTerm);
+            console.trace();
             this.setLogCacheEntry(page, "loading", []);
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
             getDefaultStore().set(this.totalItemCount, results.totalcount);

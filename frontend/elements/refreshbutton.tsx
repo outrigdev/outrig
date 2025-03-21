@@ -49,3 +49,4 @@ export const RefreshButton = React.memo<RefreshButtonProps>(
         );
     }
 );
+RefreshButton.displayName = 'RefreshButton';

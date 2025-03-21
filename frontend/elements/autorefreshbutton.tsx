@@ -43,3 +43,4 @@ export const AutoRefreshButton = React.memo<AutoRefreshButtonProps>(
         );
     }
 );
+AutoRefreshButton.displayName = 'AutoRefreshButton';

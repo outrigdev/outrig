@@ -94,6 +94,7 @@ const LogLineItem = React.memo<LogLineItemProps>(({ index, model }) => {
         </div>
     );
 });
+LogLineItem.displayName = 'LogLineItem';
 
 // EOF component
 const EofItem = React.memo(() => (
@@ -104,6 +105,7 @@ const EofItem = React.memo(() => (
         </div>
     </div>
 ));
+EofItem.displayName = 'EofItem';
 
 // Follow Button component
 interface FollowButtonProps {
@@ -138,6 +140,7 @@ const FollowButton = React.memo<FollowButtonProps>(({ model }) => {
         </Tooltip>
     );
 });
+FollowButton.displayName = 'FollowButton';
 
 // Filter component
 interface LogViewerFilterProps {
@@ -232,6 +235,7 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, cl
         </div>
     );
 });
+LogViewerFilter.displayName = 'LogViewerFilter';
 
 // LogList component for rendering the virtualized list of logs
 interface LogListProps {
@@ -351,6 +355,8 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         [model]
     );
 
+    console.log("LogList render", filteredItemCount, followOutput, dimensions);
+
     let listElem = (
         <Virtuoso
             ref={virtuosoRef}
@@ -372,6 +378,7 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         </div>
     );
 });
+LogList.displayName = 'LogList';
 
 // Marked Lines Indicator component
 interface MarkedLinesIndicatorProps {
@@ -418,6 +425,7 @@ const MarkedLinesIndicator = React.memo<MarkedLinesIndicatorProps>(({ model }) =
         </div>
     );
 });
+MarkedLinesIndicator.displayName = 'MarkedLinesIndicator';
 
 // Log content component
 interface LogViewerContentProps {
@@ -449,6 +457,7 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
         </div>
     );
 });
+LogViewerContent.displayName = 'LogViewerContent';
 
 interface LogViewerInternalProps {
     model: LogViewerModel;
@@ -490,6 +499,7 @@ const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
         </div>
     );
 });
+LogViewerInternal.displayName = 'LogViewerInternal';
 
 interface LogViewerProps {
     appRunId: string;
@@ -506,3 +516,4 @@ export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
 
     return <LogViewerInternal key={props.appRunId} model={model} />;
 });
+LogViewer.displayName = 'LogViewer';
