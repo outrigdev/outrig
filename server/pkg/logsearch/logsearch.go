@@ -3,6 +3,7 @@ package logsearch
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
 )
 
@@ -22,14 +24,16 @@ const (
 
 // SearchManager handles search functionality for a specific widget
 type SearchManager struct {
-	Lock        *sync.Mutex
-	WidgetId    string
-	AppRunId    string
-	AppPeer     *apppeer.AppRunPeer
-	LastUsed    time.Time // Timestamp of when this manager was last used
-	SearchTerm  string
-	Cache       *LogCache
-	MarkedLines map[int64]bool // Map of line numbers that are marked
+	Lock          *sync.Mutex
+	WidgetId      string
+	AppRunId      string
+	AppPeer       *apppeer.AppRunPeer
+	LastUsed      time.Time // Timestamp of when this manager was last used
+	SearchTerm    string
+	TotalCount    int            // Total number of log lines in the AppRunPeer
+	SearchedCount int            // Number of log lines that were actually searched
+	FilteredLogs  []ds.LogLine   // Filtered log lines matching the search criteria
+	MarkedLines   map[int64]bool // Map of line numbers that are marked
 }
 
 // NewSearchManager creates a new SearchManager for a specific widget
@@ -128,15 +132,29 @@ func (m *SearchManager) GetLastUsed() time.Time {
 	return m.LastUsed
 }
 
-func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string, searcher LogSearcher) error {
+func (m *SearchManager) performSearch_nolock(searchTerm string, searcher LogSearcher) error {
+	startTs := time.Now()
 	m.SearchTerm = searchTerm
-	
-	logCache, err := MakeLogCache(m.AppPeer, searcher)
-	if err != nil {
-		m.SearchTerm = uuid.New().String() // set to random value to prevent using cache
-		return fmt.Errorf("failed to create log cache: %w", err)
+
+	// Get total count of logs
+	totalCount, _ := m.AppPeer.Logs.GetTotalCountAndHeadOffset()
+	m.TotalCount = totalCount
+
+	// Get all log lines from the circular buffer
+	allLogs := m.AppPeer.Logs.GetAll()
+	m.SearchedCount = len(allLogs)
+
+	// Clear previous filtered logs
+	m.FilteredLogs = []ds.LogLine{}
+
+	// Filter the logs based on the search criteria
+	for _, line := range allLogs {
+		if searcher == nil || searcher.Match(line) {
+			m.FilteredLogs = append(m.FilteredLogs, line)
+		}
 	}
-	m.Cache = logCache
+
+	log.Printf("SearchManager: filtered %d/%d lines in %dms\n", len(m.FilteredLogs), m.SearchedCount, time.Since(startTs).Milliseconds())
 	return nil
 }
 
@@ -216,7 +234,7 @@ func (m *SearchManager) GetMarkedLinesMap() map[int64]bool {
 func (m *SearchManager) RunFullSearch(searcher LogSearcher) ([]ds.LogLine, error) {
 	// Get all log lines from the AppPeer
 	allLogs := m.AppPeer.Logs.GetAll()
-	
+
 	// Filter the logs based on the search criteria
 	var matchingLines []ds.LogLine
 	for _, line := range allLogs {
@@ -224,7 +242,7 @@ func (m *SearchManager) RunFullSearch(searcher LogSearcher) ([]ds.LogLine, error
 			matchingLines = append(matchingLines, line)
 		}
 	}
-	
+
 	return matchingLines, nil
 }
 
@@ -264,16 +282,17 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	}
 	m.LastUsed = time.Now()
 
-	// If the search term has changed, create a new cache
+	// If the search term has changed, perform a new search
 	if data.SearchTerm != m.SearchTerm {
-		err := m.setUpNewLogCache_nolock(data.SearchTerm, searcher)
+		err := m.performSearch_nolock(data.SearchTerm, searcher)
 		if err != nil {
+			m.SearchTerm = uuid.New().String() // set to random value to prevent using cache
 			return rpctypes.SearchResultData{}, err
 		}
 	}
 
 	// Calculate total number of pages
-	filteredSize := m.Cache.GetFilteredSize()
+	filteredSize := len(m.FilteredLogs)
 	totalPages := filteredSize / data.PageSize
 	if filteredSize%data.PageSize != 0 {
 		totalPages++
@@ -306,7 +325,19 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	for _, pageNum := range resolvedPageNums {
 		startIndex := pageNum * data.PageSize
 		endIndex := startIndex + data.PageSize
-		pageLines := m.Cache.GetRange(startIndex, endIndex)
+
+		// Ensure indices are within valid bounds
+		startIndex = utilfn.BoundValue(startIndex, 0, filteredSize)
+		endIndex = utilfn.BoundValue(endIndex, startIndex, filteredSize)
+
+		// Get the page lines
+		var pageLines []ds.LogLine
+		if startIndex < endIndex {
+			pageLines = m.FilteredLogs[startIndex:endIndex]
+		} else {
+			pageLines = []ds.LogLine{}
+		}
+
 		pages = append(pages, rpctypes.PageData{
 			PageNum: pageNum,
 			Lines:   pageLines,
@@ -315,8 +346,8 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 
 	return rpctypes.SearchResultData{
 		FilteredCount: filteredSize,
-		SearchedCount: m.Cache.GetSearchedSize(),
-		TotalCount:    m.Cache.GetTotalSize(),
+		SearchedCount: m.SearchedCount,
+		TotalCount:    m.TotalCount,
 		Pages:         pages,
 	}, nil
 }
