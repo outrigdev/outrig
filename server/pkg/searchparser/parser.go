@@ -213,9 +213,9 @@ func (p *Parser) readRegexpToken() string {
 }
 
 // parseSimpleToken parses a simple token (quoted, single-quoted, or plain)
-func (p *Parser) parseSimpleToken(defaultType string) (string, string, bool) {
+func (p *Parser) parseSimpleToken() (string, string, bool) {
 	var token string
-	var tokenType string = defaultType
+	var tokenType string = "exact" // Default type is "exact"
 
 	if p.ch == '"' {
 		// Double quoted tokens
@@ -242,7 +242,7 @@ func (p *Parser) parseSimpleToken(defaultType string) (string, string, bool) {
 
 // parseUnmodifiedToken parses a token that is not negated (not preceded by -)
 // This includes fuzzy tokens, regexp tokens, hash tokens, and simple tokens
-func (p *Parser) parseUnmodifiedToken(searchType string) (SearchToken, bool) {
+func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 	var token string
 	var tokenType string
 
@@ -257,7 +257,7 @@ func (p *Parser) parseUnmodifiedToken(searchType string) (SearchToken, bool) {
 		}
 
 		// Parse the simple token
-		simpleToken, simpleType, valid := p.parseSimpleToken(searchType)
+		simpleToken, simpleType, valid := p.parseSimpleToken()
 		if !valid {
 			return SearchToken{}, false
 		}
@@ -299,7 +299,7 @@ func (p *Parser) parseUnmodifiedToken(searchType string) (SearchToken, bool) {
 
 		// If we've reached the end of the input or whitespace, create a token for just "#"
 		if p.ch == 0 || unicode.IsSpace(p.ch) {
-			tokenType = searchType
+			tokenType = "exact" // Default to exact search
 			token = "#"
 		} else {
 			// Read the token after #
@@ -315,14 +315,14 @@ func (p *Parser) parseUnmodifiedToken(searchType string) (SearchToken, bool) {
 				token = "" // The marked searcher doesn't need a search term
 			} else {
 				// For other cases, search for "#token" literally
-				tokenType = searchType
+				tokenType = "exact" // Default to exact search
 				token = "#" + token
 			}
 		}
 	} else {
 		// Parse a regular simple token
 		var valid bool
-		token, tokenType, valid = p.parseSimpleToken(searchType)
+		token, tokenType, valid = p.parseSimpleToken()
 		if !valid {
 			return SearchToken{}, false
 		}
@@ -336,21 +336,21 @@ func (p *Parser) parseUnmodifiedToken(searchType string) (SearchToken, bool) {
 }
 
 // parseNotToken parses a token that is negated (preceded by -)
-func (p *Parser) parseNotToken(searchType string) (SearchToken, bool) {
+func (p *Parser) parseNotToken() (SearchToken, bool) {
 	// Skip the - character
 	p.readChar()
 	
 	// If we've reached the end of the input or whitespace, treat '-' as a literal token
 	if p.ch == 0 || unicode.IsSpace(p.ch) {
 		return SearchToken{
-			Type:       searchType,
+			Type:       "exact", // Default to exact search
 			SearchTerm: "-",
 			IsNot:      false,
 		}, true
 	}
 	
 	// Parse the unmodified token
-	unmodifiedToken, valid := p.parseUnmodifiedToken(searchType)
+	unmodifiedToken, valid := p.parseUnmodifiedToken()
 	if !valid {
 		return SearchToken{}, false
 	}
@@ -362,18 +362,18 @@ func (p *Parser) parseNotToken(searchType string) (SearchToken, bool) {
 }
 
 // parseToken parses a single token, which can be either a not_token or an unmodified_token
-func (p *Parser) parseToken(searchType string) (SearchToken, bool) {
+func (p *Parser) parseToken() (SearchToken, bool) {
 	// Check for not operator (-)
 	if p.ch == '-' {
-		return p.parseNotToken(searchType)
+		return p.parseNotToken()
 	}
 	
 	// Parse an unmodified token
-	return p.parseUnmodifiedToken(searchType)
+	return p.parseUnmodifiedToken()
 }
 
 // parseAndExpr parses a sequence of tokens (AND expression)
-func (p *Parser) parseAndExpr(searchType string) []SearchToken {
+func (p *Parser) parseAndExpr() []SearchToken {
 	var tokens []SearchToken
 
 	for p.ch != 0 && p.ch != '|' {
@@ -386,7 +386,7 @@ func (p *Parser) parseAndExpr(searchType string) []SearchToken {
 		}
 
 		// Parse a token
-		token, valid := p.parseToken(searchType)
+		token, valid := p.parseToken()
 		if !valid {
 			continue
 		}
@@ -399,7 +399,7 @@ func (p *Parser) parseAndExpr(searchType string) []SearchToken {
 }
 
 // parseOrExpr parses an OR expression (and_expr { "|" and_expr })
-func (p *Parser) parseOrExpr(searchType string) [][]SearchToken {
+func (p *Parser) parseOrExpr() [][]SearchToken {
 	var orGroups [][]SearchToken
 
 	// Handle the case where the expression starts with a pipe
@@ -414,7 +414,7 @@ func (p *Parser) parseOrExpr(searchType string) [][]SearchToken {
 		orGroups = append(orGroups, []SearchToken{})
 		
 		// Parse the expression after the pipe
-		andTokens := p.parseAndExpr(searchType)
+		andTokens := p.parseAndExpr()
 		orGroups = append(orGroups, andTokens)
 		
 		// Continue parsing if there are more pipes
@@ -426,7 +426,7 @@ func (p *Parser) parseOrExpr(searchType string) [][]SearchToken {
 			p.skipWhitespace()
 			
 			// Parse the next AND expression
-			andTokens = p.parseAndExpr(searchType)
+			andTokens = p.parseAndExpr()
 			orGroups = append(orGroups, andTokens)
 		}
 		
@@ -434,7 +434,7 @@ func (p *Parser) parseOrExpr(searchType string) [][]SearchToken {
 	}
 
 	// Parse the first AND expression
-	andTokens := p.parseAndExpr(searchType)
+	andTokens := p.parseAndExpr()
 	orGroups = append(orGroups, andTokens)
 
 	// Parse additional AND expressions separated by "|"
@@ -446,7 +446,7 @@ func (p *Parser) parseOrExpr(searchType string) [][]SearchToken {
 		p.skipWhitespace()
 		
 		// Parse the next AND expression
-		andTokens = p.parseAndExpr(searchType)
+		andTokens = p.parseAndExpr()
 		orGroups = append(orGroups, andTokens)
 	}
 
@@ -454,7 +454,7 @@ func (p *Parser) parseOrExpr(searchType string) [][]SearchToken {
 }
 
 // Parse parses the input string into a slice of tokens with OR groups
-func (p *Parser) Parse(searchType string) []SearchToken {
+func (p *Parser) Parse() []SearchToken {
 	// Special case for a single pipe character
 	if p.ch == '|' && p.peek(1) == 0 {
 		return []SearchToken{
@@ -467,7 +467,7 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 	}
 	
 	// Parse the OR expression
-	orGroups := p.parseOrExpr(searchType)
+	orGroups := p.parseOrExpr()
 	
 	// If there's only one group, return it directly
 	if len(orGroups) <= 1 {
@@ -499,11 +499,11 @@ func (p *Parser) Parse(searchType string) []SearchToken {
 }
 
 // TokenizeSearch splits a search string into tokens using the parser
-func TokenizeSearch(searchType string, searchString string) []SearchToken {
+func TokenizeSearch(searchString string) []SearchToken {
 	searchString = strings.TrimSpace(searchString)
 	if searchString == "" {
 		return []SearchToken{}
 	}
 	parser := NewParser(searchString)
-	return parser.Parse(searchType)
+	return parser.Parse()
 }

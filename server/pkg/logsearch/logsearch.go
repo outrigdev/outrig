@@ -28,7 +28,6 @@ type SearchManager struct {
 	AppPeer     *apppeer.AppRunPeer
 	LastUsed    time.Time // Timestamp of when this manager was last used
 	SearchTerm  string
-	SearchType  string
 	Cache       *LogCache
 	MarkedLines map[int64]bool // Map of line numbers that are marked
 }
@@ -129,9 +128,8 @@ func (m *SearchManager) GetLastUsed() time.Time {
 	return m.LastUsed
 }
 
-func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string, searchType string, searcher LogSearcher) error {
+func (m *SearchManager) setUpNewLogCache_nolock(searchTerm string, searcher LogSearcher) error {
 	m.SearchTerm = searchTerm
-	m.SearchType = searchType
 	
 	logCache, err := MakeLogCache(m.AppPeer, searcher)
 	if err != nil {
@@ -267,9 +265,8 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	m.LastUsed = time.Now()
 
 	// If the search term has changed, create a new cache
-	// Note: searchType is now optional and will be determined by the parser
 	if data.SearchTerm != m.SearchTerm {
-		err := m.setUpNewLogCache_nolock(data.SearchTerm, "", searcher)
+		err := m.setUpNewLogCache_nolock(data.SearchTerm, searcher)
 		if err != nil {
 			return rpctypes.SearchResultData{}, err
 		}

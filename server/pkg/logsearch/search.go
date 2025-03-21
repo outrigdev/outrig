@@ -32,13 +32,9 @@ type LogSearcher interface {
 }
 
 // GetSearcher returns the appropriate searcher based on the search term
-// "exact" is used as the default search type
 // The manager parameter is required for creating marked searchers
 func GetSearcher(searchTerm string, manager *SearchManager) (LogSearcher, error) {
-	// Default search type is "exact"
-	defaultSearchType := SearchTypeExact
-	
-	tokens := searchparser.TokenizeSearch(defaultSearchType, searchTerm)
+	tokens := searchparser.TokenizeSearch(searchTerm)
 	if len(tokens) == 0 {
 		return MakeAllSearcher(), nil
 	}
