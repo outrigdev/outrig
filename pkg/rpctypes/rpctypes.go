@@ -76,7 +76,6 @@ type SearchRequestData struct {
 	SearchType   string `json:"searchtype,omitempty"`
 	PageSize     int    `json:"pagesize"`
 	RequestPages []int  `json:"requestpages"`
-	Stream       bool   `json:"stream"`
 }
 
 type PageData struct {

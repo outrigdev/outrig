@@ -102,9 +102,9 @@ declare global {
 
     // EventType union (rpctypes.EventToTypeMap)
     type EventType = 
+        | (EventCommonFields & { event: "route:up"; data?: null })
         | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
         | (EventCommonFields & { event: "route:down"; data?: null })
-        | (EventCommonFields & { event: "route:up"; data?: null })
     ;
 
     // ds.LogLine
@@ -230,7 +230,6 @@ declare global {
         searchtype?: string;
         pagesize: number;
         requestpages: number[];
-        stream: boolean;
     };
 
     // rpctypes.SearchResultData

@@ -95,7 +95,6 @@ class LogViewerModel {
                 searchterm: searchTerm,
                 pagesize: PAGESIZE,
                 requestpages: requestPages,
-                stream: false,
             });
         };
         try {
@@ -203,7 +202,6 @@ class LogViewerModel {
                 searchterm: searchTerm,
                 pagesize: PAGESIZE,
                 requestpages: [page],
-                stream: false,
             });
         };
         const startTime = Date.now();
