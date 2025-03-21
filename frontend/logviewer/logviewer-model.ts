@@ -346,6 +346,9 @@ class LogViewerModel {
             },
             { noresponse: true }
         );
+        
+        // Refresh search results after clearing all marked lines
+        this.refresh();
     }
 
     getMarkedLinesCount(): number {
