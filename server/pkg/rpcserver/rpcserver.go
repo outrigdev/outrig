@@ -116,6 +116,10 @@ func (*RpcServerImpl) LogWidgetAdminCommand(ctx context.Context, data rpctypes.L
 	if manager == nil {
 		return nil
 	}
+
+	// Store the RPC source with proper synchronization
+	manager.SetRpcSource(ctx)
+
 	// Drop takes precedence over KeepAlive
 	if data.Drop {
 		logsearch.DropManager(data.WidgetId)

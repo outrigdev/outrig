@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/ds"
+	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -22,24 +24,84 @@ const (
 	MaxIdleTime       = 1 * time.Minute
 )
 
+// SearchManagerInfo contains thread-safe information about a SearchManager
+type SearchManagerInfo struct {
+	WidgetId         string    `json:"widgetid"`
+	AppRunId         string    `json:"apprunid"`
+	LastUsedTime     time.Time `json:"lastusedtime"`
+	SearchTerm       string    `json:"searchterm"`
+	FilteredLogCount int       `json:"filteredlogcount"`
+	MarkedLinesCount int       `json:"markedlinescount"`
+	RpcSource        string    `json:"rpcsource,omitempty"`
+}
+
 // SearchManager handles search functionality for a specific widget
 type SearchManager struct {
 	Lock          *sync.Mutex
 	WidgetId      string
 	AppRunId      string
-	AppPeer       *apppeer.AppRunPeer
-	LastUsed      time.Time // Timestamp of when this manager was last used
+	AppPeer       *apppeer.AppRunPeer // Will never be nil
+	LastUsed      time.Time           // Timestamp of when this manager was last used
 	SearchTerm    string
 	Searcher      LogSearcher    // Cached searcher for the current search term
 	TotalCount    int            // Total number of log lines in the AppRunPeer
 	SearchedCount int            // Number of log lines that were actually searched
 	FilteredLogs  []ds.LogLine   // Filtered log lines matching the search criteria
 	MarkedLines   map[int64]bool // Map of line numbers that are marked
+	LastLineNum   int64          // Last line number processed to avoid duplicates
+	RpcSource     string         // Source of the last RPC request that used this manager
+}
+
+// GetInfo returns a thread-safe copy of the SearchManager's information
+func (m *SearchManager) GetInfo() SearchManagerInfo {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+	
+	return SearchManagerInfo{
+		WidgetId:         m.WidgetId,
+		AppRunId:         m.AppRunId,
+		LastUsedTime:     m.LastUsed,
+		SearchTerm:       m.SearchTerm,
+		FilteredLogCount: len(m.FilteredLogs),
+		MarkedLinesCount: len(m.MarkedLines),
+		RpcSource:        m.RpcSource,
+	}
+}
+
+// ProcessNewLine processes a new log line and adds it to FilteredLogs if it matches the search criteria
+func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+
+	// Skip if we've already processed this line or an earlier one
+	if line.LineNum <= m.LastLineNum {
+		return
+	}
+
+	// Update the last line number processed
+	m.LastLineNum = line.LineNum
+
+	// Update counts
+	m.TotalCount++
+	m.SearchedCount++
+
+	// If we have a searcher, check if the line matches
+	if m.Searcher != nil {
+		// Create search context with marked lines
+		sctx := &SearchContext{
+			MarkedLines: m.MarkedLines,
+		}
+
+		// If the line matches, add it to FilteredLogs
+		if m.Searcher.Match(sctx, line) {
+			m.FilteredLogs = append(m.FilteredLogs, line)
+		}
+	}
 }
 
 // NewSearchManager creates a new SearchManager for a specific widget
 func NewSearchManager(widgetId string, appPeer *apppeer.AppRunPeer) *SearchManager {
-	return &SearchManager{
+	manager := &SearchManager{
 		Lock:        &sync.Mutex{},
 		WidgetId:    widgetId,
 		AppPeer:     appPeer,
@@ -47,14 +109,24 @@ func NewSearchManager(widgetId string, appPeer *apppeer.AppRunPeer) *SearchManag
 		SearchTerm:  uuid.New().String(), // pick a random value that will never match a real search term
 		MarkedLines: make(map[int64]bool),
 	}
+
+	// Register this manager with the AppRunPeer
+	appPeer.RegisterSearchManager(manager)
+
+	return manager
 }
 
 // WidgetId => SearchManager
 var widgetManagers = utilds.MakeSyncMap[*SearchManager]()
 
-// init starts the background cleanup routine
+// init starts the background cleanup routine and registers watches
 func init() {
 	go cleanupRoutine()
+	
+	// Register a watch function that returns a map of widget ID to SearchManagerInfo
+	outrig.WatchFunc("searchmanagers", func() map[string]SearchManagerInfo {
+		return GetAllSearchManagerInfos()
+	}, nil)
 }
 
 // cleanupRoutine periodically checks for and removes unused search managers
@@ -75,7 +147,7 @@ func cleanupSearchManagers() {
 	for _, key := range keys {
 		manager := widgetManagers.Get(key)
 		if now.Sub(manager.GetLastUsed()) > MaxIdleTime {
-			widgetManagers.Delete(key)
+			deleteSearchManager(manager)
 		} else {
 			managers = append(managers, manager)
 		}
@@ -85,7 +157,7 @@ func cleanupSearchManagers() {
 			return managers[i].GetLastUsed().Before(managers[j].GetLastUsed())
 		})
 		for _, manager := range managers[:len(managers)-MaxSearchManagers] {
-			widgetManagers.Delete(manager.WidgetId)
+			deleteSearchManager(manager)
 		}
 	}
 }
@@ -115,9 +187,21 @@ func GetOrCreateManager(widgetId string, appRunId string) *SearchManager {
 	return manager
 }
 
+// deleteSearchManager removes a SearchManager from the widgetManagers map and unregisters it from the AppRunPeer
+func deleteSearchManager(manager *SearchManager) {
+	// Unregister from AppRunPeer
+	manager.AppPeer.UnregisterSearchManager(manager)
+
+	// Delete from widgetManagers map
+	widgetManagers.Delete(manager.WidgetId)
+}
+
 // DropManager removes a SearchManager for the given widget ID
 func DropManager(widgetId string) {
-	widgetManagers.Delete(widgetId)
+	manager := widgetManagers.Get(widgetId)
+	if manager != nil {
+		deleteSearchManager(manager)
+	}
 }
 
 // UpdateLastUsed updates the LastUsed timestamp for a SearchManager
@@ -159,6 +243,14 @@ func (m *SearchManager) performSearch_nolock(searchTerm string, searcher LogSear
 		if searcher == nil || searcher.Match(sctx, line) {
 			m.FilteredLogs = append(m.FilteredLogs, line)
 		}
+	}
+
+	// Reset LastLineNum and set it to the highest line number (last line)
+	// since logs are stored in line number order
+	if len(allLogs) > 0 {
+		m.LastLineNum = allLogs[len(allLogs)-1].LineNum
+	} else {
+		m.LastLineNum = 0
 	}
 
 	log.Printf("SearchManager: filtered %d/%d lines in %dms\n", len(m.FilteredLogs), m.SearchedCount, time.Since(startTs).Milliseconds())
@@ -237,6 +329,14 @@ func (m *SearchManager) GetMarkedLinesMap() map[int64]bool {
 	return markedLinesCopy
 }
 
+// SetRpcSource updates the RpcSource field with proper synchronization
+func (m *SearchManager) SetRpcSource(ctx context.Context) {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+	
+	m.RpcSource = rpc.GetRpcSourceFromContext(ctx)
+}
+
 // RunFullSearch performs a full search using the provided searcher and returns all matching log lines
 func (m *SearchManager) RunFullSearch(searcher LogSearcher) ([]ds.LogLine, error) {
 	m.Lock.Lock()
@@ -291,6 +391,9 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 		return rpctypes.SearchResultData{}, fmt.Errorf("app peer not found for app run ID: %s", data.AppRunId)
 	}
 	m.LastUsed = time.Now()
+	
+	// Store the RPC source
+	m.RpcSource = rpc.GetRpcSourceFromContext(ctx)
 
 	// If the search term has changed, perform a new search
 	if data.SearchTerm != m.SearchTerm {
@@ -346,4 +449,20 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 		TotalCount:    m.TotalCount,
 		Pages:         pages,
 	}, nil
+}
+
+// GetAllSearchManagerInfos returns a map of widget ID to SearchManagerInfo for all search managers
+func GetAllSearchManagerInfos() map[string]SearchManagerInfo {
+	keys := widgetManagers.Keys()
+	result := make(map[string]SearchManagerInfo, len(keys))
+	
+	for _, key := range keys {
+		manager := widgetManagers.Get(key)
+		if manager != nil {
+			info := manager.GetInfo()
+			result[key] = info
+		}
+	}
+	
+	return result
 }

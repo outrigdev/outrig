@@ -22,6 +22,11 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
 
+// SearchManagerInterface defines the interface for search managers
+type SearchManagerInterface interface {
+	ProcessNewLine(line ds.LogLine)
+}
+
 const LogLineBufferSize = 10000
 const GoRoutineStackBufferSize = 600 // 10 minutes of 1-second samples
 const WatchBufferSize = 600          // 10 minutes of 1-second samples
@@ -49,6 +54,8 @@ type AppRunPeer struct {
 	LineNum          atomic.Int64                        // Atomic counter for log line numbers
 	refCount         int                                 // Reference counter
 	refLock          sync.Mutex                          // Lock for reference counter operations
+	searchManagers   []SearchManagerInterface            // Registered search managers
+	searchLock       sync.RWMutex                        // Lock for search managers
 }
 
 type GoRoutine struct {
@@ -130,6 +137,42 @@ func (p *AppRunPeer) Release() {
 	}
 }
 
+// RegisterSearchManager registers a search manager with this AppRunPeer
+func (p *AppRunPeer) RegisterSearchManager(manager SearchManagerInterface) {
+	p.searchLock.Lock()
+	defer p.searchLock.Unlock()
+
+	// Add the search manager to the list
+	p.searchManagers = append(p.searchManagers, manager)
+}
+
+// UnregisterSearchManager removes a search manager from this AppRunPeer
+func (p *AppRunPeer) UnregisterSearchManager(manager SearchManagerInterface) {
+	p.searchLock.Lock()
+	defer p.searchLock.Unlock()
+	
+	// Find and remove the search manager
+	for i, m := range p.searchManagers {
+		if m == manager {
+			// Remove by swapping with the last element and truncating
+			p.searchManagers[i] = p.searchManagers[len(p.searchManagers)-1]
+			p.searchManagers = p.searchManagers[:len(p.searchManagers)-1]
+			break
+		}
+	}
+}
+
+// NotifySearchManagers notifies all registered search managers about a new log line
+func (p *AppRunPeer) NotifySearchManagers(line ds.LogLine) {
+	p.searchLock.RLock()
+	defer p.searchLock.RUnlock()
+	
+	// Notify all registered search managers
+	for _, manager := range p.searchManagers {
+		manager.ProcessNewLine(line)
+	}
+}
+
 // GetAllAppRunPeers returns all AppRunPeers
 func GetAllAppRunPeers() []*AppRunPeer {
 	// Get all keys from the sync map
@@ -201,6 +244,9 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 
 		// Add log line to circular buffer
 		p.Logs.Write(logLine)
+		
+		// Notify all registered search managers about the new log line
+		p.NotifySearchManagers(logLine)
 
 	case ds.PacketTypeGoroutine:
 		var goroutineInfo ds.GoroutineInfo
