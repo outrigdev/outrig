@@ -447,7 +447,7 @@ class LogViewerModel {
     }
 
     handleLogStreamUpdate = (event: CustomEvent<StreamUpdateData>) => {
-        const { widgetid, offset, lines } = event.detail;
+        const { widgetid, offset, lines, totalcount, searchedcount, filteredcount } = event.detail;
         if (widgetid !== this.widgetId) return;
         if (!lines || lines.length === 0) return;
 
@@ -462,12 +462,90 @@ class LogViewerModel {
             currentPage++;
             currentOffset = 0;
         }
+
+        // Update logCountsAtom with the latest counts from the stream update
+        getDefaultStore().set(this.logCountsAtom, {
+            total: totalcount,
+            searched: searchedcount,
+            filtered: filteredcount,
+        });
     };
 
     // Handle updates for a specific page
     handleLogStreamUpdatePage = (pageNum: number, offset: number, lines: LogLine[]) => {
-        // Stub implementation - will be implemented later
-        // console.log(`Updating page ${pageNum} at offset ${offset} with ${lines.length} lines`);
+        const store = getDefaultStore();
+        const listState = store.get(this.listAtom);
+
+        // Case 1: Page exists and is already loaded
+        if (pageNum < listState.pages.length) {
+            const pageAtom = listState.pages[pageNum];
+            const pageState = store.get(pageAtom);
+
+            if (pageState.loaded) {
+                // Page is loaded, add lines at the appropriate offset
+                // We can modify the lines array directly
+                const newLines = pageState.lines || [];
+
+                // Insert new lines at the specified offset
+                for (let i = 0; i < lines.length; i++) {
+                    if (offset + i < newLines.length) {
+                        newLines[offset + i] = lines[i];
+                    } else {
+                        newLines.push(lines[i]);
+                    }
+                }
+
+                // Create a new object identity for the page state
+                store.set(pageAtom, {
+                    ...pageState,
+                    lines: newLines,
+                    totalCount: Math.max(pageState.totalCount, offset + lines.length),
+                });
+            } else {
+                // Case 2: Page exists but isn't loaded
+                // Just update totalCount but don't set the lines
+                if (offset + lines.length > pageState.totalCount) {
+                    // Create a new object identity
+                    store.set(pageAtom, {
+                        ...pageState,
+                        totalCount: offset + lines.length,
+                    });
+                }
+            }
+        } else {
+            // Case 3: Page doesn't exist (past the end of the pages array)
+            // We need to set the full logList atom
+
+            // Create the new page atom
+            const newPageAtom = atom<LogPageInterface>({
+                lines: [], // Don't add any lines
+                totalCount: offset + lines.length,
+                loaded: false, // Set loaded to false
+            });
+
+            // Create a new pages array
+            const newPages = [...listState.pages];
+
+            // Fill any gaps with empty pages
+            while (newPages.length < pageNum) {
+                newPages.push(
+                    atom<LogPageInterface>({
+                        lines: [],
+                        totalCount: PAGESIZE,
+                        loaded: false,
+                    })
+                );
+            }
+
+            // Add the new page
+            newPages.push(newPageAtom);
+
+            // Create a new object identity for the list state
+            store.set(this.listAtom, {
+                ...listState,
+                pages: newPages,
+            });
+        }
     };
 }
 
