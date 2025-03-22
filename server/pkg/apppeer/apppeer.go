@@ -61,6 +61,7 @@ type AppRunPeer struct {
 
 type GoRoutine struct {
 	GoId        int
+	Name        string
 	StackTraces *utilds.CirBuf[ds.GoRoutineStack]
 }
 
@@ -278,6 +279,12 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 					StackTraces: utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
 				}
 			}
+			
+			// Update name if provided
+			if stack.Name != "" {
+				goroutine.Name = stack.Name
+			}
+			
 			// Add stack trace to the circular buffer
 			goroutine.StackTraces.Write(stack)
 

@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 	"golang.org/x/exp/constraints"
 )
 
@@ -191,4 +193,21 @@ func RegisterHook(name string, hookFn any) {
 	}
 	wc := watch.GetInstance()
 	wc.RegisterHook(name, hookFn, watch.WatchFlag_Hook|watch.WatchFlag_Settable)
+}
+
+func RegisterSimpleHook(name string, hookFn func() error) {
+	if hookFn == nil {
+		return
+	}
+	wc := watch.GetInstance()
+	wc.RegisterHook(name, hookFn, watch.WatchFlag_Hook|watch.WatchFlag_Settable)
+}
+
+// SetGoRoutineName sets a name for the current goroutine
+func SetGoRoutineName(name string) {
+	goId := utilfn.GetGoroutineID()
+	if goId > 0 {
+		gc := goroutine.GetInstance()
+		gc.SetGoRoutineName(goId, name)
+	}
 }

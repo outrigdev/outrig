@@ -140,7 +140,9 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
         <div className="pl-4 pr-2">
             <div className="flex justify-between items-center py-2">
                 <div className="flex items-center gap-2">
-                    <div className="font-semibold text-primary w-[135px]">Goroutine {goroutine.goid}</div>
+                    <div className="font-semibold text-primary w-[135px]">
+                        {goroutine.name ? `${goroutine.name} (${goroutine.goid})` : `Goroutine ${goroutine.goid}`}
+                    </div>
                     <div className="flex flex-wrap gap-1">
                         {goroutine.rawstate.split(",").map((state, index) => (
                             <Tag key={index} label={state.trim()} isSelected={false} variant="secondary" />

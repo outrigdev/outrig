@@ -15,9 +15,10 @@ import (
 
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
 type GoroutineCollector struct {
-	lock       sync.Mutex
-	controller ds.Controller
-	ticker     *time.Ticker
+	lock           sync.Mutex
+	controller     ds.Controller
+	ticker         *time.Ticker
+	goroutineNames map[int64]string // map from goroutine ID to name
 }
 
 // CollectorName returns the unique name of the collector
@@ -32,7 +33,9 @@ var instanceOnce sync.Once
 // GetInstance returns the singleton instance of GoroutineCollector
 func GetInstance() *GoroutineCollector {
 	instanceOnce.Do(func() {
-		instance = &GoroutineCollector{}
+		instance = &GoroutineCollector{
+			goroutineNames: make(map[int64]string),
+		}
 	})
 	return instance
 }
@@ -92,10 +95,26 @@ func (gc *GoroutineCollector) DumpGoroutines() {
 	gc.controller.SendPacket(pk)
 }
 
+// SetGoRoutineName sets a name for a goroutine
+func (gc *GoroutineCollector) SetGoRoutineName(goId int64, name string) {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	gc.goroutineNames[goId] = name
+}
+
+// GetGoRoutineName gets the name for a goroutine
+func (gc *GoroutineCollector) GetGoRoutineName(goId int64) (string, bool) {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	name, ok := gc.goroutineNames[goId]
+	return name, ok
+}
+
 // parseGoroutineStacks parses the output of runtime.Stack()
 func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.GoroutineInfo {
 	stacks := bytes.Split(stackData, []byte("\n\n"))
 	goroutineStacks := make([]ds.GoRoutineStack, 0, len(stacks))
+	activeGoroutines := make(map[int64]bool)
 
 	// Regular expression to extract goroutine ID and state
 	re := regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\]`)
@@ -116,18 +135,44 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.Gorouti
 			continue
 		}
 
-		state := matches[2]
+		// Mark this goroutine as active
+		activeGoroutines[id] = true
 
-		goroutineStacks = append(goroutineStacks, ds.GoRoutineStack{
+		state := matches[2]
+		
+		grStack := ds.GoRoutineStack{
 			GoId:       id,
 			State:      state,
 			StackTrace: strings.TrimSpace(stackStr),
-		})
+		}
+		
+		// Add name if available
+		if name, ok := gc.GetGoRoutineName(id); ok {
+			grStack.Name = name
+		}
+
+		goroutineStacks = append(goroutineStacks, grStack)
 	}
+
+	// Clean up names for goroutines that no longer exist
+	gc.cleanupGoroutineNames(activeGoroutines)
 
 	return &ds.GoroutineInfo{
 		Ts:     time.Now().UnixMilli(),
 		Count:  len(goroutineStacks),
 		Stacks: goroutineStacks,
+	}
+}
+
+// cleanupGoroutineNames removes names for goroutines that are no longer active
+func (gc *GoroutineCollector) cleanupGoroutineNames(activeGoroutines map[int64]bool) {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	
+	// Remove names for goroutines that no longer exist
+	for id := range gc.goroutineNames {
+		if !activeGoroutines[id] {
+			delete(gc.goroutineNames, id)
+		}
 	}
 }

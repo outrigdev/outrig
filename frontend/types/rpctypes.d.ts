@@ -166,6 +166,7 @@ declare global {
     // rpctypes.ParsedGoRoutine
     type ParsedGoRoutine = {
         goid: number;
+        name?: string;
         rawstacktrace: string;
         rawstate: string;
         primarystate: string;

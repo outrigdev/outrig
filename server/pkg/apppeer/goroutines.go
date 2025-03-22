@@ -46,7 +46,7 @@ func GetAppRunGoRoutinesCommand(ctx context.Context, req rpctypes.AppRunRequest)
 			// If parsing fails, skip this goroutine
 			continue
 		}
-
+		parsedGoRoutine.Name = goroutineObj.Name
 		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
 	}
 
