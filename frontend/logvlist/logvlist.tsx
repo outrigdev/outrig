@@ -1,4 +1,4 @@
-import { atom, Atom, PrimitiveAtom, useAtomValue } from "jotai";
+import { atom, Atom, getDefaultStore, PrimitiveAtom, useAtomValue } from "jotai";
 import { JSX, useEffect, useLayoutEffect, useRef } from "react";
 
 export interface LogPageInterface {
@@ -106,7 +106,7 @@ export interface LogVListProps {
     containerHeight: number;
     onPageRequired: (pageNum: number) => void;
     pinToBottomAtom: PrimitiveAtom<boolean>;
-    containerRef: React.RefObject<HTMLDivElement>;
+    vlistRef: React.RefObject<HTMLDivElement>;
 }
 
 export function LogVList({
@@ -116,7 +116,7 @@ export function LogVList({
     containerHeight,
     onPageRequired,
     pinToBottomAtom,
-    containerRef,
+    vlistRef,
 }: LogVListProps) {
     const contentRef = useRef<HTMLDivElement>(null);
     const isPinnedToBottom = useAtomValue(pinToBottomAtom);
@@ -128,25 +128,34 @@ export function LogVList({
 
     // Handle scroll position adjustment after version changes
     useLayoutEffect(() => {
-        const container = containerRef.current;
+        console.log(
+            "LogVList version changed",
+            version,
+            vlistRef.current?.scrollHeight,
+            vlistRef.current?.scrollTop,
+            "ispinnedToBottom=" + isPinnedToBottom
+        );
+
+        const container = vlistRef.current;
         if (!container) return;
 
         // If version changed, this is a full reset
         if (version !== prevVersionRef.current) {
             // Determine scroll position based on pinToBottom preference
             if (isPinnedToBottom) {
+                console.log("scrolling to bottom", container.scrollHeight);
                 container.scrollTop = container.scrollHeight;
             } else {
                 container.scrollTop = 0;
             }
             prevVersionRef.current = version;
         }
-    }, [version, isPinnedToBottom, containerRef]);
+    }, [version, isPinnedToBottom, vlistRef]);
 
     // The resize observer can handle incremental updates
     useEffect(() => {
         const content = contentRef.current;
-        const container = containerRef.current;
+        const container = vlistRef.current;
         if (!content || !container) return;
 
         const resizeObserver = new ResizeObserver(() => {
@@ -157,12 +166,31 @@ export function LogVList({
 
         resizeObserver.observe(content);
         return () => resizeObserver.disconnect();
-    }, [isPinnedToBottom]);
+    }, [isPinnedToBottom, vlistRef]);
 
     // Rest of your component...
 
     return (
-        <div ref={containerRef} className="w-full overflow-auto" style={{ height: containerHeight }}>
+        <div
+            ref={vlistRef}
+            className="w-full overflow-auto"
+            style={{ height: containerHeight }}
+            onScroll={() => {
+                console.log("scrolling", vlistRef.current?.scrollHeight, vlistRef.current?.scrollTop);
+                
+                // Update the follow mode based on scroll position
+                if (vlistRef.current) {
+                    const container = vlistRef.current;
+                    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 20;
+                    
+                    // Update the pinToBottomAtom if needed
+                    const store = getDefaultStore();
+                    if (store.get(pinToBottomAtom) !== isAtBottom) {
+                        store.set(pinToBottomAtom, isAtBottom);
+                    }
+                }
+            }}
+        >
             <div ref={contentRef}>
                 <LogList
                     listAtom={listAtom}

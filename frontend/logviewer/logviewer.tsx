@@ -85,10 +85,9 @@ LogLineComponent.displayName = "LogLineComponent";
 // Follow Button component
 interface FollowButtonProps {
     model: LogViewerModel;
-    containerRef: React.RefObject<HTMLDivElement>;
 }
 
-const FollowButton = React.memo<FollowButtonProps>(({ model, containerRef }) => {
+const FollowButton = React.memo<FollowButtonProps>(({ model }) => {
     const [followOutput, setFollowOutput] = useAtom(model.followOutput);
 
     const toggleFollow = useCallback(() => {
@@ -96,9 +95,9 @@ const FollowButton = React.memo<FollowButtonProps>(({ model, containerRef }) => 
         setFollowOutput(newFollowState);
 
         if (newFollowState) {
-            model.scrollToBottom(containerRef);
+            model.scrollToBottom();
         }
-    }, [followOutput, model, setFollowOutput, containerRef]);
+    }, [followOutput, model, setFollowOutput]);
 
     return (
         <Tooltip content={followOutput ? "Tailing Log (Click to Disable)" : "Not Tailing Log (Click to Enable)"}>
@@ -122,11 +121,10 @@ FollowButton.displayName = "FollowButton";
 interface LogViewerFilterProps {
     model: LogViewerModel;
     searchRef: React.RefObject<HTMLInputElement>;
-    containerRef: React.RefObject<HTMLDivElement>;
     className?: string;
 }
 
-const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, containerRef, className }) => {
+const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, className }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
     const filteredCount = useAtomValue(model.filteredItemCount);
     const searchedCount = useAtomValue(model.searchedItemCount);
@@ -136,22 +134,22 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, co
         (e: React.KeyboardEvent) => {
             return keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
                 if (checkKeyPressed(keyEvent, "Cmd:ArrowDown")) {
-                    model.scrollToBottom(containerRef);
+                    model.scrollToBottom();
                     return true;
                 }
 
                 if (checkKeyPressed(keyEvent, "Cmd:ArrowUp")) {
-                    model.scrollToTop(containerRef);
+                    model.scrollToTop();
                     return true;
                 }
 
                 if (checkKeyPressed(keyEvent, "PageUp")) {
-                    model.pageUp(containerRef);
+                    model.pageUp();
                     return true;
                 }
 
                 if (checkKeyPressed(keyEvent, "PageDown")) {
-                    model.pageDown(containerRef);
+                    model.pageDown();
                     return true;
                 }
 
@@ -163,7 +161,7 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, co
                 return false;
             })(e);
         },
-        [model, setSearch, containerRef]
+        [model, setSearch]
     );
 
     return (
@@ -202,7 +200,7 @@ const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, co
                     </div>
                 </Tooltip>
 
-                <FollowButton model={model} containerRef={containerRef} />
+                <FollowButton model={model} />
                 <RefreshButton
                     isRefreshingAtom={model.isRefreshing}
                     onRefresh={() => model.refresh()}
@@ -217,10 +215,9 @@ LogViewerFilter.displayName = "LogViewerFilter";
 // LogList component for rendering the list of logs using LogVList
 interface LogListProps {
     model: LogViewerModel;
-    containerRef: React.RefObject<HTMLDivElement>;
 }
 
-const LogList = React.memo<LogListProps>(({ model, containerRef }) => {
+const LogList = React.memo<LogListProps>(({ model }) => {
     const listContainerRef = useRef<HTMLDivElement>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const followOutput = useAtomValue(model.followOutput);
@@ -228,18 +225,18 @@ const LogList = React.memo<LogListProps>(({ model, containerRef }) => {
 
     // Prevent default smooth scrolling for PageUp/PageDown when focus is in the list
     useEffect(() => {
-        if (!containerRef.current) return;
+        if (!model.vlistRef.current) return;
 
         // Capture the current value of the ref
-        const currentContainer = containerRef.current;
+        const currentContainer = model.vlistRef.current;
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "PageUp") {
                 e.preventDefault();
-                model.pageUp(containerRef);
+                model.pageUp();
             } else if (e.key === "PageDown") {
                 e.preventDefault();
-                model.pageDown(containerRef);
+                model.pageDown();
             }
         };
 
@@ -247,21 +244,16 @@ const LogList = React.memo<LogListProps>(({ model, containerRef }) => {
         return () => {
             currentContainer.removeEventListener("keydown", handleKeyDown);
         };
-    }, [model, containerRef]);
+    }, [model]);
 
-    // Handle followOutput changes
-    useEffect(() => {
-        if (followOutput) {
-            model.scrollToBottom(containerRef);
-        }
-    }, [followOutput, model, containerRef]);
+    // We don't need to handle followOutput changes here as it's handled by LogVList
 
     // Handle visibility changes (when switching tabs)
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (!document.hidden && followOutput) {
                 // When tab becomes visible and follow mode is enabled, scroll to bottom
-                model.scrollToBottom(containerRef);
+                model.scrollToBottom();
             }
         };
 
@@ -269,7 +261,7 @@ const LogList = React.memo<LogListProps>(({ model, containerRef }) => {
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
-    }, [followOutput, model, containerRef]);
+    }, [followOutput, model]);
 
     // Update dimensions when the list container is resized
     useEffect(() => {
@@ -298,30 +290,7 @@ const LogList = React.memo<LogListProps>(({ model, containerRef }) => {
         };
     }, []);
 
-    // Handle scroll position changes to update follow mode
-    const handleScroll = useCallback(() => {
-        if (!containerRef.current) return;
-
-        const container = containerRef.current;
-        const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 20;
-
-        // Only update follow mode if it's different from current state
-        const currentFollowMode = getDefaultStore().get(model.followOutput);
-        if (currentFollowMode !== isAtBottom) {
-            getDefaultStore().set(model.followOutput, isAtBottom);
-        }
-    }, [model, containerRef]);
-
-    // Add scroll event listener
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-
-        container.addEventListener("scroll", handleScroll);
-        return () => {
-            container.removeEventListener("scroll", handleScroll);
-        };
-    }, [handleScroll, containerRef]);
+    // We don't need to handle scroll position changes here as it's handled in LogVList
 
     // Create the line component for LogVList
     const lineComponent = useCallback(
@@ -351,7 +320,7 @@ const LogList = React.memo<LogListProps>(({ model, containerRef }) => {
                 containerHeight={dimensions.height} // Fallback height if dimensions not set yet
                 onPageRequired={onPageRequired}
                 pinToBottomAtom={model.followOutput}
-                containerRef={containerRef}
+                vlistRef={model.vlistRef}
             />
         </div>
     );
@@ -408,10 +377,9 @@ MarkedLinesIndicator.displayName = "MarkedLinesIndicator";
 // Log content component
 interface LogViewerContentProps {
     model: LogViewerModel;
-    containerRef: React.RefObject<HTMLDivElement>;
 }
 
-const LogViewerContent = React.memo<LogViewerContentProps>(({ model, containerRef }) => {
+const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
     const isRefreshing = useAtomValue(model.isRefreshing);
     const isLoading = useAtomValue(model.isLoading);
     const filteredLinesCount = useAtomValue(model.filteredItemCount);
@@ -421,14 +389,14 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model, containerRe
             <MarkedLinesIndicator model={model} />
 
             {/* Always render LogList */}
-            <LogList model={model} containerRef={containerRef} />
-            
+            <LogList model={model} />
+
             {/* Small centered refreshing modal with improved styling */}
             {isRefreshing && (
                 <>
                     {/* Semi-transparent backdrop with minimal blur */}
                     <div className="absolute inset-0 bg-background/20 backdrop-blur-[1px] z-10"></div>
-                    
+
                     {/* Refreshing modal */}
                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[300px] h-[120px] bg-panel border border-border rounded-md shadow-lg flex items-center justify-center z-20">
                         <div className="text-primary font-medium">Data Refreshed</div>
@@ -452,8 +420,13 @@ interface LogViewerInternalProps {
 
 const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
     const searchRef = useRef<HTMLInputElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const vlistRef = useRef<HTMLDivElement>(null);
     const searchTerm = useAtomValue(model.searchTerm);
+    
+    // Set the vlistRef in the model
+    useEffect(() => {
+        model.setVListRef(vlistRef);
+    }, [model, vlistRef]);
 
     useEffect(() => {
         model.onSearchTermUpdate(searchTerm);
@@ -480,15 +453,14 @@ const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
     }, []);
 
     return (
-        <div className="w-full h-full flex flex-col overflow-hidden" ref={containerRef}>
+        <div className="w-full h-full flex flex-col overflow-hidden">
             <LogViewerFilter
                 model={model}
                 searchRef={searchRef}
-                containerRef={containerRef}
                 className="flex-shrink-0"
             />
             <div className="h-px bg-border flex-shrink-0"></div>
-            <LogViewerContent model={model} containerRef={containerRef} />
+            <LogViewerContent model={model} />
         </div>
     );
 });

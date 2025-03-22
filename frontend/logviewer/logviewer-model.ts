@@ -15,6 +15,7 @@ class LogViewerModel {
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     isLoading: PrimitiveAtom<boolean> = atom(false);
     followOutput: PrimitiveAtom<boolean> = atom(true);
+    vlistRef: React.RefObject<HTMLDivElement> = { current: null };
 
     // LogVList state
     listAtom: PrimitiveAtom<LogListInterface>;
@@ -266,11 +267,11 @@ class LogViewerModel {
         } finally {
             // Calculate elapsed time
             const elapsedTime = Date.now() - startTime;
-            const remainingTime = Math.max(0, 1000 - elapsedTime);
+            const remainingTime = Math.max(0, 500 - elapsedTime);
 
             // If less than 1000ms has passed, wait for the remainder
             if (remainingTime > 0) {
-                await new Promise(resolve => setTimeout(resolve, remainingTime));
+                await new Promise((resolve) => setTimeout(resolve, remainingTime));
             }
 
             // Set refreshing state to false after ensuring minimum display time
@@ -279,31 +280,34 @@ class LogViewerModel {
     }
 
     // Scroll control methods for LogVList
-    // These will be implemented in the LogViewer component using the container ref
-    scrollToTop(containerRef: React.RefObject<HTMLDivElement>) {
-        if (!containerRef.current) return;
-        containerRef.current.scrollTop = 0;
+    scrollToTop() {
+        if (!this.vlistRef?.current) return;
+        this.vlistRef.current.scrollTop = 0;
     }
 
-    scrollToBottom(containerRef: React.RefObject<HTMLDivElement>) {
-        if (!containerRef.current) return;
-        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    scrollToBottom() {
+        if (!this.vlistRef?.current) return;
+        this.vlistRef.current.scrollTop = this.vlistRef.current.scrollHeight;
     }
 
-    pageUp(containerRef: React.RefObject<HTMLDivElement>) {
-        if (!containerRef.current) return;
-        containerRef.current.scrollBy({
-            top: -containerRef.current.clientHeight,
+    pageUp() {
+        if (!this.vlistRef?.current) return;
+        this.vlistRef.current.scrollBy({
+            top: -this.vlistRef.current.clientHeight,
             behavior: "auto",
         });
     }
 
-    pageDown(containerRef: React.RefObject<HTMLDivElement>) {
-        if (!containerRef.current) return;
-        containerRef.current.scrollBy({
-            top: containerRef.current.clientHeight,
+    pageDown() {
+        if (!this.vlistRef?.current) return;
+        this.vlistRef.current.scrollBy({
+            top: this.vlistRef.current.clientHeight,
             behavior: "auto",
         });
+    }
+
+    setVListRef(ref: React.RefObject<HTMLDivElement>) {
+        this.vlistRef = ref;
     }
 
     // Methods for managing marked lines
