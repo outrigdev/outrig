@@ -1,11 +1,32 @@
 import { DefaultRpcClient } from "@/init";
-import { LogListInterface, LogPageInterface } from "@/logvlist/logvlist";
 import { PromiseQueue } from "@/util/promisequeue";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
+import { selectAtom } from "jotai/utils";
 import { unstable_batchedUpdates } from "react-dom";
 import { RpcApi } from "../rpc/rpcclientapi";
 
 const PAGESIZE = 100;
+
+// Interfaces moved from logvlist
+export interface LogPageInterface {
+    lines: LogLine[];
+    totalCount: number;
+    loaded: boolean;
+}
+
+export interface LogListInterface {
+    totalCount: number;
+    pageSize: number;
+    pages: PrimitiveAtom<LogPageInterface>[];
+    version: number;
+}
+
+// Interface for log counts
+interface LogCounts {
+    total: number;
+    searched: number;
+    filtered: number;
+}
 
 class LogViewerModel {
     widgetId: string;
@@ -21,9 +42,17 @@ class LogViewerModel {
     listAtom: PrimitiveAtom<LogListInterface>;
     listVersion: number = 0;
 
-    totalItemCount: PrimitiveAtom<number> = atom(0);
-    searchedItemCount: PrimitiveAtom<number> = atom(0);
-    filteredItemCount: PrimitiveAtom<number> = atom(0);
+    // Single atom to hold all count values
+    logCountsAtom: PrimitiveAtom<LogCounts> = atom<LogCounts>({
+        total: 0,
+        searched: 0,
+        filtered: 0
+    });
+    
+    // Derived atoms for individual counts (read-only)
+    totalItemCount = selectAtom(this.logCountsAtom, (state) => state.total);
+    searchedItemCount = selectAtom(this.logCountsAtom, (state) => state.searched);
+    filteredItemCount = selectAtom(this.logCountsAtom, (state) => state.filtered);
 
     // Store marked lines in a regular Set
     markedLines: Set<number> = new Set<number>();
@@ -144,9 +173,11 @@ class LogViewerModel {
 
             // Update the list atom with the new state
             unstable_batchedUpdates(() => {
-                getDefaultStore().set(this.totalItemCount, results.totalcount);
-                getDefaultStore().set(this.searchedItemCount, results.searchedcount);
-                getDefaultStore().set(this.filteredItemCount, results.filteredcount);
+                getDefaultStore().set(this.logCountsAtom, {
+                    total: results.totalcount,
+                    searched: results.searchedcount,
+                    filtered: results.filteredcount
+                });
 
                 getDefaultStore().set(this.listAtom, {
                     totalCount: results.filteredcount,
@@ -160,9 +191,11 @@ class LogViewerModel {
 
             // Reset to empty state on error
             unstable_batchedUpdates(() => {
-                getDefaultStore().set(this.totalItemCount, 0);
-                getDefaultStore().set(this.searchedItemCount, 0);
-                getDefaultStore().set(this.filteredItemCount, 0);
+                getDefaultStore().set(this.logCountsAtom, {
+                    total: 0,
+                    searched: 0,
+                    filtered: 0
+                });
 
                 getDefaultStore().set(this.listAtom, {
                     totalCount: 0,
@@ -246,9 +279,11 @@ class LogViewerModel {
                 });
 
                 // Also update the counts in case they changed
-                getDefaultStore().set(this.totalItemCount, results.totalcount);
-                getDefaultStore().set(this.searchedItemCount, results.searchedcount);
-                getDefaultStore().set(this.filteredItemCount, results.filteredcount);
+                getDefaultStore().set(this.logCountsAtom, {
+                    total: results.totalcount,
+                    searched: results.searchedcount,
+                    filtered: results.filteredcount
+                });
             }
         } catch (e) {
             console.error("Log page load error", e);

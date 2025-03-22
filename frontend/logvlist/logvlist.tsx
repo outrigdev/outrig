@@ -1,11 +1,6 @@
 import { atom, Atom, getDefaultStore, PrimitiveAtom, useAtomValue } from "jotai";
 import { JSX, useEffect, useLayoutEffect, useRef } from "react";
-
-export interface LogPageInterface {
-    lines: LogLine[];
-    totalCount: number;
-    loaded: boolean;
-}
+import { LogPageInterface, LogListInterface } from "@/logviewer/logviewer-model";
 
 export interface PageProps {
     pageAtom: Atom<LogPageInterface>;
@@ -70,12 +65,6 @@ function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRe
     );
 }
 
-export interface LogListInterface {
-    totalCount: number;
-    pageSize: number;
-    pages: PrimitiveAtom<LogPageInterface>[];
-    version: number;
-}
 
 export interface LogListProps {
     listAtom: Atom<LogListInterface>;
