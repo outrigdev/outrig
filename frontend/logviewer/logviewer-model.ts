@@ -16,7 +16,6 @@ export interface LogPageInterface {
 }
 
 export interface LogListInterface {
-    totalCount: number;
     pageSize: number;
     pages: PrimitiveAtom<LogPageInterface>[];
     version: number;
@@ -69,7 +68,6 @@ class LogViewerModel {
 
         // Initialize the list atom with empty state
         this.listAtom = atom<LogListInterface>({
-            totalCount: 0,
             pageSize: PAGESIZE,
             pages: [],
             version: 0,
@@ -85,7 +83,7 @@ class LogViewerModel {
                 { noresponse: true }
             );
         }, 5000);
-        
+
         // Register for log stream update events
         document.addEventListener(LOG_STREAM_UPDATE_EVENT, this.handleLogStreamUpdate as EventListener);
     }
