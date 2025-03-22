@@ -12,7 +12,7 @@ export interface PageProps {
     defaultItemHeight: number;
     lineComponent: (props: { line: LogLine }) => JSX.Element;
     pageNum: number;
-    onPageRequired: (pageNum: number) => void;
+    onPageRequired: (pageNum: number, load: boolean) => void;
 }
 
 function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRequired }: PageProps) {
@@ -31,10 +31,15 @@ function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRe
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
-                // When page is visible or about to be visible (within buffer)
-                if (entry.isIntersecting && !loaded) {
-                    // Request the page data through the callback
-                    onPageRequired(pageNum);
+                if (entry.isIntersecting) {
+                    // When page is visible or about to be visible (within buffer)
+                    if (!loaded) {
+                        // Request the page data through the callback
+                        onPageRequired(pageNum, true);
+                    }
+                } else {
+                    // When page is no longer visible, we can drop it
+                    onPageRequired(pageNum, false);
                 }
             });
         }, options);
@@ -74,7 +79,7 @@ export interface LogListProps {
     listAtom: Atom<LogListInterface>;
     defaultItemHeight: number;
     lineComponent: (props: { line: LogLine }) => JSX.Element;
-    onPageRequired: (pageNum: number) => void;
+    onPageRequired: (pageNum: number, load: boolean) => void;
 }
 
 function LogList({ listAtom, defaultItemHeight, lineComponent, onPageRequired }: LogListProps) {
@@ -104,7 +109,7 @@ export interface LogVListProps {
     defaultItemHeight: number;
     lineComponent: (props: { line: LogLine }) => JSX.Element;
     containerHeight: number;
-    onPageRequired: (pageNum: number) => void;
+    onPageRequired: (pageNum: number, load: boolean) => void;
     pinToBottomAtom: PrimitiveAtom<boolean>;
     vlistRef: React.RefObject<HTMLDivElement>;
 }

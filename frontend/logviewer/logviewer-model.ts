@@ -180,13 +180,13 @@ class LogViewerModel {
     }
 
     // Handle page required callback from LogVList
-    async onPageRequired(pageNum: number) {
-        console.log("Page required:", pageNum);
+    async onPageRequired(pageNum: number, load: boolean = true) {
+        console.log("Page required:", pageNum, "load:", load);
 
         // Get the current list state
         const listState = getDefaultStore().get(this.listAtom);
 
-        // Check if this page exists and needs loading
+        // Check if this page exists
         if (pageNum >= listState.pages.length) {
             console.error("Page number out of bounds:", pageNum, listState.pages.length);
             return;
@@ -195,6 +195,20 @@ class LogViewerModel {
         // Get the page atom
         const pageAtom = listState.pages[pageNum];
         const pageState = getDefaultStore().get(pageAtom);
+
+        // If load is false, we should drop the page if it's loaded
+        if (!load) {
+            if (pageState.loaded) {
+                console.log("Dropping page", pageNum);
+                // Update the page atom to mark it as unloaded, but keep the totalCount
+                getDefaultStore().set(pageAtom, {
+                    lines: [],
+                    totalCount: pageState.totalCount,
+                    loaded: false,
+                });
+            }
+            return;
+        }
 
         // If already loaded or loading, do nothing
         if (pageState.loaded) {

@@ -302,8 +302,8 @@ const LogList = React.memo<LogListProps>(({ model }) => {
 
     // Handle page required callback
     const onPageRequired = useCallback(
-        (pageNum: number) => {
-            model.onPageRequired(pageNum);
+        (pageNum: number, load: boolean) => {
+            model.onPageRequired(pageNum, load);
         },
         [model]
     );
