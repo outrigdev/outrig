@@ -446,10 +446,28 @@ class LogViewerModel {
         }
     }
 
-    // Handler for log stream updates
     handleLogStreamUpdate = (event: CustomEvent<StreamUpdateData>) => {
-        // Stub implementation - will be filled in later
-        console.log("Log stream update received:", event.detail);
+        const { widgetid, offset, lines } = event.detail;
+        if (widgetid !== this.widgetId) return;
+        if (!lines || lines.length === 0) return;
+
+        let currentPage = Math.floor(offset / PAGESIZE);
+        let currentOffset = offset % PAGESIZE;
+
+        for (let i = 0; i < lines.length; ) {
+            const remaining = PAGESIZE - currentOffset;
+            const batch = lines.slice(i, i + remaining);
+            this.handleLogStreamUpdatePage(currentPage, currentOffset, batch);
+            i += batch.length;
+            currentPage++;
+            currentOffset = 0;
+        }
+    };
+
+    // Handle updates for a specific page
+    handleLogStreamUpdatePage = (pageNum: number, offset: number, lines: LogLine[]) => {
+        // Stub implementation - will be implemented later
+        // console.log(`Updating page ${pageNum} at offset ${offset} with ${lines.length} lines`);
     };
 }
 
