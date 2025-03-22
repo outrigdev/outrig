@@ -420,16 +420,20 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model, containerRe
         <div className="w-full h-full overflow-hidden flex-1 pt-2 px-1 relative">
             <MarkedLinesIndicator model={model} />
 
-            {/* Always render LogList to maintain dimensions, but overlay messages when needed */}
+            {/* Always render LogList */}
             <LogList model={model} containerRef={containerRef} />
             
-            {/* Overlay messages */}
+            {/* Small centered refreshing modal with improved styling */}
             {isRefreshing && (
-                <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-background/80">
-                    <div className="flex items-center gap-2 text-primary">
-                        <span>Refreshing logs...</span>
+                <>
+                    {/* Semi-transparent backdrop with minimal blur */}
+                    <div className="absolute inset-0 bg-background/20 backdrop-blur-[1px] z-10"></div>
+                    
+                    {/* Refreshing modal */}
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[300px] h-[120px] bg-panel border border-border rounded-md shadow-lg flex items-center justify-center z-20">
+                        <div className="text-primary font-medium">Data Refreshed</div>
                     </div>
-                </div>
+                </>
             )}
 
             {!isRefreshing && filteredLinesCount === 0 && (

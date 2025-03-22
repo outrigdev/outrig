@@ -250,6 +250,8 @@ class LogViewerModel {
             return;
         }
 
+        // Record start time to ensure minimum display duration
+        const startTime = Date.now();
         store.set(this.isRefreshing, true);
 
         try {
@@ -262,7 +264,16 @@ class LogViewerModel {
             // Then re-run the search which will create a new SearchManager and list atom
             await this.onSearchTermUpdate(store.get(this.searchTerm));
         } finally {
-            // Set refreshing state to false
+            // Calculate elapsed time
+            const elapsedTime = Date.now() - startTime;
+            const remainingTime = Math.max(0, 1000 - elapsedTime);
+
+            // If less than 1000ms has passed, wait for the remainder
+            if (remainingTime > 0) {
+                await new Promise(resolve => setTimeout(resolve, remainingTime));
+            }
+
+            // Set refreshing state to false after ensuring minimum display time
             store.set(this.isRefreshing, false);
         }
     }
