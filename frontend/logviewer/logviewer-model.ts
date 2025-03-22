@@ -1,4 +1,5 @@
 import { DefaultRpcClient } from "@/init";
+import { LOG_STREAM_UPDATE_EVENT } from "@/rpcclientimpl";
 import { PromiseQueue } from "@/util/promisequeue";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { selectAtom } from "jotai/utils";
@@ -46,9 +47,9 @@ class LogViewerModel {
     logCountsAtom: PrimitiveAtom<LogCounts> = atom<LogCounts>({
         total: 0,
         searched: 0,
-        filtered: 0
+        filtered: 0,
     });
-    
+
     // Derived atoms for individual counts (read-only)
     totalItemCount = selectAtom(this.logCountsAtom, (state) => state.total);
     searchedItemCount = selectAtom(this.logCountsAtom, (state) => state.searched);
@@ -84,6 +85,9 @@ class LogViewerModel {
                 { noresponse: true }
             );
         }, 5000);
+        
+        // Register for log stream update events
+        document.addEventListener(LOG_STREAM_UPDATE_EVENT, this.handleLogStreamUpdate as EventListener);
     }
 
     dispose() {
@@ -96,6 +100,9 @@ class LogViewerModel {
             },
             { noresponse: true }
         );
+
+        // Clean up event listener
+        document.removeEventListener(LOG_STREAM_UPDATE_EVENT, this.handleLogStreamUpdate as EventListener);
     }
 
     async onSearchTermUpdate(searchTerm: string) {
@@ -176,7 +183,7 @@ class LogViewerModel {
                 getDefaultStore().set(this.logCountsAtom, {
                     total: results.totalcount,
                     searched: results.searchedcount,
-                    filtered: results.filteredcount
+                    filtered: results.filteredcount,
                 });
 
                 getDefaultStore().set(this.listAtom, {
@@ -194,7 +201,7 @@ class LogViewerModel {
                 getDefaultStore().set(this.logCountsAtom, {
                     total: 0,
                     searched: 0,
-                    filtered: 0
+                    filtered: 0,
                 });
 
                 getDefaultStore().set(this.listAtom, {
@@ -282,7 +289,7 @@ class LogViewerModel {
                 getDefaultStore().set(this.logCountsAtom, {
                     total: results.totalcount,
                     searched: results.searchedcount,
-                    filtered: results.filteredcount
+                    filtered: results.filteredcount,
                 });
             }
         } catch (e) {
@@ -440,6 +447,12 @@ class LogViewerModel {
             console.error("Failed to get marked lines from backend:", error);
         }
     }
+
+    // Handler for log stream updates
+    handleLogStreamUpdate = (event: CustomEvent<StreamUpdateData>) => {
+        // Stub implementation - will be filled in later
+        console.log("Log stream update received:", event.detail);
+    };
 }
 
 export { LogViewerModel };
