@@ -286,6 +286,25 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 	}
 }
 
+var tagRegex = regexp.MustCompile(`(^|\s+)(#[a-zA-Z][a-zA-Z0-9:_.-]*)`)
+
+func ParseNameAndTags(input string) (string, []string) {
+	// Extract tags
+	matches := tagRegex.FindAllStringSubmatch(input, -1)
+	tags := make([]string, 0, len(matches))
+	for _, match := range matches {
+		// match[2] is the tag with '#'
+		tags = append(tags, match[2][1:])
+	}
+
+	// Remove tags by replacing them with the first capture group (whitespace or beginning)
+	cleanedInput := tagRegex.ReplaceAllString(input, "$1")
+	// Normalize whitespace
+	cleanedInput = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(cleanedInput, " "))
+
+	return cleanedInput, tags
+}
+
 var goroutineIDRegexp = regexp.MustCompile(`goroutine (\d+)`)
 
 func GetGoroutineID() int64 {
