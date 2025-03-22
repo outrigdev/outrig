@@ -66,7 +66,7 @@ function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRe
 export interface LogListInterface {
     totalCount: number;
     pageSize: number;
-    pages: Atom<LogPageInterface>[];
+    pages: PrimitiveAtom<LogPageInterface>[];
     version: number;
 }
 
@@ -106,6 +106,7 @@ export interface LogVListProps {
     containerHeight: number;
     onPageRequired: (pageNum: number) => void;
     pinToBottomAtom: PrimitiveAtom<boolean>;
+    containerRef: React.RefObject<HTMLDivElement>;
 }
 
 export function LogVList({
@@ -115,8 +116,8 @@ export function LogVList({
     containerHeight,
     onPageRequired,
     pinToBottomAtom,
+    containerRef,
 }: LogVListProps) {
-    const containerRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const isPinnedToBottom = useAtomValue(pinToBottomAtom);
     const versionAtom = useRef(atom((get) => get(listAtom).version)).current;
@@ -140,7 +141,7 @@ export function LogVList({
             }
             prevVersionRef.current = version;
         }
-    }, [version, isPinnedToBottom]);
+    }, [version, isPinnedToBottom, containerRef]);
 
     // The resize observer can handle incremental updates
     useEffect(() => {
