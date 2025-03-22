@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -268,13 +270,13 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 			if werr != nil {
 				return werr
 			}
-			
+
 			// Call callback if provided
 			if dataCallbackFn != nil {
 				dataCallbackFn(buf[:n])
 			}
 		}
-		
+
 		if err != nil {
 			if err == io.EOF {
 				return nil
@@ -282,4 +284,21 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 			return err
 		}
 	}
+}
+
+var goroutineIDRegexp = regexp.MustCompile(`goroutine (\d+)`)
+
+func GetGoroutineID() int64 {
+	buf := make([]byte, 64)
+	n := runtime.Stack(buf, false)
+	// Format of the first line of stack trace is "goroutine N [status]:"
+	matches := goroutineIDRegexp.FindSubmatch(buf[:n])
+	if len(matches) < 2 {
+		return -1
+	}
+	id, err := strconv.ParseInt(string(matches[1]), 10, 64)
+	if err != nil {
+		return -1
+	}
+	return id
 }
