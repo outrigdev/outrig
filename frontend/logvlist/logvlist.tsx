@@ -13,9 +13,10 @@ export interface PageProps {
     lineComponent: (props: { line: LogLine }) => JSX.Element;
     pageNum: number;
     onPageRequired: (pageNum: number, load: boolean) => void;
+    vlistRef: React.RefObject<HTMLDivElement>;
 }
 
-function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRequired }: PageProps) {
+function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRequired, vlistRef }: PageProps) {
     const { lines, totalCount, loaded } = useAtomValue(pageAtom);
     const LineComponent = lineComponent;
     const pageRef = useRef<HTMLDivElement>(null);
@@ -25,7 +26,8 @@ function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRe
 
         // Create the observer with options for a buffer
         const options = {
-            rootMargin: "200px 0px", // 200px buffer above and below viewport
+            root: vlistRef.current, // Use the scroll container as the root
+            rootMargin: "1000px 0px 1000px 0px", // 1000px buffer above and below viewport
             threshold: 0, // Trigger as soon as any part is visible
         };
 
@@ -80,9 +82,10 @@ export interface LogListProps {
     defaultItemHeight: number;
     lineComponent: (props: { line: LogLine }) => JSX.Element;
     onPageRequired: (pageNum: number, load: boolean) => void;
+    vlistRef: React.RefObject<HTMLDivElement>;
 }
 
-function LogList({ listAtom, defaultItemHeight, lineComponent, onPageRequired }: LogListProps) {
+function LogList({ listAtom, defaultItemHeight, lineComponent, onPageRequired, vlistRef }: LogListProps) {
     const { totalCount, pages, pageSize } = useAtomValue(listAtom);
     return (
         <>
@@ -97,6 +100,7 @@ function LogList({ listAtom, defaultItemHeight, lineComponent, onPageRequired }:
                         lineComponent={lineComponent}
                         pageNum={index}
                         onPageRequired={onPageRequired}
+                        vlistRef={vlistRef}
                     />
                 )
             )}
@@ -127,20 +131,10 @@ export function LogVList({
     const isPinnedToBottom = useAtomValue(pinToBottomAtom);
     const versionAtom = useRef(atom((get) => get(listAtom).version)).current;
     const version = useAtomValue(versionAtom);
-
-    // Store previous version to detect "reset" events
     const prevVersionRef = useRef<number>(version);
 
     // Handle scroll position adjustment after version changes
     useLayoutEffect(() => {
-        console.log(
-            "LogVList version changed",
-            version,
-            vlistRef.current?.scrollHeight,
-            vlistRef.current?.scrollTop,
-            "ispinnedToBottom=" + isPinnedToBottom
-        );
-
         const container = vlistRef.current;
         if (!container) return;
 
@@ -148,7 +142,6 @@ export function LogVList({
         if (version !== prevVersionRef.current) {
             // Determine scroll position based on pinToBottom preference
             if (isPinnedToBottom) {
-                console.log("scrolling to bottom", container.scrollHeight);
                 container.scrollTop = container.scrollHeight;
             } else {
                 container.scrollTop = 0;
@@ -156,8 +149,6 @@ export function LogVList({
             prevVersionRef.current = version;
         }
     }, [version, isPinnedToBottom, vlistRef]);
-
-    // The resize observer can handle incremental updates
     useEffect(() => {
         const content = contentRef.current;
         const container = vlistRef.current;
@@ -172,27 +163,20 @@ export function LogVList({
         resizeObserver.observe(content);
         return () => resizeObserver.disconnect();
     }, [isPinnedToBottom, vlistRef]);
-
-    // Rest of your component...
-
     return (
         <div
             ref={vlistRef}
             className="w-full overflow-auto"
             style={{ height: containerHeight }}
             onScroll={() => {
-                console.log("scrolling", vlistRef.current?.scrollHeight, vlistRef.current?.scrollTop);
-                
+                if (!vlistRef.current) return;
                 // Update the follow mode based on scroll position
-                if (vlistRef.current) {
-                    const container = vlistRef.current;
-                    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 20;
-                    
-                    // Update the pinToBottomAtom if needed
-                    const store = getDefaultStore();
-                    if (store.get(pinToBottomAtom) !== isAtBottom) {
-                        store.set(pinToBottomAtom, isAtBottom);
-                    }
+                const container = vlistRef.current;
+                const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 20;
+                // Update the pinToBottomAtom if needed
+                const store = getDefaultStore();
+                if (store.get(pinToBottomAtom) !== isAtBottom) {
+                    store.set(pinToBottomAtom, isAtBottom);
                 }
             }}
         >
@@ -202,6 +186,7 @@ export function LogVList({
                     defaultItemHeight={defaultItemHeight}
                     lineComponent={lineComponent}
                     onPageRequired={onPageRequired}
+                    vlistRef={vlistRef}
                 />
             </div>
         </div>
