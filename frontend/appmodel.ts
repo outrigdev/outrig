@@ -18,6 +18,7 @@ class AppModel {
     selectedTab: PrimitiveAtom<string> = atom("appruns"); // Default to app runs list view
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
     autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AUTO_FOLLOW_STORAGE_KEY) !== "false"); // Default to true if not set
+    leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for left navigation bar
 
     // Toast notifications
     toasts: PrimitiveAtom<Toast[]> = atom<Toast[]>([]);

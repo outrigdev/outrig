@@ -4,6 +4,7 @@ import { Check, Moon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
+import { LeftNav } from "./elements/leftnav";
 import { ToastContainer } from "./elements/toast";
 import { Tooltip } from "./elements/tooltip";
 import { GoRoutines } from "./goroutines/goroutines";
@@ -57,8 +58,17 @@ function FeatureTab() {
 }
 
 function AppLogo() {
+    const [_, setLeftNavOpen] = useAtom(AppModel.leftNavOpen);
+    
+    const handleLogoClick = () => {
+        setLeftNavOpen(true);
+    };
+    
     return (
-        <div className="flex items-center space-x-2">
+        <div 
+            className="flex items-center space-x-2 cursor-pointer"
+            onClick={handleLogoClick}
+        >
             <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
         </div>
     );
@@ -216,6 +226,7 @@ function App() {
 
     return (
         <div className="h-screen w-screen flex flex-col bg-panel">
+            <LeftNav />
             <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
                 <div className="flex items-center">
                     <AppLogo />
