@@ -4,7 +4,7 @@ import { Check, Moon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
-import { LeftNav } from "./elements/leftnav";
+import { LeftNav } from "./main/leftnav";
 import { ToastContainer } from "./elements/toast";
 import { Tooltip } from "./elements/tooltip";
 import { GoRoutines } from "./goroutines/goroutines";
