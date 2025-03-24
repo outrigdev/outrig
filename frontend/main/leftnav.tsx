@@ -1,5 +1,5 @@
-import { useAtom, useAtomValue } from "jotai";
-import { BookOpen, Clock, Github, Home, MessageSquare, Settings, Twitter, X, Youtube } from "lucide-react";
+import { getDefaultStore, useAtom, useAtomValue } from "jotai";
+import { BookOpen, Clock, Github, Home, MessageSquare, Moon, Settings, Sun, Twitter, X, Youtube } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { AppModel } from "../appmodel";
 import { cn, formatDuration, formatRelativeTime } from "../util/util";
@@ -8,20 +8,28 @@ import { cn, formatDuration, formatRelativeTime } from "../util/util";
 interface AppRunItemProps {
     appRun: AppRunInfo;
     isSelected: boolean;
-    onClick: (appRunId: string) => void;
 }
 
-export const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, isSelected, onClick }) => {
-    const [currentTime, setCurrentTime] = useState(Date.now());
+export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) => {
+    const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+    console.log("rendering AppRunItem", appRun.appname, appRun.apprunid, appRun.status);
 
     // Only update the time for running apps
     useEffect(() => {
+        let interval: NodeJS.Timeout | null = null;
+
         if (appRun.status === "running") {
-            const interval = setInterval(() => {
+            interval = setInterval(() => {
                 setCurrentTime(Date.now());
             }, 1000);
-            return () => clearInterval(interval);
         }
+
+        // Always return a cleanup function to ensure interval is cleared
+        // when status changes or component unmounts
+        return () => {
+            if (interval) clearInterval(interval);
+        };
     }, [appRun.status]);
     return (
         <div
@@ -29,26 +37,117 @@ export const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, isSelected, onCl
                 "p-2 rounded text-sm cursor-pointer",
                 isSelected ? "bg-buttonhover text-primary" : "text-secondary hover:bg-buttonhover hover:text-primary"
             )}
-            onClick={() => onClick(appRun.apprunid)}
+            onClick={() => {
+                AppModel.selectAppRun(appRun.apprunid);
+                // This will close the nav after selection
+                getDefaultStore().set(AppModel.leftNavOpen, false);
+            }}
         >
-            <div className="font-medium flex items-center justify-between">
-                <div className="flex items-center overflow-hidden">
-                    <span className="overflow-hidden text-ellipsis whitespace-nowrap">{appRun.appname}</span>
-                    <span className="text-[10px] ml-1 whitespace-nowrap text-muted">
-                        ({appRun.apprunid.substring(0, 4)})
+            <div className="flex items-center justify-between relative">
+                {/* Running indicator positioned absolutely to the left */}
+                {appRun.status === "running" && (
+                    <div className="absolute left-[-12px] top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full bg-green-500"></div>
+                )}
+                <div className="flex items-center">
+                    <span className="inline-block w-24">
+                        {appRun.status === "running" ? "Running" : formatRelativeTime(appRun.starttime)}
+                    </span>
+                    <Clock size={12} className="mr-1" />
+                    <span>
+                        {appRun.status === "running"
+                            ? formatDuration(Math.floor((currentTime - appRun.starttime) / 1000))
+                            : formatDuration(Math.floor((appRun.lastmodtime - appRun.starttime) / 1000))}
                     </span>
                 </div>
-                {appRun.status === "running" && <div className="w-2 h-2 rounded-full bg-green-500 ml-1"></div>}
+                <div className="flex items-center">
+                    <span className="text-xs whitespace-nowrap text-muted">({appRun.apprunid.substring(0, 4)})</span>
+                </div>
             </div>
-            <div className="text-xs text-muted truncate ml-2 flex items-center">
-                <span className="inline-block w-16">
-                    {appRun.status === "running" ? "Running" : formatRelativeTime(appRun.starttime)}
-                </span>
-                <Clock size={12} className="mr-1" />
-                {appRun.status === "running"
-                    ? formatDuration(Math.floor((currentTime - appRun.starttime) / 1000))
-                    : formatDuration(Math.floor((appRun.lastmodtime - appRun.starttime) / 1000))}
+        </div>
+    );
+});
+
+// Add displayName for the memoized component
+AppRunItem.displayName = "AppRunItem";
+
+// AppNameGroup component for displaying a group of app runs with the same app name
+interface AppNameGroupProps {
+    appName: string;
+    appRuns: AppRunInfo[];
+    selectedAppRunId: string;
+}
+
+export const AppNameGroup: React.FC<AppNameGroupProps> = ({ appName, appRuns, selectedAppRunId }) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+
+    // Count running apps in this group
+    const runningCount = appRuns.filter((run) => run.status === "running").length;
+
+    return (
+        <div className="mb-2">
+            {/* App Name Header */}
+            <div
+                className="flex items-center justify-between px-2 py-1 text-sm font-medium text-primary cursor-pointer hover:bg-buttonhover rounded"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex items-center">
+                    {isExpanded ? (
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="mr-1"
+                        >
+                            <path d="m18 15-6-6-6 6" />
+                        </svg>
+                    ) : (
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="mr-1"
+                        >
+                            <path d="m9 18 6-6-6-6" />
+                        </svg>
+                    )}
+                    <span>{appName}</span>
+                </div>
+                <div className="text-[10px] text-muted">
+                    {runningCount > 0 && (
+                        <span className="bg-green-500/10 text-green-500 px-1 py-0.5 rounded">
+                            {runningCount} running
+                        </span>
+                    )}
+                    <span className="ml-1">
+                        {appRuns.length} {appRuns.length === 1 ? "run" : "runs"}
+                    </span>
+                </div>
             </div>
+
+            {/* App Runs in this group */}
+            {isExpanded && (
+                <div className="pl-4">
+                    {appRuns.map((appRun) => (
+                        <AppRunItem
+                            key={appRun.apprunid}
+                            appRun={appRun}
+                            isSelected={appRun.apprunid === selectedAppRunId}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -59,45 +158,107 @@ export const AppRunList: React.FC = () => {
     const unsortedAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
-    // Sort app runs: running apps at the top, then by start time (newest first)
-    const appRuns = useMemo(() => {
-        return [...unsortedAppRuns].sort((a, b) => {
-            // First sort by status (running at the top)
-            if (a.status === "running" && b.status !== "running") return -1;
-            if (a.status !== "running" && b.status === "running") return 1;
+    // Group app runs by app name and sort within groups
+    const groupedAppRuns = useMemo(() => {
+        // First, group app runs by app name
+        const groups: Record<string, AppRunInfo[]> = {};
 
-            // Then sort by start time (newest first)
-            return b.starttime - a.starttime;
+        unsortedAppRuns.forEach((appRun) => {
+            const appName = appRun.appname || "Unknown";
+            if (!groups[appName]) {
+                groups[appName] = [];
+            }
+            groups[appName].push(appRun);
         });
+
+        // Sort app runs within each group: running first, then by start time (newest first)
+        Object.keys(groups).forEach((appName) => {
+            groups[appName].sort((a, b) => {
+                // First sort by status (running at the top)
+                if (a.status === "running" && b.status !== "running") return -1;
+                if (a.status !== "running" && b.status === "running") return 1;
+
+                // Then sort by start time (newest first)
+                return b.starttime - a.starttime;
+            });
+        });
+
+        // Sort the app names:
+        // 1. Groups with running apps first
+        // 2. Then by most recent run (using the most recent run in each group)
+        // 3. Break ties with app name
+        const sortedAppNames = Object.keys(groups).sort((a, b) => {
+            const aHasRunning = groups[a].some((run) => run.status === "running");
+            const bHasRunning = groups[b].some((run) => run.status === "running");
+
+            // Groups with running apps first
+            if (aHasRunning && !bHasRunning) return -1;
+            if (!aHasRunning && bHasRunning) return 1;
+
+            // Find the most recent run in each group
+            // We've already sorted runs within each group, so the first one is the most recent
+            const aMostRecentRun = groups[a][0];
+            const bMostRecentRun = groups[b][0];
+
+            // Compare by most recent run time (using the max of start time and last mod time)
+            const aLatestTime = Math.max(aMostRecentRun.starttime, aMostRecentRun.lastmodtime);
+            const bLatestTime = Math.max(bMostRecentRun.starttime, bMostRecentRun.lastmodtime);
+
+            // Sort by most recent first
+            if (aLatestTime > bLatestTime) return -1;
+            if (aLatestTime < bLatestTime) return 1;
+
+            // Break ties with app name
+            return a.localeCompare(b);
+        });
+
+        return { groups, sortedAppNames };
     }, [unsortedAppRuns]);
 
-    const handleAppRunClick = (appRunId: string) => {
-        AppModel.selectAppRun(appRunId);
-        setIsOpen(false); // Close the nav after selection
-    };
 
     return (
         <>
-            <div className="px-4 pt-2 pb-1 text-[10px] font-bold text-secondary uppercase">App Runs</div>
+            <div className="px-4 pt-2 pb-1 text-[10px] font-bold text-secondary uppercase">Recent App Runs</div>
 
             {/* App Runs List (Scrollable) */}
             <div className="flex-1 overflow-y-auto">
-                {appRuns.length === 0 ? (
+                {unsortedAppRuns.length === 0 ? (
                     <div className="px-4 py-2 text-secondary text-sm">No app runs found</div>
                 ) : (
                     <div className="pl-3 pr-2">
-                        {appRuns.map((appRun) => (
-                            <AppRunItem
-                                key={appRun.apprunid}
-                                appRun={appRun}
-                                isSelected={appRun.apprunid === selectedAppRunId}
-                                onClick={handleAppRunClick}
+                        {groupedAppRuns.sortedAppNames.map((appName) => (
+                            <AppNameGroup
+                                key={appName}
+                                appName={appName}
+                                appRuns={groupedAppRuns.groups[appName]}
+                                selectedAppRunId={selectedAppRunId}
                             />
                         ))}
                     </div>
                 )}
             </div>
         </>
+    );
+};
+
+// Theme toggle component
+const ThemeToggle: React.FC = () => {
+    const darkMode = useAtomValue(AppModel.darkMode);
+
+    const handleToggle = () => {
+        AppModel.setDarkMode(!darkMode);
+    };
+
+    return (
+        <button
+            onClick={handleToggle}
+            className="w-full flex items-center justify-between p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"
+        >
+            <div className="flex items-center space-x-2">
+                {darkMode ? <Moon size={16} /> : <Sun size={16} />}
+                <span>{darkMode ? "Dark Mode" : "Light Mode"}</span>
+            </div>
+        </button>
     );
 };
 
@@ -108,17 +269,18 @@ export const LeftNav: React.FC = () => {
         setIsOpen(false);
     };
 
+    if (!isOpen) {
+        return null;
+    }
+
     return (
         <>
             {/* Overlay */}
-            {isOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-[1px] z-40" onClick={handleClose} />}
+            <div className="fixed inset-0 bg-black/20 backdrop-blur-[1px] z-40" onClick={handleClose} />
 
             {/* Left Navigation */}
             <div
-                className={cn(
-                    "fixed top-0 left-0 h-full w-64 bg-panel border-r-2 border-border z-50 flex flex-col transition-transform duration-300 ease-in-out",
-                    isOpen ? "translate-x-0" : "-translate-x-full"
-                )}
+                className="fixed top-0 left-0 h-full w-64 bg-panel border-r-2 border-border z-50 flex flex-col transition-transform duration-300 ease-in-out translate-x-0"
             >
                 {/* Header with close button */}
                 <div
@@ -161,10 +323,13 @@ export const LeftNav: React.FC = () => {
 
                     {/* Bottom Links */}
                     <div className="mt-auto border-t border-border p-2">
-                        <button className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer">
-                            <Settings size={16} />
-                            <span>Settings</span>
-                        </button>
+                        <div className="flex flex-col gap-1">
+                            <ThemeToggle />
+                            <button className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer">
+                                <Settings size={16} />
+                                <span>Settings</span>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Social Links */}

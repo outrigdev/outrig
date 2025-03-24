@@ -29,6 +29,9 @@ class AppModel {
     // App run model
     appRunModel: AppRunModel;
 
+    // Cache for app run info atoms
+    appRunInfoAtomCache: Map<string, Atom<AppRunInfo>> = new Map();
+
     // Flag to prevent URL updates during initialization
     private _isInitializing: boolean = true;
 
@@ -226,16 +229,24 @@ class AppModel {
     setAutoFollow(update: boolean): void {
         sessionStorage.setItem(AUTO_FOLLOW_STORAGE_KEY, update.toString());
         getDefaultStore().set(this.autoFollow, update);
-        
+
         // Send updated browser tab info to the backend
         this.sendBrowserTabUrl();
     }
 
     getAppRunInfoAtom(appRunId: string): Atom<AppRunInfo> {
-        return atom((get) => {
-            const appRuns = get(this.appRunModel.appRuns);
-            return appRuns.find((run) => run.apprunid === appRunId);
-        });
+        appRunId = appRunId || "";
+        if (!this.appRunInfoAtomCache.has(appRunId)) {
+            const appRunInfoAtom = atom((get) => {
+                if (appRunId === "") {
+                    return null;
+                }
+                const appRuns = get(this.appRunModel.appRuns);
+                return appRuns.find((run) => run.apprunid === appRunId);
+            });
+            this.appRunInfoAtomCache.set(appRunId, appRunInfoAtom);
+        }
+        return this.appRunInfoAtomCache.get(appRunId)!;
     }
 
     // Toast management

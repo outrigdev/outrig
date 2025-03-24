@@ -72,7 +72,8 @@ export function formatRelativeTime(timestamp: number): string {
         return `${minutes}m ago`;
     } else if (diffInSeconds < 86400) {
         const hours = Math.floor(diffInSeconds / 3600);
-        return `${hours}h ago`;
+        const minutes = Math.floor((diffInSeconds % 3600) / 60);
+        return minutes > 0 ? `${hours}h ${minutes}m ago` : `${hours}h ago`;
     } else {
         const days = Math.floor(diffInSeconds / 86400);
         return `${days}d ago`;

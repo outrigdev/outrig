@@ -1,17 +1,15 @@
 import { keydownWrapper } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
-import { Check, Moon, Sun } from "lucide-react";
+import { Check } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
-import { LeftNav } from "./main/leftnav";
 import { ToastContainer } from "./elements/toast";
 import { Tooltip } from "./elements/tooltip";
 import { GoRoutines } from "./goroutines/goroutines";
-import { DefaultRpcClient } from "./init";
 import { appHandleKeyDown } from "./keymodel";
 import { LogViewer } from "./logviewer/logviewer";
-import { RpcApi } from "./rpc/rpcclientapi";
+import { LeftNav } from "./main/leftnav";
 import { RuntimeStats } from "./runtimestats/runtimestats";
 import { StatusBar } from "./statusbar";
 import { Watches } from "./watches/watches";
@@ -56,19 +54,54 @@ function FeatureTab() {
     return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;
 }
 
-function AppLogo() {
+function AppHeader() {
     const [_, setLeftNavOpen] = useAtom(AppModel.leftNavOpen);
-    
-    const handleLogoClick = () => {
+    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
+    const appRunInfoAtom = AppModel.getAppRunInfoAtom(selectedAppRunId || "");
+    const appRunInfo = useAtomValue(appRunInfoAtom);
+    const allAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
+
+    const handleHeaderClick = () => {
         setLeftNavOpen(true);
     };
-    
+
+    // Determine if this is the latest run for this app name
+    const isLatestRun = (currentRun: AppRunInfo): boolean => {
+        if (!currentRun) return false;
+
+        // Filter app runs with the same appname
+        const sameAppRuns = allAppRuns.filter((run) => run.appname === currentRun.appname);
+
+        // Sort by starttime (newest first)
+        const sortedRuns = [...sameAppRuns].sort((a, b) => b.starttime - a.starttime);
+
+        // Check if the current run is the first (latest) one
+        return sortedRuns.length > 0 && sortedRuns[0].apprunid === currentRun.apprunid;
+    };
+
+    // Get the label to display
+    const getRunLabel = (): string => {
+        if (!appRunInfo || !selectedAppRunId) return "";
+
+        if (isLatestRun(appRunInfo)) {
+            return "(latest)";
+        } else {
+            // Show first 4 chars of UUID
+            return `(${selectedAppRunId.substring(0, 4)})`;
+        }
+    };
+
     return (
-        <div 
-            className="flex items-center space-x-2 cursor-pointer"
-            onClick={handleLogoClick}
-        >
-            <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
+        <div className="flex items-center cursor-pointer" onClick={handleHeaderClick}>
+            <div className="flex items-center space-x-2">
+                <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
+            </div>
+                {appRunInfo && selectedAppRunId && (
+                <>
+                    <div className="items-center ml-3 mr-1 text-primary text-sm font-medium max-w-[150px] truncate overflow-hidden whitespace-nowrap">{appRunInfo.appname}</div>
+                    <div className="text-xs text-secondary relative top-[1px]">{getRunLabel()}</div>
+                </>
+            )}
         </div>
     );
 }
@@ -228,8 +261,9 @@ function App() {
             <LeftNav />
             <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
                 <div className="flex items-center">
-                    <AppLogo />
-                    <div className="ml-3 flex">
+                    <AppHeader />
+                    <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
+                    <div className="flex">
                         {selectedAppRunId ? (
                             <>
                                 {TABS_REQUIRING_APP_RUN_ID.map((tabName) => (
@@ -241,20 +275,12 @@ function App() {
                                 ))}
                             </>
                         ) : (
-                            <div className="px-4 py-2 text-primary text-sm font-medium">
-                                App Runs
-                            </div>
+                            <div className="px-4 py-2 text-primary text-sm font-medium">App Runs</div>
                         )}
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <AutoFollowButton />
-                    <button
-                        onClick={() => AppModel.setDarkMode(!darkMode)}
-                        className="p-1 border-none text-secondary hover:bg-buttonhover transition-colors cursor-pointer"
-                    >
-                        {darkMode ? <Moon size={16} /> : <Sun size={16} />}
-                    </button>
                 </div>
             </nav>
 
