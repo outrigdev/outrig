@@ -58,8 +58,18 @@ function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRe
             }
         });
     }
+    let dataLines = "";
+    if (lines != null && lines.length > 0) {
+        dataLines = `${lines.length} ${lines[0].linenum}-${lines[lines.length - 1].linenum}`;
+    }
     return (
-        <div ref={pageRef} className="w-full" style={{ height: defaultItemHeight * totalCount }}>
+        <div
+            ref={pageRef}
+            className="w-full"
+            data-page={pageNum}
+            data-lines={dataLines}
+            style={{ height: defaultItemHeight * totalCount }}
+        >
             {lineElems}
         </div>
     );
@@ -148,7 +158,7 @@ export function LogVList({
             if (isPinnedToBottom) {
                 // Calculate the maximum possible scrollTop value
                 const maxScrollTop = container.scrollHeight - container.clientHeight;
-                
+
                 // Check if we're already at the bottom (exact comparison)
                 if (container.scrollTop !== maxScrollTop) {
                     // Set flag to ignore the next scroll event
@@ -168,17 +178,17 @@ export function LogVList({
             style={{ height: containerHeight }}
             onScroll={() => {
                 if (!vlistRef.current) return;
-                
+
                 // If we should ignore this scroll event, do so and reset the flag
                 if (ignoreNextScrollRef.current) {
                     ignoreNextScrollRef.current = false;
                     return;
                 }
-                
+
                 // Update the follow mode based on scroll position
                 const container = vlistRef.current;
                 const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 20;
-                
+
                 // Update the pinToBottomAtom if needed
                 const store = getDefaultStore();
                 if (store.get(pinToBottomAtom) !== isAtBottom) {

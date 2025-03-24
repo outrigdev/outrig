@@ -57,6 +57,46 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Formats a timestamp as a human-readable relative time string (e.g., "just now", "30s ago")
+ */
+export function formatRelativeTime(timestamp: number): string {
+    const now = Date.now();
+    const diffInSeconds = Math.floor((now - timestamp) / 1000);
+    
+    if (diffInSeconds < 10) {
+        return "just now";
+    } else if (diffInSeconds < 60) {
+        return `${diffInSeconds}s ago`;
+    } else if (diffInSeconds < 3600) {
+        const minutes = Math.floor(diffInSeconds / 60);
+        return `${minutes}m ago`;
+    } else if (diffInSeconds < 86400) {
+        const hours = Math.floor(diffInSeconds / 3600);
+        return `${hours}h ago`;
+    } else {
+        const days = Math.floor(diffInSeconds / 86400);
+        return `${days}d ago`;
+    }
+}
+
+/**
+ * Formats a duration in seconds as a human-readable string (e.g., "5s", "2m 30s", "1h 15m")
+ */
+export function formatDuration(durationInSeconds: number): string {
+    if (durationInSeconds < 60) {
+        return `${durationInSeconds}s`;
+    } else if (durationInSeconds < 3600) {
+        const minutes = Math.floor(durationInSeconds / 60);
+        const seconds = durationInSeconds % 60;
+        return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    } else {
+        const hours = Math.floor(durationInSeconds / 3600);
+        const minutes = Math.floor((durationInSeconds % 3600) / 60);
+        return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    }
+}
+
+/**
  * Efficiently merges two arrays of the same type, replacing items in the first array with matching items from the second array,
  * and adding new items from the second array. Uses a map for O(n) time complexity.
  *

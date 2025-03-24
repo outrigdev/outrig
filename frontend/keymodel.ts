@@ -83,22 +83,18 @@ function appHandleKeyDown(keyEvent: OutrigKeyboardEvent): boolean {
 
 function registerGlobalKeys() {
     globalKeyMap.set("Ctrl:1", () => {
-        AppModel.selectAppRunsTab();
-        return true;
-    });
-    globalKeyMap.set("Ctrl:2", () => {
         AppModel.selectLogsTab();
         return true;
     });
-    globalKeyMap.set("Ctrl:3", () => {
+    globalKeyMap.set("Ctrl:2", () => {
         AppModel.selectGoRoutinesTab();
         return true;
     });
-    globalKeyMap.set("Ctrl:4", () => {
+    globalKeyMap.set("Ctrl:3", () => {
         AppModel.selectWatchesTab();
         return true;
     });
-    globalKeyMap.set("Ctrl:5", () => {
+    globalKeyMap.set("Ctrl:4", () => {
         AppModel.selectRuntimeStatsTab();
         return true;
     });

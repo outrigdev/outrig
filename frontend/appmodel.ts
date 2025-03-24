@@ -15,7 +15,7 @@ interface UrlState {
 // Create a primitive boolean atom.
 class AppModel {
     // UI state
-    selectedTab: PrimitiveAtom<string> = atom("appruns"); // Default to app runs list view
+    selectedTab: PrimitiveAtom<string> = atom("logs"); // Default to logs view
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
     autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AUTO_FOLLOW_STORAGE_KEY) !== "false"); // Default to true if not set
     leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for left navigation bar
@@ -47,7 +47,7 @@ class AppModel {
         const appRunIdParam = params.get("appRunId");
 
         // Set the selected tab if it's valid
-        if (tabParam && ["appruns", "logs", "goroutines", "watches", "runtimestats"].includes(tabParam)) {
+        if (tabParam && ["logs", "goroutines", "watches", "runtimestats"].includes(tabParam)) {
             getDefaultStore().set(this.selectedTab, tabParam);
         }
 
@@ -117,9 +117,8 @@ class AppModel {
                 // Note: Logs are loaded by the LogViewer component when it mounts
                 // Note: We don't load any data if we're on the appruns tab
             } else {
-                // If appRunId is invalid, switch to appruns tab and remove appRunId from URL
-                getDefaultStore().set(this.selectedTab, "appruns");
-                this.updateUrl({ tab: "appruns", appRunId: null });
+                // If appRunId is invalid, clear the appRunId from URL
+                this.updateUrl({ appRunId: null });
             }
 
             // Clear the pending state
@@ -170,11 +169,10 @@ class AppModel {
         }
     }
 
-    // Clear the selected app run and go to app runs tab
+    // Clear the selected app run
     clearAppRunSelection() {
         getDefaultStore().set(this.selectedAppRunId, "");
         this.updateUrl({ appRunId: null });
-        this.selectAppRunsTab();
     }
 
     selectLogsTab() {
@@ -183,9 +181,10 @@ class AppModel {
         this.updateUrl({ tab: "logs" });
     }
 
+    // This method is kept for backward compatibility
     selectAppRunsTab() {
-        getDefaultStore().set(this.selectedTab, "appruns");
-        this.updateUrl({ tab: "appruns" });
+        // No longer setting a specific tab, just clearing the app run selection
+        this.clearAppRunSelection();
     }
 
     selectGoRoutinesTab() {

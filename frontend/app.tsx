@@ -22,7 +22,6 @@ const TABS_REQUIRING_APP_RUN_ID = ["logs", "goroutines", "watches", "runtimestat
 
 // Define display names for tabs
 const TAB_DISPLAY_NAMES: Record<string, string> = {
-    appruns: "App Runs",
     logs: "Logs",
     goroutines: "GoRoutines",
     watches: "Watches",
@@ -39,9 +38,9 @@ function FeatureTab() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
-    // Return null if no app run is selected
+    // If no app run is selected, show the app runs list
     if (!selectedAppRunId) {
-        return null;
+        return <AppRunList />;
     }
 
     if (selectedTab === "logs") {
@@ -231,8 +230,7 @@ function App() {
                 <div className="flex items-center">
                     <AppLogo />
                     <div className="ml-3 flex">
-                        <Tab name="appruns" displayName={TAB_DISPLAY_NAMES.appruns} />
-                        {selectedAppRunId && (
+                        {selectedAppRunId ? (
                             <>
                                 {TABS_REQUIRING_APP_RUN_ID.map((tabName) => (
                                     <Tab
@@ -242,6 +240,10 @@ function App() {
                                     />
                                 ))}
                             </>
+                        ) : (
+                            <div className="px-4 py-2 text-primary text-sm font-medium">
+                                App Runs
+                            </div>
                         )}
                     </div>
                 </div>
@@ -257,16 +259,7 @@ function App() {
             </nav>
 
             {/* Main content */}
-            <main
-                className="flex-grow overflow-auto w-full"
-                style={{ display: selectedTab === "appruns" ? "block" : "none" }}
-            >
-                <AppRunsTab />
-            </main>
-            <main
-                className="flex-grow overflow-auto w-full"
-                style={{ display: selectedTab === "appruns" ? "none" : "block" }}
-            >
+            <main className="flex-grow overflow-auto w-full">
                 <FeatureTab />
             </main>
 

@@ -5,7 +5,7 @@ import { LogVList } from "@/logvlist/logvlist";
 import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
-import { getDefaultStore, useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { ArrowDown, ArrowDownCircle, Filter, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { LogViewerModel } from "./logviewer-model";
@@ -62,7 +62,10 @@ const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model }) => 
     const isMarked = model.isLineMarked(line.linenum);
 
     return (
-        <div className={cn("flex text-muted select-none", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}>
+        <div
+            data-linenum={line.linenum}
+            className={cn("flex text-muted select-none", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}
+        >
             <div
                 className={cn(
                     "w-12 text-right flex-shrink-0 cursor-pointer",
@@ -422,7 +425,7 @@ const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
     const searchRef = useRef<HTMLInputElement>(null);
     const vlistRef = useRef<HTMLDivElement>(null);
     const searchTerm = useAtomValue(model.searchTerm);
-    
+
     // Set the vlistRef in the model
     useEffect(() => {
         model.setVListRef(vlistRef);
@@ -454,11 +457,7 @@ const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
 
     return (
         <div className="w-full h-full flex flex-col overflow-hidden">
-            <LogViewerFilter
-                model={model}
-                searchRef={searchRef}
-                className="flex-shrink-0"
-            />
+            <LogViewerFilter model={model} searchRef={searchRef} className="flex-shrink-0" />
             <div className="h-px bg-border flex-shrink-0"></div>
             <LogViewerContent model={model} />
         </div>

@@ -122,7 +122,7 @@ class AppRunModel {
                 // Changed from not running to running
                 AppModel.showToast(
                     "App Run Re-Connected",
-                    `App run ${currentAppRun.appname || "Unknown"} (${selectedAppRunId.substring(0, 8)}) has reconnected`,
+                    `App run ${currentAppRun.appname || "Unknown"} (${selectedAppRunId.substring(0, 4)}) has reconnected`,
                     5000
                 );
             } else {
@@ -130,7 +130,7 @@ class AppRunModel {
                 const statusMessage = currentAppRun.status === "done" ? "completed" : "disconnected";
                 AppModel.showToast(
                     "App Run Disconnected",
-                    `App run ${currentAppRun.appname || "Unknown"} (${selectedAppRunId.substring(0, 8)}) has ${statusMessage}`,
+                    `App run ${currentAppRun.appname || "Unknown"} (${selectedAppRunId.substring(0, 4)}) has ${statusMessage}`,
                     5000
                 );
             }
@@ -197,19 +197,14 @@ class AppRunModel {
         // Get the current tab
         const currentTab = getDefaultStore().get(AppModel.selectedTab);
 
-        // If we're on the app-runs tab AND this is not the initial load, switch to logs tab
-        // Otherwise keep the current tab
-        if (currentTab === "appruns" && !isInitialLoad) {
-            AppModel.selectAppRun(bestAppRun.apprunid, true); // Switch to logs tab
-        } else {
-            AppModel.selectAppRunKeepTab(bestAppRun.apprunid, true); // Keep current tab
-        }
+        // Always keep the current tab when auto-following
+        AppModel.selectAppRunKeepTab(bestAppRun.apprunid, true);
 
         // Only show a toast notification if we're actually switching to a different app run
         // AND this is not the initial page load
         if (!isInitialLoad) {
             const appName = bestAppRun.appname || "Unknown";
-            const shortId = bestAppRun.apprunid.substring(0, 8); // First 8 chars of the ID
+            const shortId = bestAppRun.apprunid.substring(0, 4); // First 8 chars of the ID
 
             // Format the start time information
             const startTimeInfo = this.formatStartTimeInfo(bestAppRun.starttime);
