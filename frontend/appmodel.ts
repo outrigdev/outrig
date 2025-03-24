@@ -74,7 +74,7 @@ class AppModel {
     }
 
     // Update URL with provided state changes
-    updateUrl(stateChanges: UrlState) {
+    updateUrl(stateChanges: UrlState, usePushState = true) {
         // Skip URL updates during initialization
         if (this._isInitializing) return;
 
@@ -93,7 +93,14 @@ class AppModel {
 
         // Update URL without reloading the page
         const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
-        window.history.replaceState({}, "", newUrl);
+        
+        // Use pushState to create a new history entry (for back button support)
+        // or replaceState to update the current entry without creating a new one
+        if (usePushState) {
+            window.history.pushState({}, "", newUrl);
+        } else {
+            window.history.replaceState({}, "", newUrl);
+        }
     }
 
     // Pending state from URL that needs to be verified
@@ -134,7 +141,8 @@ class AppModel {
 
     selectAppRun(appRunId: string, isAutoFollowSelection = false) {
         getDefaultStore().set(this.selectedAppRunId, appRunId);
-        this.updateUrl({ appRunId: appRunId });
+        // Use pushState to create a new history entry for navigating to an app run
+        this.updateUrl({ appRunId: appRunId }, true);
         this.selectLogsTab();
 
         // If this is a manual selection (not from auto-follow), check if we should disable auto-follow
@@ -146,7 +154,8 @@ class AppModel {
     // Select an app run without changing the current tab
     selectAppRunKeepTab(appRunId: string, isAutoFollowSelection = false) {
         getDefaultStore().set(this.selectedAppRunId, appRunId);
-        this.updateUrl({ appRunId: appRunId });
+        // Use pushState to create a new history entry for navigating to an app run
+        this.updateUrl({ appRunId: appRunId }, true);
 
         // If this is a manual selection (not from auto-follow), check if we should disable auto-follow
         if (!isAutoFollowSelection) {
@@ -172,40 +181,48 @@ class AppModel {
         }
     }
 
-    // Clear the selected app run
-    clearAppRunSelection() {
+    // Navigate to the homepage
+    navToHomepage() {
+        // Clear the selected app run ID
         getDefaultStore().set(this.selectedAppRunId, "");
-        this.updateUrl({ appRunId: null });
+        // Clear the selected tab (or reset to default)
+        getDefaultStore().set(this.selectedTab, "logs");
+        // Use pushState to create a new history entry for navigating to the homepage
+        this.updateUrl({ appRunId: null, tab: null }, true);
     }
 
     selectLogsTab() {
         // Note: Logs are loaded by the LogViewer component when it mounts
         getDefaultStore().set(this.selectedTab, "logs");
-        this.updateUrl({ tab: "logs" });
+        // Use replaceState for tab navigation (no history entry)
+        this.updateUrl({ tab: "logs" }, false);
     }
 
     // This method is kept for backward compatibility
     selectAppRunsTab() {
-        // No longer setting a specific tab, just clearing the app run selection
-        this.clearAppRunSelection();
+        // No longer setting a specific tab, just navigating to homepage
+        this.navToHomepage();
     }
 
     selectGoRoutinesTab() {
         // Note: Goroutines are loaded by the GoRoutines component when it mounts
         getDefaultStore().set(this.selectedTab, "goroutines");
-        this.updateUrl({ tab: "goroutines" });
+        // Use replaceState for tab navigation (no history entry)
+        this.updateUrl({ tab: "goroutines" }, false);
     }
 
     selectWatchesTab() {
         // Note: Watches are loaded by the Watches component when it mounts
         getDefaultStore().set(this.selectedTab, "watches");
-        this.updateUrl({ tab: "watches" });
+        // Use replaceState for tab navigation (no history entry)
+        this.updateUrl({ tab: "watches" }, false);
     }
 
     selectRuntimeStatsTab() {
         // Note: Runtime Stats are loaded by the RuntimeStats component when it mounts
         getDefaultStore().set(this.selectedTab, "runtimestats");
-        this.updateUrl({ tab: "runtimestats" });
+        // Use replaceState for tab navigation (no history entry)
+        this.updateUrl({ tab: "runtimestats" }, false);
     }
 
     applyTheme(): void {

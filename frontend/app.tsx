@@ -1,9 +1,10 @@
 import { keydownWrapper } from "@/util/keyutil";
-import { useAtom, useAtomValue } from "jotai";
+import { getDefaultStore, useAtom, useAtomValue } from "jotai";
 import { Check } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { AppRunList } from "./apprunlist/apprunlist";
+import { HomePage } from "./homepage/homepage";
 import { ToastContainer } from "./elements/toast";
 import { Tooltip } from "./elements/tooltip";
 import { GoRoutines } from "./goroutines/goroutines";
@@ -13,10 +14,6 @@ import { LeftNav } from "./main/leftnav";
 import { RuntimeStats } from "./runtimestats/runtimestats";
 import { StatusBar } from "./statusbar";
 import { Watches } from "./watches/watches";
-
-// Define tabs that require an app run ID to be selected
-// Add new tabs that require an app run ID to this array
-const TABS_REQUIRING_APP_RUN_ID = ["logs", "goroutines", "watches", "runtimestats"];
 
 // Define display names for tabs
 const TAB_DISPLAY_NAMES: Record<string, string> = {
@@ -36,11 +33,8 @@ function FeatureTab() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
-    // If no app run is selected, show the app runs list
-    if (!selectedAppRunId) {
-        return <AppRunList />;
-    }
-
+    // We should always have an app run ID here since the parent component
+    // conditionally renders the HomePage when no app run is selected
     if (selectedTab === "logs") {
         return <LogViewer key={selectedAppRunId} appRunId={selectedAppRunId} />;
     } else if (selectedTab === "goroutines") {
@@ -157,20 +151,17 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
     const handleTabClick = () => {
-        // If trying to navigate to a tab requiring an app run ID but no app run is selected,
-        // don't change the tab (the tabs won't be visible anyway due to conditional rendering)
-        if (TABS_REQUIRING_APP_RUN_ID.includes(name) && !selectedAppRunId) {
-            return;
-        }
+        // We should always have an app run ID here since the parent component
+        // conditionally renders the HomePage when no app run is selected
         if (name === "goroutines") {
             AppModel.selectGoRoutinesTab();
-        } else if (name == "logs") {
+        } else if (name === "logs") {
             AppModel.selectLogsTab();
-        } else if (name == "appruns") {
+        } else if (name === "appruns") {
             AppModel.selectAppRunsTab();
-        } else if (name == "watches") {
+        } else if (name === "watches") {
             AppModel.selectWatchesTab();
-        } else if (name == "runtimestats") {
+        } else if (name === "runtimestats") {
             AppModel.selectRuntimeStatsTab();
         } else {
             console.log("unknown tab selected", name);
@@ -220,6 +211,33 @@ function App() {
 
         // Listen for popstate events (browser back/forward buttons)
         const handlePopState = () => {
+            // Update app state based on URL when navigating with browser back/forward buttons
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get("tab");
+            const appRunIdParam = params.get("appRunId");
+
+            // Update the selected app run ID
+            if (appRunIdParam) {
+                // Only update if it's different from the current selection
+                if (appRunIdParam !== selectedAppRunId) {
+                    getDefaultStore().set(AppModel.selectedAppRunId, appRunIdParam);
+                }
+            } else {
+                // Clear the selection if there's no app run ID in the URL
+                if (selectedAppRunId) {
+                    getDefaultStore().set(AppModel.selectedAppRunId, "");
+                }
+            }
+
+            // Update the selected tab
+            if (tabParam && ["logs", "goroutines", "watches", "runtimestats"].includes(tabParam)) {
+                // Only update if it's different from the current selection
+                if (tabParam !== selectedTab) {
+                    getDefaultStore().set(AppModel.selectedTab, tabParam);
+                }
+            }
+
+            // Send the updated URL to the backend
             AppModel.sendBrowserTabUrl();
         };
 
@@ -256,6 +274,18 @@ function App() {
         AppModel.removeToast(id);
     };
 
+    // If no app run is selected, show the homepage
+    if (!selectedAppRunId) {
+        return (
+            <>
+                <HomePage />
+                {/* Toast container */}
+                <ToastContainer toasts={toasts} onClose={handleToastClose} />
+            </>
+        );
+    }
+
+    // Otherwise, show the main app UI with tabs
     return (
         <div className="h-screen w-screen flex flex-col bg-panel">
             <LeftNav />
@@ -264,19 +294,14 @@ function App() {
                     <AppHeader />
                     <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
                     <div className="flex">
-                        {selectedAppRunId ? (
-                            <>
-                                {TABS_REQUIRING_APP_RUN_ID.map((tabName) => (
-                                    <Tab
-                                        key={tabName}
-                                        name={tabName}
-                                        displayName={TAB_DISPLAY_NAMES[tabName] || tabName}
-                                    />
-                                ))}
-                            </>
-                        ) : (
-                            <div className="px-4 py-2 text-primary text-sm font-medium">App Runs</div>
-                        )}
+                        {/* All tabs require an app run ID now */}
+                        {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
+                            <Tab
+                                key={tabName}
+                                name={tabName}
+                                displayName={TAB_DISPLAY_NAMES[tabName]}
+                            />
+                        ))}
                     </div>
                 </div>
                 <div className="flex items-center gap-2">

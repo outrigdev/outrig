@@ -173,10 +173,10 @@ class AppRunModel {
         const currentAppRunId = getDefaultStore().get(AppModel.selectedAppRunId);
         const bestAppRun = this.findBestAppRun();
 
-        // If there's no best app run and we have a current selection, clear it and go to app runs tab
+        // If there's no best app run and we have a current selection, navigate to homepage
         if (!bestAppRun && currentAppRunId) {
-            console.log(`[AutoFollow] No app runs available, clearing selection`);
-            AppModel.clearAppRunSelection();
+            console.log(`[AutoFollow] No app runs available, navigating to homepage`);
+            AppModel.navToHomepage();
             return;
         }
 
@@ -191,8 +191,14 @@ class AppRunModel {
             return;
         }
 
+        // If we're on the homepage (no app run selected), don't auto-follow
+        if (!currentAppRunId) {
+            console.log(`[AutoFollow] On homepage, not auto-following to ${bestAppRun.apprunid}`);
+            return;
+        }
+
         // If our current app run is not the best, switch to the best but stay on current tab
-        console.log(`[AutoFollow] Switching from ${currentAppRunId || "none"} to ${bestAppRun.apprunid}`);
+        console.log(`[AutoFollow] Switching from ${currentAppRunId} to ${bestAppRun.apprunid}`);
 
         // Get the current tab
         const currentTab = getDefaultStore().get(AppModel.selectedTab);

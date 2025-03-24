@@ -52,7 +52,6 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
             )}
             onClick={() => {
                 AppModel.selectAppRun(appRun.apprunid);
-                // This will close the nav after selection
                 getDefaultStore().set(AppModel.leftNavOpen, false);
             }}
         >
@@ -209,10 +208,11 @@ export const AppRunList: React.FC = () => {
                 <span className="text-[10px] font-bold text-secondary uppercase">Recent App Runs</span>
                 {/* Show All link if there are hidden app runs */}
                 {groupedAppRuns.hasHiddenAppRuns && (
-                    <button 
+                    <button
                         className="text-secondary hover:text-primary text-[10px] cursor-pointer"
                         onClick={() => {
-                            AppModel.selectAppRunsTab();
+                            // Navigate to homepage
+                            AppModel.navToHomepage();
                             setIsOpen(false);
                         }}
                     >
@@ -308,7 +308,8 @@ export const LeftNav: React.FC = () => {
                         <button
                             className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"
                             onClick={() => {
-                                AppModel.selectAppRunsTab();
+                                // Navigate to homepage
+                                AppModel.navToHomepage();
                                 setIsOpen(false);
                             }}
                         >
