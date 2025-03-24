@@ -1,5 +1,18 @@
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { BookOpen, Clock, Github, Home, MessageSquare, Moon, Settings, Sun, Twitter, X, Youtube } from "lucide-react";
+import {
+    BookOpen,
+    Box,
+    Clock,
+    Github,
+    Home,
+    MessageSquare,
+    Moon,
+    Settings,
+    Sun,
+    Twitter,
+    X,
+    Youtube,
+} from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { AppModel } from "../appmodel";
 import { cn, formatDuration, formatRelativeTime } from "../util/util";
@@ -78,50 +91,15 @@ interface AppNameGroupProps {
 }
 
 export const AppNameGroup: React.FC<AppNameGroupProps> = ({ appName, appRuns, selectedAppRunId }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
-
     // Count running apps in this group
     const runningCount = appRuns.filter((run) => run.status === "running").length;
 
     return (
         <div className="mb-2">
             {/* App Name Header */}
-            <div
-                className="flex items-center justify-between px-2 py-1 text-sm font-medium text-primary cursor-pointer hover:bg-buttonhover rounded"
-                onClick={() => setIsExpanded(!isExpanded)}
-            >
+            <div className="flex items-center justify-between px-2 py-1 text-sm font-medium text-primary rounded">
                 <div className="flex items-center">
-                    {isExpanded ? (
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="mr-1"
-                        >
-                            <path d="m18 15-6-6-6 6" />
-                        </svg>
-                    ) : (
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="mr-1"
-                        >
-                            <path d="m9 18 6-6-6-6" />
-                        </svg>
-                    )}
+                    <Box size={16} className="mr-1" />
                     <span>{appName}</span>
                 </div>
                 <div className="text-[10px] text-muted">
@@ -130,24 +108,19 @@ export const AppNameGroup: React.FC<AppNameGroupProps> = ({ appName, appRuns, se
                             {runningCount} running
                         </span>
                     )}
-                    <span className="ml-1">
-                        {appRuns.length} {appRuns.length === 1 ? "run" : "runs"}
-                    </span>
                 </div>
             </div>
 
             {/* App Runs in this group */}
-            {isExpanded && (
-                <div className="pl-4">
-                    {appRuns.map((appRun) => (
-                        <AppRunItem
-                            key={appRun.apprunid}
-                            appRun={appRun}
-                            isSelected={appRun.apprunid === selectedAppRunId}
-                        />
-                    ))}
-                </div>
-            )}
+            <div className="pl-4">
+                {appRuns.map((appRun) => (
+                    <AppRunItem
+                        key={appRun.apprunid}
+                        appRun={appRun}
+                        isSelected={appRun.apprunid === selectedAppRunId}
+                    />
+                ))}
+            </div>
         </div>
     );
 };
@@ -160,10 +133,25 @@ export const AppRunList: React.FC = () => {
 
     // Group app runs by app name and sort within groups
     const groupedAppRuns = useMemo(() => {
-        // First, group app runs by app name
+        // First, get all running app runs
+        const runningAppRuns = unsortedAppRuns.filter((run) => run.status === "running");
+
+        // Then get the latest 10 app runs by start time (excluding running ones to avoid duplicates)
+        const nonRunningAppRuns = unsortedAppRuns
+            .filter((run) => run.status !== "running")
+            .sort((a, b) => b.starttime - a.starttime)
+            .slice(0, Math.max(0, 10 - runningAppRuns.length));
+
+        // Combine running and non-running app runs
+        const filteredAppRuns = [...runningAppRuns, ...nonRunningAppRuns];
+
+        // Check if we're showing all app runs or if some are hidden
+        const hasHiddenAppRuns = unsortedAppRuns.length > filteredAppRuns.length;
+
+        // Group app runs by app name
         const groups: Record<string, AppRunInfo[]> = {};
 
-        unsortedAppRuns.forEach((appRun) => {
+        filteredAppRuns.forEach((appRun) => {
             const appName = appRun.appname || "Unknown";
             if (!groups[appName]) {
                 groups[appName] = [];
@@ -212,13 +200,26 @@ export const AppRunList: React.FC = () => {
             return a.localeCompare(b);
         });
 
-        return { groups, sortedAppNames };
+        return { groups, sortedAppNames, hasHiddenAppRuns };
     }, [unsortedAppRuns]);
-
 
     return (
         <>
-            <div className="px-4 pt-2 pb-1 text-[10px] font-bold text-secondary uppercase">Recent App Runs</div>
+            <div className="px-4 pt-2 pb-1 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-secondary uppercase">Recent App Runs</span>
+                {/* Show All link if there are hidden app runs */}
+                {groupedAppRuns.hasHiddenAppRuns && (
+                    <button 
+                        className="text-secondary hover:text-primary text-[10px] cursor-pointer"
+                        onClick={() => {
+                            AppModel.selectAppRunsTab();
+                            setIsOpen(false);
+                        }}
+                    >
+                        Show All
+                    </button>
+                )}
+            </div>
 
             {/* App Runs List (Scrollable) */}
             <div className="flex-1 overflow-y-auto">
@@ -279,9 +280,7 @@ export const LeftNav: React.FC = () => {
             <div className="fixed inset-0 bg-black/20 backdrop-blur-[1px] z-40" onClick={handleClose} />
 
             {/* Left Navigation */}
-            <div
-                className="fixed top-0 left-0 h-full w-64 bg-panel border-r-2 border-border z-50 flex flex-col transition-transform duration-300 ease-in-out translate-x-0"
-            >
+            <div className="fixed top-0 left-0 h-full w-64 bg-panel border-r-2 border-border z-50 flex flex-col transition-transform duration-300 ease-in-out translate-x-0">
                 {/* Header with close button */}
                 <div
                     className="flex items-center justify-between p-4 border-b border-border cursor-pointer"
