@@ -55,12 +55,15 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
                 getDefaultStore().set(AppModel.leftNavOpen, false);
             }}
         >
-            <div className="flex items-center justify-between relative">
-                {/* Running indicator positioned absolutely to the left */}
-                {appRun.status === "running" && (
-                    <div className="absolute left-[-12px] top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full bg-green-500"></div>
-                )}
-                <div className="flex items-center">
+            <div className="flex items-center justify-between">
+                {/* Running indicator as part of the flow with visibility */}
+                <div
+                    className={cn(
+                        "w-2 h-2 rounded-full bg-green-500 mr-2",
+                        appRun.status === "running" ? "visible" : "invisible"
+                    )}
+                ></div>
+                <div className="flex items-center flex-1">
                     <span className="inline-block w-24">
                         {appRun.status === "running" ? "Running" : formatRelativeTime(appRun.starttime)}
                     </span>
@@ -111,7 +114,7 @@ export const AppNameGroup: React.FC<AppNameGroupProps> = ({ appName, appRuns, se
             </div>
 
             {/* App Runs in this group */}
-            <div className="pl-4">
+            <div className="">
                 {appRuns.map((appRun) => (
                     <AppRunItem
                         key={appRun.apprunid}
