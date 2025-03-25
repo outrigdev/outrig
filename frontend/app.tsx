@@ -115,27 +115,35 @@ function AutoFollowButton() {
         >
             <button
                 onClick={handleToggle}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded border transition-colors cursor-pointer ${
+                className={`flex items-center gap-2 px-3 py-1 transition-colors cursor-pointer border-l-2 border-gray-300 dark:border-gray-600 ${
                     autoFollow
-                        ? "bg-sky-500/10 border-sky-500/30 hover:bg-sky-500/20"
-                        : "bg-gray-200/30 border-gray-300 dark:bg-gray-700/30 dark:border-gray-600 hover:bg-gray-200/50 dark:hover:bg-gray-700/50"
+                        ? "bg-sky-500/10 hover:bg-sky-500/20"
+                        : "bg-transparent hover:bg-gray-200/30 dark:hover:bg-gray-700/30"
                 }`}
             >
-                <div
-                    className={`flex items-center justify-center w-3.5 h-3.5 rounded border ${
-                        autoFollow
-                            ? "bg-sky-500 border-sky-600"
-                            : "bg-gray-200 border-gray-300 dark:bg-gray-700 dark:border-gray-600"
-                    }`}
-                >
-                    {autoFollow && <Check size={10} className="text-white" />}
+                {/* Modern Toggle Switch */}
+                <div className="relative">
+                    <div 
+                        className={`w-7 h-3.5 rounded-full transition-colors ${
+                            autoFollow 
+                                ? "bg-sky-500/50" 
+                                : "bg-gray-300 dark:bg-gray-600"
+                        }`}
+                    />
+                    <div 
+                        className={`absolute top-[-1px] left-0 w-4 h-4 rounded-full shadow-sm transform transition-transform ${
+                            autoFollow 
+                                ? "translate-x-3.5 bg-sky-500" 
+                                : "bg-gray-400 dark:bg-gray-500"
+                        }`}
+                    />
                 </div>
                 <span
                     className={`text-xs ${
                         autoFollow ? "text-sky-500 font-medium" : "text-gray-500 dark:text-gray-400"
                     }`}
                 >
-                    auto-follow
+                    follow new runs
                 </span>
             </button>
         </Tooltip>
