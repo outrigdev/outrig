@@ -29,7 +29,7 @@
 // - Regular expression tokens (/foo/) are case-insensitive by default
 // - Case-sensitive regular expression tokens (c/Foo/) are prefixed with 'c'
 // - Hash tokens (#foo) search for "#foo" literally (case-insensitive)
-// - Special case: #marked uses the marked searcher to find marked lines
+// - Special case: #marked or #m uses the marked searcher to find marked lines
 // - Not token (-) negates the search result of the token that follows it
 // - A literal "-" at the start of a token must be quoted: "-hello" searches for "-hello" literally
 
@@ -310,7 +310,7 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 			token = p.input[position:p.position]
 
 			// Special case for #marked
-			if strings.ToLower(token) == "marked" {
+			if strings.ToLower(token) == "marked" || strings.ToLower(token) == "m" {
 				tokenType = "marked"
 				token = "" // The marked searcher doesn't need a search term
 			} else {
@@ -339,7 +339,7 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 func (p *Parser) parseNotToken() (SearchToken, bool) {
 	// Skip the - character
 	p.readChar()
-	
+
 	// If we've reached the end of the input or whitespace, treat '-' as a literal token
 	if p.ch == 0 || unicode.IsSpace(p.ch) {
 		return SearchToken{
@@ -348,16 +348,16 @@ func (p *Parser) parseNotToken() (SearchToken, bool) {
 			IsNot:      false,
 		}, true
 	}
-	
+
 	// Parse the unmodified token
 	unmodifiedToken, valid := p.parseUnmodifiedToken()
 	if !valid {
 		return SearchToken{}, false
 	}
-	
+
 	// Set the IsNot flag to true
 	unmodifiedToken.IsNot = true
-	
+
 	return unmodifiedToken, true
 }
 
@@ -367,7 +367,7 @@ func (p *Parser) parseToken() (SearchToken, bool) {
 	if p.ch == '-' {
 		return p.parseNotToken()
 	}
-	
+
 	// Parse an unmodified token
 	return p.parseUnmodifiedToken()
 }
@@ -406,30 +406,30 @@ func (p *Parser) parseOrExpr() [][]SearchToken {
 	if p.ch == '|' {
 		// Skip the "|" character
 		p.readChar()
-		
+
 		// Skip any whitespace after the "|"
 		p.skipWhitespace()
-		
+
 		// Add an empty group before the pipe
 		orGroups = append(orGroups, []SearchToken{})
-		
+
 		// Parse the expression after the pipe
 		andTokens := p.parseAndExpr()
 		orGroups = append(orGroups, andTokens)
-		
+
 		// Continue parsing if there are more pipes
 		for p.ch == '|' {
 			// Skip the "|" character
 			p.readChar()
-			
+
 			// Skip any whitespace after the "|"
 			p.skipWhitespace()
-			
+
 			// Parse the next AND expression
 			andTokens = p.parseAndExpr()
 			orGroups = append(orGroups, andTokens)
 		}
-		
+
 		return orGroups
 	}
 
@@ -441,10 +441,10 @@ func (p *Parser) parseOrExpr() [][]SearchToken {
 	for p.ch == '|' {
 		// Skip the "|" character
 		p.readChar()
-		
+
 		// Skip any whitespace after the "|"
 		p.skipWhitespace()
-		
+
 		// Parse the next AND expression
 		andTokens = p.parseAndExpr()
 		orGroups = append(orGroups, andTokens)
@@ -465,10 +465,10 @@ func (p *Parser) Parse() []SearchToken {
 			},
 		}
 	}
-	
+
 	// Parse the OR expression
 	orGroups := p.parseOrExpr()
-	
+
 	// If there's only one group, return it directly
 	if len(orGroups) <= 1 {
 		if len(orGroups) == 0 {
@@ -476,10 +476,10 @@ func (p *Parser) Parse() []SearchToken {
 		}
 		return orGroups[0]
 	}
-	
+
 	// Otherwise, create OR tokens
 	var result []SearchToken
-	
+
 	// Add a special token to indicate the start of an OR group
 	for i, group := range orGroups {
 		// Add a special token to indicate OR operation
@@ -490,11 +490,11 @@ func (p *Parser) Parse() []SearchToken {
 				IsNot:      false,
 			})
 		}
-		
+
 		// Add the tokens from this group
 		result = append(result, group...)
 	}
-	
+
 	return result
 }
 

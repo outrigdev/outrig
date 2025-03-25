@@ -142,7 +142,29 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
 };
 
 const NoAppRunsFound: React.FC = () => {
-    return <div className="flex items-center justify-center h-full text-secondary">no app runs found</div>;
+    return (
+        <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+            <h3 className="text-primary text-lg font-medium mb-4">Getting Started with Outrig</h3>
+            <p className="text-secondary mb-6">Add Outrig to your Go application with just a few lines of code:</p>
+            <pre className="whitespace-pre bg-panel border border-border rounded-lg p-4 text-left text-sm text-primary overflow-auto w-full max-w-lg">
+                <code>
+                    {`// Step 1: Import the package
+import "github.com/outrigdev/outrig"
+
+func main() {
+    // Step 2: Initialize Outrig
+    outrig.Init(nil)
+    
+    // Step 3: Optionally signal graceful shutdown
+    defer outrig.AppDone()
+    
+    // Your application code here...
+}`}
+                </code>
+            </pre>
+            <p className="text-secondary mt-6">Once you run your application, it will appear here automatically.</p>
+        </div>
+    );
 };
 
 export const AppRunList: React.FC = () => {

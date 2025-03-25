@@ -1,5 +1,7 @@
 import { AppRunList } from "@/apprunlist/apprunlist";
+import { AppModel } from "@/appmodel";
 import { cn } from "@/util/util";
+import { useAtomValue } from "jotai";
 import { Activity, BarChart2, List, Search } from "lucide-react";
 
 // Feature card component for the homepage
@@ -20,6 +22,8 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description }) =
 };
 
 export const HomePage: React.FC = () => {
+    const appRunCount = useAtomValue(AppModel.appRunModel.appRunCount);
+    const hasAppRuns = appRunCount > 0;
     return (
         <div className="h-screen bg-background flex flex-col">
             {/* Header */}
@@ -81,10 +85,21 @@ export const HomePage: React.FC = () => {
                     )}
                 >
                     <div className="p-6 bg-panel border-b border-border">
-                        <h2 className="text-primary text-xl font-medium">Select an Application Run</h2>
-                        <p className="text-secondary text-sm mt-1">
-                            Choose a running or completed Go application to start debugging.
-                        </p>
+                        {hasAppRuns ? (
+                            <>
+                                <h2 className="text-primary text-xl font-medium">Select an Application Run</h2>
+                                <p className="text-secondary text-sm mt-1">
+                                    Choose a running or completed Go application to start debugging.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="text-primary text-xl font-medium">Getting Started</h2>
+                                <p className="text-secondary text-sm mt-1">
+                                    Add Outrig to your Go application to start debugging.
+                                </p>
+                            </>
+                        )}
                     </div>
                     <div className="flex-grow overflow-auto">
                         <AppRunList />

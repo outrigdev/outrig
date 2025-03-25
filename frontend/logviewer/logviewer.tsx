@@ -146,12 +146,12 @@ const MarkedLinesIndicator = React.memo<MarkedLinesIndicatorProps>(({ model }) =
     };
 
     return (
-        <div className="absolute top-0 right-0 flex items-center bg-accent text-black rounded-bl-md px-2 py-1 text-xs z-10">
+        <div className="absolute top-0 right-0 flex items-center bg-accent text-white dark:text-black rounded-bl-md px-2 py-1 text-xs z-10">
             <span className="font-medium">
                 {markedCount} {markedCount === 1 ? "line" : "lines"} marked
             </span>
             <CopyButton
-                className="ml-2"
+                className="ml-2 text-white dark:text-black"
                 size={14}
                 tooltipText="Copy marked lines"
                 successTooltipText="Copied!"
