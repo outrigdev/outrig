@@ -8,6 +8,7 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/shirou/gopsutil/v4/process"
 )
 
@@ -48,9 +49,13 @@ func (rc *RuntimeStatsCollector) Enable() {
 	if rc.ticker != nil {
 		return
 	}
-	go rc.CollectRuntimeStats()
+	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig RuntimeStatsCollector")
+		rc.CollectRuntimeStats()
+	}()
 	rc.ticker = time.NewTicker(1 * time.Second)
 	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig RuntimeStatsCollector")
 		for range rc.ticker.C {
 			rc.CollectRuntimeStats()
 		}
@@ -103,11 +108,11 @@ func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
 
 	// Get current process information
 	pid := os.Getpid()
-	
+
 	// Default values
 	cpuPercent := 0.0
 	cwd, _ := os.Getwd() // Get current working directory from os package
-	
+
 	// Get CPU percent using gopsutil
 	proc, err := process.NewProcess(int32(pid))
 	if err == nil {

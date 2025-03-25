@@ -6,6 +6,7 @@ package rpcclient
 import (
 	"errors"
 
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
@@ -47,6 +48,7 @@ func SendRpcRequestCallHelper[T any](w *rpc.RpcClient, command string, data inte
 
 func RtnStreamErr[T any](ch chan rpctypes.RespUnion[T], err error) {
 	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig RtnStreamErr")
 		defer func() {
 			panichandler.PanicHandler("wshclientutil:rtnErr", recover())
 		}()
@@ -74,6 +76,7 @@ func SendRpcRequestResponseStreamHelper[T any](w *rpc.RpcClient, command string,
 		reqHandler.SendCancel()
 	}
 	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig SendRpcRequestResponseStreamHelper")
 		defer func() {
 			panichandler.PanicHandler("sendRpcRequestResponseStreamHelper", recover())
 		}()

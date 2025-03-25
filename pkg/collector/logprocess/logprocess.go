@@ -6,6 +6,7 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 )
 
 const LogBufferSize = 2000
@@ -45,7 +46,10 @@ func (lc *LogCollector) InitCollector(controller ds.Controller) error {
 
 func (lc *LogCollector) Enable() {
 	lc.firstConnectOnce.Do(func() {
-		go lc.ConsumeLogLines()
+		go func() {
+			ioutrig.I.SetGoRoutineName("#outrig LogCollector:ConsumeLogLines")
+			lc.ConsumeLogLines()
+		}()
 	})
 }
 

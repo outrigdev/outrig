@@ -266,6 +266,7 @@ type StackFrame struct {
 type ParsedGoRoutine struct {
 	GoId            int64        `json:"goid"`
 	Name            string       `json:"name,omitempty"`            // Optional name for the goroutine
+	Tags            []string     `json:"tags,omitempty"`            // Optional tags for the goroutine
 	RawStackTrace   string       `json:"rawstacktrace"`             // The raw stack trace string
 	RawState        string       `json:"rawstate"`                  // The complete state information
 	PrimaryState    string       `json:"primarystate"`              // The first part of the state (before any commas)

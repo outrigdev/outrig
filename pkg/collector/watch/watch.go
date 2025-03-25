@@ -11,6 +11,7 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -156,9 +157,13 @@ func (wc *WatchCollector) Enable() {
 	if wc.ticker != nil {
 		return
 	}
-	go wc.CollectWatches()
+	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig WatchCollector")
+		wc.CollectWatches()
+	}()
 	wc.ticker = time.NewTicker(1 * time.Second)
 	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig WatchCollector")
 		for range wc.ticker.C {
 			wc.CollectWatches()
 		}

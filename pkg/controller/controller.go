@@ -22,6 +22,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -76,7 +77,10 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 			collector.Enable()
 		}
 	}
-	go c.runConnPoller()
+	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig ConnPoller")
+		c.runConnPoller()
+	}()
 
 	// Initialize crash output handling if enabled
 	c.initCrashOutput()
@@ -360,12 +364,14 @@ func (c *ControllerImpl) setEnabled(enabled bool) {
 	if enabled {
 		global.OutrigEnabled.Store(true)
 		go func() {
+			ioutrig.I.SetGoRoutineName("#outrig EnableCollectors")
 			for _, collector := range c.Collectors {
 				collector.Enable()
 			}
 		}()
 	} else {
 		go func() {
+			ioutrig.I.SetGoRoutineName("#outrig DisableCollectors")
 			for _, collector := range c.Collectors {
 				collector.Disable()
 			}

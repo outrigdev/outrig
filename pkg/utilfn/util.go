@@ -43,11 +43,9 @@ func CopyStrArr(arr []string) []string {
 	return newArr
 }
 
-func GoDrainChan[T any](ch chan T) {
-	go func() {
-		for range ch {
-		}
-	}()
+func DrainChan[T any](ch chan T) {
+	for range ch {
+	}
 }
 
 func ReUnmarshal(out any, in any) error {

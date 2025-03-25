@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/ds"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 )
 
 var MaxInitBufferSize = 64 * 1024
@@ -54,7 +55,10 @@ func (lc *LogCollector) initInternal(controller ds.Controller) error {
 		}
 		OrigStdout = dw.GetOrigFile()
 		StdoutFileWrap = dw
-		go dw.Run()
+		go func() {
+			ioutrig.I.SetGoRoutineName("#outrig LogWrap:stdout")
+			dw.Run()
+		}()
 		time.AfterFunc(time.Duration(InitWaitTimeMs)*time.Millisecond, func() {
 			StdoutFileWrap.StopBuffering()
 		})
@@ -66,7 +70,10 @@ func (lc *LogCollector) initInternal(controller ds.Controller) error {
 		}
 		OrigStderr = dw.GetOrigFile()
 		StderrFileWrap = dw
-		go dw.Run()
+		go func() {
+			ioutrig.I.SetGoRoutineName("#outrig LogWrap:stderr")
+			dw.Run()
+		}()
 		time.AfterFunc(time.Duration(InitWaitTimeMs)*time.Millisecond, func() {
 			StderrFileWrap.StopBuffering()
 		})

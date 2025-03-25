@@ -11,6 +11,7 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 )
 
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
@@ -53,9 +54,13 @@ func (gc *GoroutineCollector) Enable() {
 	if gc.ticker != nil {
 		return
 	}
-	go gc.DumpGoroutines()
+	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig GoRoutineCollector")
+		gc.DumpGoroutines()
+	}()
 	gc.ticker = time.NewTicker(1 * time.Second)
 	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig GoRoutineCollector")
 		for range gc.ticker.C {
 			gc.DumpGoroutines()
 		}
@@ -139,13 +144,13 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.Gorouti
 		activeGoroutines[id] = true
 
 		state := matches[2]
-		
+
 		grStack := ds.GoRoutineStack{
 			GoId:       id,
 			State:      state,
 			StackTrace: strings.TrimSpace(stackStr),
 		}
-		
+
 		// Add name if available
 		if name, ok := gc.GetGoRoutineName(id); ok {
 			grStack.Name = name
@@ -168,7 +173,7 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.Gorouti
 func (gc *GoroutineCollector) cleanupGoroutineNames(activeGoroutines map[int64]bool) {
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
-	
+
 	// Remove names for goroutines that no longer exist
 	for id := range gc.goroutineNames {
 		if !activeGoroutines[id] {

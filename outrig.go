@@ -11,6 +11,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"golang.org/x/exp/constraints"
 )
@@ -19,6 +20,10 @@ import (
 type Config = ds.Config
 
 var ctrl *controller.ControllerImpl
+
+func init() {
+	ioutrig.I = &internalOutrig{}
+}
 
 // Disable disables Outrig
 func Disable(disconnect bool) {
@@ -210,4 +215,11 @@ func SetGoRoutineName(name string) {
 		gc := goroutine.GetInstance()
 		gc.SetGoRoutineName(goId, name)
 	}
+}
+
+// to avoid circular references, when calling internal outrig functions from the SDK
+type internalOutrig struct{}
+
+func (i *internalOutrig) SetGoRoutineName(name string) {
+	SetGoRoutineName(name)
 }

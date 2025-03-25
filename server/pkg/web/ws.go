@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/outrigdev/outrig"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -37,7 +38,7 @@ func init() {
 func GetAllWSInfo() map[string]WSInfo {
 	keys := ConnMap.Keys()
 	result := make(map[string]WSInfo, len(keys))
-	
+
 	for _, key := range keys {
 		wsModel := ConnMap.Get(key)
 		if wsModel != nil {
@@ -48,7 +49,7 @@ func GetAllWSInfo() map[string]WSInfo {
 			result[key] = info
 		}
 	}
-	
+
 	return result
 }
 
@@ -172,7 +173,10 @@ func WritePing(conn *websocket.Conn) error {
 func WriteLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any, connId string) {
 	ticker := time.NewTicker(wsInitialPingTime)
 	defer ticker.Stop()
-	defer utilfn.GoDrainChan(outputCh)
+	defer func() {
+		ioutrig.I.SetGoRoutineName("#outrig ws:WriteLoop:DrainChan")
+		utilfn.DrainChan(outputCh)
+	}()
 	initialPing := true
 	for {
 		select {

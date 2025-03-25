@@ -167,6 +167,7 @@ declare global {
     type ParsedGoRoutine = {
         goid: number;
         name?: string;
+        tags?: string[];
         rawstacktrace: string;
         rawstate: string;
         primarystate: string;

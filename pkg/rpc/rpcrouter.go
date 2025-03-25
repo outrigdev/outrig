@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 )
@@ -90,12 +91,12 @@ var DefaultRouter = NewWshRouter()
 func (router *WshRouter) GetRouteKeys() []string {
 	router.Lock.Lock()
 	defer router.Lock.Unlock()
-	
+
 	keys := make([]string, 0, len(router.RouteMap))
 	for key := range router.RouteMap {
 		keys = append(keys, key)
 	}
-	
+
 	// Sort the keys for consistent ordering
 	sort.Strings(keys)
 	return keys
@@ -110,7 +111,10 @@ func NewWshRouter() *WshRouter {
 		SimpleRequestMap: make(map[string]chan *RpcMessage),
 		InputCh:          make(chan msgAndRoute, DefaultInputChSize),
 	}
-	go rtn.runServer()
+	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig WshRouter:runServer")
+		rtn.runServer()
+	}()
 	return rtn
 }
 
@@ -331,12 +335,14 @@ func (router *WshRouter) RegisterRoute(routeId string, rpc AbstractRpcClient, sh
 	}
 	router.RouteMap[routeId] = rpc
 	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig WshRouter:publish:routeup")
 		defer func() {
 			panichandler.PanicHandler("RpcRouter:registerRoute:routeup", recover())
 		}()
 		Broker.Publish(EventType{Event: rpctypes.Event_RouteUp, Scopes: []string{routeId}})
 	}()
 	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig WshRouter:registerRoute:recvloop")
 		defer func() {
 			panichandler.PanicHandler("WshRouter:registerRoute:recvloop", recover())
 		}()
@@ -385,6 +391,7 @@ func (router *WshRouter) UnregisterRoute(routeId string) {
 		}
 	}
 	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig WshRouter:publish:routedown")
 		defer func() {
 			panichandler.PanicHandler("RpcRouter:unregisterRoute:routedown", recover())
 		}()

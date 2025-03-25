@@ -14,6 +14,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -48,7 +49,7 @@ func (c *ControllerImpl) setupCrashOutput() (*os.File, error) {
 
 	// Create a ConnWrap for the connection
 	connWrap := comm.MakeConnWrap(conn, dsPath)
-	
+
 	// Perform the handshake with log mode and crash submode
 	err = connWrap.ClientHandshake(base.ConnectionModeLog, "crash", c.AppInfo.AppRunId)
 	if err != nil {
@@ -111,6 +112,9 @@ func (c *ControllerImpl) runCrashOutputConnPoller() {
 // initCrashOutput initializes crash output handling if enabled in the config
 func (c *ControllerImpl) initCrashOutput() {
 	if c.config.LogProcessorConfig != nil && c.config.LogProcessorConfig.CaptureUnhandledCrashes {
-		go c.runCrashOutputConnPoller()
+		go func() {
+			ioutrig.I.SetGoRoutineName("#outrig CrashOutputConnPoller")
+			c.runCrashOutputConnPoller()
+		}()
 	}
 }
