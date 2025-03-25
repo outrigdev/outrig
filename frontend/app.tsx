@@ -1,6 +1,5 @@
 import { keydownWrapper } from "@/util/keyutil";
-import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { Check } from "lucide-react";
+import { useAtom, useAtomValue } from "jotai";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
 import { ToastContainer } from "./elements/toast";
@@ -119,18 +118,14 @@ function AutoFollowButton() {
             >
                 {/* Modern Toggle Switch */}
                 <div className="relative">
-                    <div 
+                    <div
                         className={`w-7 h-3.5 rounded-full transition-colors ${
-                            autoFollow 
-                                ? "bg-sky-500/50" 
-                                : "bg-gray-300 dark:bg-gray-600"
+                            autoFollow ? "bg-sky-500/50" : "bg-gray-300 dark:bg-gray-600"
                         }`}
                     />
-                    <div 
+                    <div
                         className={`absolute top-[-1px] left-0 w-4 h-4 rounded-full shadow-sm transform transition-transform ${
-                            autoFollow 
-                                ? "translate-x-3.5 bg-sky-500" 
-                                : "bg-gray-400 dark:bg-gray-500"
+                            autoFollow ? "translate-x-3.5 bg-sky-500" : "bg-gray-400 dark:bg-gray-500"
                         }`}
                     />
                 </div>

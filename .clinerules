@@ -8,11 +8,6 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Coding Guidelines
 
-- **Comments**:
-    - Avoid all redundant comments that merely restate what is obvious from the code itself
-    - Do not add comments that simply repeat the component/function name (e.g., don't comment `AppRunListHeader` with "Header component for app run list")
-    - Do not add comments that describe what a function does when the function name already clearly indicates its purpose
-    - Only add comments for complex logic, non-obvious behavior, or to explain "why" something is done a certain way
 - **Go Conventions**:
     - Don't use custom enum types in Go. Instead, use string constants (e.g., `const StatusRunning = "running"` rather than creating a custom type like `type Status string`).
     - Use string constants for status values, packet types, and other string-based enumerations.
@@ -91,3 +86,17 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - Also I don't find much value in your Task Completed summaries. Please keep them VERY short.
 - The project is currently an un-released POC / MVP. Do not worry about backward compatibility when making changes
 - With React hooks, always complete all hook calls at the top level before any conditional returns (including jotai hook calls useAtom and useAtomValue); when a user explicitly tells you a function handles null inputs, trust them and stop trying to "protect" it with unnecessary checks or workarounds.
+
+### Strict Comment Rules
+
+- **NEVER add comments that merely describe what code is doing**:
+    - ❌ `mutex.Lock() // Lock the mutex`
+    - ❌ `counter++ // Increment the counter`
+    - ❌ `buffer.Write(data) // Write data to buffer`
+    - ❌ `// Header component for app run list` (above AppRunListHeader)
+- **Only use comments for**:
+    - Explaining WHY a particular approach was chosen
+    - Documenting non-obvious edge cases or side effects
+    - Warning about potential pitfalls in usage
+    - Explaining complex algorithms that can't be simplified
+- **When in doubt, leave it out**. No comment is better than a redundant comment.

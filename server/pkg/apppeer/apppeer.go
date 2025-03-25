@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig"
@@ -52,7 +51,8 @@ type AppRunPeer struct {
 	RuntimeStats     *utilds.CirBuf[ds.RuntimeStatsInfo] // History of runtime stats
 	Status           string                              // Current status of the application
 	LastModTime      int64                               // Last modification time in milliseconds
-	LineNum          atomic.Int64                        // Atomic counter for log line numbers
+	LineNum          int64                               // Counter for log line numbers
+	logLineLock      sync.Mutex                          // Lock for synchronizing log line operations
 	refCount         int                                 // Reference counter
 	refLock          sync.Mutex                          // Lock for reference counter operations
 	searchManagers   []SearchManagerInterface            // Registered search managers
@@ -240,17 +240,14 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		if err := json.Unmarshal(packetData, &logLine); err != nil {
 			return fmt.Errorf("failed to unmarshal LogLine: %w", err)
 		}
-
-		// Set the line number using the atomic counter
-		logLine.LineNum = p.LineNum.Add(1)
-
-		// Normalize line endings in the log message
 		logLine.Msg = normalizeLineEndings(logLine.Msg)
 
-		// Add log line to circular buffer
+		p.logLineLock.Lock()
+		p.LineNum++
+		logLine.LineNum = p.LineNum
 		p.Logs.Write(logLine)
+		p.logLineLock.Unlock()
 
-		// Notify all registered search managers about the new log line
 		p.NotifySearchManagers(logLine)
 
 	case ds.PacketTypeGoroutine:
@@ -279,12 +276,12 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 					StackTraces: utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
 				}
 			}
-			
+
 			// Update name if provided
 			if stack.Name != "" {
 				goroutine.Name = stack.Name
 			}
-			
+
 			// Add stack trace to the circular buffer
 			goroutine.StackTraces.Write(stack)
 

@@ -128,7 +128,7 @@ export const AppNameGroup: React.FC<AppNameGroupProps> = ({ appName, appRuns, se
 };
 
 // AppRunList component for displaying the list of app runs in the left navigation
-export const AppRunList: React.FC = () => {
+export const LeftNavAppRunList: React.FC = () => {
     const [isOpen, setIsOpen] = useAtom(AppModel.leftNavOpen);
     const unsortedAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
@@ -322,7 +322,7 @@ export const LeftNav: React.FC = () => {
                     </div>
 
                     {/* App Runs Section */}
-                    <AppRunList />
+                    <LeftNavAppRunList />
 
                     {/* Bottom Links */}
                     <div className="mt-auto border-t border-border p-2">
