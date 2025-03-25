@@ -18,6 +18,24 @@
     --color-accent: var(--themecolor-accent);
     --color-accentbg: var(--themecolor-accentbg);
 
+    /* ANSI Colors */
+    --color-ansi-black: var(--themecolor-ansi-black);
+    --color-ansi-red: var(--themecolor-ansi-red);
+    --color-ansi-green: var(--themecolor-ansi-green);
+    --color-ansi-yellow: var(--themecolor-ansi-yellow);
+    --color-ansi-blue: var(--themecolor-ansi-blue);
+    --color-ansi-magenta: var(--themecolor-ansi-magenta);
+    --color-ansi-cyan: var(--themecolor-ansi-cyan);
+    --color-ansi-white: var(--themecolor-ansi-white);
+    --color-ansi-brightblack: var(--themecolor-ansi-brightblack);
+    --color-ansi-brightred: var(--themecolor-ansi-brightred);
+    --color-ansi-brightgreen: var(--themecolor-ansi-brightgreen);
+    --color-ansi-brightyellow: var(--themecolor-ansi-brightyellow);
+    --color-ansi-brightblue: var(--themecolor-ansi-brightblue);
+    --color-ansi-brightmagenta: var(--themecolor-ansi-brightmagenta);
+    --color-ansi-brightcyan: var(--themecolor-ansi-brightcyan);
+    --color-ansi-brightwhite: var(--themecolor-ansi-brightwhite);
+
     --font-sans:
         "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
         Arial, "Noto Sans", sans-serif;
@@ -42,21 +60,42 @@
     --themecolor-accent: #0095e8; /* Brighter blue */
     --themecolor-accentbg: #0077b6; /* Original accent color */
 
-    --themecolor-border: rgba(0, 0, 0, 0.08); /* More subtle border */
-    --themecolor-strongborder: rgba(0, 0, 0, 0.16); /* Darker gray for stronger emphasis */
+    --themecolor-border: rgba(0, 0, 0, 0.08);
+    --themecolor-strongborder: rgba(0, 0, 0, 0.16);
 
     --themecolor-buttonhover: rgba(0, 0, 0, 0.05);
     --themecolor-selected: rgba(0, 0, 0, 0.06);
     --themecolor-button: transparent;
 
-    --themecolor-success: #10b981; /* Green */
-    --themecolor-warning: #f59e0b; /* Amber */
-    --themecolor-error: #ef4444; /* Red */
+    --themecolor-success: #10b981;
+    --themecolor-warning: #f59e0b;
+    --themecolor-error: #ef4444;
 
     [data-selected] {
         --themecolor-button: rgba(0, 0, 0, 0.04);
         --themecolor-buttonhover: rgba(0, 0, 0, 0.08);
     }
+
+    /* ANSI Colors (Light Palette) */
+    --themecolor-ansi-black: #c1c1c1; /* swapped: original ansi-white */
+    --themecolor-ansi-red: #b3544a; /* darkened from #cc685c */
+    --themecolor-ansi-green: #689e5a; /* darkened from #76c266 */
+    --themecolor-ansi-yellow: #b0a88c; /* darkened from #cbca9b */
+    --themecolor-ansi-blue: #7d98af; /* darkened from #85aacb */
+    --themecolor-ansi-magenta: #b354a2; /* darkened from #cc72ca */
+    --themecolor-ansi-cyan: #689e9f; /* darkened from #74a7cb */
+    --themecolor-ansi-white: #404040; /* swapped: original ansi-black */
+    --themecolor-ansi-brightblack: #f0f0f0;
+    --themecolor-ansi-brightred: #cc685c;
+    --themecolor-ansi-brightgreen: #76c266;
+    --themecolor-ansi-brightyellow: #cbca9b;
+    --themecolor-ansi-brightblue: #85aacb;
+    --themecolor-ansi-brightmagenta: #cc72ca;
+    --themecolor-ansi-brightcyan: #74a7cb;
+    --themecolor-ansi-brightwhite: #727272;
+
+    /* Scrollbar */
+    --scrollbar-thumb: rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="dark"] {
@@ -67,8 +106,8 @@
     --themecolor-secondary: rgba(255, 255, 255, 0.65);
     --themecolor-muted: rgba(255, 255, 255, 0.45);
     --themecolor-panel: #151515;
-    --themecolor-accent: #0095e8; /* Brighter blue */
-    --themecolor-accentbg: #0077b6; /* Original accent color */
+    --themecolor-accent: #0095e8;
+    --themecolor-accentbg: #0077b6;
 
     --themecolor-border: rgba(255, 255, 255, 0.08);
     --themecolor-strongborder: rgba(255, 255, 255, 0.15);
@@ -85,6 +124,27 @@
         --themecolor-button: rgba(255, 255, 255, 0.04);
         --themecolor-buttonhover: rgba(255, 255, 255, 0.08);
     }
+
+    /* ANSI Colors (Dark Palette) */
+    --themecolor-ansi-black: #757575;
+    --themecolor-ansi-red: #cc685c;
+    --themecolor-ansi-green: #76c266;
+    --themecolor-ansi-yellow: #cbca9b;
+    --themecolor-ansi-blue: #85aacb;
+    --themecolor-ansi-magenta: #cc72ca;
+    --themecolor-ansi-cyan: #74a7cb;
+    --themecolor-ansi-white: #c1c1c1;
+    --themecolor-ansi-brightblack: #727272;
+    --themecolor-ansi-brightred: #cc9d97;
+    --themecolor-ansi-brightgreen: #a3dd97;
+    --themecolor-ansi-brightyellow: #cbcaaa;
+    --themecolor-ansi-brightblue: #9ab6cb;
+    --themecolor-ansi-brightmagenta: #cc8ecb;
+    --themecolor-ansi-brightcyan: #b7b8cb;
+    --themecolor-ansi-brightwhite: #f0f0f0;
+
+    /* Scrollbar */
+    --scrollbar-thumb: rgba(255, 255, 255, 0.2);
 }
 
 html,
@@ -151,15 +211,6 @@ body {
 
 /* Scrollbar styling */
 /* For WebKit browsers (Chrome, Safari, Edge) */
-[data-theme="light"] {
-    --scrollbar-thumb: rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="dark"] {
-    --scrollbar-thumb: rgba(255, 255, 255, 0.2);
-}
-
-/* WebKit scrollbar styling */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -190,6 +241,6 @@ body {
 
 * {
     /* Modern standard CSS for scrollbars */
-    scrollbar-width: thin; /* 'auto', 'thin', or 'none' */
-    scrollbar-color: var(--scrollbar-thumb) transparent; /* thumb and track color */
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
