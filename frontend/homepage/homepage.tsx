@@ -38,10 +38,12 @@ export const HomePage: React.FC = () => {
                     <div className="mb-8">
                         <h2 className="text-primary text-2xl font-medium mb-4">Real-time debugging for Go programs</h2>
                         <p className="text-secondary mb-4">
-                            Outrig provides powerful debugging capabilities similar to Chrome DevTools, but designed specifically for Go applications.
+                            Outrig provides powerful debugging capabilities similar to Chrome DevTools, but designed
+                            specifically for Go applications.
                         </p>
                         <p className="text-secondary">
-                            Monitor your Go applications in real-time with just one line of code integration. Get instant insights into logs, goroutines, and runtime statistics.
+                            Monitor your Go applications in real-time with just one line of code integration. Get
+                            instant insights into logs, goroutines, and runtime statistics.
                         </p>
                     </div>
 
@@ -72,12 +74,14 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 {/* Right side: App run selection */}
-                <div className={cn(
-                    "w-full md:w-1/2 border-t md:border-t-0 md:border-l border-border",
-                    "flex flex-col h-full overflow-hidden"
-                )}>
+                <div
+                    className={cn(
+                        "w-full md:w-1/2 border-t md:border-t-0 md:border-l border-border",
+                        "flex flex-col h-full overflow-hidden"
+                    )}
+                >
                     <div className="p-6 bg-panel border-b border-border">
-                        <h2 className="text-primary text-xl font-medium">Select an Application</h2>
+                        <h2 className="text-primary text-xl font-medium">Select an Application Run</h2>
                         <p className="text-secondary text-sm mt-1">
                             Choose a running or completed Go application to start debugging.
                         </p>

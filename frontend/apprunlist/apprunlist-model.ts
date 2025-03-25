@@ -143,14 +143,25 @@ class AppRunModel {
     }
 
     // Find the "best" app run (running with latest start time)
-    findBestAppRun(): AppRunInfo {
+    // If appName is provided, only consider app runs with that app name
+    findBestAppRun(appName?: string): AppRunInfo {
         const appRuns = getDefaultStore().get(this.appRuns);
         if (!appRuns || appRuns.length === 0) {
             return null;
         }
 
+        // Filter app runs by app name if provided
+        const filteredAppRuns = appName 
+            ? appRuns.filter(run => run.appname === appName)
+            : appRuns;
+        
+        // If no app runs match the filter, return null
+        if (filteredAppRuns.length === 0) {
+            return null;
+        }
+
         // Sort app runs: first by running status (running first), then by start time (newest first)
-        const sortedAppRuns = [...appRuns].sort((a, b) => {
+        const sortedAppRuns = [...filteredAppRuns].sort((a, b) => {
             // First sort by running status
             if (a.isrunning && !b.isrunning) return -1;
             if (!a.isrunning && b.isrunning) return 1;
@@ -171,16 +182,23 @@ class AppRunModel {
         }
 
         const currentAppRunId = getDefaultStore().get(AppModel.selectedAppRunId);
-        const bestAppRun = this.findBestAppRun();
-
-        // If there's no best app run and we have a current selection, navigate to homepage
-        if (!bestAppRun && currentAppRunId) {
-            console.log(`[AutoFollow] No app runs available, navigating to homepage`);
-            AppModel.navToHomepage();
+        if (!currentAppRunId) {
+            // If we're on the homepage (no app run selected), don't auto-follow
             return;
         }
 
-        // If there's no best app run or no current selection, do nothing
+        // Get the current app run to determine its app name
+        const appRuns = getDefaultStore().get(this.appRuns);
+        const currentAppRun = appRuns.find(run => run.apprunid === currentAppRunId);
+        if (!currentAppRun) {
+            // Current app run not found in the list, do nothing
+            return;
+        }
+
+        // Find the best app run with the same app name
+        const bestAppRun = this.findBestAppRun(currentAppRun.appname);
+
+        // If there's no best app run with the same app name, do nothing
         if (!bestAppRun || !bestAppRun.apprunid) {
             return;
         }
@@ -191,14 +209,8 @@ class AppRunModel {
             return;
         }
 
-        // If we're on the homepage (no app run selected), don't auto-follow
-        if (!currentAppRunId) {
-            console.log(`[AutoFollow] On homepage, not auto-following to ${bestAppRun.apprunid}`);
-            return;
-        }
-
         // If our current app run is not the best, switch to the best but stay on current tab
-        console.log(`[AutoFollow] Switching from ${currentAppRunId} to ${bestAppRun.apprunid}`);
+        console.log(`[AutoFollow] Switching from ${currentAppRunId} to ${bestAppRun.apprunid} (same app: ${currentAppRun.appname})`);
 
         // Get the current tab
         const currentTab = getDefaultStore().get(AppModel.selectedTab);
