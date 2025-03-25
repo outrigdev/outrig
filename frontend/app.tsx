@@ -3,11 +3,10 @@ import { getDefaultStore, useAtom, useAtomValue } from "jotai";
 import { Check } from "lucide-react";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
-import { AppRunList } from "./apprunlist/apprunlist";
-import { HomePage } from "./homepage/homepage";
 import { ToastContainer } from "./elements/toast";
 import { Tooltip } from "./elements/tooltip";
 import { GoRoutines } from "./goroutines/goroutines";
+import { HomePage } from "./homepage/homepage";
 import { appHandleKeyDown } from "./keymodel";
 import { LogViewer } from "./logviewer/logviewer";
 import { LeftNav } from "./main/leftnav";
@@ -22,11 +21,6 @@ const TAB_DISPLAY_NAMES: Record<string, string> = {
     watches: "Watches",
     runtimestats: "Runtime Stats",
 };
-
-// Component for rendering the AppRunList
-function AppRunsTab() {
-    return <AppRunList />;
-}
 
 // Component for rendering feature tabs (logs, goroutines, watches)
 function FeatureTab() {
@@ -90,9 +84,11 @@ function AppHeader() {
             <div className="flex items-center space-x-2">
                 <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
             </div>
-                {appRunInfo && selectedAppRunId && (
+            {appRunInfo && selectedAppRunId && (
                 <>
-                    <div className="items-center ml-3 mr-1 text-primary text-sm font-medium max-w-[150px] truncate overflow-hidden whitespace-nowrap">{appRunInfo.appname}</div>
+                    <div className="items-center ml-3 mr-1 text-primary text-sm font-medium max-w-[150px] truncate overflow-hidden whitespace-nowrap">
+                        {appRunInfo.appname}
+                    </div>
                     <div className="text-xs text-secondary relative top-[1px]">{getRunLabel()}</div>
                 </>
             )}
@@ -296,11 +292,7 @@ function App() {
                     <div className="flex">
                         {/* All tabs require an app run ID now */}
                         {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
-                            <Tab
-                                key={tabName}
-                                name={tabName}
-                                displayName={TAB_DISPLAY_NAMES[tabName]}
-                            />
+                            <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
                         ))}
                     </div>
                 </div>

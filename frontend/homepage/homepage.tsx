@@ -21,7 +21,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description }) =
 
 export const HomePage: React.FC = () => {
     return (
-        <div className="min-h-screen bg-background flex flex-col">
+        <div className="h-screen bg-background flex flex-col">
             {/* Header */}
             <header className="bg-panel border-b border-border p-4 flex items-center justify-between">
                 <div className="flex items-center">
@@ -31,7 +31,7 @@ export const HomePage: React.FC = () => {
             </header>
 
             {/* Main content */}
-            <main className="flex-grow flex flex-col md:flex-row">
+            <main className="flex-grow flex flex-col md:flex-row overflow-hidden">
                 {/* Left side: Introduction and features */}
                 <div className="w-full md:w-1/2 p-8 flex flex-col">
                     {/* Introduction */}
@@ -74,7 +74,7 @@ export const HomePage: React.FC = () => {
                 {/* Right side: App run selection */}
                 <div className={cn(
                     "w-full md:w-1/2 border-t md:border-t-0 md:border-l border-border",
-                    "flex flex-col"
+                    "flex flex-col h-full overflow-hidden"
                 )}>
                     <div className="p-6 bg-panel border-b border-border">
                         <h2 className="text-primary text-xl font-medium">Select an Application</h2>

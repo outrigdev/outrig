@@ -93,7 +93,7 @@ class AppModel {
 
         // Update URL without reloading the page
         const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
-        
+
         // Use pushState to create a new history entry (for back button support)
         // or replaceState to update the current entry without creating a new one
         if (usePushState) {
@@ -139,16 +139,15 @@ class AppModel {
 
     // loadAppRunGoroutines is now handled by the GoRoutinesModel
 
-    selectAppRun(appRunId: string, isAutoFollowSelection = false) {
+    selectAppRun(appRunId: string, tab: string = "logs") {
         getDefaultStore().set(this.selectedAppRunId, appRunId);
         // Use pushState to create a new history entry for navigating to an app run
         this.updateUrl({ appRunId: appRunId }, true);
-        this.selectLogsTab();
 
-        // If this is a manual selection (not from auto-follow), check if we should disable auto-follow
-        if (!isAutoFollowSelection) {
-            this.checkAndDisableAutoFollow(appRunId);
-        }
+        // Set the selected tab
+        getDefaultStore().set(this.selectedTab, tab);
+        // Use replaceState for tab navigation (no history entry)
+        this.updateUrl({ tab: tab }, false);
     }
 
     // Select an app run without changing the current tab
