@@ -161,14 +161,14 @@ func (c *ControllerImpl) Connect() bool {
 	atomic.StoreInt64(&c.TransportErrors, 0)
 
 	// Use the new Connect function to establish a connection
-	connWrap, err := comm.Connect(base.ConnectionModePacket, "", c.AppInfo.AppRunId, 
+	connWrap, err := comm.Connect(base.ConnectionModePacket, "", c.AppInfo.AppRunId,
 		c.config.DomainSocketPath, c.config.ServerAddr)
-	
+
 	if err != nil {
 		// Connection failed
 		return false
 	}
-	
+
 	// Connection and handshake successful
 	fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
 	c.conn.Store(connWrap)
@@ -208,8 +208,8 @@ func (c *ControllerImpl) Enable() {
 func (c *ControllerImpl) Disable(disconnect bool) {
 	c.Lock.Lock()
 	c.OutrigForceDisabled = true
-	c.Lock.Unlock()
 	c.setEnabled(false)
+	c.Lock.Unlock()
 
 	if disconnect {
 		c.Disconnect()
