@@ -115,11 +115,7 @@ function AutoFollowButton() {
         >
             <button
                 onClick={handleToggle}
-                className={`flex items-center gap-2 px-3 py-1 transition-colors cursor-pointer border-l-2 border-gray-300 dark:border-gray-600 ${
-                    autoFollow
-                        ? "bg-sky-500/10 hover:bg-sky-500/20"
-                        : "bg-transparent hover:bg-gray-200/30 dark:hover:bg-gray-700/30"
-                }`}
+                className="flex items-center gap-2 px-3 py-1 transition-colors cursor-pointer border-l-2 border-gray-300 dark:border-gray-600"
             >
                 {/* Modern Toggle Switch */}
                 <div className="relative">
