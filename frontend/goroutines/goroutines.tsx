@@ -138,24 +138,37 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
 
     return (
         <div className="pl-4 pr-2">
-            <div className="flex justify-between items-center py-2">
-                <div className="flex items-center gap-2">
-                    <div className="font-semibold text-primary w-[135px]">
+            <div className="py-2">
+                <div className="flex justify-between items-center">
+                    <div className="font-semibold text-primary whitespace-nowrap overflow-hidden text-ellipsis pr-4">
                         {goroutine.name ? `${goroutine.name} (${goroutine.goid})` : `Goroutine ${goroutine.goid}`}
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                        {goroutine.rawstate.split(",").map((state, index) => (
-                            <Tag key={index} label={state.trim()} isSelected={false} variant="secondary" />
-                        ))}
+                    <div>
+                        <CopyButton
+                            onCopy={copyStackTrace}
+                            tooltipText="Copy stack trace"
+                            successTooltipText="Stack trace copied!"
+                            size={14}
+                        />
                     </div>
                 </div>
-                <div>
-                    <CopyButton
-                        onCopy={copyStackTrace}
-                        tooltipText="Copy stack trace"
-                        successTooltipText="Stack trace copied!"
-                        size={14}
-                    />
+                <div className="flex flex-wrap gap-1 mt-1">
+                    {/* Display states */}
+                    {goroutine.rawstate.split(",").map((state, index) => (
+                        <Tag key={`state-${index}`} label={state.trim()} isSelected={false} variant="secondary" />
+                    ))}
+                    
+                    {/* Display tags with # prefix if they exist */}
+                    {goroutine.tags && goroutine.tags.length > 0 && 
+                        goroutine.tags.map((tag, index) => (
+                            <Tag 
+                                key={`tag-${index}`} 
+                                label={`#${tag}`} 
+                                isSelected={false} 
+                                variant="info" 
+                            />
+                        ))
+                    }
                 </div>
             </div>
             <div ref={stackTraceRef} className="pb-2">
