@@ -1,3 +1,4 @@
+import { AnsiLine } from "@/elements/ansiline";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import React, { useCallback } from "react";
@@ -65,9 +66,10 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
             </div>
             <div className="text-secondary flex-shrink-0 pl-2">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</div>
             <div className="pl-2">{formatSource(line.source)}</div>
-            <div className="flex-1 min-w-0 pl-2 select-text">
-                <span className="text-primary break-all overflow-hidden whitespace-pre">{line.msg}</span>
-            </div>
+            <AnsiLine
+                className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre"
+                line={line.msg}
+            />
         </div>
     );
 });

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -14,8 +15,13 @@ func main() {
 	outrig.Init(config)
 	defer outrig.AppDone()
 
+	logrus.SetFormatter(&logrus.TextFormatter{
+		ForceColors:   true,
+		FullTimestamp: true,
+	})
+
 	// Print a hello world log line
-	fmt.Printf("Hello, world!\n")
+	logrus.Info("Hello, world!")
 
 	// Print a blank log line
 	fmt.Printf("\n\n")
