@@ -1,8 +1,6 @@
 import { RpcClient, RpcResponseHelper } from "@/rpc/rpc";
 import { RpcRouter } from "@/rpc/rpcrouter";
-
-// Event name for log stream updates
-export const LOG_STREAM_UPDATE_EVENT = "logstreamupdate";
+import { emitter } from "@/events";
 
 class RpcClientImpl extends RpcClient {
     constructor(router: RpcRouter, routeId: string) {
@@ -10,8 +8,8 @@ class RpcClientImpl extends RpcClient {
     }
 
     handle_logstreamupdate(rh: RpcResponseHelper, data: StreamUpdateData) {
-        // Dispatch a simple custom event with the StreamUpdateData
-        document.dispatchEvent(new CustomEvent(LOG_STREAM_UPDATE_EVENT, { detail: data }));
+        // Emit the event using mitt
+        emitter.emit('logstreamupdate', data);
     }
 }
 

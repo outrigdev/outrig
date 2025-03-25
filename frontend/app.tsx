@@ -108,7 +108,7 @@ function AutoFollowButton() {
                 <span>
                     When selected, auto-follow will automatically
                     <br />
-                    switch you to the most recent active app run.
+                    switch you to the most recent active app run with the same app name.
                 </span>
             }
         >

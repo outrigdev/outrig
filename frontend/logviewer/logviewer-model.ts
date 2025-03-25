@@ -1,5 +1,5 @@
 import { DefaultRpcClient } from "@/init";
-import { LOG_STREAM_UPDATE_EVENT } from "@/rpcclientimpl";
+import { emitter } from "@/events";
 import { PromiseQueue } from "@/util/promisequeue";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { selectAtom } from "jotai/utils";
@@ -85,7 +85,7 @@ class LogViewerModel {
         }, 5000);
 
         // Register for log stream update events
-        document.addEventListener(LOG_STREAM_UPDATE_EVENT, this.handleLogStreamUpdate as EventListener);
+        emitter.on('logstreamupdate', this.handleLogStreamUpdate);
     }
 
     dispose() {
@@ -100,7 +100,7 @@ class LogViewerModel {
         );
 
         // Clean up event listener
-        document.removeEventListener(LOG_STREAM_UPDATE_EVENT, this.handleLogStreamUpdate as EventListener);
+        emitter.off('logstreamupdate', this.handleLogStreamUpdate);
     }
 
     async onSearchTermUpdate(searchTerm: string) {
@@ -446,8 +446,8 @@ class LogViewerModel {
         }
     }
 
-    handleLogStreamUpdate = (event: CustomEvent<StreamUpdateData>) => {
-        const { widgetid, offset, lines, totalcount, searchedcount, filteredcount } = event.detail;
+    handleLogStreamUpdate = (data: StreamUpdateData) => {
+        const { widgetid, offset, lines, totalcount, searchedcount, filteredcount } = data;
         if (widgetid !== this.widgetId) return;
         if (!lines || lines.length === 0) return;
 
