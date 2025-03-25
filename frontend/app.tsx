@@ -211,34 +211,7 @@ function App() {
 
         // Listen for popstate events (browser back/forward buttons)
         const handlePopState = () => {
-            // Update app state based on URL when navigating with browser back/forward buttons
-            const params = new URLSearchParams(window.location.search);
-            const tabParam = params.get("tab");
-            const appRunIdParam = params.get("appRunId");
-
-            // Update the selected app run ID
-            if (appRunIdParam) {
-                // Only update if it's different from the current selection
-                if (appRunIdParam !== selectedAppRunId) {
-                    getDefaultStore().set(AppModel.selectedAppRunId, appRunIdParam);
-                }
-            } else {
-                // Clear the selection if there's no app run ID in the URL
-                if (selectedAppRunId) {
-                    getDefaultStore().set(AppModel.selectedAppRunId, "");
-                }
-            }
-
-            // Update the selected tab
-            if (tabParam && ["logs", "goroutines", "watches", "runtimestats"].includes(tabParam)) {
-                // Only update if it's different from the current selection
-                if (tabParam !== selectedTab) {
-                    getDefaultStore().set(AppModel.selectedTab, tabParam);
-                }
-            }
-
-            // Send the updated URL to the backend
-            AppModel.sendBrowserTabUrl();
+            AppModel.handlePopState();
         };
 
         // Listen for hashchange events

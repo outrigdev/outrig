@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { CircleDot, Clock, Eye, List } from "lucide-react";
+import { CircleDot, Clock, ExternalLink, Eye, List } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AppModel } from "../appmodel";
 import { Tag } from "../elements/tag";
@@ -55,20 +55,28 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
             : Math.floor((appRun.lastmodtime - appRun.starttime) / 1000);
 
     return (
-        <a
-            href={appRunUrl}
+        <div
             className={cn(
-                "p-4 hover:bg-buttonhover cursor-pointer block",
+                "p-4 hover:bg-buttonhover cursor-pointer block relative group",
                 isSelected && "bg-buttonhover border-l-4 border-l-accent"
             )}
-            onClick={(e) => {
-                // Prevent default navigation for left-click
-                e.preventDefault();
-                onClick(appRun.apprunid);
-            }}
+            onClick={() => onClick(appRun.apprunid)}
         >
             <div className="flex justify-between items-center">
-                <div className="font-medium text-primary">{appRun.appname}</div>
+                <div className="font-medium text-primary flex items-center">
+                    {appRun.appname}
+                    {appRun.status === "running" && <div className="ml-2 w-2 h-2 rounded-full bg-green-500"></div>}
+                    <a
+                        href={appRunUrl}
+                        className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-primary"
+                        title="Open in new tab"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <ExternalLink size={14} />
+                    </a>
+                </div>
                 <div className="text-xs text-secondary">
                     <AppRunStatusTag status={appRun.status} />
                 </div>
@@ -77,7 +85,7 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
                 Started {appRun.status === "running" ? "Running" : formatRelativeTime(appRun.starttime)}
             </div>
             <div className="mt-1 flex items-center space-x-4 text-xs text-muted">
-                <a 
+                <a
                     href={`?tab=runtimestats&appRunId=${appRun.apprunid}`}
                     className="flex items-center space-x-1 hover:text-primary hover:underline cursor-pointer"
                     onClick={(e) => {
@@ -89,7 +97,7 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
                     <Clock size={12} />
                     <span>{formatDuration(duration)}</span>
                 </a>
-                <a 
+                <a
                     href={`?tab=logs&appRunId=${appRun.apprunid}`}
                     className="flex items-center space-x-1 hover:text-primary hover:underline cursor-pointer"
                     onClick={(e) => {
@@ -101,7 +109,7 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
                     <List size={12} />
                     <span>{appRun.numlogs}</span>
                 </a>
-                <a 
+                <a
                     href={`?tab=goroutines&appRunId=${appRun.apprunid}`}
                     className="flex items-center space-x-1 hover:text-primary hover:underline cursor-pointer"
                     onClick={(e) => {
@@ -114,7 +122,7 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
                     <span>{appRun.status === "running" ? appRun.numactivegoroutines : appRun.numtotalgoroutines}</span>
                 </a>
                 {appRun.numactivewatches > 0 && (
-                    <a 
+                    <a
                         href={`?tab=watches&appRunId=${appRun.apprunid}`}
                         className="flex items-center space-x-1 hover:text-primary hover:underline cursor-pointer"
                         onClick={(e) => {
@@ -129,7 +137,7 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
                 )}
                 <div className="text-muted">({appRun.apprunid.substring(0, 8)})</div>
             </div>
-        </a>
+        </div>
     );
 };
 

@@ -302,6 +302,41 @@ class AppModel {
             console.error("Failed to send URL to backend:", err);
         });
     }
+
+    // Handle browser popstate events (back/forward buttons)
+    handlePopState() {
+        // Update app state based on URL when navigating with browser back/forward buttons
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get("tab");
+        const appRunIdParam = params.get("appRunId");
+        
+        const selectedTab = getDefaultStore().get(this.selectedTab);
+        const selectedAppRunId = getDefaultStore().get(this.selectedAppRunId);
+
+        // Update the selected app run ID
+        if (appRunIdParam) {
+            // Only update if it's different from the current selection
+            if (appRunIdParam !== selectedAppRunId) {
+                getDefaultStore().set(this.selectedAppRunId, appRunIdParam);
+            }
+        } else {
+            // Clear the selection if there's no app run ID in the URL
+            if (selectedAppRunId) {
+                getDefaultStore().set(this.selectedAppRunId, "");
+            }
+        }
+
+        // Update the selected tab
+        if (tabParam && ["logs", "goroutines", "watches", "runtimestats"].includes(tabParam)) {
+            // Only update if it's different from the current selection
+            if (tabParam !== selectedTab) {
+                getDefaultStore().set(this.selectedTab, tabParam);
+            }
+        }
+
+        // Send the updated URL to the backend
+        this.sendBrowserTabUrl();
+    }
 }
 
 // Export a singleton instance
