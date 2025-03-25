@@ -40,7 +40,7 @@ func TestTokenizeSearch(t *testing.T) {
 			want: []SearchToken{
 				{Type: "exact", SearchTerm: "hello world"},
 			},
-	},
+		},
 		{
 			name:        "Single quoted token",
 			searchInput: `'hello world'`,
@@ -194,7 +194,7 @@ func TestTokenizeSearch(t *testing.T) {
 		{
 			name:        "Empty regexp token",
 			searchInput: `//`,
-			want: []SearchToken{},
+			want:        []SearchToken{},
 		},
 		{
 			name:        "Mixed regexp and other tokens",
@@ -235,10 +235,17 @@ func TestTokenizeSearch(t *testing.T) {
 			},
 		},
 		{
-			name:        "Hash token",
+			name:        "Tag token",
 			searchInput: `#foo`,
 			want: []SearchToken{
-				{Type: "exact", SearchTerm: `#foo`},
+				{Type: "tag", SearchTerm: `foo`},
+			},
+		},
+		{
+			name:        "Tag token with exact match",
+			searchInput: `#foo/`,
+			want: []SearchToken{
+				{Type: "tag", SearchTerm: `foo/`},
 			},
 		},
 		{
@@ -256,19 +263,19 @@ func TestTokenizeSearch(t *testing.T) {
 			},
 		},
 		{
-			name:        "Multiple hash tokens",
+			name:        "Multiple tag tokens",
 			searchInput: `#foo #bar`,
 			want: []SearchToken{
-				{Type: "exact", SearchTerm: `#foo`},
-				{Type: "exact", SearchTerm: `#bar`},
+				{Type: "tag", SearchTerm: `foo`},
+				{Type: "tag", SearchTerm: `bar`},
 			},
 		},
 		{
-			name:        "Mixed hash and other tokens",
+			name:        "Mixed tag and other tokens",
 			searchInput: `hello #foo "quoted text" #marked`,
 			want: []SearchToken{
 				{Type: "exact", SearchTerm: "hello"},
-				{Type: "exact", SearchTerm: "#foo"},
+				{Type: "tag", SearchTerm: "foo"},
 				{Type: "exact", SearchTerm: "quoted text"},
 				{Type: "marked", SearchTerm: ""},
 			},
@@ -292,12 +299,12 @@ func TestTokenizeSearch(t *testing.T) {
 		{
 			name:        "Single double quote character",
 			searchInput: `"`,
-			want: []SearchToken{},
+			want:        []SearchToken{},
 		},
 		{
 			name:        "Single single quote character",
 			searchInput: `'`,
-			want: []SearchToken{},
+			want:        []SearchToken{},
 		},
 		{
 			name:        "Simple not token",

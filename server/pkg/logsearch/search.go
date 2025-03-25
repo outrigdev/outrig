@@ -20,6 +20,7 @@ const (
 	SearchTypeAll        = "all"
 	SearchTypeMarked     = "marked"
 	SearchTypeNot        = "not"
+	SearchTypeTag        = "tag"
 )
 
 // SearchContext contains runtime context for search operations

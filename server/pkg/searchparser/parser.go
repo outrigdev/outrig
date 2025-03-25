@@ -8,11 +8,11 @@
 // and_expr         = { token } ;
 // token            = not_token | unmodified_token ;
 // not_token        = "-" unmodified_token ;
-// unmodified_token = fuzzy_token | regexp_token | case_regexp_token | hash_token | simple_token ;
+// unmodified_token = fuzzy_token | regexp_token | case_regexp_token | tag_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
 // regexp_token     = "/" { any_char - "/" | "\/" } "/" ;
 // case_regexp_token = "c/" { any_char - "/" | "\/" } "/" ;
-// hash_token       = "#" { any_char - whitespace } ;
+// tag_token        = "#" { any_char - whitespace } [ "/" ] ;
 // simple_token     = quoted_token | single_quoted_token | plain_token ;
 // quoted_token     = '"' { any_char - '"' } '"' ;
 // single_quoted_token = "'" { any_char - "'" } "'" ;
@@ -28,7 +28,8 @@
 // - Fuzzy tokens with single quotes (~'...') are treated as case-sensitive fuzzy search (fzfcase)
 // - Regular expression tokens (/foo/) are case-insensitive by default
 // - Case-sensitive regular expression tokens (c/Foo/) are prefixed with 'c'
-// - Hash tokens (#foo) search for "#foo" literally (case-insensitive)
+// - Tag tokens (#foo) search for tags that start at word boundaries
+// - Tag tokens with trailing slash (#foo/) require exact matches
 // - Special case: #marked or #m uses the marked searcher to find marked lines
 // - Not token (-) negates the search result of the token that follows it
 // - A literal "-" at the start of a token must be quoted: "-hello" searches for "-hello" literally
@@ -304,9 +305,16 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 		} else {
 			// Read the token after #
 			position := p.position
+			
 			for !unicode.IsSpace(p.ch) && p.ch != 0 {
+				// Check for trailing slash indicating exact match
+				if p.ch == '/' && (p.peek(1) == 0 || unicode.IsSpace(p.peek(1))) {
+					p.readChar() // Consume the slash
+					break
+				}
 				p.readChar()
 			}
+
 			token = p.input[position:p.position]
 
 			// Special case for #marked
@@ -314,9 +322,10 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 				tokenType = "marked"
 				token = "" // The marked searcher doesn't need a search term
 			} else {
-				// For other cases, search for "#token" literally
-				tokenType = "exact" // Default to exact search
-				token = "#" + token
+				// For tag tokens, use the tag searcher
+				tokenType = "tag" // Use tag search
+				// The exactMatch flag will be passed to the tag searcher
+				// We don't need to modify the token here
 			}
 		}
 	} else {
