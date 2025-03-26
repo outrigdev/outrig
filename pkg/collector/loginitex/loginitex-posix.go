@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 )
 
@@ -22,15 +23,25 @@ var (
 	externalCaptureContext     context.Context
 	externalCaptureCancel      context.CancelFunc
 	externalCaptureExitChan    chan struct{} // Reference to the exit channel
+	wrapStdout, wrapStderr     bool          // Track which streams are being wrapped
 )
 
-func enableExternalLogWrapImpl(isDev bool) error {
+func enableExternalLogWrapImpl(isDev bool, config ds.LogProcessorConfig) error {
 	externalCaptureLock.Lock()
 	defer externalCaptureLock.Unlock()
 
 	if externalCaptureActive {
 		return nil // Already active
 	}
+
+	// If both stdout and stderr wrapping are disabled, do nothing
+	if !config.WrapStdout && !config.WrapStderr {
+		return nil
+	}
+
+	// Set which streams to wrap
+	wrapStdout = config.WrapStdout
+	wrapStderr = config.WrapStderr
 
 	// Check if outrig is in the PATH
 	if _, lookPathErr := exec.LookPath("outrig"); lookPathErr != nil {
@@ -95,25 +106,31 @@ func enableExternalLogWrapImpl(isDev bool) error {
 	stdoutPipeR.Close()
 	stderrPipeR.Close()
 
-	// Now that the process is started, redirect stdout and stderr to pipe write ends
-	err = syscall.Dup2(int(stdoutPipeW.Fd()), int(os.Stdout.Fd()))
-	if err != nil {
-		// Kill the process we just started
-		cmd.Process.Kill()
-		cleanupPipesAndFDs()
-		externalCaptureCancel()
-		return fmt.Errorf("failed to redirect stdout: %w", err)
+	// Now that the process is started, redirect stdout and stderr to pipe write ends if enabled
+	if wrapStdout {
+		err = syscall.Dup2(int(stdoutPipeW.Fd()), int(os.Stdout.Fd()))
+		if err != nil {
+			// Kill the process we just started
+			cmd.Process.Kill()
+			cleanupPipesAndFDs()
+			externalCaptureCancel()
+			return fmt.Errorf("failed to redirect stdout: %w", err)
+		}
 	}
 
-	err = syscall.Dup2(int(stderrPipeW.Fd()), int(os.Stderr.Fd()))
-	if err != nil {
-		// Restore stdout before returning
-		syscall.Dup2(origStdoutFD, int(os.Stdout.Fd()))
-		// Kill the process we just started
-		cmd.Process.Kill()
-		cleanupPipesAndFDs()
-		externalCaptureCancel()
-		return fmt.Errorf("failed to redirect stderr: %w", err)
+	if wrapStderr {
+		err = syscall.Dup2(int(stderrPipeW.Fd()), int(os.Stderr.Fd()))
+		if err != nil {
+			// Restore stdout before returning if it was wrapped
+			if wrapStdout {
+				syscall.Dup2(origStdoutFD, int(os.Stdout.Fd()))
+			}
+			// Kill the process we just started
+			cmd.Process.Kill()
+			cleanupPipesAndFDs()
+			externalCaptureCancel()
+			return fmt.Errorf("failed to redirect stderr: %w", err)
+		}
 	}
 
 	externalCaptureActive = true
@@ -204,13 +221,13 @@ func monitorExternalProcess(cmd *exec.Cmd, ctx context.Context, exitChan chan st
 // restoreOriginalFDs restores the original stdout and stderr file descriptors
 // must be called while holding the lock
 func restoreOriginalFDs() {
-	// Restore stdout
-	if origStdoutFD != 0 {
+	// Restore stdout if it was wrapped
+	if wrapStdout && origStdoutFD != 0 {
 		syscall.Dup2(origStdoutFD, int(os.Stdout.Fd()))
 	}
 
-	// Restore stderr
-	if origStderrFD != 0 {
+	// Restore stderr if it was wrapped
+	if wrapStderr && origStderrFD != 0 {
 		syscall.Dup2(origStderrFD, int(os.Stderr.Fd()))
 	}
 }
