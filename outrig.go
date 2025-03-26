@@ -3,6 +3,7 @@ package outrig
 import (
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/base"
@@ -19,7 +20,7 @@ import (
 // Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:
 type Config = ds.Config
 
-var ctrl *controller.ControllerImpl
+var ctrl atomic.Pointer[controller.ControllerImpl]
 
 func init() {
 	ioutrig.I = &internalOutrig{}
@@ -27,15 +28,17 @@ func init() {
 
 // Disable disables Outrig
 func Disable(disconnect bool) {
-	if ctrl != nil {
-		ctrl.Disable(disconnect)
+	ctrlPtr := ctrl.Load()
+	if ctrlPtr != nil {
+		ctrlPtr.Disable(disconnect)
 	}
 }
 
 // Enable enables Outrig
 func Enable() {
-	if ctrl != nil {
-		ctrl.Enable()
+	ctrlPtr := ctrl.Load()
+	if ctrlPtr != nil {
+		ctrlPtr.Enable()
 	}
 }
 
@@ -79,33 +82,45 @@ func Init(cfgParam *ds.Config) error {
 
 	// Create and initialize the controller
 	// (collectors are now initialized inside MakeController)
-	var err error
-	ctrl, err = controller.MakeController(finalCfg)
+	ctrlImpl, err := controller.MakeController(finalCfg)
 	if err != nil {
 		return err
 	}
-	global.GlobalController = ctrl
+
+	// Store the controller in the atomic pointer
+	ctrl.Store(ctrlImpl)
 
 	return nil
 }
 
 // Shutdown shuts down Outrig
 func Shutdown() {
-	if ctrl != nil {
-		ctrl.Shutdown()
+	ctrlPtr := ctrl.Load()
+	if ctrlPtr != nil {
+		ctrlPtr.Shutdown()
 	}
+}
+
+// GetAppRunId returns the unique identifier for the current application run
+func GetAppRunId() string {
+	ctrlPtr := ctrl.Load()
+	if ctrlPtr != nil {
+		return ctrlPtr.GetAppRunId()
+	}
+	return ""
 }
 
 // AppDone signals that the application is done
 // This should be deferred in the program's main function
 func AppDone() {
-	if ctrl != nil {
+	ctrlPtr := ctrl.Load()
+	if ctrlPtr != nil {
 		// Send an AppDone packet
 		packet := &ds.PacketType{
 			Type: ds.PacketTypeAppDone,
 			Data: nil, // No data needed for AppDone
 		}
-		ctrl.SendPacket(packet)
+		ctrlPtr.SendPacket(packet)
 
 		// Give a small delay to allow the packet to be sent
 		time.Sleep(50 * time.Millisecond)

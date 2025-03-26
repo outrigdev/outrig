@@ -50,8 +50,9 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	c.AppInfo = c.createAppInfo(&config)
 	c.config = &config
 
+	var connected bool
 	if !config.StartAsync {
-		c.Connect()
+		connected = c.Connect()
 	}
 
 	// Initialize collectors
@@ -71,12 +72,10 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 	runtimeStatsCollector.InitCollector(c)
 	c.Collectors[runtimeStatsCollector.CollectorName()] = runtimeStatsCollector
 
-	isEnabled := global.OutrigEnabled.Load()
-	if isEnabled {
-		for _, collector := range c.Collectors {
-			collector.Enable()
-		}
+	if connected {
+		c.setEnabled(true)
 	}
+
 	go func() {
 		ioutrig.I.SetGoRoutineName("#outrig ConnPoller")
 		c.runConnPoller()
@@ -177,7 +176,6 @@ func (c *ControllerImpl) Connect() bool {
 	fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
 	c.conn.Store(connWrap)
 	c.sendAppInfo()
-	c.setEnabled(true)
 	c.OutrigConnected = true
 	return true
 }
@@ -194,27 +192,30 @@ func (c *ControllerImpl) Disconnect() {
 		time.Sleep(50 * time.Millisecond)
 		conn.Close()
 	}
-
 	c.OutrigConnected = false
 	c.setEnabled(false)
 }
 
 func (c *ControllerImpl) Enable() {
+	var isConnected bool
 	c.Lock.Lock()
 	c.OutrigForceDisabled = false
-	if c.OutrigConnected {
+	isConnected = c.OutrigConnected
+	c.Lock.Unlock()
+	if !isConnected {
+		isConnected = c.Connect()
+	}
+	if isConnected {
 		c.setEnabled(true)
 	}
-	c.Lock.Unlock()
-	c.Connect()
 }
 
 func (c *ControllerImpl) Disable(disconnect bool) {
 	c.Lock.Lock()
 	c.OutrigForceDisabled = true
-	c.setEnabled(false)
 	c.Lock.Unlock()
 
+	c.setEnabled(false)
 	if disconnect {
 		c.Disconnect()
 	}
@@ -226,6 +227,12 @@ func (c *ControllerImpl) GetConfig() ds.Config {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 	return *c.config
+}
+
+func (c *ControllerImpl) GetAppRunId() string {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	return c.AppInfo.AppRunId
 }
 
 // Transport methods
@@ -363,19 +370,13 @@ func (c *ControllerImpl) setEnabled(enabled bool) {
 	}
 	if enabled {
 		global.OutrigEnabled.Store(true)
-		go func() {
-			ioutrig.I.SetGoRoutineName("#outrig EnableCollectors")
-			for _, collector := range c.Collectors {
-				collector.Enable()
-			}
-		}()
+		for _, collector := range c.Collectors {
+			collector.Enable()
+		}
 	} else {
-		go func() {
-			ioutrig.I.SetGoRoutineName("#outrig DisableCollectors")
-			for _, collector := range c.Collectors {
-				collector.Disable()
-			}
-		}()
+		for _, collector := range c.Collectors {
+			collector.Disable()
+		}
 		global.OutrigEnabled.Store(false)
 	}
 }

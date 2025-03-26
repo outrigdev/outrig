@@ -8,12 +8,13 @@ import (
 )
 
 // EnableExternalLogWrap redirects stdout and stderr to an external outrig capturelogs process
-// isDev specifies whether to run the process in development mode
+// appRunId is the unique identifier for the application run
 // config specifies which streams to wrap (stdout/stderr)
-func EnableExternalLogWrap(isDev bool, config ds.LogProcessorConfig) error {
-	log.Printf("Enabling external log wrapping: isDev=%v, config=%+v", isDev, config)
+// isDev specifies whether to run the process in development mode
+func EnableExternalLogWrap(appRunId string, config ds.LogProcessorConfig, isDev bool) error {
+	log.Printf("Enabling external log wrapping: appRunId=%s, config=%+v, isDev=%v", appRunId, config, isDev)
 	// Platform-specific implementation will be provided
-	return enableExternalLogWrapImpl(isDev, config)
+	return enableExternalLogWrapImpl(appRunId, config, isDev)
 }
 
 // DisableExternalLogWrap stops the external log capture process and restores original file descriptors

@@ -26,7 +26,7 @@ var (
 	wrapStdout, wrapStderr     bool          // Track which streams are being wrapped
 )
 
-func enableExternalLogWrapImpl(isDev bool, config ds.LogProcessorConfig) error {
+func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, isDev bool) error {
 	externalCaptureLock.Lock()
 	defer externalCaptureLock.Unlock()
 
@@ -43,9 +43,15 @@ func enableExternalLogWrapImpl(isDev bool, config ds.LogProcessorConfig) error {
 	wrapStdout = config.WrapStdout
 	wrapStderr = config.WrapStderr
 
-	// Check if outrig is in the PATH
-	if _, lookPathErr := exec.LookPath("outrig"); lookPathErr != nil {
-		return fmt.Errorf("outrig command not found in PATH: %w", lookPathErr)
+	// Determine the outrig executable path
+	outrigPath := "outrig" // Default to looking up in PATH
+	if config.OutrigPath != "" {
+		outrigPath = config.OutrigPath
+	} else {
+		// Check if outrig is in the PATH when no custom path is provided
+		if _, lookPathErr := exec.LookPath("outrig"); lookPathErr != nil {
+			return fmt.Errorf("outrig command not found in PATH: %w", lookPathErr)
+		}
 	}
 
 	// Duplicate original file descriptors to save them
@@ -84,7 +90,18 @@ func enableExternalLogWrapImpl(isDev bool, config ds.LogProcessorConfig) error {
 	externalCaptureContext, externalCaptureCancel = ctx, cancelFn
 
 	// Launch the external process BEFORE redirecting stdout/stderr
-	cmd := exec.CommandContext(externalCaptureContext, "outrig", "capturelogs")
+	cmd := exec.CommandContext(externalCaptureContext, outrigPath)
+	
+	// Set the OUTRIG_APPRUNID environment variable
+	cmd.Env = append(os.Environ(), fmt.Sprintf("OUTRIG_APPRUNID=%s", appRunId))
+	
+	// Add any additional arguments before "capturelogs"
+	if len(config.AdditionalArgs) > 0 {
+		cmd.Args = append(cmd.Args, config.AdditionalArgs...)
+	}
+	
+	// Add the "capturelogs" command and any flags
+	cmd.Args = append(cmd.Args, "capturelogs")
 	if isDev {
 		cmd.Args = append(cmd.Args, "--dev")
 	}

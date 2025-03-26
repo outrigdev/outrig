@@ -24,6 +24,12 @@ type LogProcessorConfig struct {
 	WrapStderr bool
 	// CaptureUnhandledCrashes enables capturing crash output using Go 1.23+'s SetCrashOutput API
 	CaptureUnhandledCrashes bool
+	// OutrigPath is the full path to the outrig executable (including the executable name)
+	// If empty, the system will look for "outrig" in the PATH
+	OutrigPath string
+	// AdditionalArgs are additional arguments to pass to the outrig command
+	// These are inserted before the "capturelogs" argument
+	AdditionalArgs []string
 }
 
 type Config struct {
@@ -171,6 +177,7 @@ type Controller interface {
 
 	// Configuration
 	GetConfig() Config
+	GetAppRunId() string
 
 	// Transport
 	SendPacket(pk *PacketType) (bool, error)

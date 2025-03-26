@@ -40,8 +40,11 @@ func (lc *LogCollector) Enable() {
 	// Enable external log wrapping if controller is available
 	config := lc.controller.GetConfig()
 	if config.LogProcessorConfig != nil {
+		// Get the appRunId from the controller
+		appRunId := lc.controller.GetAppRunId()
+		
 		// Use the new external log capture mechanism
-		err := loginitex.EnableExternalLogWrap(config.Dev, *config.LogProcessorConfig)
+		err := loginitex.EnableExternalLogWrap(appRunId, *config.LogProcessorConfig, config.Dev)
 		if err != nil {
 			fmt.Printf("Failed to enable external log wrapping: %v\n", err)
 		} else {

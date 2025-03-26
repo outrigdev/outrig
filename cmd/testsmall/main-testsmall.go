@@ -12,6 +12,8 @@ import (
 func main() {
 	// Initialize Outrig with default configuration
 	config := outrig.DefaultDevConfig()
+	config.LogProcessorConfig.OutrigPath = "go"
+	config.LogProcessorConfig.AdditionalArgs = []string{"run", "server/main-server.go"}
 	outrig.Init(config)
 	defer outrig.AppDone()
 
