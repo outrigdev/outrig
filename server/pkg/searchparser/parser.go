@@ -317,10 +317,13 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 
 			token = p.input[position:p.position]
 
-			// Special case for #marked
+			// Special case for #marked or #userquery
 			if strings.ToLower(token) == "marked" || strings.ToLower(token) == "m" {
 				tokenType = "marked"
 				token = "" // The marked searcher doesn't need a search term
+			} else if strings.ToLower(token) == "userquery" {
+				tokenType = "userquery"
+				token = "" // The userquery searcher doesn't need a search term
 			} else {
 				// For tag tokens, use the tag searcher
 				tokenType = "tag" // Use tag search

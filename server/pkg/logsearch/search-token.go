@@ -15,6 +15,8 @@ func createSearcherFromUnmodifiedToken(token SearchToken) (LogSearcher, error) {
 	// Handle empty search term and special case for marked searcher
 	if token.Type == SearchTypeMarked {
 		return MakeMarkedSearcher(), nil
+	} else if token.Type == SearchTypeUserQuery {
+		return MakeUserQuerySearcher(), nil
 	}
 
 	// Handle empty search term

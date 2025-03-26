@@ -21,11 +21,13 @@ const (
 	SearchTypeMarked     = "marked"
 	SearchTypeNot        = "not"
 	SearchTypeTag        = "tag"
+	SearchTypeUserQuery  = "userquery"
 )
 
 // SearchContext contains runtime context for search operations
 type SearchContext struct {
 	MarkedLines map[int64]bool
+	UserQuery   LogSearcher
 	// Future fields can be added here without changing the interface
 }
 

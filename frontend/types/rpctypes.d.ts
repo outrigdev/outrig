@@ -224,6 +224,7 @@ declare global {
         widgetid: string;
         apprunid: string;
         searchterm: string;
+        systemquery: string;
         pagesize: number;
         requestpages: number[];
     };
