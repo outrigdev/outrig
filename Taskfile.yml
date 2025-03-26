@@ -51,4 +51,4 @@ tasks:
     testsmall:
         desc: run main-testsmall.go to generate minimal test data
         cmds:
-            - go run server/main-server.go --dev run cmd/testsmall/main-testsmall.go
+            - go run cmd/testsmall/main-testsmall.go

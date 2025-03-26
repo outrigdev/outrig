@@ -48,8 +48,8 @@ func getDefaultConfig(isDev bool) *ds.Config {
 		Dev:              isDev,
 		StartAsync:       false,
 		LogProcessorConfig: &ds.LogProcessorConfig{
-			WrapStdout:              false,
-			WrapStderr:              false,
+			WrapStdout:              true,
+			WrapStderr:              true,
 			CaptureUnhandledCrashes: false,
 		},
 	}
