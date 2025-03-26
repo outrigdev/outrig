@@ -32,6 +32,11 @@ func enableExternalLogWrapImpl(isDev bool) error {
 		return nil // Already active
 	}
 
+	// Check if outrig is in the PATH
+	if _, lookPathErr := exec.LookPath("outrig"); lookPathErr != nil {
+		return fmt.Errorf("outrig command not found in PATH: %w", lookPathErr)
+	}
+
 	// Duplicate original file descriptors to save them
 	var err error
 	origStdoutFD, err = syscall.Dup(int(os.Stdout.Fd()))
