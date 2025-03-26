@@ -17,11 +17,11 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/web"
 )
 
-
 // RunServer initializes and runs the Outrig server
 func RunServer() error {
 	if serverbase.IsDev() {
 		outrigConfig := outrig.DefaultConfig()
+		outrigConfig.LogProcessorConfig.OutrigPath = "bin/outrig"
 		outrig.Init(outrigConfig)
 	}
 

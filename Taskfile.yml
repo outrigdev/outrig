@@ -9,7 +9,7 @@ tasks:
     dev:
         desc: Run the Go server in development mode
         cmds:
-            - OUTRIG_DEV=1 go run server/main-server.go run server/main-server.go server
+            - OUTRIG_DEV=1 go run server/main-server.go server
 
     build:frontend:
         desc: Build the frontend for production

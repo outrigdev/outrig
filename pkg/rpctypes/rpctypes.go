@@ -72,7 +72,7 @@ type SearchRequestData struct {
 	WidgetId     string `json:"widgetid"`
 	AppRunId     string `json:"apprunid"`
 	SearchTerm   string `json:"searchterm"`
-	SystemQuery  string `json:"systemquery"`
+	SystemQuery  string `json:"systemquery,omitempty"`
 	PageSize     int    `json:"pagesize"`
 	RequestPages []int  `json:"requestpages"`
 }
