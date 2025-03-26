@@ -9,13 +9,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-// Connection management
 var stdoutConn atomic.Pointer[comm.ConnWrap]
 var stderrConn atomic.Pointer[comm.ConnWrap]
 var connLock sync.Mutex
@@ -35,17 +33,14 @@ func getAtomicPointerForSource(source string) *atomic.Pointer[comm.ConnWrap] {
 // tryConnect attempts to connect to the Outrig server for the specified source
 // It returns the connection if successful, or nil if it fails
 func tryConnect(source string, isDev bool) *comm.ConnWrap {
-	// Get the app run ID from the environment
 	appRunId := os.Getenv("OUTRIG_APPRUNID")
 	if appRunId == "" {
 		return nil
 	}
 
-	// Get the domain socket path and TCP address using the base package functions
 	domainSocketPath := base.GetDomainSocketNameForClient(isDev)
 	serverAddr := base.GetTCPAddrForClient(isDev)
 
-	// Try to connect
 	connWrap, err := comm.Connect(base.ConnectionModeLog, source, appRunId, domainSocketPath, serverAddr)
 	if err != nil {
 		return nil
@@ -97,8 +92,7 @@ func startConnPoller(isDev bool) {
 	}()
 }
 
-// ProcessLogData processes log data from a specific source
-// It sends the data to the appropriate Outrig connection if available
+// ProcessLogData sends log data to the appropriate Outrig connection if available
 func ProcessLogData(source string, data []byte) {
 	ptr := getAtomicPointerForSource(source)
 	if ptr == nil {
@@ -108,26 +102,73 @@ func ProcessLogData(source string, data []byte) {
 	if connPtr == nil {
 		return
 	}
-	// Send the data to the server
+	
 	_, err := connPtr.Conn.Write(data)
 	if err != nil {
-		// Connection error, clear the connection so we'll try to reconnect
 		ptr.Store(nil)
 	}
 }
 
-// runGoCommand executes a go command with the provided arguments
+// closeConnections closes any open connections and resets the connection pointers
+func closeConnections() {
+	if conn := stdoutConn.Load(); conn != nil {
+		conn.Close()
+		stdoutConn.Store(nil)
+	}
+
+	if conn := stderrConn.Load(); conn != nil {
+		conn.Close()
+		stderrConn.Store(nil)
+	}
+}
+
+// TeeStreamDecl defines a stream to be processed with TeeCopy
+type TeeStreamDecl struct {
+	Input  io.Reader
+	Output io.Writer
+	Source string
+}
+
+// processStream processes a stream using TeeCopy in a goroutine
+func processStream(wg *sync.WaitGroup, decl TeeStreamDecl) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := utilfn.TeeCopy(decl.Input, decl.Output, func(data []byte) {
+			ProcessLogData(decl.Source, data)
+		})
+		if err != nil && err != io.EOF {
+			fmt.Fprintf(os.Stderr, "Error copying %s: %v\n", decl.Source, err)
+		}
+	}()
+}
+
+// ProcessExistingStreams handles capturing logs from provided input/output streams
+func ProcessExistingStreams(streams []TeeStreamDecl, isDev bool) error {
+	appRunId := os.Getenv("OUTRIG_APPRUNID")
+
+	if appRunId != "" {
+		ensureConnections(isDev)
+		startConnPoller(isDev)
+	}
+
+	var wg sync.WaitGroup
+
+	for _, stream := range streams {
+		processStream(&wg, stream)
+	}
+
+	wg.Wait()
+	closeConnections()
+
+	return nil
+}
+
+
+// ExecCommand executes a command with the provided arguments
 func ExecCommand(args []string, isDev bool) error {
-	// Generate a UUID for the app run ID
-	appRunId := uuid.New().String()
-
-	// Set the environment variable directly
-	os.Setenv("OUTRIG_APPRUNID", appRunId)
-
-	// Create the command
 	execCmd := exec.Command(args[0], args[1:]...)
 
-	// Create pipes for stdout and stderr
 	stdoutPipe, err := execCmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdout pipe: %v", err)
@@ -138,62 +179,18 @@ func ExecCommand(args []string, isDev bool) error {
 		return fmt.Errorf("failed to create stderr pipe: %v", err)
 	}
 
-	// Connect stdin directly
 	execCmd.Stdin = os.Stdin
 
-	// Try to connect to the Outrig server initially
-	ensureConnections(isDev)
-
-	// Start the connection poller to maintain connections
-	startConnPoller(isDev)
-
-	// Start the command
 	if err := execCmd.Start(); err != nil {
 		return fmt.Errorf("failed to start command: %v", err)
 	}
 
-	// Use WaitGroup to wait for both stdout and stderr processing to complete
-	var wg sync.WaitGroup
-
-	// Process stdout
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := utilfn.TeeCopy(stdoutPipe, os.Stdout, func(data []byte) {
-			ProcessLogData("/dev/stdout", data)
-		})
-		if err != nil && err != io.EOF {
-			fmt.Fprintf(os.Stderr, "Error copying stdout: %v\n", err)
-		}
-	}()
-
-	// Process stderr
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := utilfn.TeeCopy(stderrPipe, os.Stderr, func(data []byte) {
-			ProcessLogData("/dev/stderr", data)
-		})
-		if err != nil && err != io.EOF {
-			fmt.Fprintf(os.Stderr, "Error copying stderr: %v\n", err)
-		}
-	}()
-
-	// Wait for both stdout and stderr processing to complete
-	wg.Wait()
-
-	// Close any open connections
-	if conn := stdoutConn.Load(); conn != nil {
-		conn.Close()
-		stdoutConn.Store(nil)
+	streams := []TeeStreamDecl{
+		{Input: stdoutPipe, Output: os.Stdout, Source: "/dev/stdout"},
+		{Input: stderrPipe, Output: os.Stderr, Source: "/dev/stderr"},
 	}
+	ProcessExistingStreams(streams, isDev)
 
-	if conn := stderrConn.Load(); conn != nil {
-		conn.Close()
-		stderrConn.Store(nil)
-	}
-
-	// Wait for the command to complete
 	err = execCmd.Wait()
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		os.Exit(exitErr.ExitCode())

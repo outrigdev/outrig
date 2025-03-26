@@ -2,14 +2,9 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"regexp"
-	"strings"
-	"sync"
 
 	"github.com/google/uuid"
-	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/boot"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
@@ -21,45 +16,6 @@ var OutrigVersion = "v0.0.0"
 
 // OutrigBuildTime is the build timestamp of Outrig
 var OutrigBuildTime = ""
-var appRunIdRe = regexp.MustCompile(`apprunid:([a-zA-Z0-9-]+)`)
-
-func sendData(source string, appRunId string, data []byte) {
-
-}
-
-func captureLogsSource(source string, input io.Reader, output io.Writer) error {
-	var appRunId string
-	lineBuf := utilfn.MakeLineBuf()
-	err := utilfn.TeeCopy(input, output, func(data []byte) {
-		if appRunId == "" {
-			lines := lineBuf.ProcessBuf(data)
-			for _, line := range lines {
-				if strings.Contains(line, "[outrig]") && strings.Contains(line, "apprunid:") {
-					matches := appRunIdRe.FindStringSubmatch(line)
-					if matches == nil {
-						continue
-					}
-					if _, err := uuid.Parse(matches[1]); err != nil {
-						continue
-					}
-					appRunId = matches[1]
-				}
-				if appRunId != "" {
-					sendData(source, appRunId, []byte(line))
-				}
-			}
-			if appRunId != "" {
-				partialBuf := lineBuf.GetPartialAndReset()
-				if len(partialBuf) > 0 {
-					sendData(source, appRunId, []byte(partialBuf))
-				}
-			}
-			return
-		}
-		sendData(source, appRunId, data)
-	})
-	return err
-}
 
 // runCaptureLogs captures logs from stdin and fd 3 and writes them to stdout and stderr respectively
 func runCaptureLogs(cmd *cobra.Command, args []string) error {
@@ -68,38 +24,27 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 
 	// Get the source flag value
 	source, _ := cmd.Flags().GetString("source")
+	
+	// Get the dev flag value
+	isDev, _ := cmd.Flags().GetBool("dev")
+
+	// If source is empty, use default
 	if source == "" {
 		source = "/dev/stdout"
 	}
-
-	var wg sync.WaitGroup
-
-	// Start goroutine to copy from stdin to stdout
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := captureLogsSource(source, os.Stdin, os.Stdout)
-		if err != nil && err != io.EOF {
-			fmt.Fprintf(os.Stderr, "Error copying from stdin to stdout: %v\n", err)
-		}
-	}()
-
-	// If we have a valid stderr input file, copy from it to stderr
-	if stderrIn != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer stderrIn.Close()
-			err := captureLogsSource("/dev/stderr", stderrIn, os.Stderr)
-			if err != nil && err != io.EOF {
-				fmt.Fprintf(os.Stderr, "Error copying from stderr-in to stderr: %v\n", err)
-			}
-		}()
+	
+	// Create the stream declarations
+	streams := []execlogwrap.TeeStreamDecl{
+		{Input: os.Stdin, Output: os.Stdout, Source: source},
 	}
-
-	// Wait for both copy operations to complete
-	wg.Wait()
-	return nil
+	
+	// Add stderr if provided
+	if stderrIn != nil {
+		streams = append(streams, execlogwrap.TeeStreamDecl{Input: stderrIn, Output: os.Stderr, Source: "/dev/stderr"})
+	}
+	
+	// Use the execlogwrap package to process the streams
+	return execlogwrap.ProcessExistingStreams(streams, isDev)
 }
 
 // processDevFlag checks if the --dev flag is present in the arguments and returns
@@ -176,6 +121,13 @@ Example: outrig --dev run main.go`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filteredArgs, isDev := processDevFlag(args)
 			goArgs := append([]string{"go", "run"}, filteredArgs...)
+			
+			// Set the app run ID environment variable if not already set
+			if os.Getenv("OUTRIG_APPRUNID") == "" {
+				appRunId := uuid.New().String()
+				os.Setenv("OUTRIG_APPRUNID", appRunId)
+			}
+			
 			return execlogwrap.ExecCommand(goArgs, isDev)
 		},
 		// Disable flag parsing for this command so all flags are passed to the go command
@@ -192,6 +144,13 @@ Example: outrig --dev exec ls -latrh`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filteredArgs, isDev := processDevFlag(args)
+			
+			// Set the app run ID environment variable if not already set
+			if os.Getenv("OUTRIG_APPRUNID") == "" {
+				appRunId := uuid.New().String()
+				os.Setenv("OUTRIG_APPRUNID", appRunId)
+			}
+			
 			return execlogwrap.ExecCommand(filteredArgs, isDev)
 		},
 		// Disable flag parsing for this command so all flags are passed to the executed command
