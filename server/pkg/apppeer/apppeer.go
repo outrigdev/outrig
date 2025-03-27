@@ -68,6 +68,7 @@ type GoRoutine struct {
 
 type Watch struct {
 	Name      string
+	Tags      []string
 	WatchVals *utilds.CirBuf[ds.WatchSample]
 }
 
@@ -319,9 +320,14 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			if !exists {
 				// New watch
 				watch = Watch{
-					Name:      watchName,
+					Name:      watchVal.Name,
+					Tags:      watchVal.Tags,
 					WatchVals: utilds.MakeCirBuf[ds.WatchSample](WatchBufferSize),
 				}
+			} else {
+				// Update name and tags from the watch value
+				watch.Name = watchVal.Name
+				watch.Tags = watchVal.Tags
 			}
 			// Add watch value to the circular buffer
 			watch.WatchVals.Write(watchVal)

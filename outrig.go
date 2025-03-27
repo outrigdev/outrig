@@ -203,7 +203,8 @@ func TrackValue(name string, val any) {
 	}
 	wc := watch.GetInstance()
 	rval := reflect.ValueOf(val)
-	wc.RecordWatchValue(name, nil, rval, rval.Type().String(), watch.WatchFlag_Push)
+	cleanName, tags := utilfn.ParseNameAndTags(name)
+	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), watch.WatchFlag_Push)
 }
 
 func TrackCounter[T constraints.Integer | constraints.Float](name string, val T) {
@@ -212,7 +213,8 @@ func TrackCounter[T constraints.Integer | constraints.Float](name string, val T)
 	}
 	wc := watch.GetInstance()
 	rval := reflect.ValueOf(val)
-	wc.RecordWatchValue(name, nil, rval, rval.Type().String(), watch.WatchFlag_Push|watch.WatchFlag_Counter)
+	cleanName, tags := utilfn.ParseNameAndTags(name)
+	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), watch.WatchFlag_Push|watch.WatchFlag_Counter)
 }
 
 func RegisterHook(name string, hookFn any) {
