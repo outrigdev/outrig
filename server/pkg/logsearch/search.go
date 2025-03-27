@@ -24,11 +24,20 @@ const (
 	SearchTypeUserQuery  = "userquery"
 )
 
+const (
+	FieldMod_ToLower = 1
+)
+
 // SearchContext contains runtime context for search operations
 type SearchContext struct {
 	MarkedLines map[int64]bool
 	UserQuery   LogSearcher
 	// Future fields can be added here without changing the interface
+}
+
+type SearchObject interface {
+	GetField(fieldName string, fieldMods int) string
+	GetTags() []string
 }
 
 // LogSearcher defines the interface for different search strategies
@@ -49,7 +58,7 @@ func GetSearcher(searchTerm string) (LogSearcher, error) {
 	if len(tokens) == 1 {
 		return MakeSearcherFromToken(tokens[0])
 	}
-	
+
 	// Check if we have OR tokens
 	hasOrToken := false
 	for _, token := range tokens {
@@ -58,19 +67,19 @@ func GetSearcher(searchTerm string) (LogSearcher, error) {
 			break
 		}
 	}
-	
+
 	// Create searchers from tokens
 	searchers, err := CreateSearchersFromTokens(tokens)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// If we have OR tokens, the CreateSearchersFromTokens function will have already
 	// created the appropriate OR searcher structure, so we can just return the first searcher
 	if hasOrToken {
 		return searchers[0], nil
 	}
-	
+
 	// Otherwise, create an AND searcher as before
 	return MakeAndSearcher(searchers), nil
 }
