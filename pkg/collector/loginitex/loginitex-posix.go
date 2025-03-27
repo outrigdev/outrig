@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 )
@@ -92,8 +93,8 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 	// Launch the external process BEFORE redirecting stdout/stderr
 	cmd := exec.CommandContext(externalCaptureContext, outrigPath)
 	
-	// Set the OUTRIG_APPRUNID environment variable
-	cmd.Env = append(os.Environ(), fmt.Sprintf("OUTRIG_APPRUNID=%s", appRunId))
+	// Set the AppRunId environment variable
+	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", base.AppRunIdEnvName, appRunId))
 	
 	// Add any additional arguments before "capturelogs"
 	if len(config.AdditionalArgs) > 0 {

@@ -25,6 +25,10 @@ const DevTCPAddr = "http://localhost:6005"
 const DefaultTCPPort = ProdTCPPort
 const DefaultTCPAddr = ProdTCPAddr
 
+// Environment variables
+const ExternalLogCaptureEnvName = "OUTRIG_EXTERNALLOGCAPTURE"
+const AppRunIdEnvName = "OUTRIG_APPRUNID"
+
 // Client-specific functions that use the client's Dev flag
 
 // GetOutrigHomeForClient returns the appropriate home directory based on client config

@@ -89,7 +89,7 @@ func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
 	appInfo := ds.AppInfo{}
 
 	// Initialize basic AppInfo
-	appInfo.AppRunId = os.Getenv("OUTRIG_APPRUNID")
+	appInfo.AppRunId = os.Getenv(base.AppRunIdEnvName)
 	if appInfo.AppRunId == "" {
 		appInfo.AppRunId = uuid.New().String()
 	}

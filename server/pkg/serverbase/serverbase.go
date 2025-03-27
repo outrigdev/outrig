@@ -18,6 +18,7 @@ var OutrigBuildTime = ""
 
 const OutrigLockFile = "outrig.lock"
 const OutrigDataDir = "data"
+const OutrigDevEnvName = "OUTRIG_DEV"
 
 // Default production ports for server
 const ProdWebServerPort = 5005
@@ -33,7 +34,7 @@ type FDLock interface {
 
 // IsDev returns true if the server is running in development mode
 func IsDev() bool {
-	return os.Getenv("OUTRIG_DEV") == "1"
+	return os.Getenv(OutrigDevEnvName) == "1"
 }
 
 // GetOutrigHome returns the appropriate home directory based on mode

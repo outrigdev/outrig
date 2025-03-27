@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/server/pkg/boot"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
@@ -98,10 +99,12 @@ Example: outrig --dev run main.go`,
 			filteredArgs, isDev := processDevFlag(args)
 			goArgs := append([]string{"go", "run"}, filteredArgs...)
 
-			if os.Getenv("OUTRIG_APPRUNID") == "" {
+			if os.Getenv(base.AppRunIdEnvName) == "" {
 				appRunId := uuid.New().String()
-				os.Setenv("OUTRIG_APPRUNID", appRunId)
+				os.Setenv(base.AppRunIdEnvName, appRunId)
 			}
+
+			os.Setenv(base.ExternalLogCaptureEnvName, "1")
 
 			return execlogwrap.ExecCommand(goArgs, isDev)
 		},
@@ -119,10 +122,12 @@ Example: outrig --dev exec ls -latrh`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filteredArgs, isDev := processDevFlag(args)
 
-			if os.Getenv("OUTRIG_APPRUNID") == "" {
+			if os.Getenv(base.AppRunIdEnvName) == "" {
 				appRunId := uuid.New().String()
-				os.Setenv("OUTRIG_APPRUNID", appRunId)
+				os.Setenv(base.AppRunIdEnvName, appRunId)
 			}
+
+			os.Setenv(base.ExternalLogCaptureEnvName, "1")
 
 			return execlogwrap.ExecCommand(filteredArgs, isDev)
 		},

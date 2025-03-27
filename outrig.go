@@ -1,6 +1,7 @@
 package outrig
 
 import (
+	"os"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -43,6 +44,14 @@ func Enable() {
 }
 
 func getDefaultConfig(isDev bool) *ds.Config {
+	wrapStdout := true
+	wrapStderr := true
+
+	if os.Getenv(base.ExternalLogCaptureEnvName) != "" {
+		wrapStdout = false
+		wrapStderr = false
+	}
+
 	return &ds.Config{
 		DomainSocketPath: base.GetDomainSocketNameForClient(isDev),
 		ServerAddr:       base.GetTCPAddrForClient(isDev),
@@ -51,8 +60,8 @@ func getDefaultConfig(isDev bool) *ds.Config {
 		Dev:              isDev,
 		StartAsync:       false,
 		LogProcessorConfig: &ds.LogProcessorConfig{
-			WrapStdout: true,
-			WrapStderr: true,
+			WrapStdout: wrapStdout,
+			WrapStderr: wrapStderr,
 		},
 	}
 }
