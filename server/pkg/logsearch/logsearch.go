@@ -408,6 +408,67 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 	return markedLines, nil
 }
 
+// maybeRunNewSearch checks if a new search is needed and performs it if necessary
+// Returns an error if the search fails
+func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error {
+	// If the search term and system query haven't changed, no need to run a new search
+	if searchTerm == m.UserQuery && systemQuery == m.SystemQuery {
+		return nil
+	}
+	
+	// Create searcher for the search term
+	userSearcher, err := GetSearcher(searchTerm)
+	if err != nil {
+		return fmt.Errorf("failed to create user searcher: %w", err)
+	}
+
+	// Store the user searcher
+	m.UserSearcher = userSearcher
+
+	// Determine which searcher to use for the search
+	var effectiveSearcher LogSearcher = userSearcher
+
+	// If we have a system query, create a searcher for it
+	if systemQuery != "" {
+		systemSearcher, err := GetSearcher(systemQuery)
+		if err != nil {
+			return fmt.Errorf("failed to create system searcher: %w", err)
+		}
+
+		// Store the system searcher
+		m.SystemSearcher = systemSearcher
+		
+		// Use the system searcher as the effective searcher
+		// The system searcher will use the UserQuery field in the SearchContext if it contains a #userquery token
+		effectiveSearcher = systemSearcher
+	} else {
+		// No system query, clear the system searcher
+		m.SystemSearcher = nil
+	}
+
+	// Update the query fields
+	m.UserQuery = searchTerm
+	m.SystemQuery = systemQuery
+	
+	// Create search context with marked lines and user query
+	sctx := &SearchContext{
+		MarkedLines: m.MarkedLines,
+		UserQuery:   userSearcher, // Set the user query searcher for #userquery references
+	}
+	
+	// Perform the search
+	err = m.performSearch_nolock(effectiveSearcher, sctx)
+	if err != nil {
+		m.UserQuery = uuid.New().String() // set to random value to prevent using cache
+		m.SystemQuery = ""                // Clear the cached system query
+		m.UserSearcher = nil              // Clear the cached searchers on error
+		m.SystemSearcher = nil
+		return err
+	}
+	
+	return nil
+}
+
 // SearchRequest handles a search request for logs
 func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
 	m.Lock.Lock()
@@ -422,57 +483,10 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	// Store the RPC source
 	m.RpcSource = rpc.GetRpcSourceFromContext(ctx)
 
-	// If the search term or system query has changed, perform a new search
-	if data.SearchTerm != m.UserQuery || data.SystemQuery != m.SystemQuery {
-		// Create searcher for the search term
-		userSearcher, err := GetSearcher(data.SearchTerm)
-		if err != nil {
-			return rpctypes.SearchResultData{}, fmt.Errorf("failed to create user searcher: %w", err)
-		}
-
-		// Store the user searcher
-		m.UserSearcher = userSearcher
-
-		// Determine which searcher to use for the search
-		var effectiveSearcher LogSearcher = userSearcher
-
-		// If we have a system query, create a searcher for it
-		if data.SystemQuery != "" {
-			systemSearcher, err := GetSearcher(data.SystemQuery)
-			if err != nil {
-				return rpctypes.SearchResultData{}, fmt.Errorf("failed to create system searcher: %w", err)
-			}
-
-			// Store the system searcher
-			m.SystemSearcher = systemSearcher
-			
-			// Use the system searcher as the effective searcher
-			// The system searcher will use the UserQuery field in the SearchContext if it contains a #userquery token
-			effectiveSearcher = systemSearcher
-		} else {
-			// No system query, clear the system searcher
-			m.SystemSearcher = nil
-		}
-
-		// Update the query fields
-		m.UserQuery = data.SearchTerm
-		m.SystemQuery = data.SystemQuery
-		
-		// Create search context with marked lines and user query
-		sctx := &SearchContext{
-			MarkedLines: m.MarkedLines,
-			UserQuery:   userSearcher, // Set the user query searcher for #userquery references
-		}
-		
-		// Perform the search
-		err = m.performSearch_nolock(effectiveSearcher, sctx)
-		if err != nil {
-			m.UserQuery = uuid.New().String() // set to random value to prevent using cache
-			m.SystemQuery = ""                // Clear the cached system query
-			m.UserSearcher = nil              // Clear the cached searchers on error
-			m.SystemSearcher = nil
-			return rpctypes.SearchResultData{}, err
-		}
+	// Run a new search if needed
+	err := m.maybeRunNewSearch(data.SearchTerm, data.SystemQuery)
+	if err != nil {
+		return rpctypes.SearchResultData{}, err
 	}
 
 	// Get requested pages of log lines
