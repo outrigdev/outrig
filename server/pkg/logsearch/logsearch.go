@@ -45,15 +45,22 @@ type SearchManager struct {
 	AppRunId      string
 	AppPeer       *apppeer.AppRunPeer // Will never be nil
 	LastUsed      time.Time           // Timestamp of when this manager was last used
-	SearchTerm    string
-	Searcher      LogSearcher    // Cached searcher for the current search term
-	TotalCount    int            // Total number of log lines in the AppRunPeer
-	SearchedCount int            // Number of log lines that were actually searched
-	FilteredLogs  []ds.LogLine   // Filtered log lines matching the search criteria
-	MarkedLines   map[int64]bool // Map of line numbers that are marked
-	LastLineNum   int64          // Last line number processed to avoid duplicates
-	RpcSource     string         // Source of the last RPC request that used this manager
-	TrimmedCount  int            // Number of lines trimmed from the filtered logs
+	
+	// User search components
+	UserQuery    string              // The user's search term
+	UserSearcher LogSearcher         // Searcher for the user's search term
+	
+	// System search components
+	SystemQuery    string            // System-generated query that may reference UserQuery
+	SystemSearcher LogSearcher       // Searcher for the system query
+	
+	TotalCount    int                // Total number of log lines in the AppRunPeer
+	SearchedCount int                // Number of log lines that were actually searched
+	FilteredLogs  []ds.LogLine       // Filtered log lines matching the search criteria
+	MarkedLines   map[int64]bool     // Map of line numbers that are marked
+	LastLineNum   int64              // Last line number processed to avoid duplicates
+	RpcSource     string             // Source of the last RPC request that used this manager
+	TrimmedCount  int                // Number of lines trimmed from the filtered logs
 }
 
 // GetInfo returns a thread-safe copy of the SearchManager's information
@@ -65,7 +72,7 @@ func (m *SearchManager) GetInfo() SearchManagerInfo {
 		WidgetId:         m.WidgetId,
 		AppRunId:         m.AppRunId,
 		LastUsedTime:     m.LastUsed,
-		SearchTerm:       m.SearchTerm,
+		SearchTerm:       m.UserQuery,
 		FilteredLogCount: len(m.FilteredLogs),
 		MarkedLinesCount: len(m.MarkedLines),
 		RpcSource:        m.RpcSource,
@@ -88,13 +95,23 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 	m.TotalCount++
 	m.SearchedCount++
 
-	if m.Searcher == nil {
-		return
+	// Determine which searcher to use - prefer system searcher if available
+	var effectiveSearcher LogSearcher
+	if m.SystemSearcher != nil {
+		effectiveSearcher = m.SystemSearcher
+	} else if m.UserSearcher != nil {
+		effectiveSearcher = m.UserSearcher
+	} else {
+		return // No searcher available
 	}
+
+	// Create search context with marked lines and user query
 	sctx := &SearchContext{
 		MarkedLines: m.MarkedLines,
+		UserQuery:   m.UserSearcher, // Set the user query searcher for #userquery references
 	}
-	if !m.Searcher.Match(sctx, line) {
+
+	if !effectiveSearcher.Match(sctx, line) {
 		return
 	}
 	m.FilteredLogs = append(m.FilteredLogs, line)
@@ -125,7 +142,7 @@ func NewSearchManager(widgetId string, appPeer *apppeer.AppRunPeer) *SearchManag
 		WidgetId:    widgetId,
 		AppPeer:     appPeer,
 		LastUsed:    time.Now(),
-		SearchTerm:  uuid.New().String(), // pick a random value that will never match a real search term
+		UserQuery:   uuid.New().String(), // pick a random value that will never match a real search term
 		MarkedLines: make(map[int64]bool),
 	}
 
@@ -236,9 +253,8 @@ func (m *SearchManager) GetLastUsed() time.Time {
 	return m.LastUsed
 }
 
-func (m *SearchManager) performSearch_nolock(searchTerm string, searcher LogSearcher) error {
+func (m *SearchManager) performSearch_nolock(searcher LogSearcher, sctx *SearchContext) error {
 	startTs := time.Now()
-	m.SearchTerm = searchTerm
 
 	// Get all log lines from the circular buffer
 	allLogs, headOffset := m.AppPeer.Logs.GetAll()
@@ -248,12 +264,6 @@ func (m *SearchManager) performSearch_nolock(searchTerm string, searcher LogSear
 
 	// Clear previous filtered logs
 	m.FilteredLogs = []ds.LogLine{}
-
-	// Create search context with marked lines
-	// We can use the MarkedLines map directly since we're holding the lock
-	sctx := &SearchContext{
-		MarkedLines: m.MarkedLines,
-	}
 
 	// Filter the logs based on the search criteria
 	for _, line := range allLogs {
@@ -354,19 +364,14 @@ func (m *SearchManager) SetRpcSource(ctx context.Context) {
 	m.RpcSource = rpc.GetRpcSourceFromContext(ctx)
 }
 
-// RunFullSearch performs a full search using the provided searcher and returns all matching log lines
-func (m *SearchManager) RunFullSearch(searcher LogSearcher) ([]ds.LogLine, error) {
+// RunFullSearch performs a full search using the provided searcher and search context
+// Returns all matching log lines
+func (m *SearchManager) RunFullSearch(searcher LogSearcher, sctx *SearchContext) ([]ds.LogLine, error) {
 	m.Lock.Lock()
 	defer m.Lock.Unlock()
 
 	// Get all log lines from the AppPeer
 	allLogs, _ := m.AppPeer.Logs.GetAll()
-
-	// Create search context with marked lines
-	// We can use the MarkedLines map directly since we're holding the lock
-	sctx := &SearchContext{
-		MarkedLines: m.MarkedLines,
-	}
 
 	// Filter the logs based on the search criteria
 	var matchingLines []ds.LogLine
@@ -389,8 +394,13 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 	// Create a marked searcher
 	searcher := MakeMarkedSearcher()
 
-	// Run the full search with the marked searcher
-	markedLines, err := m.RunFullSearch(searcher)
+	// Create search context with marked lines
+	sctx := &SearchContext{
+		MarkedLines: m.GetMarkedLinesMap(),
+	}
+
+	// Run the full search with the marked searcher and search context
+	markedLines, err := m.RunFullSearch(searcher, sctx)
 	if err != nil {
 		return nil, err
 	}
@@ -412,18 +422,55 @@ func (m *SearchManager) SearchRequest(ctx context.Context, data rpctypes.SearchR
 	// Store the RPC source
 	m.RpcSource = rpc.GetRpcSourceFromContext(ctx)
 
-	// If the search term has changed, perform a new search
-	if data.SearchTerm != m.SearchTerm {
-		searcher, err := GetSearcher(data.SearchTerm)
+	// If the search term or system query has changed, perform a new search
+	if data.SearchTerm != m.UserQuery || data.SystemQuery != m.SystemQuery {
+		// Create searcher for the search term
+		userSearcher, err := GetSearcher(data.SearchTerm)
 		if err != nil {
-			return rpctypes.SearchResultData{}, fmt.Errorf("failed to create searcher: %w", err)
+			return rpctypes.SearchResultData{}, fmt.Errorf("failed to create user searcher: %w", err)
 		}
-		// Cache the searcher
-		m.Searcher = searcher
-		err = m.performSearch_nolock(data.SearchTerm, searcher)
+
+		// Store the user searcher
+		m.UserSearcher = userSearcher
+
+		// Determine which searcher to use for the search
+		var effectiveSearcher LogSearcher = userSearcher
+
+		// If we have a system query, create a searcher for it
+		if data.SystemQuery != "" {
+			systemSearcher, err := GetSearcher(data.SystemQuery)
+			if err != nil {
+				return rpctypes.SearchResultData{}, fmt.Errorf("failed to create system searcher: %w", err)
+			}
+
+			// Store the system searcher
+			m.SystemSearcher = systemSearcher
+			
+			// Use the system searcher as the effective searcher
+			// The system searcher will use the UserQuery field in the SearchContext if it contains a #userquery token
+			effectiveSearcher = systemSearcher
+		} else {
+			// No system query, clear the system searcher
+			m.SystemSearcher = nil
+		}
+
+		// Update the query fields
+		m.UserQuery = data.SearchTerm
+		m.SystemQuery = data.SystemQuery
+		
+		// Create search context with marked lines and user query
+		sctx := &SearchContext{
+			MarkedLines: m.MarkedLines,
+			UserQuery:   userSearcher, // Set the user query searcher for #userquery references
+		}
+		
+		// Perform the search
+		err = m.performSearch_nolock(effectiveSearcher, sctx)
 		if err != nil {
-			m.SearchTerm = uuid.New().String() // set to random value to prevent using cache
-			m.Searcher = nil                   // Clear the cached searcher on error
+			m.UserQuery = uuid.New().String() // set to random value to prevent using cache
+			m.SystemQuery = ""                // Clear the cached system query
+			m.UserSearcher = nil              // Clear the cached searchers on error
+			m.SystemSearcher = nil
 			return rpctypes.SearchResultData{}, err
 		}
 	}
