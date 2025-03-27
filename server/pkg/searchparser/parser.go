@@ -6,8 +6,10 @@
 // search           = or_expr ;
 // or_expr          = and_expr { "|" and_expr } ;
 // and_expr         = { token } ;
-// token            = not_token | unmodified_token ;
-// not_token        = "-" unmodified_token ;
+// token            = not_token | field_token ;
+// not_token        = "-" field_token ;
+// field_token      = field_prefix? unmodified_token ;
+// field_prefix     = "$" { any_char - ":" - whitespace } ":" ;
 // unmodified_token = fuzzy_token | regexp_token | case_regexp_token | tag_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
 // regexp_token     = "/" { any_char - "/" | "\/" } "/" ;
@@ -46,6 +48,7 @@ type SearchToken struct {
 	Type       string // The search type (exact, regexp, fzf, etc.)
 	SearchTerm string // The actual search term
 	IsNot      bool   // Whether this token is negated (e.g., -hello)
+	Field      string // The field to search in (e.g., name, source)
 }
 
 // Parser represents a recursive descent parser for search expressions
@@ -241,6 +244,41 @@ func (p *Parser) parseSimpleToken() (string, string, bool) {
 	return token, tokenType, true
 }
 
+// parseFieldPrefix parses a field prefix in the form of "$fieldname:"
+func (p *Parser) parseFieldPrefix() (string, bool) {
+	// Check for field indicator ($)
+	if p.ch != '$' {
+		return "", false
+	}
+
+	// Skip the $ character
+	p.readChar()
+
+	// If we've reached the end of the input or whitespace, return empty
+	if p.ch == 0 || unicode.IsSpace(p.ch) {
+		return "", false
+	}
+
+	position := p.position
+
+	// Read until colon or whitespace or EOF
+	for p.ch != ':' && !unicode.IsSpace(p.ch) && p.ch != 0 {
+		p.readChar()
+	}
+
+	// If we didn't find a colon, this isn't a valid field prefix
+	if p.ch != ':' {
+		return "", false
+	}
+
+	fieldName := p.input[position:p.position]
+
+	// Skip the colon
+	p.readChar()
+
+	return fieldName, true
+}
+
 // parseUnmodifiedToken parses a token that is not negated (not preceded by -)
 // This includes fuzzy tokens, regexp tokens, hash tokens, and simple tokens
 func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
@@ -305,7 +343,7 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 		} else {
 			// Read the token after #
 			position := p.position
-			
+
 			for !unicode.IsSpace(p.ch) && p.ch != 0 {
 				// Check for trailing slash indicating exact match
 				if p.ch == '/' && (p.peek(1) == 0 || unicode.IsSpace(p.peek(1))) {
@@ -361,10 +399,17 @@ func (p *Parser) parseNotToken() (SearchToken, bool) {
 		}, true
 	}
 
+	// Check for field prefix
+	field, hasField := p.parseFieldPrefix()
+
 	// Parse the unmodified token
 	unmodifiedToken, valid := p.parseUnmodifiedToken()
 	if !valid {
 		return SearchToken{}, false
+	}
+
+	if hasField {
+		unmodifiedToken.Field = field
 	}
 
 	// Set the IsNot flag to true
@@ -380,8 +425,20 @@ func (p *Parser) parseToken() (SearchToken, bool) {
 		return p.parseNotToken()
 	}
 
+	// Check for field prefix
+	field, hasField := p.parseFieldPrefix()
+
 	// Parse an unmodified token
-	return p.parseUnmodifiedToken()
+	token, valid := p.parseUnmodifiedToken()
+	if !valid {
+		return SearchToken{}, false
+	}
+
+	if hasField {
+		token.Field = field
+	}
+
+	return token, true
 }
 
 // parseAndExpr parses a sequence of tokens (AND expression)
