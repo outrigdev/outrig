@@ -555,6 +555,87 @@ func TestTokenizeSearch(t *testing.T) {
 				{Type: "exact", SearchTerm: "mark", IsNot: true},
 			},
 		},
+		{
+			name:        "Basic field search",
+			searchInput: `$name:hello`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello", Field: "name"},
+			},
+		},
+		{
+			name:        "Field search with quoted string",
+			searchInput: `$name:"hello world"`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello world", Field: "name"},
+			},
+		},
+		{
+			name:        "Field search with single quoted string",
+			searchInput: `$name:'Hello World'`,
+			want: []SearchToken{
+				{Type: "exactcase", SearchTerm: "Hello World", Field: "name"},
+			},
+		},
+		{
+			name:        "Field search with fuzzy search",
+			searchInput: `$name:~hello`,
+			want: []SearchToken{
+				{Type: "fzf", SearchTerm: "hello", Field: "name"},
+			},
+		},
+		{
+			name:        "Field search with regexp",
+			searchInput: `$name:/hello\d+/`,
+			want: []SearchToken{
+				{Type: "regexp", SearchTerm: "hello\\d+", Field: "name"},
+			},
+		},
+		{
+			name:        "Field search with case-sensitive regexp",
+			searchInput: `$name:c/Hello/`,
+			want: []SearchToken{
+				{Type: "regexpcase", SearchTerm: "Hello", Field: "name"},
+			},
+		},
+		{
+			name:        "Field search with tag",
+			searchInput: `$name:#hello`,
+			want: []SearchToken{
+				{Type: "tag", SearchTerm: "hello", Field: "name"},
+			},
+		},
+		{
+			name:        "Negated field search",
+			searchInput: `-$name:hello`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello", IsNot: true, Field: "name"},
+			},
+		},
+		{
+			name:        "Field search with OR expression",
+			searchInput: `$name:hello | $source:error`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello", Field: "name"},
+				{Type: "or", SearchTerm: "|"},
+				{Type: "exact", SearchTerm: "error", Field: "source"},
+			},
+		},
+		{
+			name:        "Multiple field searches",
+			searchInput: `$name:hello $source:error`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "hello", Field: "name"},
+				{Type: "exact", SearchTerm: "error", Field: "source"},
+			},
+		},
+		{
+			name:        "Field prefix without search term",
+			searchInput: `$name hello`,
+			want: []SearchToken{
+				{Type: "exact", SearchTerm: "", Field: "name"},
+				{Type: "exact", SearchTerm: "hello"},
+			},
+		},
 	}
 
 	for _, tt := range tests {

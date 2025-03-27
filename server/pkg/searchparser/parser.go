@@ -245,10 +245,14 @@ func (p *Parser) parseSimpleToken() (string, string, bool) {
 }
 
 // parseFieldPrefix parses a field prefix in the form of "$fieldname:"
-func (p *Parser) parseFieldPrefix() (string, bool) {
+// Returns (fieldName, hasField, isComplete)
+// - fieldName: the name of the field
+// - hasField: true if a field prefix was found (starts with $)
+// - isComplete: true if the field prefix is complete (ends with :)
+func (p *Parser) parseFieldPrefix() (string, bool, bool) {
 	// Check for field indicator ($)
 	if p.ch != '$' {
-		return "", false
+		return "", false, false
 	}
 
 	// Skip the $ character
@@ -256,7 +260,7 @@ func (p *Parser) parseFieldPrefix() (string, bool) {
 
 	// If we've reached the end of the input or whitespace, return empty
 	if p.ch == 0 || unicode.IsSpace(p.ch) {
-		return "", false
+		return "", true, false
 	}
 
 	position := p.position
@@ -266,17 +270,17 @@ func (p *Parser) parseFieldPrefix() (string, bool) {
 		p.readChar()
 	}
 
-	// If we didn't find a colon, this isn't a valid field prefix
-	if p.ch != ':' {
-		return "", false
-	}
-
 	fieldName := p.input[position:p.position]
+
+	// If we didn't find a colon, this is an incomplete field prefix
+	if p.ch != ':' {
+		return fieldName, true, false
+	}
 
 	// Skip the colon
 	p.readChar()
 
-	return fieldName, true
+	return fieldName, true, true
 }
 
 // parseUnmodifiedToken parses a token that is not negated (not preceded by -)
@@ -400,7 +404,16 @@ func (p *Parser) parseNotToken() (SearchToken, bool) {
 	}
 
 	// Check for field prefix
-	field, hasField := p.parseFieldPrefix()
+	field, hasField, isComplete := p.parseFieldPrefix()
+	
+	// If we have a field prefix but it's incomplete, return a token with empty search term
+	if hasField && !isComplete {
+		return SearchToken{
+			Type:       "exact",
+			SearchTerm: "",
+			Field:      field,
+		}, true
+	}
 
 	// Parse the unmodified token
 	unmodifiedToken, valid := p.parseUnmodifiedToken()
@@ -426,7 +439,16 @@ func (p *Parser) parseToken() (SearchToken, bool) {
 	}
 
 	// Check for field prefix
-	field, hasField := p.parseFieldPrefix()
+	field, hasField, isComplete := p.parseFieldPrefix()
+	
+	// If we have a field prefix but it's incomplete, return a token with empty search term
+	if hasField && !isComplete {
+		return SearchToken{
+			Type:       "exact",
+			SearchTerm: "",
+			Field:      field,
+		}, true
+	}
 
 	// Parse an unmodified token
 	token, valid := p.parseUnmodifiedToken()
