@@ -59,7 +59,7 @@ func ensureConnections(isDev bool) {
 	if stdoutConn.Load() == nil {
 		if conn := tryConnect("/dev/stdout", isDev); conn != nil {
 			stdoutConn.Store(conn)
-			fmt.Printf("[outrig] connected stdout via %s\n", conn.PeerName)
+			// fmt.Printf("[outrig] connected stdout via %s\n", conn.PeerName)
 		}
 	}
 
@@ -67,7 +67,7 @@ func ensureConnections(isDev bool) {
 	if stderrConn.Load() == nil {
 		if conn := tryConnect("/dev/stderr", isDev); conn != nil {
 			stderrConn.Store(conn)
-			fmt.Printf("[outrig] connected stderr via %s\n", conn.PeerName)
+			// fmt.Printf("[outrig] connected stderr via %s\n", conn.PeerName)
 		}
 	}
 }
@@ -102,7 +102,7 @@ func ProcessLogData(source string, data []byte) {
 	if connPtr == nil {
 		return
 	}
-	
+
 	_, err := connPtr.Conn.Write(data)
 	if err != nil {
 		ptr.Store(nil)
@@ -163,7 +163,6 @@ func ProcessExistingStreams(streams []TeeStreamDecl, isDev bool) error {
 
 	return nil
 }
-
 
 // ExecCommand executes a command with the provided arguments
 func ExecCommand(args []string, isDev bool) error {

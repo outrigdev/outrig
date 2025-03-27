@@ -22,8 +22,6 @@ type PacketType struct {
 type LogProcessorConfig struct {
 	WrapStdout bool
 	WrapStderr bool
-	// CaptureUnhandledCrashes enables capturing crash output using Go 1.23+'s SetCrashOutput API
-	CaptureUnhandledCrashes bool
 	// OutrigPath is the full path to the outrig executable (including the executable name)
 	// If empty, the system will look for "outrig" in the PATH
 	OutrigPath string
