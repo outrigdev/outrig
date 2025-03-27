@@ -9,7 +9,6 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
-	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 // GetAppRunGoRoutinesCommand retrieves goroutines for a specific app run
@@ -47,7 +46,8 @@ func GetAppRunGoRoutinesCommand(ctx context.Context, req rpctypes.AppRunRequest)
 			// If parsing fails, skip this goroutine
 			continue
 		}
-		parsedGoRoutine.Name, parsedGoRoutine.Tags = utilfn.ParseNameAndTags(goroutineObj.Name)
+		parsedGoRoutine.Name = goroutineObj.Name
+		parsedGoRoutine.Tags = goroutineObj.Tags
 		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
 	}
 

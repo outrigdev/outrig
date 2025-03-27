@@ -106,10 +106,11 @@ type GoroutineInfo struct {
 }
 
 type GoRoutineStack struct {
-	GoId       int64  `json:"goid"`
-	State      string `json:"state"`
-	StackTrace string `json:"stacktrace"`
-	Name       string `json:"name,omitempty"`
+	GoId       int64    `json:"goid"`
+	State      string   `json:"state"`
+	StackTrace string   `json:"stacktrace"`
+	Name       string   `json:"name,omitempty"`
+	Tags       []string `json:"tags,omitempty"`
 }
 
 type WatchInfo struct {

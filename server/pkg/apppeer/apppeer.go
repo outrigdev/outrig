@@ -62,6 +62,7 @@ type AppRunPeer struct {
 type GoRoutine struct {
 	GoId        int
 	Name        string
+	Tags        []string
 	StackTraces *utilds.CirBuf[ds.GoRoutineStack]
 }
 
@@ -280,6 +281,9 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			// Update name if provided
 			if stack.Name != "" {
 				goroutine.Name = stack.Name
+			}
+			if len(stack.Tags) > 0 {
+				goroutine.Tags = stack.Tags
 			}
 
 			// Add stack trace to the circular buffer

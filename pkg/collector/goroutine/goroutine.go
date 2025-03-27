@@ -12,6 +12,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
@@ -153,7 +154,7 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.Gorouti
 
 		// Add name if available
 		if name, ok := gc.GetGoRoutineName(id); ok {
-			grStack.Name = name
+			grStack.Name, grStack.Tags = utilfn.ParseNameAndTags(name)
 		}
 
 		goroutineStacks = append(goroutineStacks, grStack)
