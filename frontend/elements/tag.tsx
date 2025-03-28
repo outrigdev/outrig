@@ -1,6 +1,6 @@
 import React from "react";
 
-type TagVariant = "primary" | "secondary" | "link" | "info" | "success" | "warning" | "danger";
+type TagVariant = "primary" | "secondary" | "link" | "info" | "success" | "warning" | "danger" | "accent";
 
 interface TagProps {
     label: string;
@@ -41,6 +41,8 @@ function getTagStyles(variant: TagVariant, isSelected: boolean): string {
                 return "bg-amber-500/20 text-amber-500 border border-amber-500/30";
             case "danger":
                 return "bg-red-500/20 text-red-500 border border-red-500/30";
+            case "accent":
+                return "bg-accent/20 text-accent border border-accent/30";
             default:
                 return "bg-primary/20 text-primary border border-primary/30";
         }
@@ -60,6 +62,8 @@ function getTagStyles(variant: TagVariant, isSelected: boolean): string {
                 return "bg-amber-500/10 text-amber-500/80 border border-amber-500/20 hover:bg-amber-500/20";
             case "danger":
                 return "bg-red-500/10 text-red-500/80 border border-red-500/20 hover:bg-red-500/20";
+            case "accent":
+                return "bg-accent/10 text-accent/80 border border-accent/20 hover:bg-accent/20";
             default:
                 return "bg-secondary/10 text-secondary border border-secondary/20 hover:bg-secondary/20";
         }

@@ -157,18 +157,13 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                     {goroutine.rawstate.split(",").map((state, index) => (
                         <Tag key={`state-${index}`} label={state.trim()} isSelected={false} variant="secondary" />
                     ))}
-                    
+
                     {/* Display tags with # prefix if they exist */}
-                    {goroutine.tags && goroutine.tags.length > 0 && 
+                    {goroutine.tags &&
+                        goroutine.tags.length > 0 &&
                         goroutine.tags.map((tag, index) => (
-                            <Tag 
-                                key={`tag-${index}`} 
-                                label={`#${tag}`} 
-                                isSelected={false} 
-                                variant="info" 
-                            />
-                        ))
-                    }
+                            <Tag key={`tag-${index}`} label={`#${tag}`} isSelected={false} variant="accent" />
+                        ))}
                 </div>
             </div>
             <div ref={stackTraceRef} className="pb-2">
