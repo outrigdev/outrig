@@ -285,20 +285,32 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 }
 
 var tagRegex = regexp.MustCompile(`(^|\s+)(#[a-zA-Z][a-zA-Z0-9:_.-]*)`)
+var spaceRegex = regexp.MustCompile(`\s+`)
+
+func ParseTags(input string) []string {
+	matches := tagRegex.FindAllStringSubmatch(input, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	tags := make([]string, len(matches))
+	for i, match := range matches {
+		tags[i] = strings.ToLower(match[2][1:])
+	}
+	return tags
+}
 
 func ParseNameAndTags(input string) (string, []string) {
-	// Extract tags
+	// Extract tags.
 	matches := tagRegex.FindAllStringSubmatch(input, -1)
 	tags := make([]string, 0, len(matches))
 	for _, match := range matches {
-		// match[2] is the tag with '#'
-		tags = append(tags, match[2][1:])
+		tags = append(tags, strings.ToLower(match[2][1:]))
 	}
 
-	// Remove tags by replacing them with the first capture group (whitespace or beginning)
+	// Remove tags and then normalize whitespace.
 	cleanedInput := tagRegex.ReplaceAllString(input, "$1")
-	// Normalize whitespace
-	cleanedInput = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(cleanedInput, " "))
+	cleanedInput = strings.TrimSpace(spaceRegex.ReplaceAllString(cleanedInput, " "))
 
 	return cleanedInput, tags
 }
