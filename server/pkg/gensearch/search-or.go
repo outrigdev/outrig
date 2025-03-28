@@ -1,10 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package logsearch
-
-import (
-)
+package gensearch
 
 // OrSearcher implements a searcher that matches if any contained searcher matches
 type OrSearcher struct {
@@ -24,14 +21,14 @@ func (s *OrSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	if len(s.searchers) == 0 {
 		return false
 	}
-	
+
 	// Check if the object matches any searcher
 	for _, searcher := range s.searchers {
 		if searcher.Match(sctx, obj) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

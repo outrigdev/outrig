@@ -1,4 +1,4 @@
-package logsearch
+package gensearch
 
 import (
 	"strconv"
@@ -6,17 +6,17 @@ import (
 )
 
 type GoRoutineSearchObject struct {
-	GoId   int
-	Name   string
-	Tags   []string
-	Stack  string
-	
+	GoId  int
+	Name  string
+	Tags  []string
+	Stack string
+
 	// Cached values for searches
-	NameToLower      string
-	GoIdStr          string
-	StackToLower     string
-	Combined         string
-	CombinedToLower  string
+	NameToLower     string
+	GoIdStr         string
+	StackToLower    string
+	Combined        string
+	CombinedToLower string
 }
 
 func (gso *GoRoutineSearchObject) GetTags() []string {
@@ -53,7 +53,7 @@ func (gso *GoRoutineSearchObject) GetField(fieldName string, fieldMods int) stri
 		if gso.Combined == "" {
 			gso.Combined = gso.Name + "\n" + gso.Stack
 		}
-		
+
 		if fieldMods&FieldMod_ToLower != 0 {
 			if gso.CombinedToLower == "" {
 				gso.CombinedToLower = strings.ToLower(gso.Combined)

@@ -1,10 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package logsearch
-
-import (
-)
+package gensearch
 
 // NotSearcher implements a searcher that inverts the result of another searcher
 type NotSearcher struct {

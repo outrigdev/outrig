@@ -1,7 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package logsearch
+package gensearch
 
 import (
 	"github.com/junegunn/fzf/src/algo"
@@ -34,14 +34,14 @@ func MakeFzfSearcher(field string, searchTerm string, caseSensitive bool) (LogSe
 // Match checks if the search object matches the fuzzy search pattern
 func (s *FzfSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	var fieldText string
-	
+
 	// Apply case sensitivity
 	if s.caseSensitive {
 		fieldText = obj.GetField(s.field, 0)
 	} else {
 		fieldText = obj.GetField(s.field, FieldMod_ToLower)
 	}
-	
+
 	// Convert the field to the format expected by fzf
 	chars := util.ToChars([]byte(fieldText))
 

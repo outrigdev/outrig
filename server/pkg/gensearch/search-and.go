@@ -1,10 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package logsearch
-
-import (
-)
+package gensearch
 
 // AndSearcher implements a searcher that requires all contained searchers to match
 type AndSearcher struct {
@@ -24,14 +21,14 @@ func (s *AndSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	if len(s.searchers) == 0 {
 		return true
 	}
-	
+
 	// Check if the object matches all searchers
 	for _, searcher := range s.searchers {
 		if !searcher.Match(sctx, obj) {
 			return false
 		}
 	}
-	
+
 	return true
 }
 

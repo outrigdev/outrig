@@ -1,7 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package logsearch
+package gensearch
 
 import (
 	"fmt"
@@ -10,9 +10,9 @@ import (
 
 // RegexpSearcher implements regular expression matching
 type RegexpSearcher struct {
-	field      string
-	searchTerm string
-	regex      *regexp.Regexp
+	field         string
+	searchTerm    string
+	regex         *regexp.Regexp
 	caseSensitive bool
 }
 
@@ -34,9 +34,9 @@ func MakeRegexpSearcher(field string, searchTerm string, caseSensitive bool) (Lo
 	}
 
 	return &RegexpSearcher{
-		field:      field,
-		searchTerm: searchTerm,
-		regex:      regex,
+		field:         field,
+		searchTerm:    searchTerm,
+		regex:         regex,
 		caseSensitive: caseSensitive,
 	}, nil
 }

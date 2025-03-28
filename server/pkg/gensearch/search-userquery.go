@@ -1,10 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package logsearch
-
-import (
-)
+package gensearch
 
 // UserQuerySearcher is a searcher that delegates to the UserQuery field in SearchContext
 type UserQuerySearcher struct{}

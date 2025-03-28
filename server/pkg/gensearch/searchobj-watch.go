@@ -1,21 +1,21 @@
-package logsearch
+package gensearch
 
 import (
 	"strings"
 )
 
 type WatchSearchObject struct {
-	Name   string
-	Val    string
-	Tags   []string
-	Type   string
-	
+	Name string
+	Val  string
+	Tags []string
+	Type string
+
 	// Cached values for searches
-	NameToLower      string
-	ValToLower       string
-	TypeToLower      string
-	Combined         string
-	CombinedToLower  string
+	NameToLower     string
+	ValToLower      string
+	TypeToLower     string
+	Combined        string
+	CombinedToLower string
 }
 
 func (wso *WatchSearchObject) GetTags() []string {
@@ -55,7 +55,7 @@ func (wso *WatchSearchObject) GetField(fieldName string, fieldMods int) string {
 		if wso.Combined == "" {
 			wso.Combined = wso.Name + "\n" + wso.Type + "\n" + wso.Val
 		}
-		
+
 		if fieldMods&FieldMod_ToLower != 0 {
 			if wso.CombinedToLower == "" {
 				wso.CombinedToLower = strings.ToLower(wso.Combined)

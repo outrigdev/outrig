@@ -1,4 +1,4 @@
-package logsearch
+package gensearch
 
 import (
 	"strconv"

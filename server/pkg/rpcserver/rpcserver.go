@@ -9,7 +9,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
 	"github.com/outrigdev/outrig/server/pkg/browsertabs"
-	"github.com/outrigdev/outrig/server/pkg/logsearch"
+	"github.com/outrigdev/outrig/server/pkg/gensearch"
 )
 
 type RpcServerImpl struct{}
@@ -88,13 +88,13 @@ func (*RpcServerImpl) GetAppRunRuntimeStatsCommand(ctx context.Context, data rpc
 
 // LogSearchRequestCommand handles search requests for logs
 func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
-	manager := logsearch.GetOrCreateManager(data.WidgetId, data.AppRunId)
+	manager := gensearch.GetOrCreateManager(data.WidgetId, data.AppRunId)
 	return manager.SearchRequest(ctx, data)
 }
 
 // LogWidgetAdminCommand handles widget administration requests
 func (*RpcServerImpl) LogWidgetAdminCommand(ctx context.Context, data rpctypes.LogWidgetAdminData) error {
-	manager := logsearch.GetManager(data.WidgetId)
+	manager := gensearch.GetManager(data.WidgetId)
 	if manager == nil {
 		return nil
 	}
@@ -104,7 +104,7 @@ func (*RpcServerImpl) LogWidgetAdminCommand(ctx context.Context, data rpctypes.L
 
 	// Drop takes precedence over KeepAlive
 	if data.Drop {
-		logsearch.DropManager(data.WidgetId)
+		gensearch.DropManager(data.WidgetId)
 	} else if data.KeepAlive {
 		manager.UpdateLastUsed()
 	}
@@ -113,7 +113,7 @@ func (*RpcServerImpl) LogWidgetAdminCommand(ctx context.Context, data rpctypes.L
 
 // LogUpdateMarkedLinesCommand handles updating marked lines for a widget
 func (*RpcServerImpl) LogUpdateMarkedLinesCommand(ctx context.Context, data rpctypes.MarkedLinesData) error {
-	manager := logsearch.GetManager(data.WidgetId)
+	manager := gensearch.GetManager(data.WidgetId)
 	if manager == nil {
 		return fmt.Errorf("widget not found: %s", data.WidgetId)
 	}
@@ -141,7 +141,7 @@ func (*RpcServerImpl) LogUpdateMarkedLinesCommand(ctx context.Context, data rpct
 
 // LogGetMarkedLinesCommand retrieves all marked log lines for a widget
 func (*RpcServerImpl) LogGetMarkedLinesCommand(ctx context.Context, data rpctypes.MarkedLinesRequestData) (rpctypes.MarkedLinesResultData, error) {
-	manager := logsearch.GetManager(data.WidgetId)
+	manager := gensearch.GetManager(data.WidgetId)
 	if manager == nil {
 		return rpctypes.MarkedLinesResultData{}, fmt.Errorf("widget not found: %s", data.WidgetId)
 	}

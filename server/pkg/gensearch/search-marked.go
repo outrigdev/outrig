@@ -1,14 +1,14 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package logsearch
+package gensearch
 
 import (
 	"strconv"
 )
 
 // MarkedSearcher is a searcher that matches lines that are marked
-type MarkedSearcher struct {}
+type MarkedSearcher struct{}
 
 // MakeMarkedSearcher creates a new MarkedSearcher
 func MakeMarkedSearcher() LogSearcher {
@@ -21,12 +21,12 @@ func (s *MarkedSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	if lineNumStr == "" {
 		return false
 	}
-	
+
 	lineNum, err := strconv.ParseInt(lineNumStr, 10, 64)
 	if err != nil {
 		return false
 	}
-	
+
 	_, exists := sctx.MarkedLines[lineNum]
 	return exists
 }

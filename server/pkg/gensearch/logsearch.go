@@ -1,4 +1,4 @@
-package logsearch
+package gensearch
 
 import (
 	"context"
@@ -40,27 +40,27 @@ type SearchManagerInfo struct {
 
 // SearchManager handles search functionality for a specific widget
 type SearchManager struct {
-	Lock          *sync.Mutex
-	WidgetId      string
-	AppRunId      string
-	AppPeer       *apppeer.AppRunPeer // Will never be nil
-	LastUsed      time.Time           // Timestamp of when this manager was last used
-	
+	Lock     *sync.Mutex
+	WidgetId string
+	AppRunId string
+	AppPeer  *apppeer.AppRunPeer // Will never be nil
+	LastUsed time.Time           // Timestamp of when this manager was last used
+
 	// User search components
-	UserQuery    string              // The user's search term
-	UserSearcher LogSearcher         // Searcher for the user's search term
-	
+	UserQuery    string      // The user's search term
+	UserSearcher LogSearcher // Searcher for the user's search term
+
 	// System search components
-	SystemQuery    string            // System-generated query that may reference UserQuery
-	SystemSearcher LogSearcher       // Searcher for the system query
-	
-	TotalCount    int                // Total number of log lines in the AppRunPeer
-	SearchedCount int                // Number of log lines that were actually searched
-	FilteredLogs  []ds.LogLine       // Filtered log lines matching the search criteria
-	MarkedLines   map[int64]bool     // Map of line numbers that are marked
-	LastLineNum   int64              // Last line number processed to avoid duplicates
-	RpcSource     string             // Source of the last RPC request that used this manager
-	TrimmedCount  int                // Number of lines trimmed from the filtered logs
+	SystemQuery    string      // System-generated query that may reference UserQuery
+	SystemSearcher LogSearcher // Searcher for the system query
+
+	TotalCount    int            // Total number of log lines in the AppRunPeer
+	SearchedCount int            // Number of log lines that were actually searched
+	FilteredLogs  []ds.LogLine   // Filtered log lines matching the search criteria
+	MarkedLines   map[int64]bool // Map of line numbers that are marked
+	LastLineNum   int64          // Last line number processed to avoid duplicates
+	RpcSource     string         // Source of the last RPC request that used this manager
+	TrimmedCount  int            // Number of lines trimmed from the filtered logs
 }
 
 // GetInfo returns a thread-safe copy of the SearchManager's information
@@ -278,14 +278,14 @@ func (m *SearchManager) performSearch_nolock(searcher LogSearcher, sctx *SearchC
 			m.FilteredLogs = append(m.FilteredLogs, line)
 			continue
 		}
-		
+
 		// Create a LogSearchObject from the log line
 		searchObj := &LogSearchObject{
 			Msg:     line.Msg,
 			Source:  line.Source,
 			LineNum: line.LineNum,
 		}
-		
+
 		if searcher.Match(sctx, searchObj) {
 			m.FilteredLogs = append(m.FilteredLogs, line)
 		}
@@ -399,14 +399,14 @@ func (m *SearchManager) RunFullSearch(searcher LogSearcher, sctx *SearchContext)
 			matchingLines = append(matchingLines, line)
 			continue
 		}
-		
+
 		// Create a LogSearchObject from the log line
 		searchObj := &LogSearchObject{
 			Msg:     line.Msg,
 			Source:  line.Source,
 			LineNum: line.LineNum,
 		}
-		
+
 		if searcher.Match(sctx, searchObj) {
 			matchingLines = append(matchingLines, line)
 		}
@@ -446,7 +446,7 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 	if searchTerm == m.UserQuery && systemQuery == m.SystemQuery {
 		return nil
 	}
-	
+
 	// Create searcher for the search term
 	userSearcher, err := GetSearcher(searchTerm)
 	if err != nil {
@@ -468,7 +468,7 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 
 		// Store the system searcher
 		m.SystemSearcher = systemSearcher
-		
+
 		// Use the system searcher as the effective searcher
 		// The system searcher will use the UserQuery field in the SearchContext if it contains a #userquery token
 		effectiveSearcher = systemSearcher
@@ -480,13 +480,13 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 	// Update the query fields
 	m.UserQuery = searchTerm
 	m.SystemQuery = systemQuery
-	
+
 	// Create search context with marked lines and user query
 	sctx := &SearchContext{
 		MarkedLines: m.MarkedLines,
 		UserQuery:   userSearcher, // Set the user query searcher for #userquery references
 	}
-	
+
 	// Perform the search
 	err = m.performSearch_nolock(effectiveSearcher, sctx)
 	if err != nil {
@@ -496,7 +496,7 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 		m.SystemSearcher = nil
 		return err
 	}
-	
+
 	return nil
 }
 

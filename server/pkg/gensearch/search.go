@@ -1,7 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package logsearch
+package gensearch
 
 import (
 	"github.com/outrigdev/outrig/server/pkg/searchparser"

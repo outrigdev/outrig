@@ -1,7 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package logsearch
+package gensearch
 
 import (
 	"strings"
@@ -34,7 +34,7 @@ func (s *ExactSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	} else {
 		fieldText = obj.GetField(s.field, 0)
 	}
-	
+
 	return strings.Contains(fieldText, s.searchTerm)
 }
 
