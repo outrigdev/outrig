@@ -25,22 +25,22 @@ func createSearcherFromUnmodifiedToken(token searchparser.SearchToken) (LogSearc
 	// Create searcher based on token type
 	switch token.Type {
 	case SearchTypeExact:
-		return MakeExactSearcher("", token.SearchTerm, false), nil
+		return MakeExactSearcher(token.Field, token.SearchTerm, false), nil
 	case SearchTypeExactCase:
-		return MakeExactSearcher("", token.SearchTerm, true), nil
+		return MakeExactSearcher(token.Field, token.SearchTerm, true), nil
 	case SearchTypeRegexp:
-		return MakeRegexpSearcher("", token.SearchTerm, false)
+		return MakeRegexpSearcher(token.Field, token.SearchTerm, false)
 	case SearchTypeRegexpCase:
-		return MakeRegexpSearcher("", token.SearchTerm, true)
+		return MakeRegexpSearcher(token.Field, token.SearchTerm, true)
 	case SearchTypeFzf:
-		return MakeFzfSearcher("", token.SearchTerm, false)
+		return MakeFzfSearcher(token.Field, token.SearchTerm, false)
 	case SearchTypeFzfCase:
-		return MakeFzfSearcher("", token.SearchTerm, true)
+		return MakeFzfSearcher(token.Field, token.SearchTerm, true)
 	case SearchTypeTag:
-		return MakeTagSearcher("", token.SearchTerm), nil
+		return MakeTagSearcher(token.Field, token.SearchTerm), nil
 	default:
 		// Default to case-insensitive exact search
-		return MakeExactSearcher("", token.SearchTerm, false), nil
+		return MakeExactSearcher(token.Field, token.SearchTerm, false), nil
 	}
 }
 
