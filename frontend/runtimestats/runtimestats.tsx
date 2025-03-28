@@ -1,6 +1,7 @@
 import { AppModel } from "@/appmodel";
 import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { RefreshButton } from "@/elements/refreshbutton";
+import { TimestampDot } from "@/elements/timestampdot";
 import { useOutrigModel } from "@/util/hooks";
 import { cn } from "@/util/util";
 import {
@@ -402,7 +403,10 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
 
     return (
         <div className="w-full h-full overflow-auto p-4">
-            <div className="text-sm text-secondary mb-4">Last updated: {formattedTime}</div>
+            <div className="flex items-center gap-2 text-sm text-secondary mb-4">
+                <TimestampDot timestamp={stats.ts} />
+                <span>Last updated: {formattedTime}</span>
+            </div>
 
             {/* Memory usage visualization */}
             {stats.memstats && (
