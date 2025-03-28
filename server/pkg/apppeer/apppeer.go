@@ -45,7 +45,7 @@ type AppRunPeer struct {
 	AppInfo          *ds.AppInfo
 	Logs             *utilds.CirBuf[ds.LogLine]
 	GoRoutines       *utilds.SyncMap[GoRoutine]
-	ActiveGoRoutines map[int]bool // Tracks currently running goroutines
+	ActiveGoRoutines map[int64]bool // Tracks currently running goroutines
 	Watches          *utilds.SyncMap[Watch]
 	ActiveWatches    map[string]bool                     // Tracks currently active watches
 	RuntimeStats     *utilds.CirBuf[ds.RuntimeStatsInfo] // History of runtime stats
@@ -53,6 +53,7 @@ type AppRunPeer struct {
 	LastModTime      int64                               // Last modification time in milliseconds
 	LineNum          int64                               // Counter for log line numbers
 	logLineLock      sync.Mutex                          // Lock for synchronizing log line operations
+	WatchNum         int64                               // Counter for watch numbers
 	refCount         int                                 // Reference counter
 	refLock          sync.Mutex                          // Lock for reference counter operations
 	searchManagers   []SearchManagerInterface            // Registered search managers
@@ -60,13 +61,14 @@ type AppRunPeer struct {
 }
 
 type GoRoutine struct {
-	GoId        int
+	GoId        int64
 	Name        string
 	Tags        []string
 	StackTraces *utilds.CirBuf[ds.GoRoutineStack]
 }
 
 type Watch struct {
+	WatchNum  int64
 	Name      string
 	Tags      []string
 	WatchVals *utilds.CirBuf[ds.WatchSample]
@@ -101,15 +103,16 @@ func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 		}
 
 		return &AppRunPeer{
-			AppRunId:      appRunId,
-			Logs:          utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
-			GoRoutines:    utilds.MakeSyncMap[GoRoutine](),
-			Watches:       utilds.MakeSyncMap[Watch](),
-			ActiveWatches: make(map[string]bool),
-			RuntimeStats:  utilds.MakeCirBuf[ds.RuntimeStatsInfo](RuntimeStatsBufferSize),
-			Status:        AppStatusRunning,
-			LastModTime:   time.Now().UnixMilli(),
-			refCount:      0,
+			AppRunId:         appRunId,
+			Logs:             utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
+			GoRoutines:       utilds.MakeSyncMap[GoRoutine](),
+			ActiveGoRoutines: make(map[int64]bool),
+			Watches:          utilds.MakeSyncMap[Watch](),
+			ActiveWatches:    make(map[string]bool),
+			RuntimeStats:     utilds.MakeCirBuf[ds.RuntimeStatsInfo](RuntimeStatsBufferSize),
+			Status:           AppStatusRunning,
+			LastModTime:      time.Now().UnixMilli(),
+			refCount:         0,
 		}
 	})
 
@@ -259,25 +262,24 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		}
 
 		// Create a new map for active goroutines in this packet
-		activeGoroutines := make(map[int]bool)
+		activeGoroutines := make(map[int64]bool)
 
 		// Process goroutine stacks
 		for _, stack := range goroutineInfo.Stacks {
-			goId := int(stack.GoId)
-			goIdStr := strconv.Itoa(goId)
+			goId := stack.GoId
+			goIdStr := strconv.FormatInt(goId, 10)
 
 			// Mark this goroutine as active
 			activeGoroutines[goId] = true
 
-			// Get or create goroutine entry in the syncmap
-			goroutine, exists := p.GoRoutines.GetEx(goIdStr)
-			if !exists {
+			// Get or create goroutine entry in the syncmap atomically
+			goroutine, _ := p.GoRoutines.GetOrCreate(goIdStr, func() GoRoutine {
 				// New goroutine
-				goroutine = GoRoutine{
+				return GoRoutine{
 					GoId:        goId,
 					StackTraces: utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
 				}
-			}
+			})
 
 			// Update name if provided
 			if stack.Name != "" {
@@ -315,20 +317,27 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			// Mark this watch as active
 			activeWatches[watchName] = true
 
-			// Get or create watch entry in the syncmap
-			watch, exists := p.Watches.GetEx(watchName)
-			if !exists {
-				// New watch
-				watch = Watch{
+			// Get or create watch entry in the syncmap atomically
+			watch, exists := p.Watches.GetOrCreate(watchName, func() Watch {
+				// New watch - assign a new watch number
+				// No need to lock since we're already inside the SyncMap's lock
+				p.WatchNum++
+				watchNum := p.WatchNum
+
+				return Watch{
+					WatchNum:  watchNum,
 					Name:      watchVal.Name,
 					Tags:      watchVal.Tags,
 					WatchVals: utilds.MakeCirBuf[ds.WatchSample](WatchBufferSize),
 				}
-			} else {
-				// Update name and tags from the watch value
-				watch.Name = watchVal.Name
+			})
+
+			if exists {
+				// Update tags from the watch value
+				// TODO sync issue
 				watch.Tags = watchVal.Tags
 			}
+
 			// Add watch value to the circular buffer
 			watch.WatchVals.Write(watchVal)
 
