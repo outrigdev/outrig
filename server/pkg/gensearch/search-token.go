@@ -7,11 +7,9 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
-// Use SearchToken from searchparser package
-type SearchToken = searchparser.SearchToken
 
 // createSearcherFromUnmodifiedToken creates a searcher from a token without considering the IsNot field
-func createSearcherFromUnmodifiedToken(token SearchToken) (LogSearcher, error) {
+func createSearcherFromUnmodifiedToken(token searchparser.SearchToken) (LogSearcher, error) {
 	// Handle empty search term and special case for marked searcher
 	if token.Type == SearchTypeMarked {
 		return MakeMarkedSearcher(), nil
@@ -47,7 +45,7 @@ func createSearcherFromUnmodifiedToken(token SearchToken) (LogSearcher, error) {
 }
 
 // MakeSearcherFromToken creates a searcher from a single token
-func MakeSearcherFromToken(token SearchToken) (LogSearcher, error) {
+func MakeSearcherFromToken(token searchparser.SearchToken) (LogSearcher, error) {
 	// Create the base searcher
 	searcher, err := createSearcherFromUnmodifiedToken(token)
 	if err != nil {
@@ -63,7 +61,7 @@ func MakeSearcherFromToken(token SearchToken) (LogSearcher, error) {
 }
 
 // CreateSearchersFromTokens creates a slice of searchers from tokens
-func CreateSearchersFromTokens(tokens []SearchToken) ([]LogSearcher, error) {
+func CreateSearchersFromTokens(tokens []searchparser.SearchToken) ([]LogSearcher, error) {
 	// Handle empty tokens list
 	if len(tokens) == 0 {
 		return []LogSearcher{MakeAllSearcher()}, nil
