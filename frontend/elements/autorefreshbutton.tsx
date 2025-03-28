@@ -1,26 +1,23 @@
 import { Tooltip } from "@/elements/tooltip";
 import { cn } from "@/util/util";
-import { PrimitiveAtom, useAtom } from "jotai";
+import { Atom, useAtomValue } from "jotai";
 import { Clock, Timer } from "lucide-react";
 import React, { useCallback } from "react";
 
 interface AutoRefreshButtonProps {
-    autoRefreshAtom: PrimitiveAtom<boolean>;
-    onToggle?: () => void;
+    autoRefreshAtom: Atom<boolean>;
+    onToggle: () => void;
     className?: string;
     size?: number;
 }
 
 export const AutoRefreshButton = React.memo<AutoRefreshButtonProps>(
     ({ autoRefreshAtom, onToggle, className, size = 16 }) => {
-        const [autoRefresh, setAutoRefresh] = useAtom(autoRefreshAtom);
+        const autoRefresh = useAtomValue(autoRefreshAtom);
 
         const handleToggle = useCallback(() => {
-            setAutoRefresh(!autoRefresh);
-            if (onToggle) {
-                onToggle();
-            }
-        }, [autoRefresh, setAutoRefresh, onToggle]);
+            onToggle();
+        }, [onToggle]);
 
         return (
             <Tooltip

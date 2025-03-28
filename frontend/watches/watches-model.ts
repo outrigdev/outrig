@@ -12,13 +12,13 @@ class WatchesModel {
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
     contentRef: React.RefObject<HTMLDivElement> = null;
-    
+
     // Total count of watches (derived from appRunWatches)
     totalCount: Atom<number> = atom((get) => {
         const watches = get(this.appRunWatches);
         return watches.length;
     });
-    
+
     // Filtered count of watches (derived from filteredWatches)
     filteredCount: Atom<number> = atom((get) => {
         const filtered = get(this.filteredWatches);
@@ -44,7 +44,7 @@ class WatchesModel {
     // Page up in the content view
     pageUp() {
         if (!this.contentRef?.current) return;
-        
+
         this.contentRef.current.scrollBy({
             top: -500,
             behavior: "auto",
@@ -54,7 +54,7 @@ class WatchesModel {
     // Page down in the content view
     pageDown() {
         if (!this.contentRef?.current) return;
-        
+
         this.contentRef.current.scrollBy({
             top: 500,
             behavior: "auto",

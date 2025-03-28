@@ -120,7 +120,7 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     const searchRef = useRef<HTMLInputElement>(null);
     const filteredCount = useAtomValue(model.filteredCount);
     const totalCount = useAtomValue(model.totalCount);
-    
+
     // Focus the search input when the component mounts
     useEffect(() => {
         // Use a small timeout to ensure the input is ready
@@ -143,30 +143,30 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                             strokeWidth={1}
                         />
                     </div>
-                        <input
-                            ref={searchRef}
-                            type="text"
-                            placeholder="Filter watches..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
-                                if (checkKeyPressed(keyEvent, "Escape")) {
-                                    setSearch("");
-                                    return true;
-                                }
-                                if (checkKeyPressed(keyEvent, "PageUp")) {
-                                    model.pageUp();
-                                    return true;
-                                }
-                                if (checkKeyPressed(keyEvent, "PageDown")) {
-                                    model.pageDown();
-                                    return true;
-                                }
-                                return false;
-                            })}
-                            className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
+                    <input
+                        ref={searchRef}
+                        type="text"
+                        placeholder="Filter watches..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
+                            if (checkKeyPressed(keyEvent, "Escape")) {
+                                setSearch("");
+                                return true;
+                            }
+                            if (checkKeyPressed(keyEvent, "PageUp")) {
+                                model.pageUp();
+                                return true;
+                            }
+                            if (checkKeyPressed(keyEvent, "PageDown")) {
+                                model.pageDown();
+                                return true;
+                            }
+                            return false;
+                        })}
+                        className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
                                 border-none ring-0 outline-none focus:outline-none focus:ring-0"
-                        />
+                    />
                 </div>
 
                 {/* Search stats */}
@@ -196,7 +196,7 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
     const isRefreshing = useAtomValue(model.isRefreshing);
     const search = useAtomValue(model.searchTerm);
     const contentRef = useRef<HTMLDivElement>(null);
-    
+
     // Set the content ref in the model when it changes
     useEffect(() => {
         model.setContentRef(contentRef);
