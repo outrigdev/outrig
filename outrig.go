@@ -43,6 +43,10 @@ func Enable() {
 	}
 }
 
+func Enabled() bool {
+	return global.OutrigEnabled.Load()
+}
+
 func getDefaultConfig(isDev bool) *ds.Config {
 	wrapStdout := true
 	wrapStderr := true

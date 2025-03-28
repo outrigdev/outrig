@@ -4,7 +4,6 @@
 package logsearch
 
 import (
-	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 // OrSearcher implements a searcher that matches if any contained searcher matches
@@ -19,16 +18,16 @@ func MakeOrSearcher(searchers []LogSearcher) LogSearcher {
 	}
 }
 
-// Match checks if the log line matches any contained searcher
-func (s *OrSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
+// Match checks if the search object matches any contained searcher
+func (s *OrSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	// If we have no searchers, nothing matches
 	if len(s.searchers) == 0 {
 		return false
 	}
 	
-	// Check if the line matches any searcher
+	// Check if the object matches any searcher
 	for _, searcher := range s.searchers {
-		if searcher.Match(sctx, line) {
+		if searcher.Match(sctx, obj) {
 			return true
 		}
 	}

@@ -4,11 +4,8 @@
 package logsearch
 
 import (
-	"strings"
-
 	"github.com/junegunn/fzf/src/algo"
 	"github.com/junegunn/fzf/src/util"
-	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 // FzfSearcher implements fuzzy matching using the fzf algorithm
@@ -32,19 +29,19 @@ func MakeFzfSearcher(searchTerm string, caseSensitive bool) (LogSearcher, error)
 	}, nil
 }
 
-// Match checks if the log line matches the fuzzy search pattern
-func (s *FzfSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
-	var msg string
+// Match checks if the search object matches the fuzzy search pattern
+func (s *FzfSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
+	var field string
 	
 	// Apply case sensitivity
 	if s.caseSensitive {
-		msg = line.Msg
+		field = obj.GetField("", 0)
 	} else {
-		msg = strings.ToLower(line.Msg)
+		field = obj.GetField("", FieldMod_ToLower)
 	}
 	
-	// Convert the message to the format expected by fzf
-	chars := util.ToChars([]byte(msg))
+	// Convert the field to the format expected by fzf
+	chars := util.ToChars([]byte(field))
 
 	// Perform fuzzy matching
 	result, _ := algo.FuzzyMatchV2(false, true, true, &chars, s.pattern, true, s.slab)

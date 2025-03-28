@@ -4,7 +4,7 @@
 package logsearch
 
 import (
-	"github.com/outrigdev/outrig/pkg/ds"
+	"strconv"
 )
 
 // MarkedSearcher is a searcher that matches lines that are marked
@@ -15,9 +15,19 @@ func MakeMarkedSearcher() LogSearcher {
 	return &MarkedSearcher{}
 }
 
-// Match checks if a log line is marked
-func (s *MarkedSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
-	_, exists := sctx.MarkedLines[line.LineNum]
+// Match checks if a search object is marked
+func (s *MarkedSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
+	lineNumStr := obj.GetField("linenum", 0)
+	if lineNumStr == "" {
+		return false
+	}
+	
+	lineNum, err := strconv.ParseInt(lineNumStr, 10, 64)
+	if err != nil {
+		return false
+	}
+	
+	_, exists := sctx.MarkedLines[lineNum]
 	return exists
 }
 

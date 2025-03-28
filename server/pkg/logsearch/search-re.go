@@ -6,8 +6,6 @@ package logsearch
 import (
 	"fmt"
 	"regexp"
-
-	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 // RegexpSearcher implements regular expression matching
@@ -41,9 +39,10 @@ func MakeRegexpSearcher(searchTerm string, caseSensitive bool) (LogSearcher, err
 	}, nil
 }
 
-// Match checks if the log line matches the regular expression
-func (s *RegexpSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
-	return s.regex.MatchString(line.Msg)
+// Match checks if the search object matches the regular expression
+func (s *RegexpSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
+	field := obj.GetField("", 0)
+	return s.regex.MatchString(field)
 }
 
 // GetType returns the search type identifier

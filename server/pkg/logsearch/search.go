@@ -4,7 +4,6 @@
 package logsearch
 
 import (
-	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
@@ -42,8 +41,8 @@ type SearchObject interface {
 
 // LogSearcher defines the interface for different search strategies
 type LogSearcher interface {
-	// Match checks if a log line matches the search criteria
-	Match(sctx *SearchContext, line ds.LogLine) bool
+	// Match checks if a search object matches the search criteria
+	Match(sctx *SearchContext, obj SearchObject) bool
 
 	// GetType returns the search type identifier
 	GetType() string

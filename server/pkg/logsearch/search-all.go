@@ -4,7 +4,6 @@
 package logsearch
 
 import (
-	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 
@@ -17,7 +16,7 @@ func MakeAllSearcher() LogSearcher {
 }
 
 // Match always returns true
-func (s *AllSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
+func (s *AllSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	return true
 }
 

@@ -6,8 +6,6 @@ package logsearch
 import (
 	"regexp"
 	"strings"
-
-	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 // TagSearcher implements tag matching with word boundary checking
@@ -57,10 +55,11 @@ func MakeTagSearcher(searchTerm string) LogSearcher {
 	}
 }
 
-// Match checks if the log line contains a tag that matches the search term
-func (s *TagSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
+// Match checks if the search object contains a tag that matches the search term
+func (s *TagSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	// Use the pre-compiled regexp to find matches
-	return s.tagRegexp.MatchString(line.Msg)
+	field := obj.GetField("", 0)
+	return s.tagRegexp.MatchString(field)
 }
 
 // GetType returns the search type identifier

@@ -4,7 +4,6 @@
 package logsearch
 
 import (
-	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 // NotSearcher implements a searcher that inverts the result of another searcher
@@ -19,10 +18,10 @@ func MakeNotSearcher(searcher LogSearcher) LogSearcher {
 	}
 }
 
-// Match checks if the log line does NOT match the contained searcher
-func (s *NotSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
+// Match checks if the search object does NOT match the contained searcher
+func (s *NotSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	// Invert the match result of the contained searcher
-	return !s.searcher.Match(sctx, line)
+	return !s.searcher.Match(sctx, obj)
 }
 
 // GetType returns the search type identifier

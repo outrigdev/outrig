@@ -111,7 +111,14 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 		UserQuery:   m.UserSearcher, // Set the user query searcher for #userquery references
 	}
 
-	if !effectiveSearcher.Match(sctx, line) {
+	// Create a LogSearchObject from the log line
+	searchObj := &LogSearchObject{
+		Msg:     line.Msg,
+		Source:  line.Source,
+		LineNum: line.LineNum,
+	}
+
+	if !effectiveSearcher.Match(sctx, searchObj) {
 		return
 	}
 	m.FilteredLogs = append(m.FilteredLogs, line)
@@ -267,7 +274,19 @@ func (m *SearchManager) performSearch_nolock(searcher LogSearcher, sctx *SearchC
 
 	// Filter the logs based on the search criteria
 	for _, line := range allLogs {
-		if searcher == nil || searcher.Match(sctx, line) {
+		if searcher == nil {
+			m.FilteredLogs = append(m.FilteredLogs, line)
+			continue
+		}
+		
+		// Create a LogSearchObject from the log line
+		searchObj := &LogSearchObject{
+			Msg:     line.Msg,
+			Source:  line.Source,
+			LineNum: line.LineNum,
+		}
+		
+		if searcher.Match(sctx, searchObj) {
 			m.FilteredLogs = append(m.FilteredLogs, line)
 		}
 	}
@@ -376,7 +395,19 @@ func (m *SearchManager) RunFullSearch(searcher LogSearcher, sctx *SearchContext)
 	// Filter the logs based on the search criteria
 	var matchingLines []ds.LogLine
 	for _, line := range allLogs {
-		if searcher == nil || searcher.Match(sctx, line) {
+		if searcher == nil {
+			matchingLines = append(matchingLines, line)
+			continue
+		}
+		
+		// Create a LogSearchObject from the log line
+		searchObj := &LogSearchObject{
+			Msg:     line.Msg,
+			Source:  line.Source,
+			LineNum: line.LineNum,
+		}
+		
+		if searcher.Match(sctx, searchObj) {
 			matchingLines = append(matchingLines, line)
 		}
 	}

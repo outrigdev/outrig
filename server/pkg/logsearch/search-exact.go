@@ -5,8 +5,6 @@ package logsearch
 
 import (
 	"strings"
-
-	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 // ExactSearcher implements exact string matching with case sensitivity option
@@ -26,14 +24,16 @@ func MakeExactSearcher(searchTerm string, caseSensitive bool) LogSearcher {
 	}
 }
 
-// Match checks if the log line contains the search term
-func (s *ExactSearcher) Match(sctx *SearchContext, line ds.LogLine) bool {
-	msg := line.Msg
+// Match checks if the search object contains the search term
+func (s *ExactSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
+	var field string
 	if !s.caseSensitive {
-		msg = strings.ToLower(msg)
+		field = obj.GetField("", FieldMod_ToLower)
+	} else {
+		field = obj.GetField("", 0)
 	}
 	
-	return strings.Contains(msg, s.searchTerm)
+	return strings.Contains(field, s.searchTerm)
 }
 
 // GetType returns the search type identifier
