@@ -288,6 +288,9 @@ var tagRegex = regexp.MustCompile(`(^|\s+)(#[a-zA-Z][a-zA-Z0-9:_.-]*)`)
 var spaceRegex = regexp.MustCompile(`\s+`)
 
 func ParseTags(input string) []string {
+	if !strings.Contains(input, "#") {
+		return nil
+	}
 	matches := tagRegex.FindAllStringSubmatch(input, -1)
 	if len(matches) == 0 {
 		return nil
@@ -301,17 +304,17 @@ func ParseTags(input string) []string {
 }
 
 func ParseNameAndTags(input string) (string, []string) {
-	// Extract tags.
+	if !strings.Contains(input, "#") {
+		return strings.TrimSpace(input), nil
+	}
 	matches := tagRegex.FindAllStringSubmatch(input, -1)
 	tags := make([]string, 0, len(matches))
 	for _, match := range matches {
 		tags = append(tags, strings.ToLower(match[2][1:]))
 	}
-
 	// Remove tags and then normalize whitespace.
 	cleanedInput := tagRegex.ReplaceAllString(input, "$1")
 	cleanedInput = strings.TrimSpace(spaceRegex.ReplaceAllString(cleanedInput, " "))
-
 	return cleanedInput, tags
 }
 
