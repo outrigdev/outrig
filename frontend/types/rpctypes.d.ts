@@ -284,6 +284,7 @@ declare global {
     // ds.WatchSample
     type WatchSample = {
         name: string;
+        tags?: string[];
         ts: number;
         flags?: number;
         value?: string;

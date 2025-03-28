@@ -167,8 +167,8 @@ func main() {
 	fmt.Printf("after enable\n")
 	fmt.Printf("again\n")
 
-	outrig.TrackValue("push1", "hello world!")
-	outrig.TrackValue("push2", 55.23)
+	outrig.TrackValue("push1 #tag1 #push", "hello world!")
+	outrig.TrackValue("push2 #push", 55.23)
 
 	// Output some initial structured logs for testing
 	fmt.Printf("--- Starting log generation ---\n")

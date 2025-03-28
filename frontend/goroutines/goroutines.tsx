@@ -6,7 +6,7 @@ import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { cn } from "@/util/util";
 import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
 import { Filter, Layers, Layers2 } from "lucide-react";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
 import { StackTrace } from "./stacktrace";
@@ -315,11 +315,21 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
     const search = useAtomValue(model.searchTerm);
     const showAll = useAtomValue(model.showAll);
     const contentRef = useRef<HTMLDivElement>(null);
+    const [showEmptyMessage, setShowEmptyMessage] = useState(false);
 
     // Set the content ref in the model when it changes
     useEffect(() => {
         model.setContentRef(contentRef);
     }, [model]);
+    
+    // Set a timeout to show empty message after component mounts
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowEmptyMessage(true);
+        }, 500);
+        
+        return () => clearTimeout(timer);
+    }, []);
 
     return (
         <div ref={contentRef} className="w-full h-full overflow-auto flex-1 px-0 py-2">
@@ -330,9 +340,19 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
                     </div>
                 </div>
             ) : filteredGoroutines.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-secondary">
-                    {search || !showAll ? "no goroutines match the filter" : "no goroutines found"}
-                </div>
+                search || !showAll ? (
+                    // Always show "no goroutines match the filter" message immediately
+                    <div className="flex items-center justify-center h-full text-secondary">
+                        no goroutines match the filter
+                    </div>
+                ) : (
+                    // Only show "no goroutines found" message after delay
+                    showEmptyMessage ? (
+                        <div className="flex items-center justify-center h-full text-secondary">
+                            no goroutines found
+                        </div>
+                    ) : null
+                )
             ) : (
                 <div>
                     {filteredGoroutines.map((goroutine, index) => (
