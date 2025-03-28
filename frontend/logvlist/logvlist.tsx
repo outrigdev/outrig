@@ -1,5 +1,5 @@
 import { LogListInterface, LogPageInterface } from "@/logviewer/logviewer-model";
-import { atom, Atom, getDefaultStore, PrimitiveAtom, useAtomValue } from "jotai";
+import { atom, Atom, PrimitiveAtom, useAtomValue } from "jotai";
 import { JSX, useEffect, useLayoutEffect, useRef } from "react";
 
 export interface PageProps {
@@ -130,8 +130,6 @@ export function LogVList({
     const versionAtom = useRef(atom((get) => get(listAtom).version)).current;
     const version = useAtomValue(versionAtom);
     const prevVersionRef = useRef<number>(version);
-    // Add a ref to track when we're ignoring the next scroll event
-    const ignoreNextScrollRef = useRef<boolean>(false);
 
     // Handle scroll position adjustment after version changes
     useLayoutEffect(() => {
@@ -158,11 +156,8 @@ export function LogVList({
             if (isPinnedToBottom) {
                 // Calculate the maximum possible scrollTop value
                 const maxScrollTop = container.scrollHeight - container.clientHeight;
-
                 // Check if we're already at the bottom (exact comparison)
                 if (container.scrollTop !== maxScrollTop) {
-                    // Set flag to ignore the next scroll event
-                    ignoreNextScrollRef.current = true;
                     container.scrollTop = maxScrollTop;
                 }
             }
@@ -172,30 +167,7 @@ export function LogVList({
         return () => resizeObserver.disconnect();
     }, [isPinnedToBottom, vlistRef]);
     return (
-        <div
-            ref={vlistRef}
-            className="w-full overflow-auto"
-            style={{ height: containerHeight }}
-            onScroll={() => {
-                if (!vlistRef.current) return;
-
-                // If we should ignore this scroll event, do so and reset the flag
-                if (ignoreNextScrollRef.current) {
-                    ignoreNextScrollRef.current = false;
-                    return;
-                }
-
-                // Update the follow mode based on scroll position
-                const container = vlistRef.current;
-                const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 20;
-
-                // Update the pinToBottomAtom if needed
-                const store = getDefaultStore();
-                if (store.get(pinToBottomAtom) !== isAtBottom) {
-                    store.set(pinToBottomAtom, isAtBottom);
-                }
-            }}
-        >
+        <div ref={vlistRef} className="w-full overflow-auto" style={{ height: containerHeight }}>
             <div ref={contentRef}>
                 <LogList
                     listAtom={listAtom}
