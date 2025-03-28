@@ -9,16 +9,18 @@ import (
 
 // ExactSearcher implements exact string matching with case sensitivity option
 type ExactSearcher struct {
+	field         string
 	searchTerm    string
 	caseSensitive bool
 }
 
 // MakeExactSearcher creates a new exact match searcher
-func MakeExactSearcher(searchTerm string, caseSensitive bool) LogSearcher {
+func MakeExactSearcher(field string, searchTerm string, caseSensitive bool) LogSearcher {
 	if !caseSensitive {
 		searchTerm = strings.ToLower(searchTerm)
 	}
 	return &ExactSearcher{
+		field:         field,
 		searchTerm:    searchTerm,
 		caseSensitive: caseSensitive,
 	}
@@ -26,14 +28,14 @@ func MakeExactSearcher(searchTerm string, caseSensitive bool) LogSearcher {
 
 // Match checks if the search object contains the search term
 func (s *ExactSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
-	var field string
+	var fieldText string
 	if !s.caseSensitive {
-		field = obj.GetField("", FieldMod_ToLower)
+		fieldText = obj.GetField(s.field, FieldMod_ToLower)
 	} else {
-		field = obj.GetField("", 0)
+		fieldText = obj.GetField(s.field, 0)
 	}
 	
-	return strings.Contains(field, s.searchTerm)
+	return strings.Contains(fieldText, s.searchTerm)
 }
 
 // GetType returns the search type identifier

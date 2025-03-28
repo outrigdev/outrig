@@ -10,13 +10,14 @@ import (
 
 // TagSearcher implements tag matching with word boundary checking
 type TagSearcher struct {
+	field      string         // The field to search in
 	searchTerm string         // The tag to search for (without the #)
 	exactMatch bool           // Whether to require exact matching
 	tagRegexp  *regexp.Regexp // Pre-compiled regexp for matching
 }
 
 // MakeTagSearcher creates a new tag searcher
-func MakeTagSearcher(searchTerm string) LogSearcher {
+func MakeTagSearcher(field string, searchTerm string) LogSearcher {
 	// If the search term ends with a slash, it indicates exact matching
 	exactMatch := false
 	if strings.HasSuffix(searchTerm, "/") {
@@ -49,6 +50,7 @@ func MakeTagSearcher(searchTerm string) LogSearcher {
 	re := regexp.MustCompile(pattern)
 
 	return &TagSearcher{
+		field:      field,
 		searchTerm: searchTerm,
 		exactMatch: exactMatch,
 		tagRegexp:  re,
@@ -58,8 +60,8 @@ func MakeTagSearcher(searchTerm string) LogSearcher {
 // Match checks if the search object contains a tag that matches the search term
 func (s *TagSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
 	// Use the pre-compiled regexp to find matches
-	field := obj.GetField("", 0)
-	return s.tagRegexp.MatchString(field)
+	fieldText := obj.GetField(s.field, 0)
+	return s.tagRegexp.MatchString(fieldText)
 }
 
 // GetType returns the search type identifier
