@@ -114,26 +114,22 @@ function AutoFollowButton() {
         >
             <button
                 onClick={handleToggle}
-                className="flex items-center gap-2 px-3 py-1 transition-colors cursor-pointer border-l-2 border-gray-300 dark:border-gray-600"
+                className="flex items-center gap-2 px-3 py-1 transition-colors cursor-pointer border-l-2 border-border"
             >
                 {/* Modern Toggle Switch */}
                 <div className="relative">
                     <div
                         className={`w-7 h-3.5 rounded-full transition-colors ${
-                            autoFollow ? "bg-sky-500/50" : "bg-gray-300 dark:bg-gray-600"
+                            autoFollow ? "bg-accent/50" : "bg-secondary/50"
                         }`}
                     />
                     <div
                         className={`absolute top-[-1px] left-0 w-4 h-4 rounded-full shadow-sm transform transition-transform ${
-                            autoFollow ? "translate-x-3.5 bg-sky-500" : "bg-gray-400 dark:bg-gray-500"
+                            autoFollow ? "translate-x-3.5 bg-accent" : "bg-secondary"
                         }`}
                     />
                 </div>
-                <span
-                    className={`text-xs ${
-                        autoFollow ? "text-sky-500 font-medium" : "text-gray-500 dark:text-gray-400"
-                    }`}
-                >
+                <span className={`text-xs ${autoFollow ? "text-accent font-medium" : "text-secondary"}`}>
                     follow new runs
                 </span>
             </button>
