@@ -37,6 +37,7 @@ type SearchContext struct {
 type SearchObject interface {
 	GetField(fieldName string, fieldMods int) string
 	GetTags() []string
+	GetId() int64
 }
 
 // LogSearcher defines the interface for different search strategies

@@ -23,11 +23,14 @@ type LogSearchObject struct {
 
 func (lso *LogSearchObject) GetTags() []string {
 	if !lso.TagsParsed {
-		_, tags := utilfn.ParseNameAndTags(lso.Msg)
-		lso.CachedTags = tags
+		lso.CachedTags = utilfn.ParseTags(lso.Msg)
 		lso.TagsParsed = true
 	}
 	return lso.CachedTags
+}
+
+func (lso *LogSearchObject) GetId() int64 {
+	return lso.LineNum
 }
 
 func (lso *LogSearchObject) GetField(fieldName string, fieldMods int) string {

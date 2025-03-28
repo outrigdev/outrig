@@ -6,7 +6,7 @@ import (
 )
 
 type GoRoutineSearchObject struct {
-	GoId  int
+	GoId  int64
 	Name  string
 	Tags  []string
 	Stack string
@@ -23,10 +23,14 @@ func (gso *GoRoutineSearchObject) GetTags() []string {
 	return gso.Tags
 }
 
+func (gso *GoRoutineSearchObject) GetId() int64 {
+	return gso.GoId
+}
+
 func (gso *GoRoutineSearchObject) GetField(fieldName string, fieldMods int) string {
 	if fieldName == "goid" {
 		if gso.GoIdStr == "" {
-			gso.GoIdStr = strconv.Itoa(gso.GoId)
+			gso.GoIdStr = strconv.FormatInt(gso.GoId, 10)
 		}
 		return gso.GoIdStr
 	}

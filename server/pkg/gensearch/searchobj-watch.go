@@ -5,10 +5,11 @@ import (
 )
 
 type WatchSearchObject struct {
-	Name string
-	Val  string
-	Tags []string
-	Type string
+	WatchNum int64
+	Name     string
+	Val      string
+	Tags     []string
+	Type     string
 
 	// Cached values for searches
 	NameToLower     string
@@ -20,6 +21,10 @@ type WatchSearchObject struct {
 
 func (wso *WatchSearchObject) GetTags() []string {
 	return wso.Tags
+}
+
+func (wso *WatchSearchObject) GetId() int64 {
+	return wso.WatchNum
 }
 
 func (wso *WatchSearchObject) GetField(fieldName string, fieldMods int) string {

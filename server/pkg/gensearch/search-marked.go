@@ -3,10 +3,6 @@
 
 package gensearch
 
-import (
-	"strconv"
-)
-
 // MarkedSearcher is a searcher that matches lines that are marked
 type MarkedSearcher struct{}
 
@@ -17,16 +13,7 @@ func MakeMarkedSearcher() LogSearcher {
 
 // Match checks if a search object is marked
 func (s *MarkedSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
-	lineNumStr := obj.GetField("linenum", 0)
-	if lineNumStr == "" {
-		return false
-	}
-
-	lineNum, err := strconv.ParseInt(lineNumStr, 10, 64)
-	if err != nil {
-		return false
-	}
-
+	lineNum := obj.GetId()
 	_, exists := sctx.MarkedLines[lineNum]
 	return exists
 }

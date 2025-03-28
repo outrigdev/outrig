@@ -4,16 +4,13 @@
 package gensearch
 
 import (
-	"regexp"
 	"strings"
 )
 
-// TagSearcher implements tag matching with word boundary checking
+// TagSearcher implements tag matching
 type TagSearcher struct {
-	field      string         // The field to search in
-	searchTerm string         // The tag to search for (without the #)
-	exactMatch bool           // Whether to require exact matching
-	tagRegexp  *regexp.Regexp // Pre-compiled regexp for matching
+	searchTerm string    // The tag to search for (without the #)
+	exactMatch bool      // Whether to require exact matching
 }
 
 // MakeTagSearcher creates a new tag searcher
@@ -28,40 +25,31 @@ func MakeTagSearcher(field string, searchTerm string) LogSearcher {
 	// Tags are always case-insensitive
 	searchTerm = strings.ToLower(searchTerm)
 
-	// Escape any regexp special characters in the search term
-	escapedTerm := regexp.QuoteMeta(searchTerm)
-
-	// Create the regexp pattern
-	var pattern string
-	if exactMatch {
-		// For exact match, use word boundary on both sides
-		// (?i) makes it case-insensitive
-		// (^|\\s) matches start of line or whitespace
-		// (#escapedTerm) matches the tag exactly
-		// ($|\\s) matches end of line or whitespace
-		pattern = `(?i)(^|\s)(#` + escapedTerm + `)($|\s)`
-	} else {
-		// For non-exact match, only require word boundary at start
-		// This will match both "#foo" and "#foobar" when searching for "#foo"
-		pattern = `(?i)(^|\s)(#` + escapedTerm + `)`
-	}
-
-	// Compile the regexp
-	re := regexp.MustCompile(pattern)
-
 	return &TagSearcher{
-		field:      field,
 		searchTerm: searchTerm,
 		exactMatch: exactMatch,
-		tagRegexp:  re,
 	}
 }
 
 // Match checks if the search object contains a tag that matches the search term
 func (s *TagSearcher) Match(sctx *SearchContext, obj SearchObject) bool {
-	// Use the pre-compiled regexp to find matches
-	fieldText := obj.GetField(s.field, 0)
-	return s.tagRegexp.MatchString(fieldText)
+	tags := obj.GetTags()
+	
+	for _, tag := range tags {
+		if s.exactMatch {
+			// Exact match
+			if tag == s.searchTerm {
+				return true
+			}
+		} else {
+			// Prefix match
+			if strings.HasPrefix(tag, s.searchTerm) {
+				return true
+			}
+		}
+	}
+	
+	return false
 }
 
 // GetType returns the search type identifier
