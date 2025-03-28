@@ -317,7 +317,7 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 		}
 		defer lock.Unlock()
 	}
-	watch.Ts = time.Now().UnixMicro()
+	watch.Ts = time.Now().UnixMilli()
 	for rval.Kind() == reflect.Ptr {
 		if rval.IsNil() {
 			watch.Value = "nil"

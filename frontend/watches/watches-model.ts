@@ -105,8 +105,11 @@ class WatchesModel {
         const search = get(this.searchTerm);
         const watches = get(this.appRunWatches);
 
-        // First sort by watch name
-        const sortedWatches = [...watches].sort((a, b) => a.name.localeCompare(b.name));
+        // Filter out null watches first
+        const validWatches = watches.filter(watch => watch != null);
+        
+        // Then sort by watch name
+        const sortedWatches = [...validWatches].sort((a, b) => a.name.localeCompare(b.name));
 
         // Apply search filter if there's a search term
         if (!search) {
