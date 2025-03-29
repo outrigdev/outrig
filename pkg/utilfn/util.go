@@ -284,8 +284,8 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 	}
 }
 
-var tagRegex = regexp.MustCompile(`(^|\s+)(#[a-zA-Z][a-zA-Z0-9:_.-]*)`)
-var spaceRegex = regexp.MustCompile(`\s+`)
+var tagRegex = regexp.MustCompile(`(?:^|\s)(#[a-zA-Z][a-zA-Z0-9:_.-]+)`)
+var tagSeqRegex = regexp.MustCompile(`(?:^|\s)(?:#[a-zA-Z][a-zA-Z0-9:_.-]+)(?:\s+#[a-zA-Z][a-zA-Z0-9:_.-]+)*`)
 
 func ParseTags(input string) []string {
 	if !strings.Contains(input, "#") {
@@ -308,14 +308,18 @@ func ParseNameAndTags(input string) (string, []string) {
 		return strings.TrimSpace(input), nil
 	}
 	matches := tagRegex.FindAllStringSubmatch(input, -1)
-	tags := make([]string, 0, len(matches))
-	for _, match := range matches {
-		tags = append(tags, strings.ToLower(match[2][1:]))
+	if len(matches) == 0 {
+		return strings.TrimSpace(input), nil
 	}
-	// Remove tags and then normalize whitespace.
-	cleanedInput := tagRegex.ReplaceAllString(input, "$1")
-	cleanedInput = strings.TrimSpace(spaceRegex.ReplaceAllString(cleanedInput, " "))
-	return cleanedInput, tags
+	tags := make([]string, len(matches))
+	for i, match := range matches {
+		// match[1] is the tag (including '#' which we then drop)
+		tags[i] = strings.ToLower(match[1][1:])
+	}
+	// Replace any valid sequence of tags with a single space.
+	cleaned := tagSeqRegex.ReplaceAllString(input, " ")
+	cleaned = strings.TrimSpace(cleaned)
+	return cleaned, tags
 }
 
 var goroutineIDRegexp = regexp.MustCompile(`goroutine (\d+)`)
