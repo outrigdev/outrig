@@ -26,16 +26,25 @@ const (
 	TrimSize          = 1000
 )
 
+// SearchStats contains statistics about a search operation
+type SearchStats struct {
+	TotalCount     int   `json:"totalcount"`     // Total number of log lines in the AppRunPeer
+	SearchedCount  int   `json:"searchedcount"`  // Number of log lines that were actually searched
+	LastLineNum    int64 `json:"lastlinenum"`    // Last line number processed to avoid duplicates
+	SearchDuration int   `json:"searchduration"` // Duration of the search operation in milliseconds
+}
+
 // SearchManagerInfo contains thread-safe information about a SearchManager
 type SearchManagerInfo struct {
-	WidgetId         string    `json:"widgetid"`
-	AppRunId         string    `json:"apprunid"`
-	LastUsedTime     time.Time `json:"lastusedtime"`
-	SearchTerm       string    `json:"searchterm"`
-	FilteredLogCount int       `json:"filteredlogcount"`
-	MarkedLinesCount int       `json:"markedlinescount"`
-	RpcSource        string    `json:"rpcsource,omitempty"`
-	TrimmedCount     int       `json:"trimmedcount,omitempty"`
+	WidgetId         string      `json:"widgetid"`
+	AppRunId         string      `json:"apprunid"`
+	LastUsedTime     time.Time   `json:"lastusedtime"`
+	SearchTerm       string      `json:"searchterm"`
+	FilteredLogCount int         `json:"filteredlogcount"`
+	MarkedLinesCount int         `json:"markedlinescount"`
+	RpcSource        string      `json:"rpcsource,omitempty"`
+	TrimmedCount     int         `json:"trimmedcount,omitempty"`
+	Stats            SearchStats `json:"stats"`
 }
 
 // SearchManager handles search functionality for a specific widget
@@ -55,13 +64,10 @@ type SearchManager struct {
 	SystemSearcher Searcher // Searcher for the system query
 
 	CachedResult []ds.LogLine // Filtered log lines matching the search criteria
-
-	TotalCount    int // Total number of log lines in the AppRunPeer
-	SearchedCount int // Number of log lines that were actually searched
-	TrimmedCount  int // Number of lines trimmed from the filtered logs
+	Stats        SearchStats  // Statistics about the search operation
+	TrimmedCount int          // Number of lines trimmed from the filtered logs
 
 	MarkManager *MarkManager // Manager for marked lines
-	LastLineNum int64        // Last line number processed to avoid duplicates
 	RpcSource   string       // Source of the last RPC request that used this manager
 }
 
@@ -79,6 +85,7 @@ func (m *SearchManager) GetInfo() SearchManagerInfo {
 		MarkedLinesCount: m.MarkManager.GetNumMarks(),
 		RpcSource:        m.RpcSource,
 		TrimmedCount:     m.TrimmedCount,
+		Stats:            m.Stats,
 	}
 }
 
@@ -88,14 +95,14 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 	defer m.Lock.Unlock()
 
 	// Skip if we've already processed this line or an earlier one
-	if line.LineNum <= m.LastLineNum {
+	if line.LineNum <= m.Stats.LastLineNum {
 		return
 	}
-	m.LastLineNum = line.LineNum
+	m.Stats.LastLineNum = line.LineNum
 
 	// Update counts
-	m.TotalCount++
-	m.SearchedCount++
+	m.Stats.TotalCount++
+	m.Stats.SearchedCount++
 
 	// Determine which searcher to use - prefer system searcher if available
 	var effectiveSearcher Searcher
@@ -135,8 +142,8 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 	streamUpdate := rpctypes.StreamUpdateData{
 		WidgetId:      m.WidgetId,
 		FilteredCount: len(m.CachedResult),
-		SearchedCount: m.SearchedCount,
-		TotalCount:    m.TotalCount,
+		SearchedCount: m.Stats.SearchedCount,
+		TotalCount:    m.Stats.TotalCount,
 		TrimmedLines:  m.TrimmedCount,
 		Offset:        len(m.CachedResult) - 1 + m.TrimmedCount,
 		Lines:         []ds.LogLine{line},
@@ -262,22 +269,19 @@ func (m *SearchManager) GetLastUsed() time.Time {
 	return m.LastUsed
 }
 
-func (m *SearchManager) performSearch_nolock(searcher Searcher, sctx *SearchContext) error {
+// performSearch is a pure function that filters log lines based on search criteria
+func performSearch(allLogs []ds.LogLine, totalCount int, searcher Searcher, sctx *SearchContext) ([]ds.LogLine, *SearchStats, error) {
 	startTs := time.Now()
 
-	// Get all log lines from the circular buffer
-	allLogs, headOffset := m.AppPeer.Logs.GetAll()
-	m.TotalCount = len(allLogs) + headOffset
+	searchedCount := len(allLogs)
 
-	m.SearchedCount = len(allLogs)
-
-	// Clear previous filtered logs
-	m.CachedResult = []ds.LogLine{}
+	// Create a new result slice
+	result := []ds.LogLine{}
 
 	// Filter the logs based on the search criteria
 	for _, line := range allLogs {
 		if searcher == nil {
-			m.CachedResult = append(m.CachedResult, line)
+			result = append(result, line)
 			continue
 		}
 
@@ -289,20 +293,29 @@ func (m *SearchManager) performSearch_nolock(searcher Searcher, sctx *SearchCont
 		}
 
 		if searcher.Match(sctx, searchObj) {
-			m.CachedResult = append(m.CachedResult, line)
+			result = append(result, line)
 		}
 	}
 
-	// Reset LastLineNum and set it to the highest line number (last line)
-	// since logs are stored in line number order
+	// Determine the last line number
+	var lastLineNum int64 = 0
 	if len(allLogs) > 0 {
-		m.LastLineNum = allLogs[len(allLogs)-1].LineNum
-	} else {
-		m.LastLineNum = 0
+		lastLineNum = allLogs[len(allLogs)-1].LineNum
 	}
 
-	log.Printf("SearchManager: filtered %d/%d lines in %dms\n", len(m.CachedResult), m.SearchedCount, time.Since(startTs).Milliseconds())
-	return nil
+	// Calculate search duration
+	searchDuration := int(time.Since(startTs).Milliseconds())
+
+	// Create search stats
+	stats := &SearchStats{
+		TotalCount:     totalCount,
+		SearchedCount:  searchedCount,
+		LastLineNum:    lastLineNum,
+		SearchDuration: searchDuration,
+	}
+
+	log.Printf("SearchManager: filtered %d/%d lines in %dms\n", len(result), searchedCount, searchDuration)
+	return result, stats, nil
 }
 
 // GetMarkManager returns the MarkManager for the given widget ID
@@ -322,38 +335,6 @@ func (m *SearchManager) SetRpcSource(ctx context.Context) {
 	m.RpcSource = rpc.GetRpcSourceFromContext(ctx)
 }
 
-// RunFullSearch performs a full search using the provided searcher and search context
-// Returns all matching log lines
-func (m *SearchManager) RunFullSearch(searcher Searcher, sctx *SearchContext) ([]ds.LogLine, error) {
-	m.Lock.Lock()
-	defer m.Lock.Unlock()
-
-	// Get all log lines from the AppPeer
-	allLogs, _ := m.AppPeer.Logs.GetAll()
-
-	// Filter the logs based on the search criteria
-	var matchingLines []ds.LogLine
-	for _, line := range allLogs {
-		if searcher == nil {
-			matchingLines = append(matchingLines, line)
-			continue
-		}
-
-		// Create a LogSearchObject from the log line
-		searchObj := &LogSearchObject{
-			Msg:     line.Msg,
-			Source:  line.Source,
-			LineNum: line.LineNum,
-		}
-
-		if searcher.Match(sctx, searchObj) {
-			matchingLines = append(matchingLines, line)
-		}
-	}
-
-	return matchingLines, nil
-}
-
 // GetMarkedLogLines returns all marked log lines using a MarkedSearcher
 func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 	// If no lines are marked, return empty result
@@ -369,8 +350,14 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 		MarkedLines: m.MarkManager.GetMarkedIds(),
 	}
 
-	// Run the full search with the marked searcher and search context
-	return m.RunFullSearch(searcher, sctx)
+	// Get all log lines from the circular buffer
+	// We don't need to hold the lock during the search since performSearch is a pure function
+	allLogs, headOffset := m.AppPeer.Logs.GetAll()
+	totalCount := len(allLogs) + headOffset
+
+	// Use the performSearch function to filter logs
+	result, _, err := performSearch(allLogs, totalCount, searcher, sctx)
+	return result, err
 }
 
 // maybeRunNewSearch checks if a new search is needed and performs it if necessary
@@ -421,15 +408,24 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 		UserQuery:   userSearcher, // Set the user query searcher for #userquery references
 	}
 
+	// Get all log lines from the circular buffer
+	allLogs, headOffset := m.AppPeer.Logs.GetAll()
+	totalCount := len(allLogs) + headOffset
+
 	// Perform the search
-	err = m.performSearch_nolock(effectiveSearcher, sctx)
+	result, stats, err := performSearch(allLogs, totalCount, effectiveSearcher, sctx)
 	if err != nil {
 		m.UserQuery = uuid.New().String() // set to random value to prevent using cache
 		m.SystemQuery = ""                // Clear the cached system query
 		m.UserSearcher = nil              // Clear the cached searchers on error
 		m.SystemSearcher = nil
+		m.Stats = SearchStats{}
 		return err
 	}
+
+	// Update the manager with the search results and stats
+	m.CachedResult = result
+	m.Stats = *stats
 
 	return nil
 }
@@ -488,8 +484,8 @@ func (m *SearchManager) SearchLogs(ctx context.Context, data rpctypes.SearchRequ
 
 	return rpctypes.SearchResultData{
 		FilteredCount: filteredSize,
-		SearchedCount: m.SearchedCount,
-		TotalCount:    m.TotalCount,
+		SearchedCount: m.Stats.SearchedCount,
+		TotalCount:    m.Stats.TotalCount,
 		MaxCount:      apppeer.LogLineBufferSize,
 		Pages:         pages,
 	}, nil

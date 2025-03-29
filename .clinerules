@@ -100,3 +100,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - Warning about potential pitfalls in usage
     - Explaining complex algorithms that can't be simplified
 - **When in doubt, leave it out**. No comment is better than a redundant comment.
+
+### Tool Use
+
+Do NOT use write_to_file unless it is a new file or very short. Always prefer to use replace_in_file. Often your diffs fail when a file may be out of date in your cache vs the actual on-disk format. You should RE-READ the file and try to create diffs again if your diffs fail rather than fall back to write_to_file. If you feel like your ONLY option is to use write_to_file please ask first.
