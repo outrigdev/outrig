@@ -7,9 +7,8 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
-
 // createSearcherFromUnmodifiedToken creates a searcher from a token without considering the IsNot field
-func createSearcherFromUnmodifiedToken(token searchparser.SearchToken) (LogSearcher, error) {
+func createSearcherFromUnmodifiedToken(token searchparser.SearchToken) (Searcher, error) {
 	// Handle empty search term and special case for marked searcher
 	if token.Type == SearchTypeMarked {
 		return MakeMarkedSearcher(), nil
@@ -45,7 +44,7 @@ func createSearcherFromUnmodifiedToken(token searchparser.SearchToken) (LogSearc
 }
 
 // MakeSearcherFromToken creates a searcher from a single token
-func MakeSearcherFromToken(token searchparser.SearchToken) (LogSearcher, error) {
+func MakeSearcherFromToken(token searchparser.SearchToken) (Searcher, error) {
 	// Create the base searcher
 	searcher, err := createSearcherFromUnmodifiedToken(token)
 	if err != nil {
@@ -61,10 +60,10 @@ func MakeSearcherFromToken(token searchparser.SearchToken) (LogSearcher, error) 
 }
 
 // CreateSearchersFromTokens creates a slice of searchers from tokens
-func CreateSearchersFromTokens(tokens []searchparser.SearchToken) ([]LogSearcher, error) {
+func CreateSearchersFromTokens(tokens []searchparser.SearchToken) ([]Searcher, error) {
 	// Handle empty tokens list
 	if len(tokens) == 0 {
-		return []LogSearcher{MakeAllSearcher()}, nil
+		return []Searcher{MakeAllSearcher()}, nil
 	}
 
 	// Check if we have OR tokens
@@ -78,7 +77,7 @@ func CreateSearchersFromTokens(tokens []searchparser.SearchToken) ([]LogSearcher
 
 	// If no OR tokens, process normally
 	if !hasOrToken {
-		searchers := make([]LogSearcher, len(tokens))
+		searchers := make([]Searcher, len(tokens))
 		for i, token := range tokens {
 			searcher, err := MakeSearcherFromToken(token)
 			if err != nil {
@@ -90,8 +89,8 @@ func CreateSearchersFromTokens(tokens []searchparser.SearchToken) ([]LogSearcher
 	}
 
 	// Process OR tokens
-	var orSearchers []LogSearcher
-	var currentGroup []LogSearcher
+	var orSearchers []Searcher
+	var currentGroup []Searcher
 
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
@@ -124,9 +123,9 @@ func CreateSearchersFromTokens(tokens []searchparser.SearchToken) ([]LogSearcher
 
 	// If we only have one searcher, return it directly
 	if len(orSearchers) == 1 {
-		return []LogSearcher{orSearchers[0]}, nil
+		return []Searcher{orSearchers[0]}, nil
 	}
 
 	// Create an OR searcher with all the groups
-	return []LogSearcher{MakeOrSearcher(orSearchers)}, nil
+	return []Searcher{MakeOrSearcher(orSearchers)}, nil
 }

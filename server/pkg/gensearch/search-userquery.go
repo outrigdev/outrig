@@ -7,7 +7,7 @@ package gensearch
 type UserQuerySearcher struct{}
 
 // MakeUserQuerySearcher creates a new UserQuerySearcher
-func MakeUserQuerySearcher() LogSearcher {
+func MakeUserQuerySearcher() Searcher {
 	return &UserQuerySearcher{}
 }
 

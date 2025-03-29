@@ -5,11 +5,11 @@ package gensearch
 
 // AndSearcher implements a searcher that requires all contained searchers to match
 type AndSearcher struct {
-	searchers []LogSearcher
+	searchers []Searcher
 }
 
 // MakeAndSearcher creates a new AND searcher from a slice of searchers
-func MakeAndSearcher(searchers []LogSearcher) LogSearcher {
+func MakeAndSearcher(searchers []Searcher) Searcher {
 	return &AndSearcher{
 		searchers: searchers,
 	}

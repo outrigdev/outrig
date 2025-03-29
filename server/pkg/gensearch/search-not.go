@@ -5,11 +5,11 @@ package gensearch
 
 // NotSearcher implements a searcher that inverts the result of another searcher
 type NotSearcher struct {
-	searcher LogSearcher
+	searcher Searcher
 }
 
 // MakeNotSearcher creates a new NOT searcher that inverts the result of the provided searcher
-func MakeNotSearcher(searcher LogSearcher) LogSearcher {
+func MakeNotSearcher(searcher Searcher) Searcher {
 	return &NotSearcher{
 		searcher: searcher,
 	}

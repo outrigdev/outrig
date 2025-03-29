@@ -17,7 +17,7 @@ type RegexpSearcher struct {
 }
 
 // MakeRegexpSearcher creates a new regexp searcher
-func MakeRegexpSearcher(field string, searchTerm string, caseSensitive bool) (LogSearcher, error) {
+func MakeRegexpSearcher(field string, searchTerm string, caseSensitive bool) (Searcher, error) {
 	var regex *regexp.Regexp
 	var err error
 

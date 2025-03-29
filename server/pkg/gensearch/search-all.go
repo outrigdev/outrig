@@ -7,7 +7,7 @@ package gensearch
 type AllSearcher struct{}
 
 // MakeAllSearcher creates a new searcher that matches all log lines
-func MakeAllSearcher() LogSearcher {
+func MakeAllSearcher() Searcher {
 	return &AllSearcher{}
 }
 

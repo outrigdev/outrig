@@ -5,11 +5,11 @@ package gensearch
 
 // OrSearcher implements a searcher that matches if any contained searcher matches
 type OrSearcher struct {
-	searchers []LogSearcher
+	searchers []Searcher
 }
 
 // MakeOrSearcher creates a new OR searcher from a slice of searchers
-func MakeOrSearcher(searchers []LogSearcher) LogSearcher {
+func MakeOrSearcher(searchers []Searcher) Searcher {
 	return &OrSearcher{
 		searchers: searchers,
 	}

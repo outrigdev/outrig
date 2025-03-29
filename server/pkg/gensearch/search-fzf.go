@@ -18,7 +18,7 @@ type FzfSearcher struct {
 }
 
 // MakeFzfSearcher creates a new FZF searcher
-func MakeFzfSearcher(field string, searchTerm string, caseSensitive bool) (LogSearcher, error) {
+func MakeFzfSearcher(field string, searchTerm string, caseSensitive bool) (Searcher, error) {
 	pattern := []rune(searchTerm)
 	slab := util.MakeSlab(64, 4096)
 

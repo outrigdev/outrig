@@ -89,7 +89,7 @@ func (*RpcServerImpl) GetAppRunRuntimeStatsCommand(ctx context.Context, data rpc
 // LogSearchRequestCommand handles search requests for logs
 func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
 	manager := gensearch.GetOrCreateManager(data.WidgetId, data.AppRunId)
-	return manager.SearchRequest(ctx, data)
+	return manager.SearchLogs(ctx, data)
 }
 
 // LogWidgetAdminCommand handles widget administration requests
@@ -113,14 +113,14 @@ func (*RpcServerImpl) LogWidgetAdminCommand(ctx context.Context, data rpctypes.L
 
 // LogUpdateMarkedLinesCommand handles updating marked lines for a widget
 func (*RpcServerImpl) LogUpdateMarkedLinesCommand(ctx context.Context, data rpctypes.MarkedLinesData) error {
-	manager := gensearch.GetManager(data.WidgetId)
-	if manager == nil {
+	markManager := gensearch.GetMarkManager(data.WidgetId)
+	if markManager == nil {
 		return fmt.Errorf("widget not found: %s", data.WidgetId)
 	}
 
 	// If Clear flag is set, clear all marked lines
 	if data.Clear {
-		manager.ClearMarkedLines()
+		markManager.ClearMarks()
 		return nil
 	}
 
@@ -134,8 +134,8 @@ func (*RpcServerImpl) LogUpdateMarkedLinesCommand(ctx context.Context, data rpct
 		markedLines[lineNum] = isMarked
 	}
 
-	// Merge the converted marked lines
-	manager.MergeMarkedLines(markedLines)
+	// Update the marked lines
+	markManager.UpdateMarkedLines(markedLines)
 	return nil
 }
 

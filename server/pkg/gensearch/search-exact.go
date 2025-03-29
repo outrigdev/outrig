@@ -15,7 +15,7 @@ type ExactSearcher struct {
 }
 
 // MakeExactSearcher creates a new exact match searcher
-func MakeExactSearcher(field string, searchTerm string, caseSensitive bool) LogSearcher {
+func MakeExactSearcher(field string, searchTerm string, caseSensitive bool) Searcher {
 	if !caseSensitive {
 		searchTerm = strings.ToLower(searchTerm)
 	}

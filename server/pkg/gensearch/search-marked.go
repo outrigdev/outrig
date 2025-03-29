@@ -7,7 +7,7 @@ package gensearch
 type MarkedSearcher struct{}
 
 // MakeMarkedSearcher creates a new MarkedSearcher
-func MakeMarkedSearcher() LogSearcher {
+func MakeMarkedSearcher() Searcher {
 	return &MarkedSearcher{}
 }
 

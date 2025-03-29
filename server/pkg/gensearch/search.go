@@ -30,7 +30,7 @@ const (
 // SearchContext contains runtime context for search operations
 type SearchContext struct {
 	MarkedLines map[int64]bool
-	UserQuery   LogSearcher
+	UserQuery   Searcher
 	// Future fields can be added here without changing the interface
 }
 
@@ -40,8 +40,8 @@ type SearchObject interface {
 	GetId() int64
 }
 
-// LogSearcher defines the interface for different search strategies
-type LogSearcher interface {
+// Searcher defines the interface for different search strategies
+type Searcher interface {
 	// Match checks if a search object matches the search criteria
 	Match(sctx *SearchContext, obj SearchObject) bool
 
@@ -50,7 +50,7 @@ type LogSearcher interface {
 }
 
 // GetSearcher returns the appropriate searcher based on the search term
-func GetSearcher(searchTerm string) (LogSearcher, error) {
+func GetSearcher(searchTerm string) (Searcher, error) {
 	tokens := searchparser.TokenizeSearch(searchTerm)
 	if len(tokens) == 0 {
 		return MakeAllSearcher(), nil
