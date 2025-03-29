@@ -8,12 +8,18 @@ function formatMarkedLineNumber(num: number, isMarked: boolean, width = 4): Reac
     const paddedNum = String(num).padStart(width, " ");
     if (isMarked) {
         return (
-            <span className="text-primary">
-                <span className="text-accent">•</span> {paddedNum}
+            <span className="text-primary flex items-center">
+                <span className="text-accent w-3 text-center">•</span>
+                <span className="whitespace-pre">{paddedNum}</span>
             </span>
         );
     }
-    return <> {paddedNum}</>;
+    return (
+        <span className="flex items-center">
+            <span className="w-3"></span>
+            <span className="whitespace-pre">{paddedNum}</span>
+        </span>
+    );
 }
 
 function formatTimestamp(ts: number, format: string = "HH:mm:ss.SSS") {
