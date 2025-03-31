@@ -141,7 +141,13 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
             <div className="py-2">
                 <div className="flex justify-between items-center">
                     <div className="font-semibold text-primary whitespace-nowrap overflow-hidden text-ellipsis pr-4">
-                        {goroutine.name ? `${goroutine.name} (${goroutine.goid})` : `Goroutine ${goroutine.goid}`}
+                        {goroutine.name ? (
+                            <>
+                                {goroutine.name} <span className="text-secondary">({goroutine.goid})</span>
+                            </>
+                        ) : (
+                            `Goroutine ${goroutine.goid}`
+                        )}
                     </div>
                     <div>
                         <CopyButton
@@ -321,13 +327,13 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
     useEffect(() => {
         model.setContentRef(contentRef);
     }, [model]);
-    
+
     // Set a timeout to show empty message after component mounts
     useEffect(() => {
         const timer = setTimeout(() => {
             setShowEmptyMessage(true);
         }, 500);
-        
+
         return () => clearTimeout(timer);
     }, []);
 
@@ -345,14 +351,10 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
                     <div className="flex items-center justify-center h-full text-secondary">
                         no goroutines match the filter
                     </div>
-                ) : (
-                    // Only show "no goroutines found" message after delay
-                    showEmptyMessage ? (
-                        <div className="flex items-center justify-center h-full text-secondary">
-                            no goroutines found
-                        </div>
-                    ) : null
-                )
+                ) : // Only show "no goroutines found" message after delay
+                showEmptyMessage ? (
+                    <div className="flex items-center justify-center h-full text-secondary">no goroutines found</div>
+                ) : null
             ) : (
                 <div>
                     {filteredGoroutines.map((goroutine, index) => (

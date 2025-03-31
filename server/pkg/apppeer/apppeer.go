@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -74,6 +75,12 @@ type Watch struct {
 	WatchVals *utilds.CirBuf[ds.WatchSample]
 }
 
+// AppRunPeer management constants
+const (
+	MaxAppRunPeers = 8
+	PruneInterval  = 15 * time.Second
+)
+
 // Global synchronized map to hold all AppRunPeers
 var appRunPeers = utilds.MakeSyncMap[*AppRunPeer]()
 
@@ -81,6 +88,17 @@ func init() {
 	outrig.WatchFunc("apppeer.keys", func() []string {
 		return appRunPeers.Keys()
 	}, nil)
+
+	// Start a goroutine to periodically prune app run peers
+	go func() {
+		for {
+			time.Sleep(PruneInterval)
+			numPruned := PruneAppRunPeers()
+			if numPruned > 0 {
+				log.Printf("Periodic pruning removed %d app run peers", numPruned)
+			}
+		}
+	}()
 }
 
 // getAppRunDir returns the directory path for storing app run data
@@ -142,6 +160,13 @@ func (p *AppRunPeer) Release() {
 		p.LastModTime = time.Now().UnixMilli()
 		log.Printf("Connection closed for app run ID: %s, marked as disconnected", p.AppRunId)
 	}
+}
+
+// GetRefCount safely returns the current reference count
+func (p *AppRunPeer) GetRefCount() int {
+	p.refLock.Lock()
+	defer p.refLock.Unlock()
+	return p.refCount
 }
 
 // RegisterSearchManager registers a search manager with this AppRunPeer
@@ -395,6 +420,44 @@ func normalizeLineEndings(msg string) string {
 // This is kept for backward compatibility
 func (p *AppRunPeer) SetConnectionClosed() {
 	p.Release()
+}
+
+// PruneAppRunPeers removes old app run peers to keep the total count under MaxAppRunPeers
+// It will not prune peers that are running or have a non-zero reference count
+func PruneAppRunPeers() int {
+	allPeers := GetAllAppRunPeers()
+	if len(allPeers) <= MaxAppRunPeers {
+		return 0
+	}
+
+	// Sort all peers by LastModTime (oldest first)
+	sort.Slice(allPeers, func(i, j int) bool {
+		return allPeers[i].LastModTime < allPeers[j].LastModTime
+	})
+
+	// We need to prune until we have MaxAppRunPeers or no more eligible peers
+	numPruned := 0
+
+	// Iterate through peers from oldest to newest
+	for _, peer := range allPeers {
+		// If we've reached our target count, stop pruning
+		if len(allPeers)-numPruned <= MaxAppRunPeers {
+			break
+		}
+		if peer.Status == AppStatusRunning {
+			continue
+		}
+		if peer.GetRefCount() > 0 {
+			continue
+		}
+		// This peer is eligible for pruning
+		appRunPeers.Delete(peer.AppRunId)
+		log.Printf("Pruned app run peer: %s (last modified: %s)",
+			peer.AppRunId, time.UnixMilli(peer.LastModTime).Format(time.RFC3339))
+		numPruned++
+	}
+
+	return numPruned
 }
 
 // GetAppRunInfo constructs and returns an AppRunInfo struct for this peer
