@@ -138,6 +138,11 @@ func generateStructuredLog() string {
 	return string(jsonData)
 }
 
+func testForGoRoutine() {
+	outrig.SetGoRoutineName("test-goroutine")
+	time.Sleep(10 * time.Second)
+}
+
 func main() {
 	// Parse command line flags
 	flag.Parse()
@@ -147,6 +152,8 @@ func main() {
 	config.LogProcessorConfig.WrapStderr = false
 	outrig.Init(config)
 	defer outrig.AppDone()
+
+	go testForGoRoutine()
 
 	// Set up crash timer if flag is enabled
 	if *crashFlag {

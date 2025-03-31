@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,7 +28,6 @@ type SearchManagerInterface interface {
 }
 
 const LogLineBufferSize = 10000
-const GoRoutineStackBufferSize = 600 // 10 minutes of 1-second samples
 const WatchBufferSize = 600          // 10 minutes of 1-second samples
 const RuntimeStatsBufferSize = 600   // 10 minutes of 1-second samples
 
@@ -42,31 +40,35 @@ const (
 
 // AppRunPeer represents a peer connection to an app client
 type AppRunPeer struct {
-	AppRunId         string
-	AppInfo          *ds.AppInfo
-	Logs             *utilds.CirBuf[ds.LogLine]
-	GoRoutines       *utilds.SyncMap[GoRoutine]
-	ActiveGoRoutines map[int64]bool // Tracks currently running goroutines
-	Watches          *utilds.SyncMap[Watch]
-	ActiveWatches    map[string]bool                     // Tracks currently active watches
-	RuntimeStats     *utilds.CirBuf[ds.RuntimeStatsInfo] // History of runtime stats
-	Status           string                              // Current status of the application
-	LastModTime      int64                               // Last modification time in milliseconds
-	LineNum          int64                               // Counter for log line numbers
-	logLineLock      sync.Mutex                          // Lock for synchronizing log line operations
-	WatchNum         int64                               // Counter for watch numbers
-	refCount         int                                 // Reference counter
-	refLock          sync.Mutex                          // Lock for reference counter operations
-	searchManagers   []SearchManagerInterface            // Registered search managers
-	searchLock       sync.RWMutex                        // Lock for search managers
+	AppRunId    string
+	AppInfo     *ds.AppInfo
+	Status      string     // Current status of the application
+	LastModTime int64      // Last modification time in milliseconds
+	refCount    int        // Reference counter
+	refLock     sync.Mutex // Lock for reference counter operations
+
+	// log fields
+	Logs        *utilds.CirBuf[ds.LogLine]
+	LineNum     int64      // Counter for log line numbers
+	logLineLock sync.Mutex // Lock for synchronizing log line operations
+
+	// log search managers
+	searchManagers []SearchManagerInterface // Registered search managers
+	searchLock     sync.RWMutex             // Lock for search managers
+
+	// goroutine fields
+	GoRoutines *GoRoutinePeer
+
+	// watches fileds
+	Watches       *utilds.SyncMap[Watch]
+	ActiveWatches map[string]bool // Tracks currently active watches
+	WatchNum      int64           // Counter for watch numbers
+
+	// runtimestats fields
+	RuntimeStats *utilds.CirBuf[ds.RuntimeStatsInfo] // History of runtime stats
+
 }
 
-type GoRoutine struct {
-	GoId        int64
-	Name        string
-	Tags        []string
-	StackTraces *utilds.CirBuf[ds.GoRoutineStack]
-}
 
 type Watch struct {
 	WatchNum  int64
@@ -121,16 +123,15 @@ func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 		}
 
 		return &AppRunPeer{
-			AppRunId:         appRunId,
-			Logs:             utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
-			GoRoutines:       utilds.MakeSyncMap[GoRoutine](),
-			ActiveGoRoutines: make(map[int64]bool),
-			Watches:          utilds.MakeSyncMap[Watch](),
-			ActiveWatches:    make(map[string]bool),
-			RuntimeStats:     utilds.MakeCirBuf[ds.RuntimeStatsInfo](RuntimeStatsBufferSize),
-			Status:           AppStatusRunning,
-			LastModTime:      time.Now().UnixMilli(),
-			refCount:         0,
+			AppRunId:     appRunId,
+			Logs:         utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
+			GoRoutines:   MakeGoRoutinePeer(),
+			Watches:      utilds.MakeSyncMap[Watch](),
+			ActiveWatches: make(map[string]bool),
+			RuntimeStats: utilds.MakeCirBuf[ds.RuntimeStatsInfo](RuntimeStatsBufferSize),
+			Status:       AppStatusRunning,
+			LastModTime:  time.Now().UnixMilli(),
+			refCount:     0,
 		}
 	})
 
@@ -286,43 +287,8 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			return fmt.Errorf("failed to unmarshal GoroutineInfo: %w", err)
 		}
 
-		// Create a new map for active goroutines in this packet
-		activeGoroutines := make(map[int64]bool)
-
-		// Process goroutine stacks
-		for _, stack := range goroutineInfo.Stacks {
-			goId := stack.GoId
-			goIdStr := strconv.FormatInt(goId, 10)
-
-			// Mark this goroutine as active
-			activeGoroutines[goId] = true
-
-			// Get or create goroutine entry in the syncmap atomically
-			goroutine, _ := p.GoRoutines.GetOrCreate(goIdStr, func() GoRoutine {
-				// New goroutine
-				return GoRoutine{
-					GoId:        goId,
-					StackTraces: utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
-				}
-			})
-
-			// Update name if provided
-			if stack.Name != "" {
-				goroutine.Name = stack.Name
-			}
-			if len(stack.Tags) > 0 {
-				goroutine.Tags = stack.Tags
-			}
-
-			// Add stack trace to the circular buffer
-			goroutine.StackTraces.Write(stack)
-
-			// Update the goroutine in the syncmap
-			p.GoRoutines.Set(goIdStr, goroutine)
-		}
-
-		// Update the active goroutines map
-		p.ActiveGoRoutines = activeGoroutines
+		// Process goroutine stacks using the GoRoutinePeer
+		p.GoRoutines.ProcessGoroutineStacks(goroutineInfo.Stacks)
 
 		log.Printf("Processed %d goroutines for app run ID: %s", len(goroutineInfo.Stacks), p.AppRunId)
 
@@ -471,8 +437,8 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	isRunning := p.Status == AppStatusRunning
 
 	// Get the number of active and total goroutines
-	numActiveGoRoutines := len(p.ActiveGoRoutines)
-	numTotalGoRoutines := len(p.GoRoutines.Keys())
+	numActiveGoRoutines := p.GoRoutines.GetActiveGoRoutineCount()
+	numTotalGoRoutines := p.GoRoutines.GetTotalGoRoutineCount()
 
 	// Get the number of active and total watches
 	numActiveWatches := len(p.ActiveWatches)
