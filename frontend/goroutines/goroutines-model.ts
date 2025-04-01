@@ -173,7 +173,6 @@ class GoRoutinesModel {
         return counts;
     });
 
-
     // Toggle a state filter
     toggleStateFilter(state: string): void {
         const store = getDefaultStore();
@@ -230,7 +229,7 @@ class GoRoutinesModel {
             });
 
             // Convert int64 IDs to numbers and store them
-            const goIds = searchResult.results.map((id) => Number(id));
+            const goIds = searchResult.results;
             store.set(this.matchedGoRoutineIds, goIds);
 
             // If we have matching IDs, fetch the goroutine details

@@ -17,6 +17,7 @@ type RuntimeStatsCollector struct {
 	lock       sync.Mutex
 	controller ds.Controller
 	ticker     *time.Ticker
+	done       chan struct{}
 }
 
 // CollectorName returns the unique name of the collector
@@ -49,15 +50,29 @@ func (rc *RuntimeStatsCollector) Enable() {
 	if rc.ticker != nil {
 		return
 	}
+
+	rc.done = make(chan struct{})
+	doneCh := rc.done // Local copy to ensure goroutines use the right channel
+
+	// First immediate collection
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig RuntimeStatsCollector")
+		ioutrig.I.SetGoRoutineName("#outrig RuntimeStatsCollector:first")
 		rc.CollectRuntimeStats()
 	}()
+
 	rc.ticker = time.NewTicker(1 * time.Second)
+	localTicker := rc.ticker // Local copy of ticker
+
+	// Periodic collection
 	go func() {
 		ioutrig.I.SetGoRoutineName("#outrig RuntimeStatsCollector")
-		for range rc.ticker.C {
-			rc.CollectRuntimeStats()
+		for {
+			select {
+			case <-doneCh:
+				return
+			case <-localTicker.C:
+				rc.CollectRuntimeStats()
+			}
 		}
 	}()
 }
@@ -69,6 +84,12 @@ func (rc *RuntimeStatsCollector) Disable() {
 	if rc.ticker == nil {
 		return
 	}
+
+	// Signal goroutines to exit
+	close(rc.done)
+	rc.done = nil
+
+	// Stop the ticker
 	rc.ticker.Stop()
 	rc.ticker = nil
 }
