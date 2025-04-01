@@ -40,6 +40,7 @@ type FullRpcInterface interface {
 	// app run commands
 	GetAppRunsCommand(ctx context.Context, data AppRunUpdatesRequest) (AppRunsData, error)
 	GetAppRunGoRoutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoRoutinesData, error)
+	GoRoutineSearchRequestCommand(ctx context.Context, data GoRoutineSearchRequestData) (GoRoutineSearchResultData, error)
 	GetAppRunWatchesCommand(ctx context.Context, data AppRunRequest) (AppRunWatchesData, error)
 	GetAppRunRuntimeStatsCommand(ctx context.Context, data AppRunRequest) (AppRunRuntimeStatsData, error)
 
@@ -209,6 +210,20 @@ type AppRunRuntimeStatsData struct {
 	AppRunId string            `json:"apprunid"`
 	AppName  string            `json:"appname"`
 	Stats    []RuntimeStatData `json:"stats"`
+}
+
+// GoRoutineSearchRequestData defines the request for goroutine search
+type GoRoutineSearchRequestData struct {
+	AppRunId    string `json:"apprunid"`
+	SearchTerm  string `json:"searchterm"`
+	SystemQuery string `json:"systemquery,omitempty"`
+}
+
+// GoRoutineSearchResultData defines the response for goroutine search
+type GoRoutineSearchResultData struct {
+	SearchedCount int     `json:"searchedcount"`
+	TotalCount    int     `json:"totalcount"`
+	Results       []int64 `json:"results"`
 }
 
 type EventReadHistoryData struct {

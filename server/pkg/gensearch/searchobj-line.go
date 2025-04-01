@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -19,6 +20,15 @@ type LogSearchObject struct {
 	LineNumStr    string
 	CachedTags    []string
 	TagsParsed    bool
+}
+
+// LogLineToSearchObject converts a ds.LogLine to a SearchObject
+func LogLineToSearchObject(line ds.LogLine) SearchObject {
+	return &LogSearchObject{
+		Msg:     line.Msg,
+		Source:  line.Source,
+		LineNum: line.LineNum,
+	}
 }
 
 func (lso *LogSearchObject) GetTags() []string {

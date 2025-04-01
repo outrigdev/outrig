@@ -120,12 +120,8 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 		UserQuery:   m.UserSearcher, // Set the user query searcher for #userquery references
 	}
 
-	// Create a LogSearchObject from the log line
-	searchObj := &LogSearchObject{
-		Msg:     line.Msg,
-		Source:  line.Source,
-		LineNum: line.LineNum,
-	}
+	// Convert the log line to a SearchObject
+	searchObj := LogLineToSearchObject(line)
 
 	if !effectiveSearcher.Match(sctx, searchObj) {
 		return
@@ -258,35 +254,36 @@ func (m *SearchManager) GetLastUsed() time.Time {
 	return m.LastUsed
 }
 
-// performSearch is a pure function that filters log lines based on search criteria
-func performSearch(allLogs []ds.LogLine, totalCount int, searcher Searcher, sctx *SearchContext) ([]ds.LogLine, *SearchStats, error) {
+// PerformSearch is a generic function that filters items based on search criteria
+// It takes a slice of items of any type T, a total count, a function to convert T to SearchObject,
+// a searcher, and a search context, and returns filtered items and search stats
+func PerformSearch[T any](allItems []T, totalCount int, toSearchObj func(T) SearchObject, searcher Searcher, sctx *SearchContext) ([]T, *SearchStats, error) {
 	startTs := time.Now()
-	searchedCount := len(allLogs)
-	result := []ds.LogLine{}
+	searchedCount := len(allItems)
+	result := []T{}
 
-	// Filter the logs based on the search criteria
-	for _, line := range allLogs {
+	// Filter the items based on the search criteria
+	for _, item := range allItems {
 		if searcher == nil {
-			result = append(result, line)
+			result = append(result, item)
 			continue
 		}
 
-		// Create a LogSearchObject from the log line
-		searchObj := &LogSearchObject{
-			Msg:     line.Msg,
-			Source:  line.Source,
-			LineNum: line.LineNum,
-		}
+		// Convert the item to a SearchObject using the provided function
+		searchObj := toSearchObj(item)
 
 		if searcher.Match(sctx, searchObj) {
-			result = append(result, line)
+			result = append(result, item)
 		}
 	}
 
-	// Determine the last line number
+	// Determine the last line number (if available)
 	var lastLineNum int64 = 0
-	if len(allLogs) > 0 {
-		lastLineNum = allLogs[len(allLogs)-1].LineNum
+	if len(allItems) > 0 {
+		// Try to get the last item's ID, which might be a line number
+		if searchObj := toSearchObj(allItems[len(allItems)-1]); searchObj != nil {
+			lastLineNum = searchObj.GetId()
+		}
 	}
 
 	searchDuration := int(time.Since(startTs).Milliseconds())
@@ -296,7 +293,7 @@ func performSearch(allLogs []ds.LogLine, totalCount int, searcher Searcher, sctx
 		LastLineNum:    lastLineNum,
 		SearchDuration: searchDuration,
 	}
-	log.Printf("SearchManager: filtered %d/%d lines in %dms\n", len(result), searchedCount, searchDuration)
+	log.Printf("SearchManager: filtered %d/%d items in %dms\n", len(result), searchedCount, searchDuration)
 	return result, stats, nil
 }
 
@@ -328,9 +325,9 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 		MarkedLines: m.MarkManager.GetMarkedIds(),
 	}
 	// Get all log lines and total count from the LogLinePeer in a single synchronized call
-	// We don't need to hold the lock during the search since performSearch is a pure function
+	// We don't need to hold the lock during the search since PerformSearch is a pure function
 	allLogs, totalCount := m.LogPeer.GetLogLines()
-	result, _, err := performSearch(allLogs, totalCount, searcher, sctx)
+	result, _, err := PerformSearch(allLogs, totalCount, LogLineToSearchObject, searcher, sctx)
 	return result, err
 }
 
@@ -369,7 +366,7 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 		UserQuery:   userSearcher, // Set the user query searcher for #userquery references
 	}
 	allLogs, totalCount := m.LogPeer.GetLogLines()
-	result, stats, err := performSearch(allLogs, totalCount, effectiveSearcher, sctx)
+	result, stats, err := PerformSearch(allLogs, totalCount, LogLineToSearchObject, effectiveSearcher, sctx)
 	if err != nil {
 		m.UserQuery = uuid.New().String() // set to random value to prevent using cache
 		m.SystemQuery = ""                // Clear the cached system query
