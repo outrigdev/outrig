@@ -188,15 +188,11 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
     const [showAll, setShowAll] = useAtom(model.showAll);
     const [selectedStates, setSelectedStates] = useAtom(model.selectedStates);
-    const [simpleMode, setSimpleMode] = useAtom(model.simpleStacktraceMode);
-    const availableStates = useAtomValue(model.availableStates);
     const searchRef = useRef<HTMLInputElement>(null);
-    const isRefreshing = useAtomValue(model.isRefreshing);
-    const filteredCount = useAtomValue(model.filteredCount);
-    const totalCount = useAtomValue(model.totalCount);
+    const isSearching = useAtomValue(model.isSearching);
+    const searchResultInfo = useAtomValue(model.searchResultInfo);
     const primaryStates = useAtomValue(model.primaryStates);
     const extraStates = useAtomValue(model.extraStates);
-    const durationStates = useAtomValue(model.durationStates);
     const stateCounts = useAtomValue(model.stateCounts);
 
     // Focus the search input when the component mounts
@@ -214,6 +210,12 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
 
     const handleToggleState = (state: string) => {
         model.toggleStateFilter(state);
+    };
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newValue = e.target.value;
+        setSearch(newValue);
+        model.updateSearchTerm(newValue);
     };
 
     return (
@@ -236,7 +238,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                             type="text"
                             placeholder="Filter goroutines..."
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={handleSearchChange}
                             onKeyDown={keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
                                 if (checkKeyPressed(keyEvent, "Escape")) {
                                     setSearch("");
@@ -259,7 +261,13 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
 
                     {/* Search stats */}
                     <div className="text-xs text-muted mr-2 select-none">
-                        {filteredCount}/{totalCount}
+                        {isSearching ? (
+                            <span>Searching...</span>
+                        ) : (
+                            <span>
+                                {searchResultInfo.searchedCount}/{searchResultInfo.totalCount}
+                            </span>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -316,7 +324,7 @@ interface GoRoutinesContentProps {
 }
 
 const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
-    const filteredGoroutines = useAtomValue(model.filteredGoroutines);
+    const goroutines = useAtomValue(model.appRunGoRoutines);
     const isRefreshing = useAtomValue(model.isRefreshing);
     const search = useAtomValue(model.searchTerm);
     const showAll = useAtomValue(model.showAll);
@@ -345,7 +353,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
                         <span>Refreshing goroutines...</span>
                     </div>
                 </div>
-            ) : filteredGoroutines.length === 0 ? (
+            ) : goroutines.length === 0 ? (
                 search || !showAll ? (
                     // Always show "no goroutines match the filter" message immediately
                     <div className="flex items-center justify-center h-full text-secondary">
@@ -357,11 +365,11 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
                 ) : null
             ) : (
                 <div>
-                    {filteredGoroutines.map((goroutine, index) => (
+                    {goroutines.map((goroutine, index) => (
                         <React.Fragment key={goroutine.goid}>
                             <GoroutineView goroutine={goroutine} model={model} />
                             {/* Add divider after each goroutine except the last one */}
-                            {index < filteredGoroutines.length - 1 && (
+                            {index < goroutines.length - 1 && (
                                 <div
                                     className="h-px bg-border my-2"
                                     style={{ minWidth: "100%", width: "9999px" }}

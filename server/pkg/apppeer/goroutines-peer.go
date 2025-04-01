@@ -4,6 +4,7 @@
 package apppeer
 
 import (
+	"sort"
 	"strconv"
 	"sync"
 
@@ -116,6 +117,13 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
 	}
 
+	// Sort goroutines by ID to ensure consistent ordering
+	if len(parsedGoRoutines) > 1 {
+		sort.Slice(parsedGoRoutines, func(i, j int) bool {
+			return parsedGoRoutines[i].GoId < parsedGoRoutines[j].GoId
+		})
+	}
+
 	return parsedGoRoutines
 }
 
@@ -143,6 +151,13 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 		parsedGoRoutine.Name = goroutineObj.Name
 		parsedGoRoutine.Tags = goroutineObj.Tags
 		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
+	}
+
+	// Sort goroutines by ID to ensure consistent ordering
+	if len(parsedGoRoutines) > 1 {
+		sort.Slice(parsedGoRoutines, func(i, j int) bool {
+			return parsedGoRoutines[i].GoId < parsedGoRoutines[j].GoId
+		})
 	}
 
 	return parsedGoRoutines

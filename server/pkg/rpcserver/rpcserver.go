@@ -3,6 +3,7 @@ package rpcserver
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 
 	"github.com/outrigdev/outrig/pkg/rpc"
@@ -214,6 +215,11 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	for _, gr := range filteredGoRoutines {
 		results = append(results, gr.GoId)
 	}
+	
+	// Sort the results by goroutine ID for consistent ordering
+	sort.Slice(results, func(i, j int) bool {
+		return results[i] < results[j]
+	})
 
 	return rpctypes.GoRoutineSearchResultData{
 		SearchedCount: stats.SearchedCount,

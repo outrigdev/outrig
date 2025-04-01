@@ -5,12 +5,21 @@ import { RpcApi } from "../rpc/rpcclientapi";
 // Type for editor link options
 export type CodeLinkType = null | "vscode";
 
+// Type for search result info
+export type SearchResultInfo = {
+    searchedCount: number;
+    totalCount: number;
+};
+
 class GoRoutinesModel {
     widgetId: string;
     appRunId: string;
     appRunGoRoutines: PrimitiveAtom<ParsedGoRoutine[]> = atom<ParsedGoRoutine[]>([]);
+    matchedGoRoutineIds: PrimitiveAtom<number[]> = atom<number[]>([]);
+    searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({ searchedCount: 0, totalCount: 0 });
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
+    isSearching: PrimitiveAtom<boolean> = atom(false);
     contentRef: React.RefObject<HTMLDivElement> = null;
 
     // State filters
@@ -27,12 +36,6 @@ class GoRoutinesModel {
     totalCount: Atom<number> = atom((get) => {
         const goroutines = get(this.appRunGoRoutines);
         return goroutines.length;
-    });
-
-    // Filtered count of goroutines (derived from filteredGoroutines)
-    filteredCount: Atom<number> = atom((get) => {
-        const filtered = get(this.filteredGoroutines);
-        return filtered.length;
     });
 
     constructor(appRunId: string) {
@@ -55,7 +58,7 @@ class GoRoutinesModel {
     // Page up in the content view
     pageUp() {
         if (!this.contentRef?.current) return;
-        
+
         this.contentRef.current.scrollBy({
             top: -500,
             behavior: "auto",
@@ -65,7 +68,7 @@ class GoRoutinesModel {
     // Page down in the content view
     pageDown() {
         if (!this.contentRef?.current) return;
-        
+
         this.contentRef.current.scrollBy({
             top: 500,
             behavior: "auto",
@@ -93,7 +96,7 @@ class GoRoutinesModel {
 
         goroutines.forEach((goroutine) => {
             if (goroutine.extrastates) {
-                goroutine.extrastates.forEach(state => {
+                goroutine.extrastates.forEach((state) => {
                     if (state) {
                         statesSet.add(state);
                     }
@@ -109,17 +112,17 @@ class GoRoutinesModel {
         const goroutines = get(this.appRunGoRoutines);
         // Create a map of duration string to millisecond value
         const durationMap = new Map<string, number>();
-        
+
         goroutines.forEach((goroutine) => {
             if (goroutine.stateduration && goroutine.statedurationms != null) {
                 durationMap.set(goroutine.stateduration, goroutine.statedurationms);
             }
         });
-        
+
         // Convert to array of [string, number] pairs and sort by millisecond value
         return Array.from(durationMap.entries())
             .sort((a, b) => a[1] - b[1]) // Sort by millisecond value (ascending)
-            .map(entry => entry[0]); // Extract just the duration string
+            .map((entry) => entry[0]); // Extract just the duration string
     });
 
     // Derived atom for all available states (for backward compatibility)
@@ -127,7 +130,7 @@ class GoRoutinesModel {
         const primaryStates = get(this.primaryStates);
         const extraStates = get(this.extraStates);
         const durationStates = get(this.durationStates);
-        
+
         return [...primaryStates, ...extraStates, ...durationStates];
     });
 
@@ -135,98 +138,41 @@ class GoRoutinesModel {
     stateCounts: Atom<Map<string, number>> = atom((get) => {
         const goroutines = get(this.appRunGoRoutines);
         const counts = new Map<string, number>();
-        
+
         // Initialize counts for all states
         const primaryStates = get(this.primaryStates);
         const extraStates = get(this.extraStates);
         const durationStates = get(this.durationStates);
-        
-        [...primaryStates, ...extraStates, ...durationStates].forEach(state => {
+
+        [...primaryStates, ...extraStates, ...durationStates].forEach((state) => {
             counts.set(state, 0);
         });
-        
+
         // Count goroutines for each state
-        goroutines.forEach(goroutine => {
+        goroutines.forEach((goroutine) => {
             // Count primary state
             if (goroutine.primarystate) {
                 counts.set(goroutine.primarystate, (counts.get(goroutine.primarystate) || 0) + 1);
             }
-            
+
             // Count extra states
             if (goroutine.extrastates) {
-                goroutine.extrastates.forEach(state => {
+                goroutine.extrastates.forEach((state) => {
                     if (state) {
                         counts.set(state, (counts.get(state) || 0) + 1);
                     }
                 });
             }
-            
+
             // Count duration state
             if (goroutine.stateduration) {
                 counts.set(goroutine.stateduration, (counts.get(goroutine.stateduration) || 0) + 1);
             }
         });
-        
+
         return counts;
     });
 
-    // Filtered goroutines based on search term and state filters
-    filteredGoroutines: Atom<ParsedGoRoutine[]> = atom((get) => {
-        const search = get(this.searchTerm);
-        const showAll = get(this.showAll);
-        const selectedStates = get(this.selectedStates);
-        const goroutines = get(this.appRunGoRoutines);
-        const durationStates = get(this.durationStates);
-
-        // First sort by goroutine ID
-        const sortedGoroutines = [...goroutines].sort((a, b) => a.goid - b.goid);
-
-        // Apply state filters if not showing all
-        let stateFiltered = sortedGoroutines;
-        if (!showAll && selectedStates.size > 0) {
-            // Get the selected duration states and regular states separately
-            const selectedDurationStates = new Set<string>();
-            const selectedRegularStates = new Set<string>();
-            
-            selectedStates.forEach(state => {
-                if (durationStates.includes(state)) {
-                    selectedDurationStates.add(state);
-                } else {
-                    selectedRegularStates.add(state);
-                }
-            });
-
-            stateFiltered = sortedGoroutines.filter((goroutine) => {
-                // Split the rawstate by commas and get all states for this goroutine
-                const states = goroutine.rawstate.split(",").map((s) => s.trim());
-                
-                // If no regular states are selected, consider it a match for regular states
-                // If regular states are selected, at least one must match (OR)
-                const matchesRegularStates = selectedRegularStates.size === 0 || 
-                    states.some((state) => selectedRegularStates.has(state));
-                
-                // If no duration states are selected, consider it a match for duration states
-                // If duration states are selected, at least one must match (OR)
-                const matchesDurationStates = selectedDurationStates.size === 0 || 
-                    (goroutine.stateduration && selectedDurationStates.has(goroutine.stateduration));
-                
-                // Both conditions must be true (AND)
-                return matchesRegularStates && matchesDurationStates;
-            });
-        }
-
-        // Apply search filter if there's a search term
-        if (!search) {
-            return stateFiltered;
-        }
-
-        return stateFiltered.filter(
-            (goroutine) =>
-                goroutine.rawstacktrace.toLowerCase().includes(search.toLowerCase()) ||
-                goroutine.rawstate.toLowerCase().includes(search.toLowerCase()) ||
-                goroutine.goid.toString().includes(search)
-        );
-    });
 
     // Toggle a state filter
     toggleStateFilter(state: string): void {
@@ -264,22 +210,75 @@ class GoRoutinesModel {
         store.set(this.showAll, !showAll);
     }
 
-    async fetchAppRunGoroutines() {
+    // Search for goroutines matching the search term
+    async searchGoroutines(searchTerm: string) {
+        const store = getDefaultStore();
+
         try {
-            const result = await RpcApi.GetAppRunGoRoutinesCommand(DefaultRpcClient, { apprunid: this.appRunId });
-            return result.goroutines;
+            store.set(this.isSearching, true);
+
+            // Call the search RPC to get matching goroutine IDs
+            const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, {
+                apprunid: this.appRunId,
+                searchterm: searchTerm,
+            });
+
+            // Update search result info
+            store.set(this.searchResultInfo, {
+                searchedCount: searchResult.searchedcount,
+                totalCount: searchResult.totalcount,
+            });
+
+            // Convert int64 IDs to numbers and store them
+            const goIds = searchResult.results.map((id) => Number(id));
+            store.set(this.matchedGoRoutineIds, goIds);
+
+            // If we have matching IDs, fetch the goroutine details
+            if (goIds.length > 0) {
+                await this.fetchGoRoutinesByIds(goIds);
+            } else {
+                // Clear goroutines if no matches
+                store.set(this.appRunGoRoutines, []);
+            }
         } catch (error) {
-            console.error(`Failed to load goroutines for app run ${this.appRunId}:`, error);
-            return [];
+            console.error(`Failed to search goroutines for app run ${this.appRunId}:`, error);
+            // Reset state on error
+            store.set(this.matchedGoRoutineIds, []);
+            store.set(this.appRunGoRoutines, []);
+            store.set(this.searchResultInfo, { searchedCount: 0, totalCount: 0 });
+        } finally {
+            store.set(this.isSearching, false);
         }
     }
 
-    // Load goroutines with a minimum time to show the refreshing state
+    // Fetch goroutine details by IDs
+    async fetchGoRoutinesByIds(goIds: number[]) {
+        try {
+            if (goIds.length === 0) {
+                getDefaultStore().set(this.appRunGoRoutines, []);
+                return;
+            }
+
+            const result = await RpcApi.GetAppRunGoRoutinesByIdsCommand(DefaultRpcClient, {
+                apprunid: this.appRunId,
+                goids: goIds,
+            });
+
+            getDefaultStore().set(this.appRunGoRoutines, result.goroutines);
+        } catch (error) {
+            console.error(`Failed to fetch goroutine details for app run ${this.appRunId}:`, error);
+            getDefaultStore().set(this.appRunGoRoutines, []);
+        }
+    }
+
+    // Load goroutines based on current search term
     async loadAppRunGoroutines(minTime: number = 0) {
         const startTime = new Date().getTime();
+        const store = getDefaultStore();
+        const searchTerm = store.get(this.searchTerm);
 
         try {
-            const goroutines = await this.fetchAppRunGoroutines();
+            await this.searchGoroutines(searchTerm);
 
             // If minTime is specified, ensure we wait at least that long
             if (minTime > 0) {
@@ -288,8 +287,6 @@ class GoRoutinesModel {
                     await new Promise((r) => setTimeout(r, minTime - (curTime - startTime)));
                 }
             }
-
-            getDefaultStore().set(this.appRunGoRoutines, goroutines);
         } catch (error) {
             console.error(`Failed to load goroutines for app run ${this.appRunId}:`, error);
         }
@@ -344,6 +341,13 @@ class GoRoutinesModel {
             // Set refreshing state to false
             store.set(this.isRefreshing, false);
         }
+    }
+
+    // Update search term and trigger search
+    async updateSearchTerm(term: string) {
+        const store = getDefaultStore();
+        store.set(this.searchTerm, term);
+        await this.searchGoroutines(term);
     }
 }
 
