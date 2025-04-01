@@ -36,6 +36,11 @@ class RpcApiType {
         return client.rpcCall("getapprungoroutines", data, opts);
     }
 
+    // command "getapprungoroutinesbyids" [call]
+    GetAppRunGoRoutinesByIdsCommand(client: RpcClient, data: AppRunGoRoutinesByIdsRequest, opts?: RpcOpts): Promise<AppRunGoRoutinesData> {
+        return client.rpcCall("getapprungoroutinesbyids", data, opts);
+    }
+
     // command "getapprunruntimestats" [call]
     GetAppRunRuntimeStatsCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunRuntimeStatsData> {
         return client.rpcCall("getapprunruntimestats", data, opts);
@@ -49,6 +54,11 @@ class RpcApiType {
     // command "getapprunwatches" [call]
     GetAppRunWatchesCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunWatchesData> {
         return client.rpcCall("getapprunwatches", data, opts);
+    }
+
+    // command "goroutinesearchrequest" [call]
+    GoRoutineSearchRequestCommand(client: RpcClient, data: GoRoutineSearchRequestData, opts?: RpcOpts): Promise<GoRoutineSearchResultData> {
+        return client.rpcCall("goroutinesearchrequest", data, opts);
     }
 
     // command "loggetmarkedlines" [call]

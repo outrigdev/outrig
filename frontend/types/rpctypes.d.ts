@@ -5,6 +5,12 @@
 
 declare global {
 
+    // rpctypes.AppRunGoRoutinesByIdsRequest
+    type AppRunGoRoutinesByIdsRequest = {
+        apprunid: string;
+        goids: number[];
+    };
+
     // rpctypes.AppRunGoRoutinesData
     type AppRunGoRoutinesData = {
         apprunid: string;
@@ -101,6 +107,20 @@ declare global {
         | (EventCommonFields & { event: "route:up"; data?: null })
         | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
     ;
+
+    // rpctypes.GoRoutineSearchRequestData
+    type GoRoutineSearchRequestData = {
+        apprunid: string;
+        searchterm: string;
+        systemquery?: string;
+    };
+
+    // rpctypes.GoRoutineSearchResultData
+    type GoRoutineSearchResultData = {
+        searchedcount: number;
+        totalcount: number;
+        results: number[];
+    };
 
     // ds.LogLine
     type LogLine = {

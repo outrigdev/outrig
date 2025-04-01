@@ -46,6 +46,12 @@ func GetAppRunGoRoutinesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, o
 	return resp, err
 }
 
+// command "getapprungoroutinesbyids", rpctypes.GetAppRunGoRoutinesByIdsCommand
+func GetAppRunGoRoutinesByIdsCommand(w *rpc.RpcClient, data rpctypes.AppRunGoRoutinesByIdsRequest, opts *rpc.RpcOpts) (rpctypes.AppRunGoRoutinesData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunGoRoutinesData](w, "getapprungoroutinesbyids", data, opts)
+	return resp, err
+}
+
 // command "getapprunruntimestats", rpctypes.GetAppRunRuntimeStatsCommand
 func GetAppRunRuntimeStatsCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunRuntimeStatsData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunRuntimeStatsData](w, "getapprunruntimestats", data, opts)
@@ -61,6 +67,12 @@ func GetAppRunsCommand(w *rpc.RpcClient, data rpctypes.AppRunUpdatesRequest, opt
 // command "getapprunwatches", rpctypes.GetAppRunWatchesCommand
 func GetAppRunWatchesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunWatchesData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunWatchesData](w, "getapprunwatches", data, opts)
+	return resp, err
+}
+
+// command "goroutinesearchrequest", rpctypes.GoRoutineSearchRequestCommand
+func GoRoutineSearchRequestCommand(w *rpc.RpcClient, data rpctypes.GoRoutineSearchRequestData, opts *rpc.RpcOpts) (rpctypes.GoRoutineSearchResultData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.GoRoutineSearchResultData](w, "goroutinesearchrequest", data, opts)
 	return resp, err
 }
 
