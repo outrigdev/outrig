@@ -132,6 +132,72 @@ func (*RpcServerImpl) GetAppRunRuntimeStatsCommand(ctx context.Context, data rpc
 	return result, nil
 }
 
+// GoRoutineSearchRequestCommand handles search requests for goroutines
+func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rpctypes.GoRoutineSearchRequestData) (rpctypes.GoRoutineSearchResultData, error) {
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	if peer == nil || peer.AppInfo == nil {
+		return rpctypes.GoRoutineSearchResultData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Get module name from AppInfo (needed for proper goroutine parsing)
+	moduleName := ""
+	if peer.AppInfo != nil {
+		moduleName = peer.AppInfo.ModuleName
+	}
+
+	// Get all goroutines
+	allGoRoutines := peer.GoRoutines.GetParsedGoRoutines(moduleName)
+	totalCount := len(allGoRoutines)
+
+	// Create user searcher based on search term
+	userSearcher, err := gensearch.GetSearcher(data.SearchTerm)
+	if err != nil {
+		return rpctypes.GoRoutineSearchResultData{}, fmt.Errorf("invalid search term: %w", err)
+	}
+
+	// Determine which searcher to use (user or system)
+	var effectiveSearcher gensearch.Searcher = userSearcher
+	
+	// If system query is provided, use it as the effective searcher
+	if data.SystemQuery != "" {
+		systemSearcher, err := gensearch.GetSearcher(data.SystemQuery)
+		if err != nil {
+			return rpctypes.GoRoutineSearchResultData{}, fmt.Errorf("invalid system query: %w", err)
+		}
+		effectiveSearcher = systemSearcher
+	}
+
+	// Create search context with user searcher for #userquery references
+	sctx := &gensearch.SearchContext{
+		UserQuery: userSearcher,
+	}
+
+	// Perform the search
+	filteredGoRoutines, stats, err := gensearch.PerformSearch(
+		allGoRoutines, 
+		totalCount, 
+		gensearch.ParsedGoRoutineToSearchObject, 
+		effectiveSearcher, 
+		sctx,
+	)
+	if err != nil {
+		return rpctypes.GoRoutineSearchResultData{}, err
+	}
+
+	// Extract GoIds from filtered results
+	results := make([]int64, 0, len(filteredGoRoutines))
+	for _, gr := range filteredGoRoutines {
+		results = append(results, gr.GoId)
+	}
+
+	return rpctypes.GoRoutineSearchResultData{
+		SearchedCount: stats.SearchedCount,
+		TotalCount:    stats.TotalCount,
+		Results:       results,
+	}, nil
+}
+
 // LogSearchRequestCommand handles search requests for logs
 func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
 	peer := apppeer.GetAppRunPeer(data.AppRunId, false)

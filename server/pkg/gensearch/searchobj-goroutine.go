@@ -3,6 +3,8 @@ package gensearch
 import (
 	"strconv"
 	"strings"
+
+	"github.com/outrigdev/outrig/pkg/rpctypes"
 )
 
 type GoRoutineSearchObject struct {
@@ -67,4 +69,14 @@ func (gso *GoRoutineSearchObject) GetField(fieldName string, fieldMods int) stri
 		return gso.Combined
 	}
 	return ""
+}
+
+// ParsedGoRoutineToSearchObject converts a ParsedGoRoutine to a GoRoutineSearchObject
+func ParsedGoRoutineToSearchObject(gr rpctypes.ParsedGoRoutine) SearchObject {
+	return &GoRoutineSearchObject{
+		GoId:  gr.GoId,
+		Name:  gr.Name,
+		Tags:  gr.Tags,
+		Stack: gr.RawStackTrace,
+	}
 }
