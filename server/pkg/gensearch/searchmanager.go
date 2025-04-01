@@ -52,9 +52,8 @@ type SearchManager struct {
 	Lock     *sync.Mutex
 	WidgetId string
 	AppRunId string
-	AppPeer  *apppeer.AppRunPeer // Will never be nil
 	LogPeer  *apppeer.LogLinePeer // Reference to the LogLinePeer for log operations
-	LastUsed time.Time           // Timestamp of when this manager was last used
+	LastUsed time.Time            // Timestamp of when this manager was last used
 
 	// User search components
 	UserQuery    string   // The user's search term
@@ -157,7 +156,6 @@ func NewSearchManager(widgetId string, appPeer *apppeer.AppRunPeer) *SearchManag
 	manager := &SearchManager{
 		Lock:        &sync.Mutex{},
 		WidgetId:    widgetId,
-		AppPeer:     appPeer,
 		LogPeer:     appPeer.Logs,
 		LastUsed:    time.Now(),
 		UserQuery:   uuid.New().String(), // pick a random value that will never match a real search term
@@ -222,31 +220,20 @@ func GetManager(widgetId string) *SearchManager {
 
 // GetOrCreateManager gets or creates a SearchManager for the given widget ID and app peer
 func GetOrCreateManager(widgetId string, appRunId string) *SearchManager {
-	// Get the app peer
 	appPeer := apppeer.GetAppRunPeer(appRunId, false)
-
 	manager, created := widgetManagers.GetOrCreate(widgetId, func() *SearchManager {
 		return NewSearchManager(widgetId, appPeer)
 	})
-
-	// Update the AppRunId and AppPeer in case they've changed
-	manager.AppRunId = appRunId
-	manager.AppPeer = appPeer
-
 	// If we created a new manager or we're over the limit, run cleanup
 	if created || widgetManagers.Len() > MaxSearchManagers {
 		cleanupSearchManagers()
 	}
-
 	return manager
 }
 
 // deleteSearchManager removes a SearchManager from the widgetManagers map and unregisters it from the LogLinePeer
 func deleteSearchManager(manager *SearchManager) {
-	// Unregister from LogLinePeer
 	manager.LogPeer.UnregisterSearchManager(manager)
-
-	// Delete from widgetManagers map
 	widgetManagers.Delete(manager.WidgetId)
 }
 
@@ -274,10 +261,7 @@ func (m *SearchManager) GetLastUsed() time.Time {
 // performSearch is a pure function that filters log lines based on search criteria
 func performSearch(allLogs []ds.LogLine, totalCount int, searcher Searcher, sctx *SearchContext) ([]ds.LogLine, *SearchStats, error) {
 	startTs := time.Now()
-
 	searchedCount := len(allLogs)
-
-	// Create a new result slice
 	result := []ds.LogLine{}
 
 	// Filter the logs based on the search criteria
@@ -305,17 +289,13 @@ func performSearch(allLogs []ds.LogLine, totalCount int, searcher Searcher, sctx
 		lastLineNum = allLogs[len(allLogs)-1].LineNum
 	}
 
-	// Calculate search duration
 	searchDuration := int(time.Since(startTs).Milliseconds())
-
-	// Create search stats
 	stats := &SearchStats{
 		TotalCount:     totalCount,
 		SearchedCount:  searchedCount,
 		LastLineNum:    lastLineNum,
 		SearchDuration: searchDuration,
 	}
-
 	log.Printf("SearchManager: filtered %d/%d lines in %dms\n", len(result), searchedCount, searchDuration)
 	return result, stats, nil
 }
@@ -343,20 +323,13 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 	if m.MarkManager.GetNumMarks() == 0 {
 		return nil, nil
 	}
-
-	// Create a marked searcher
 	searcher := MakeMarkedSearcher()
-
-	// Create search context with marked lines
 	sctx := &SearchContext{
 		MarkedLines: m.MarkManager.GetMarkedIds(),
 	}
-
 	// Get all log lines and total count from the LogLinePeer in a single synchronized call
 	// We don't need to hold the lock during the search since performSearch is a pure function
 	allLogs, totalCount := m.LogPeer.GetLogLines()
-
-	// Use the performSearch function to filter logs
 	result, _, err := performSearch(allLogs, totalCount, searcher, sctx)
 	return result, err
 }
@@ -368,34 +341,22 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 	if searchTerm == m.UserQuery && systemQuery == m.SystemQuery {
 		return nil
 	}
-
-	// Create searcher for the search term
 	userSearcher, err := GetSearcher(searchTerm)
 	if err != nil {
 		return fmt.Errorf("failed to create user searcher: %w", err)
 	}
-
-	// Store the user searcher
 	m.UserSearcher = userSearcher
-
-	// Determine which searcher to use for the search
 	var effectiveSearcher Searcher = userSearcher
-
-	// If we have a system query, create a searcher for it
 	if systemQuery != "" {
 		systemSearcher, err := GetSearcher(systemQuery)
 		if err != nil {
 			return fmt.Errorf("failed to create system searcher: %w", err)
 		}
-
-		// Store the system searcher
 		m.SystemSearcher = systemSearcher
-
 		// Use the system searcher as the effective searcher
 		// The system searcher will use the UserQuery field in the SearchContext if it contains a #userquery token
 		effectiveSearcher = systemSearcher
 	} else {
-		// No system query, clear the system searcher
 		m.SystemSearcher = nil
 	}
 
@@ -403,16 +364,11 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 	m.UserQuery = searchTerm
 	m.SystemQuery = systemQuery
 
-	// Create search context with marked lines and user query
 	sctx := &SearchContext{
 		MarkedLines: m.MarkManager.GetMarkedIds(),
 		UserQuery:   userSearcher, // Set the user query searcher for #userquery references
 	}
-
-	// Get all log lines and total count from the LogLinePeer in a single synchronized call
 	allLogs, totalCount := m.LogPeer.GetLogLines()
-
-	// Perform the search
 	result, stats, err := performSearch(allLogs, totalCount, effectiveSearcher, sctx)
 	if err != nil {
 		m.UserQuery = uuid.New().String() // set to random value to prevent using cache
@@ -423,10 +379,8 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 		return err
 	}
 
-	// Update the manager with the search results and stats
 	m.CachedResult = result
 	m.Stats = *stats
-
 	return nil
 }
 
@@ -435,29 +389,17 @@ func (m *SearchManager) SearchLogs(ctx context.Context, data rpctypes.SearchRequ
 	m.Lock.Lock()
 	defer m.Lock.Unlock()
 
-	// Check if the AppPeer is valid
-	if m.AppPeer == nil {
-		return rpctypes.SearchResultData{}, fmt.Errorf("app peer not found for app run ID: %s", data.AppRunId)
-	}
 	m.LastUsed = time.Now()
-
-	// Store the RPC source
 	m.RpcSource = rpc.GetRpcSourceFromContext(ctx)
-
-	// Run a new search if needed
 	err := m.maybeRunNewSearch(data.SearchTerm, data.SystemQuery)
 	if err != nil {
 		return rpctypes.SearchResultData{}, err
 	}
 
-	// Get requested pages of log lines
 	filteredSize := len(m.CachedResult)
 	totalPages := (filteredSize + data.PageSize - 1) / data.PageSize // Ceiling division
-
-	// Process requested pages and collect results
 	pages := make([]rpctypes.PageData, 0, len(data.RequestPages))
 	seenPages := make(map[int]bool)
-
 	for _, pageNum := range data.RequestPages {
 		// Handle negative indices (counting from end)
 		resolvedPage := pageNum
@@ -470,12 +412,8 @@ func (m *SearchManager) SearchLogs(ctx context.Context, data rpctypes.SearchRequ
 			continue
 		}
 		seenPages[resolvedPage] = true
-
-		// Calculate slice bounds
 		startIndex := resolvedPage * data.PageSize
 		endIndex := utilfn.BoundValue(startIndex+data.PageSize, startIndex, filteredSize)
-
-		// Add page to results
 		pages = append(pages, rpctypes.PageData{
 			PageNum: resolvedPage,
 			Lines:   m.CachedResult[startIndex:endIndex],
