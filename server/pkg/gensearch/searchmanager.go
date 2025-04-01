@@ -53,6 +53,7 @@ type SearchManager struct {
 	WidgetId string
 	AppRunId string
 	AppPeer  *apppeer.AppRunPeer // Will never be nil
+	LogPeer  *apppeer.LogLinePeer // Reference to the LogLinePeer for log operations
 	LastUsed time.Time           // Timestamp of when this manager was last used
 
 	// User search components
@@ -157,13 +158,14 @@ func NewSearchManager(widgetId string, appPeer *apppeer.AppRunPeer) *SearchManag
 		Lock:        &sync.Mutex{},
 		WidgetId:    widgetId,
 		AppPeer:     appPeer,
+		LogPeer:     appPeer.Logs,
 		LastUsed:    time.Now(),
 		UserQuery:   uuid.New().String(), // pick a random value that will never match a real search term
 		MarkManager: MakeMarkManager(),
 	}
 
-	// Register this manager with the AppRunPeer
-	appPeer.RegisterSearchManager(manager)
+	// Register this manager with the LogLinePeer
+	appPeer.Logs.RegisterSearchManager(manager)
 
 	return manager
 }
@@ -239,10 +241,10 @@ func GetOrCreateManager(widgetId string, appRunId string) *SearchManager {
 	return manager
 }
 
-// deleteSearchManager removes a SearchManager from the widgetManagers map and unregisters it from the AppRunPeer
+// deleteSearchManager removes a SearchManager from the widgetManagers map and unregisters it from the LogLinePeer
 func deleteSearchManager(manager *SearchManager) {
-	// Unregister from AppRunPeer
-	manager.AppPeer.UnregisterSearchManager(manager)
+	// Unregister from LogLinePeer
+	manager.LogPeer.UnregisterSearchManager(manager)
 
 	// Delete from widgetManagers map
 	widgetManagers.Delete(manager.WidgetId)
@@ -350,10 +352,9 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 		MarkedLines: m.MarkManager.GetMarkedIds(),
 	}
 
-	// Get all log lines from the circular buffer
+	// Get all log lines and total count from the LogLinePeer in a single synchronized call
 	// We don't need to hold the lock during the search since performSearch is a pure function
-	allLogs, headOffset := m.AppPeer.Logs.GetAll()
-	totalCount := len(allLogs) + headOffset
+	allLogs, totalCount := m.LogPeer.GetLogLines()
 
 	// Use the performSearch function to filter logs
 	result, _, err := performSearch(allLogs, totalCount, searcher, sctx)
@@ -408,9 +409,8 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) error 
 		UserQuery:   userSearcher, // Set the user query searcher for #userquery references
 	}
 
-	// Get all log lines from the circular buffer
-	allLogs, headOffset := m.AppPeer.Logs.GetAll()
-	totalCount := len(allLogs) + headOffset
+	// Get all log lines and total count from the LogLinePeer in a single synchronized call
+	allLogs, totalCount := m.LogPeer.GetLogLines()
 
 	// Perform the search
 	result, stats, err := performSearch(allLogs, totalCount, effectiveSearcher, sctx)

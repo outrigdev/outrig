@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -27,7 +26,6 @@ type SearchManagerInterface interface {
 	ProcessNewLine(line ds.LogLine)
 }
 
-const LogLineBufferSize = 10000
 
 // Application status constants
 const (
@@ -46,18 +44,10 @@ type AppRunPeer struct {
 	refLock     sync.Mutex // Lock for reference counter operations
 
 	// log fields
-	Logs        *utilds.CirBuf[ds.LogLine]
-	LineNum     int64      // Counter for log line numbers
-	logLineLock sync.Mutex // Lock for synchronizing log line operations
-
-	// log search managers
-	searchManagers []SearchManagerInterface // Registered search managers
-	searchLock     sync.RWMutex             // Lock for search managers
-
+	Logs          *LogLinePeer
 	GoRoutines    *GoRoutinePeer
 	Watches       *WatchesPeer
 	RuntimeStats  *RuntimeStatsPeer
-
 }
 
 // AppRunPeer management constants
@@ -107,7 +97,7 @@ func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 
 		return &AppRunPeer{
 			AppRunId:     appRunId,
-			Logs:         utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
+			Logs:         MakeLogLinePeer(),
 			GoRoutines:   MakeGoRoutinePeer(),
 			Watches:      MakeWatchesPeer(),
 			RuntimeStats: MakeRuntimeStatsPeer(),
@@ -154,38 +144,17 @@ func (p *AppRunPeer) GetRefCount() int {
 
 // RegisterSearchManager registers a search manager with this AppRunPeer
 func (p *AppRunPeer) RegisterSearchManager(manager SearchManagerInterface) {
-	p.searchLock.Lock()
-	defer p.searchLock.Unlock()
-
-	// Add the search manager to the list
-	p.searchManagers = append(p.searchManagers, manager)
+	p.Logs.RegisterSearchManager(manager)
 }
 
 // UnregisterSearchManager removes a search manager from this AppRunPeer
 func (p *AppRunPeer) UnregisterSearchManager(manager SearchManagerInterface) {
-	p.searchLock.Lock()
-	defer p.searchLock.Unlock()
-
-	// Find and remove the search manager
-	for i, m := range p.searchManagers {
-		if m == manager {
-			// Remove by swapping with the last element and truncating
-			p.searchManagers[i] = p.searchManagers[len(p.searchManagers)-1]
-			p.searchManagers = p.searchManagers[:len(p.searchManagers)-1]
-			break
-		}
-	}
+	p.Logs.UnregisterSearchManager(manager)
 }
 
 // NotifySearchManagers notifies all registered search managers about a new log line
 func (p *AppRunPeer) NotifySearchManagers(line ds.LogLine) {
-	p.searchLock.RLock()
-	defer p.searchLock.RUnlock()
-
-	// Notify all registered search managers
-	for _, manager := range p.searchManagers {
-		manager.ProcessNewLine(line)
-	}
+	p.Logs.NotifySearchManagers(line)
 }
 
 // GetAllAppRunPeers returns all AppRunPeers
@@ -253,15 +222,9 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		if err := json.Unmarshal(packetData, &logLine); err != nil {
 			return fmt.Errorf("failed to unmarshal LogLine: %w", err)
 		}
-		logLine.Msg = normalizeLineEndings(logLine.Msg)
 
-		p.logLineLock.Lock()
-		p.LineNum++
-		logLine.LineNum = p.LineNum
-		p.Logs.Write(logLine)
-		p.logLineLock.Unlock()
-
-		p.NotifySearchManagers(logLine)
+		// Process the log line using the LogLinePeer
+		p.Logs.ProcessLogLine(logLine)
 
 	case ds.PacketTypeGoroutine:
 		var goroutineInfo ds.GoroutineInfo
@@ -307,24 +270,6 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 	return nil
 }
 
-// normalizeLineEndings ensures consistent line endings in log messages
-func normalizeLineEndings(msg string) string {
-	// remove all \r characters (converts windows-style line endings to unix-style)
-	// internal \r characters are also likely problematic
-	msg = strings.ReplaceAll(msg, "\r", "")
-
-	// Ensure the message has at least one newline at the end
-	if !strings.HasSuffix(msg, "\n") {
-		msg = msg + "\n"
-	}
-
-	// Replace multiple consecutive newlines at the end with a single newline
-	for strings.HasSuffix(msg, "\n\n") {
-		msg = msg[:len(msg)-1]
-	}
-
-	return msg
-}
 
 // SetConnectionClosed is deprecated, use Release instead
 // This is kept for backward compatibility
@@ -388,6 +333,9 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	numActiveWatches := p.Watches.GetActiveWatchCount()
 	numTotalWatches := p.Watches.GetTotalWatchCount()
 
+	// Get log count from LogLinePeer
+	_, numLogs := p.Logs.GetLogLines()
+
 	// Create AppRunInfo
 	appRunInfo := rpctypes.AppRunInfo{
 		AppRunId:            p.AppRunId,
@@ -395,7 +343,7 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 		StartTime:           p.AppInfo.StartTime,
 		IsRunning:           isRunning,
 		Status:              p.Status,
-		NumLogs:             p.Logs.Size(),
+		NumLogs:             numLogs,
 		NumActiveGoRoutines: numActiveGoRoutines,
 		NumTotalGoRoutines:  numTotalGoRoutines,
 		NumActiveWatches:    numActiveWatches,
