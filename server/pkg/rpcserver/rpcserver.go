@@ -134,7 +134,8 @@ func (*RpcServerImpl) GetAppRunRuntimeStatsCommand(ctx context.Context, data rpc
 
 // LogSearchRequestCommand handles search requests for logs
 func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes.SearchRequestData) (rpctypes.SearchResultData, error) {
-	manager := gensearch.GetOrCreateManager(data.WidgetId, data.AppRunId)
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	manager := gensearch.GetOrCreateManager(data.WidgetId, data.AppRunId, peer.Logs)
 	return manager.SearchLogs(ctx, data)
 }
 

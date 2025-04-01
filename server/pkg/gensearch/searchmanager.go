@@ -16,15 +16,27 @@ import (
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
-	"github.com/outrigdev/outrig/server/pkg/apppeer"
 )
 
 const (
-	MaxSearchManagers = 5
-	CleanupInterval   = 10 * time.Second
-	MaxIdleTime       = 1 * time.Minute
-	TrimSize          = 1000
+	MaxSearchManagers  = 5
+	CleanupInterval    = 10 * time.Second
+	MaxIdleTime        = 1 * time.Minute
+	TrimSize           = 1000
+	LogLineBufferSize  = 10000 // Copied from apppeer.LogLineBufferSize to remove dependency
 )
+
+type PeerInterface interface {
+	GetLogLines() ([]ds.LogLine, int)
+	RegisterSearchManager(manager SearchManagerInterface)
+	UnregisterSearchManager(manager SearchManagerInterface)
+}
+
+// SearchManagerInterface defines the interface for search managers
+// This is the same interface as in apppeer, but defined here to avoid the dependency
+type SearchManagerInterface interface {
+	ProcessNewLine(line ds.LogLine)
+}
 
 // SearchStats contains statistics about a search operation
 type SearchStats struct {
@@ -52,8 +64,8 @@ type SearchManager struct {
 	Lock     *sync.Mutex
 	WidgetId string
 	AppRunId string
-	LogPeer  *apppeer.LogLinePeer // Reference to the LogLinePeer for log operations
-	LastUsed time.Time            // Timestamp of when this manager was last used
+	LogPeer  PeerInterface // Reference to the peer for log operations
+	LastUsed time.Time     // Timestamp of when this manager was last used
 
 	// User search components
 	UserQuery    string   // The user's search term
@@ -127,12 +139,12 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 		return
 	}
 	m.CachedResult = append(m.CachedResult, line)
-	if len(m.CachedResult) > apppeer.LogLineBufferSize+TrimSize {
+	if len(m.CachedResult) > LogLineBufferSize+TrimSize {
 		m.TrimmedCount += TrimSize
 		// create a new slice with the last N elements
 		oldLogs := m.CachedResult
-		m.CachedResult = make([]ds.LogLine, apppeer.LogLineBufferSize)
-		copy(m.CachedResult, oldLogs[len(oldLogs)-apppeer.LogLineBufferSize:])
+		m.CachedResult = make([]ds.LogLine, LogLineBufferSize)
+		copy(m.CachedResult, oldLogs[len(oldLogs)-LogLineBufferSize:])
 	}
 
 	streamUpdate := rpctypes.StreamUpdateData{
@@ -147,19 +159,20 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 	go rpcclient.LogStreamUpdateCommand(rpcclient.BareClient, streamUpdate, &rpc.RpcOpts{Route: m.RpcSource, NoResponse: true})
 }
 
-// NewSearchManager creates a new SearchManager for a specific widget
-func NewSearchManager(widgetId string, appPeer *apppeer.AppRunPeer) *SearchManager {
+// MakeSearchManager creates a new SearchManager for a specific widget
+func MakeSearchManager(widgetId string, appRunId string, peer PeerInterface) *SearchManager {
 	manager := &SearchManager{
 		Lock:        &sync.Mutex{},
 		WidgetId:    widgetId,
-		LogPeer:     appPeer.Logs,
+		AppRunId:    appRunId,
+		LogPeer:     peer,
 		LastUsed:    time.Now(),
 		UserQuery:   uuid.New().String(), // pick a random value that will never match a real search term
 		MarkManager: MakeMarkManager(),
 	}
 
-	// Register this manager with the LogLinePeer
-	appPeer.Logs.RegisterSearchManager(manager)
+	// Register this manager with the peer
+	peer.RegisterSearchManager(manager)
 
 	return manager
 }
@@ -214,11 +227,10 @@ func GetManager(widgetId string) *SearchManager {
 	return widgetManagers.Get(widgetId)
 }
 
-// GetOrCreateManager gets or creates a SearchManager for the given widget ID and app peer
-func GetOrCreateManager(widgetId string, appRunId string) *SearchManager {
-	appPeer := apppeer.GetAppRunPeer(appRunId, false)
+// GetOrCreateManager gets or creates a SearchManager for the given widget ID and app run ID
+func GetOrCreateManager(widgetId string, appRunId string, peer PeerInterface) *SearchManager {
 	manager, created := widgetManagers.GetOrCreate(widgetId, func() *SearchManager {
-		return NewSearchManager(widgetId, appPeer)
+		return MakeSearchManager(widgetId, appRunId, peer)
 	})
 	// If we created a new manager or we're over the limit, run cleanup
 	if created || widgetManagers.Len() > MaxSearchManagers {
@@ -227,7 +239,7 @@ func GetOrCreateManager(widgetId string, appRunId string) *SearchManager {
 	return manager
 }
 
-// deleteSearchManager removes a SearchManager from the widgetManagers map and unregisters it from the LogLinePeer
+// deleteSearchManager removes a SearchManager from the widgetManagers map and unregisters it from the peer
 func deleteSearchManager(manager *SearchManager) {
 	manager.LogPeer.UnregisterSearchManager(manager)
 	widgetManagers.Delete(manager.WidgetId)
@@ -421,7 +433,7 @@ func (m *SearchManager) SearchLogs(ctx context.Context, data rpctypes.SearchRequ
 		FilteredCount: filteredSize,
 		SearchedCount: m.Stats.SearchedCount,
 		TotalCount:    m.Stats.TotalCount,
-		MaxCount:      apppeer.LogLineBufferSize,
+		MaxCount:      LogLineBufferSize,
 		Pages:         pages,
 	}, nil
 }

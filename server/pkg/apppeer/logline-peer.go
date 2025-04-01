@@ -9,6 +9,7 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilds"
+	"github.com/outrigdev/outrig/server/pkg/gensearch"
 )
 
 const LogLineBufferSize = 10000
@@ -16,10 +17,10 @@ const LogLineBufferSize = 10000
 // LogLinePeer manages log lines for an AppRunPeer
 type LogLinePeer struct {
 	logLines      *utilds.CirBuf[ds.LogLine]
-	lineNum       int64                    // Counter for log line numbers
-	logLineLock   sync.Mutex               // Lock for synchronizing log line operations
-	searchMgr     []SearchManagerInterface // Registered search managers
-	logSearchLock sync.RWMutex             // Lock for search managers
+	lineNum       int64                            // Counter for log line numbers
+	logLineLock   sync.Mutex                       // Lock for synchronizing log line operations
+	searchMgr     []gensearch.SearchManagerInterface // Registered search managers
+	logSearchLock sync.RWMutex                     // Lock for search managers
 }
 
 // MakeLogLinePeer creates a new LogLinePeer instance
@@ -69,7 +70,7 @@ func (lp *LogLinePeer) GetLogLines() ([]ds.LogLine, int) {
 }
 
 // RegisterSearchManager registers a search manager with this LogLinePeer
-func (lp *LogLinePeer) RegisterSearchManager(manager SearchManagerInterface) {
+func (lp *LogLinePeer) RegisterSearchManager(manager gensearch.SearchManagerInterface) {
 	lp.logSearchLock.Lock()
 	defer lp.logSearchLock.Unlock()
 
@@ -77,7 +78,7 @@ func (lp *LogLinePeer) RegisterSearchManager(manager SearchManagerInterface) {
 }
 
 // UnregisterSearchManager removes a search manager from this LogLinePeer
-func (lp *LogLinePeer) UnregisterSearchManager(manager SearchManagerInterface) {
+func (lp *LogLinePeer) UnregisterSearchManager(manager gensearch.SearchManagerInterface) {
 	lp.logSearchLock.Lock()
 	defer lp.logSearchLock.Unlock()
 

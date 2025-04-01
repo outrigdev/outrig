@@ -32,10 +32,6 @@ const (
 	AppStatusDisconnected = "disconnected"
 )
 
-// SearchManagerInterface defines the interface for search managers
-type SearchManagerInterface interface {
-	ProcessNewLine(line ds.LogLine)
-}
 
 // AppRunPeer represents a peer connection to an app client
 type AppRunPeer struct {
@@ -136,21 +132,6 @@ func (p *AppRunPeer) GetRefCount() int {
 	p.refLock.Lock()
 	defer p.refLock.Unlock()
 	return p.refCount
-}
-
-// RegisterSearchManager registers a search manager with this AppRunPeer
-func (p *AppRunPeer) RegisterSearchManager(manager SearchManagerInterface) {
-	p.Logs.RegisterSearchManager(manager)
-}
-
-// UnregisterSearchManager removes a search manager from this AppRunPeer
-func (p *AppRunPeer) UnregisterSearchManager(manager SearchManagerInterface) {
-	p.Logs.UnregisterSearchManager(manager)
-}
-
-// NotifySearchManagers notifies all registered search managers about a new log line
-func (p *AppRunPeer) NotifySearchManagers(line ds.LogLine) {
-	p.Logs.NotifySearchManagers(line)
 }
 
 // GetAllAppRunPeers returns all AppRunPeers
