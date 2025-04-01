@@ -16,7 +16,7 @@ const RuntimeStatsBufferSize = 600 // 10 minutes of 1-second samples
 // RuntimeStatsPeer manages runtime stats for an AppRunPeer
 type RuntimeStatsPeer struct {
 	runtimeStats *utilds.CirBuf[ds.RuntimeStatsInfo]
-	lock         sync.RWMutex // Lock for synchronizing runtime stats operations
+	lock         sync.RWMutex
 }
 
 // MakeRuntimeStatsPeer creates a new RuntimeStatsPeer instance
@@ -31,7 +31,6 @@ func (rsp *RuntimeStatsPeer) ProcessRuntimeStats(stats ds.RuntimeStatsInfo) {
 	rsp.lock.Lock()
 	defer rsp.lock.Unlock()
 
-	// Add runtime stats to circular buffer
 	rsp.runtimeStats.Write(stats)
 }
 
@@ -47,7 +46,6 @@ func (rsp *RuntimeStatsPeer) GetFilteredStats(sinceTs int64) []ds.RuntimeStatsIn
 	rsp.lock.RLock()
 	defer rsp.lock.RUnlock()
 
-	// Filter stats based on sinceTs
 	return rsp.runtimeStats.FilterItems(func(stat ds.RuntimeStatsInfo, _ int) bool {
 		return stat.Ts > sinceTs
 	})
@@ -72,10 +70,7 @@ func ConvertToRuntimeStatData(stat ds.RuntimeStatsInfo) rpctypes.RuntimeStatData
 
 // GetRuntimeStats retrieves runtime stats for RPC
 func (rsp *RuntimeStatsPeer) GetRuntimeStats(sinceTs int64) []rpctypes.RuntimeStatData {
-	// Get filtered stats
 	filteredStats := rsp.GetFilteredStats(sinceTs)
-
-	// Convert each ds.RuntimeStatsInfo to rpctypes.RuntimeStatData
 	result := make([]rpctypes.RuntimeStatData, 0, len(filteredStats))
 	for _, stat := range filteredStats {
 		result = append(result, ConvertToRuntimeStatData(stat))

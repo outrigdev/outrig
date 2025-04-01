@@ -13,9 +13,9 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilds"
 )
 
-const GoRoutineStackBufferSize = 600 // 10 minutes of 1-second samples
+const GoRoutineStackBufferSize = 600
 
-// GoRoutine represents a single goroutine with its stack traces
+// GoRoutine represents a goroutine with its stack traces
 type GoRoutine struct {
 	GoId        int64
 	Name        string
@@ -43,7 +43,6 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(stacks []ds.GoRoutineStack) {
 	gp.lock.Lock()
 	defer gp.lock.Unlock()
 
-	// Create a new map for active goroutines in this packet
 	activeGoroutines := make(map[int64]bool)
 
 	// Process goroutine stacks
@@ -51,19 +50,15 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(stacks []ds.GoRoutineStack) {
 		goId := stack.GoId
 		goIdStr := strconv.FormatInt(goId, 10)
 
-		// Mark this goroutine as active
 		activeGoroutines[goId] = true
 
-		// Get or create goroutine entry in the syncmap atomically
 		goroutine, _ := gp.goRoutines.GetOrCreate(goIdStr, func() GoRoutine {
-			// New goroutine
 			return GoRoutine{
 				GoId:        goId,
 				StackTraces: utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
 			}
 		})
 
-		// Update name if provided
 		if stack.Name != "" {
 			goroutine.Name = stack.Name
 		}
@@ -71,14 +66,11 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(stacks []ds.GoRoutineStack) {
 			goroutine.Tags = stack.Tags
 		}
 
-		// Add stack trace to the circular buffer
 		goroutine.StackTraces.Write(stack)
 
-		// Update the goroutine in the syncmap
 		gp.goRoutines.Set(goIdStr, goroutine)
 	}
 
-	// Update the active goroutines map
 	gp.activeGoRoutines = activeGoroutines
 }
 
@@ -99,30 +91,22 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 	gp.lock.RLock()
 	defer gp.lock.RUnlock()
 
-	// Prepare a slice to hold the parsed goroutines
 	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(gp.activeGoRoutines))
-
-	// Iterate through active goroutines only
 	for goId := range gp.activeGoRoutines {
-		// Convert goroutine ID to string key
 		goIdStr := strconv.FormatInt(goId, 10)
 
-		// Get the goroutine object
 		goroutineObj, exists := gp.goRoutines.GetEx(goIdStr)
 		if !exists {
 			continue
 		}
 
-		// Get the most recent stack trace using GetLast
 		latestStack, _, exists := goroutineObj.StackTraces.GetLast()
 		if !exists {
 			continue
 		}
 
-		// Parse the stack trace
 		parsedGoRoutine, err := goroutine.ParseGoRoutineStackTrace(latestStack.StackTrace, moduleName)
 		if err != nil {
-			// If parsing fails, skip this goroutine
 			continue
 		}
 		parsedGoRoutine.Name = goroutineObj.Name

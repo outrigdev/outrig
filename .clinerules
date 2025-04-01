@@ -13,6 +13,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - Use string constants for status values, packet types, and other string-based enumerations.
     - in Go code, prefer using Printf() vs Println()
     - use "Make" as opposed to "New" for struct initialization func names
+    - in general const decls go at the top fo the file (before types and functions)
 - **TypeScript Imports**:
     - Use `@/...` for imports from different parts of the project (configured in `tsconfig.json` as `"@/*": ["frontend/*"]`).
     - Prefer relative imports (`"./name"`) within the same or child directories.

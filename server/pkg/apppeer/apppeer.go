@@ -21,18 +21,21 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
 
-// SearchManagerInterface defines the interface for search managers
-type SearchManagerInterface interface {
-	ProcessNewLine(line ds.LogLine)
-}
+const (
+	MaxAppRunPeers = 8
+	PruneInterval  = 15 * time.Second
+)
 
-
-// Application status constants
 const (
 	AppStatusRunning      = "running"
 	AppStatusDone         = "done"
 	AppStatusDisconnected = "disconnected"
 )
+
+// SearchManagerInterface defines the interface for search managers
+type SearchManagerInterface interface {
+	ProcessNewLine(line ds.LogLine)
+}
 
 // AppRunPeer represents a peer connection to an app client
 type AppRunPeer struct {
@@ -43,18 +46,11 @@ type AppRunPeer struct {
 	refCount    int        // Reference counter
 	refLock     sync.Mutex // Lock for reference counter operations
 
-	// log fields
-	Logs          *LogLinePeer
-	GoRoutines    *GoRoutinePeer
-	Watches       *WatchesPeer
-	RuntimeStats  *RuntimeStatsPeer
+	Logs         *LogLinePeer
+	GoRoutines   *GoRoutinePeer
+	Watches      *WatchesPeer
+	RuntimeStats *RuntimeStatsPeer
 }
-
-// AppRunPeer management constants
-const (
-	MaxAppRunPeers = 8
-	PruneInterval  = 15 * time.Second
-)
 
 // Global synchronized map to hold all AppRunPeers
 var appRunPeers = utilds.MakeSyncMap[*AppRunPeer]()
@@ -76,7 +72,7 @@ func init() {
 	}()
 }
 
-// getAppRunDir returns the directory path for storing app run data
+// getAppRunDir returns the directory for storing app run data
 func getAppRunDir(appRunId string) string {
 	dataDir := utilfn.ExpandHomeDir(serverbase.GetOutrigDataDir())
 	return filepath.Join(dataDir, appRunId)
@@ -159,13 +155,8 @@ func (p *AppRunPeer) NotifySearchManagers(line ds.LogLine) {
 
 // GetAllAppRunPeers returns all AppRunPeers
 func GetAllAppRunPeers() []*AppRunPeer {
-	// Get all keys from the sync map
 	keys := appRunPeers.Keys()
-
-	// Create a slice to hold all peers
 	peers := make([]*AppRunPeer, 0, len(keys))
-
-	// Get each peer and add it to the slice
 	for _, key := range keys {
 		if peer, exists := appRunPeers.GetEx(key); exists {
 			peers = append(peers, peer)
@@ -178,10 +169,7 @@ func GetAllAppRunPeers() []*AppRunPeer {
 // GetAllAppRunPeerInfos returns AppRunInfo for all valid app run peers
 // If since > 0, only returns peers that have been modified since the given timestamp
 func GetAllAppRunPeerInfos(since int64) []rpctypes.AppRunInfo {
-	// Get all app run peers
 	appRunPeers := GetAllAppRunPeers()
-
-	// Convert to AppRunInfo slice
 	appRuns := make([]rpctypes.AppRunInfo, 0, len(appRunPeers))
 	for _, peer := range appRunPeers {
 		// Skip peers with no AppInfo
@@ -204,7 +192,6 @@ func GetAllAppRunPeerInfos(since int64) []rpctypes.AppRunInfo {
 
 // HandlePacket processes a packet received from the domain socket connection
 func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage) error {
-	// Update the last modification time to the current time in milliseconds
 	p.LastModTime = time.Now().UnixMilli()
 
 	switch packetType {
@@ -222,8 +209,6 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		if err := json.Unmarshal(packetData, &logLine); err != nil {
 			return fmt.Errorf("failed to unmarshal LogLine: %w", err)
 		}
-
-		// Process the log line using the LogLinePeer
 		p.Logs.ProcessLogLine(logLine)
 
 	case ds.PacketTypeGoroutine:
@@ -232,7 +217,6 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			return fmt.Errorf("failed to unmarshal GoroutineInfo: %w", err)
 		}
 
-		// Process goroutine stacks using the GoRoutinePeer
 		p.GoRoutines.ProcessGoroutineStacks(goroutineInfo.Stacks)
 
 		log.Printf("Processed %d goroutines for app run ID: %s", len(goroutineInfo.Stacks), p.AppRunId)
@@ -243,7 +227,6 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			return fmt.Errorf("failed to unmarshal WatchInfo: %w", err)
 		}
 
-		// Process watch values using the WatchesPeer
 		p.Watches.ProcessWatchValues(watchInfo.Watches)
 
 		log.Printf("Processed %d watches for app run ID: %s", len(watchInfo.Watches), p.AppRunId)
@@ -258,7 +241,6 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			return fmt.Errorf("failed to unmarshal RuntimeStatsInfo: %w", err)
 		}
 
-		// Process runtime stats using the RuntimeStatsPeer
 		p.RuntimeStats.ProcessRuntimeStats(runtimeStats)
 
 		log.Printf("Received runtime stats for app run ID: %s", p.AppRunId)
@@ -270,13 +252,6 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 	return nil
 }
 
-
-// SetConnectionClosed is deprecated, use Release instead
-// This is kept for backward compatibility
-func (p *AppRunPeer) SetConnectionClosed() {
-	p.Release()
-}
-
 // PruneAppRunPeers removes old app run peers to keep the total count under MaxAppRunPeers
 // It will not prune peers that are running or have a non-zero reference count
 func PruneAppRunPeers() int {
@@ -285,17 +260,12 @@ func PruneAppRunPeers() int {
 		return 0
 	}
 
-	// Sort all peers by LastModTime (oldest first)
 	sort.Slice(allPeers, func(i, j int) bool {
 		return allPeers[i].LastModTime < allPeers[j].LastModTime
 	})
 
-	// We need to prune until we have MaxAppRunPeers or no more eligible peers
 	numPruned := 0
-
-	// Iterate through peers from oldest to newest
 	for _, peer := range allPeers {
-		// If we've reached our target count, stop pruning
 		if len(allPeers)-numPruned <= MaxAppRunPeers {
 			break
 		}
@@ -305,7 +275,6 @@ func PruneAppRunPeers() int {
 		if peer.GetRefCount() > 0 {
 			continue
 		}
-		// This peer is eligible for pruning
 		appRunPeers.Delete(peer.AppRunId)
 		log.Printf("Pruned app run peer: %s (last modified: %s)",
 			peer.AppRunId, time.UnixMilli(peer.LastModTime).Format(time.RFC3339))
@@ -317,26 +286,16 @@ func PruneAppRunPeers() int {
 
 // GetAppRunInfo constructs and returns an AppRunInfo struct for this peer
 func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
-	// Skip peers with no AppInfo
 	if p.AppInfo == nil {
 		return rpctypes.AppRunInfo{}
 	}
 
-	// Determine if the app is still running based on its status
 	isRunning := p.Status == AppStatusRunning
-
-	// Get the number of active and total goroutines
 	numActiveGoRoutines := p.GoRoutines.GetActiveGoRoutineCount()
 	numTotalGoRoutines := p.GoRoutines.GetTotalGoRoutineCount()
-
-	// Get the number of active and total watches
 	numActiveWatches := p.Watches.GetActiveWatchCount()
 	numTotalWatches := p.Watches.GetTotalWatchCount()
-
-	// Get log count from LogLinePeer
-	_, numLogs := p.Logs.GetLogLines()
-
-	// Create AppRunInfo
+	numLogs := p.Logs.GetTotalCount()
 	appRunInfo := rpctypes.AppRunInfo{
 		AppRunId:            p.AppRunId,
 		AppName:             p.AppInfo.AppName,
@@ -353,7 +312,6 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 		Executable:          p.AppInfo.Executable,
 	}
 
-	// Add build info if available
 	if p.AppInfo.BuildInfo != nil {
 		appRunInfo.BuildInfo = &rpctypes.BuildInfoData{
 			GoVersion: p.AppInfo.BuildInfo.GoVersion,
