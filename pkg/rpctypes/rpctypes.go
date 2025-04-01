@@ -40,10 +40,12 @@ type FullRpcInterface interface {
 	// app run commands
 	GetAppRunsCommand(ctx context.Context, data AppRunUpdatesRequest) (AppRunsData, error)
 	GetAppRunGoRoutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoRoutinesData, error)
-	GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data AppRunGoRoutinesByIdsRequest) (AppRunGoRoutinesData, error)
-	GoRoutineSearchRequestCommand(ctx context.Context, data GoRoutineSearchRequestData) (GoRoutineSearchResultData, error)
 	GetAppRunWatchesCommand(ctx context.Context, data AppRunRequest) (AppRunWatchesData, error)
 	GetAppRunRuntimeStatsCommand(ctx context.Context, data AppRunRequest) (AppRunRuntimeStatsData, error)
+
+	// goroutine search
+	GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data AppRunGoRoutinesByIdsRequest) (AppRunGoRoutinesData, error)
+	GoRoutineSearchRequestCommand(ctx context.Context, data GoRoutineSearchRequestData) (GoRoutineSearchResultData, error)
 
 	// event commands
 	EventPublishCommand(ctx context.Context, data EventType) error

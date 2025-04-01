@@ -21,6 +21,7 @@ class GoRoutinesModel {
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     isSearching: PrimitiveAtom<boolean> = atom(false);
     contentRef: React.RefObject<HTMLDivElement> = null;
+    currentSearchId: string = "";
 
     // State filters
     showAll: PrimitiveAtom<boolean> = atom(true);
@@ -212,6 +213,8 @@ class GoRoutinesModel {
     // Search for goroutines matching the search term
     async searchGoroutines(searchTerm: string) {
         const store = getDefaultStore();
+        const searchId = crypto.randomUUID();
+        this.currentSearchId = searchId;
 
         try {
             store.set(this.isSearching, true);
@@ -221,6 +224,11 @@ class GoRoutinesModel {
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
             });
+
+            // Check if this search is still the current one
+            if (this.currentSearchId !== searchId) {
+                return; // Abandon results from stale search
+            }
 
             // Update search result info
             store.set(this.searchResultInfo, {
@@ -252,6 +260,8 @@ class GoRoutinesModel {
 
     // Fetch goroutine details by IDs
     async fetchGoRoutinesByIds(goIds: number[]) {
+        const searchId = this.currentSearchId;
+        
         try {
             if (goIds.length === 0) {
                 getDefaultStore().set(this.appRunGoRoutines, []);
@@ -262,6 +272,11 @@ class GoRoutinesModel {
                 apprunid: this.appRunId,
                 goids: goIds,
             });
+
+            // Check if this search is still the current one
+            if (this.currentSearchId !== searchId) {
+                return; // Abandon results from stale search
+            }
 
             getDefaultStore().set(this.appRunGoRoutines, result.goroutines);
         } catch (error) {

@@ -44,6 +44,7 @@ type WatchCollector struct {
 	lock       sync.Mutex
 	controller ds.Controller
 	ticker     *time.Ticker
+	done       chan struct{}
 
 	watchDecls map[string]*WatchDecl
 	watchVals  []ds.WatchSample
@@ -167,15 +168,29 @@ func (wc *WatchCollector) Enable() {
 	if wc.ticker != nil {
 		return
 	}
+
+	wc.done = make(chan struct{})
+	doneCh := wc.done // Local copy to ensure goroutines use the right channel
+
+	// First immediate collection
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig WatchCollector")
+		ioutrig.I.SetGoRoutineName("#outrig WatchCollector:first")
 		wc.CollectWatches()
 	}()
+
 	wc.ticker = time.NewTicker(1 * time.Second)
+	localTicker := wc.ticker // Local copy of ticker
+
+	// Periodic collection
 	go func() {
 		ioutrig.I.SetGoRoutineName("#outrig WatchCollector")
-		for range wc.ticker.C {
-			wc.CollectWatches()
+		for {
+			select {
+			case <-doneCh:
+				return
+			case <-localTicker.C:
+				wc.CollectWatches()
+			}
 		}
 	}()
 }
@@ -187,6 +202,12 @@ func (wc *WatchCollector) Disable() {
 	if wc.ticker == nil {
 		return
 	}
+
+	// Signal goroutines to exit
+	close(wc.done)
+	wc.done = nil
+
+	// Stop the ticker
 	wc.ticker.Stop()
 	wc.ticker = nil
 }

@@ -20,6 +20,7 @@ type GoroutineCollector struct {
 	lock           sync.Mutex
 	controller     ds.Controller
 	ticker         *time.Ticker
+	done           chan struct{}
 	goroutineNames map[int64]string // map from goroutine ID to name
 }
 
@@ -48,22 +49,36 @@ func (gc *GoroutineCollector) InitCollector(controller ds.Controller) error {
 	return nil
 }
 
-// OnFirstConnect is called when the first connection is established
+// Enable is called when the collector should start collecting data
 func (gc *GoroutineCollector) Enable() {
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
 	if gc.ticker != nil {
 		return
 	}
+
+	gc.done = make(chan struct{})
+	doneCh := gc.done // Local copy to ensure goroutines use the right channel
+
+	// First immediate collection
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig GoRoutineCollector")
+		ioutrig.I.SetGoRoutineName("#outrig GoRoutineCollector:first")
 		gc.DumpGoroutines()
 	}()
+
 	gc.ticker = time.NewTicker(1 * time.Second)
+	localTicker := gc.ticker // Local copy of ticker
+
+	// Periodic collection
 	go func() {
 		ioutrig.I.SetGoRoutineName("#outrig GoRoutineCollector")
-		for range gc.ticker.C {
-			gc.DumpGoroutines()
+		for {
+			select {
+			case <-doneCh:
+				return
+			case <-localTicker.C:
+				gc.DumpGoroutines()
+			}
 		}
 	}()
 }
@@ -74,6 +89,12 @@ func (gc *GoroutineCollector) Disable() {
 	if gc.ticker == nil {
 		return
 	}
+
+	// Signal goroutines to exit
+	close(gc.done)
+	gc.done = nil
+
+	// Stop the ticker
 	gc.ticker.Stop()
 	gc.ticker = nil
 }
