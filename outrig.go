@@ -9,6 +9,7 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
+	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -251,4 +252,14 @@ type internalOutrig struct{}
 
 func (i *internalOutrig) SetGoRoutineName(name string) {
 	SetGoRoutineName(name)
+}
+
+// OrigStdout returns the original stdout stream that was captured during initialization
+func OrigStdout() *os.File {
+	return loginitex.OrigStdout()
+}
+
+// OrigStderr returns the original stderr stream that was captured during initialization
+func OrigStderr() *os.File {
+	return loginitex.OrigStderr()
 }

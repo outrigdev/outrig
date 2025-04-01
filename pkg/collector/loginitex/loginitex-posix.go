@@ -19,6 +19,7 @@ import (
 var (
 	origStdoutFD, origStderrFD int
 	stdoutPipeW, stderrPipeW   *os.File
+	origStdout, origStderr     *os.File      // Store original file structures
 	externalCaptureLock        sync.Mutex
 	externalCaptureActive      bool
 	externalCaptureContext     context.Context
@@ -67,6 +68,10 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 		syscall.Close(origStdoutFD)
 		return fmt.Errorf("failed to duplicate stderr fd: %w", err)
 	}
+
+	// Store original file structures
+	origStdout = os.NewFile(uintptr(origStdoutFD), "stdout")
+	origStderr = os.NewFile(uintptr(origStderrFD), "stderr")
 
 	var stdoutPipeR *os.File
 	stdoutPipeR, stdoutPipeW, err = os.Pipe()
@@ -279,4 +284,28 @@ func cleanupPipesAndFDs() {
 		syscall.Close(origStderrFD)
 		origStderrFD = 0
 	}
+	
+	// Clear file references
+	origStdout = nil
+	origStderr = nil
+}
+
+// OrigStdout returns the original stdout as an os.File
+func OrigStdout() *os.File {
+	externalCaptureLock.Lock()
+	defer externalCaptureLock.Unlock()
+	if origStdout != nil {
+		return origStdout
+	}
+	return os.Stdout
+}
+
+// OrigStderr returns the original stderr as an os.File
+func OrigStderr() *os.File {
+	externalCaptureLock.Lock()
+	defer externalCaptureLock.Unlock()
+	if origStderr != nil {
+		return origStderr
+	}
+	return os.Stderr
 }
