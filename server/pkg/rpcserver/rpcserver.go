@@ -95,6 +95,30 @@ func (*RpcServerImpl) GetAppRunGoRoutinesCommand(ctx context.Context, data rpcty
 	}, nil
 }
 
+// GetAppRunGoRoutinesByIdsCommand returns specific goroutines by their IDs for a specific app run
+func (*RpcServerImpl) GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data rpctypes.AppRunGoRoutinesByIdsRequest) (rpctypes.AppRunGoRoutinesData, error) {
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	if peer == nil || peer.AppInfo == nil {
+		return rpctypes.AppRunGoRoutinesData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Get module name from AppInfo
+	moduleName := ""
+	if peer.AppInfo != nil {
+		moduleName = peer.AppInfo.ModuleName
+	}
+
+	// Get parsed goroutines by IDs from the GoRoutinePeer
+	parsedGoRoutines := peer.GoRoutines.GetParsedGoRoutinesByIds(moduleName, data.GoIds)
+
+	return rpctypes.AppRunGoRoutinesData{
+		AppRunId:   peer.AppRunId,
+		AppName:    peer.AppInfo.AppName,
+		GoRoutines: parsedGoRoutines,
+	}, nil
+}
+
 // GetAppRunWatchesCommand returns watches for a specific app run
 func (*RpcServerImpl) GetAppRunWatchesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunWatchesData, error) {
 	// Get the app run peer

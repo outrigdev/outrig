@@ -83,16 +83,47 @@ func (gp *GoRoutinePeer) GetActiveGoRoutineCount() int {
 
 // GetTotalGoRoutineCount returns the total number of goroutines (active and inactive)
 func (gp *GoRoutinePeer) GetTotalGoRoutineCount() int {
-	return len(gp.goRoutines.Keys())
+	return gp.goRoutines.Len()
 }
 
 // GetParsedGoRoutines returns parsed goroutines for RPC
 func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.ParsedGoRoutine {
+	// Get a local copy of the activeGoRoutines map under lock
 	gp.lock.RLock()
-	defer gp.lock.RUnlock()
+	activeGoRoutinesCopy := gp.activeGoRoutines
+	gp.lock.RUnlock()
 
-	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(gp.activeGoRoutines))
-	for goId := range gp.activeGoRoutines {
+	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(activeGoRoutinesCopy))
+	for goId := range activeGoRoutinesCopy {
+		goIdStr := strconv.FormatInt(goId, 10)
+
+		goroutineObj, exists := gp.goRoutines.GetEx(goIdStr)
+		if !exists {
+			continue
+		}
+
+		latestStack, _, exists := goroutineObj.StackTraces.GetLast()
+		if !exists {
+			continue
+		}
+
+		parsedGoRoutine, err := goroutine.ParseGoRoutineStackTrace(latestStack.StackTrace, moduleName)
+		if err != nil {
+			continue
+		}
+		parsedGoRoutine.Name = goroutineObj.Name
+		parsedGoRoutine.Tags = goroutineObj.Tags
+		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
+	}
+
+	return parsedGoRoutines
+}
+
+// GetParsedGoRoutinesByIds returns parsed goroutines for specific goroutine IDs
+func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int64) []rpctypes.ParsedGoRoutine {
+	// No lock needed as we're accessing thread-safe structures
+	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(goIds))
+	for _, goId := range goIds {
 		goIdStr := strconv.FormatInt(goId, 10)
 
 		goroutineObj, exists := gp.goRoutines.GetEx(goIdStr)

@@ -40,6 +40,7 @@ type FullRpcInterface interface {
 	// app run commands
 	GetAppRunsCommand(ctx context.Context, data AppRunUpdatesRequest) (AppRunsData, error)
 	GetAppRunGoRoutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoRoutinesData, error)
+	GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data AppRunGoRoutinesByIdsRequest) (AppRunGoRoutinesData, error)
 	GoRoutineSearchRequestCommand(ctx context.Context, data GoRoutineSearchRequestData) (GoRoutineSearchResultData, error)
 	GetAppRunWatchesCommand(ctx context.Context, data AppRunRequest) (AppRunWatchesData, error)
 	GetAppRunRuntimeStatsCommand(ctx context.Context, data AppRunRequest) (AppRunRuntimeStatsData, error)
@@ -172,6 +173,12 @@ type AppRunUpdatesRequest struct {
 type AppRunRequest struct {
 	AppRunId string `json:"apprunid"`
 	Since    int64  `json:"since,omitempty"`
+}
+
+// AppRunGoRoutinesByIdsRequest defines the request for getting specific goroutines by their IDs
+type AppRunGoRoutinesByIdsRequest struct {
+	AppRunId string  `json:"apprunid"`
+	GoIds    []int64 `json:"goids"`
 }
 
 type AppRunLogsData struct {
