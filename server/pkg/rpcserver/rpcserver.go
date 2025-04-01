@@ -73,17 +73,63 @@ func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context, data rpctypes.AppRu
 
 // GetAppRunGoRoutinesCommand returns goroutines for a specific app run
 func (*RpcServerImpl) GetAppRunGoRoutinesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunGoRoutinesData, error) {
-	return apppeer.GetAppRunGoRoutinesCommand(ctx, data)
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	if peer == nil || peer.AppInfo == nil {
+		return rpctypes.AppRunGoRoutinesData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Get module name from AppInfo
+	moduleName := ""
+	if peer.AppInfo != nil {
+		moduleName = peer.AppInfo.ModuleName
+	}
+
+	// Get parsed goroutines from the GoRoutinePeer
+	parsedGoRoutines := peer.GoRoutines.GetParsedGoRoutines(moduleName)
+
+	return rpctypes.AppRunGoRoutinesData{
+		AppRunId:   peer.AppRunId,
+		AppName:    peer.AppInfo.AppName,
+		GoRoutines: parsedGoRoutines,
+	}, nil
 }
 
 // GetAppRunWatchesCommand returns watches for a specific app run
 func (*RpcServerImpl) GetAppRunWatchesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunWatchesData, error) {
-	return apppeer.GetAppRunWatches(ctx, data)
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	if peer == nil || peer.AppInfo == nil {
+		return rpctypes.AppRunWatchesData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Get all watches using the WatchesPeer method
+	watches := peer.Watches.GetAllWatches()
+
+	// Create and return AppRunWatchesData
+	return rpctypes.AppRunWatchesData{
+		AppRunId: peer.AppRunId,
+		AppName:  peer.AppInfo.AppName,
+		Watches:  watches,
+	}, nil
 }
 
 // GetAppRunRuntimeStatsCommand returns runtime stats for a specific app run
 func (*RpcServerImpl) GetAppRunRuntimeStatsCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunRuntimeStatsData, error) {
-	return apppeer.GetAppRunRuntimeStats(ctx, data)
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	if peer == nil || peer.AppInfo == nil {
+		return rpctypes.AppRunRuntimeStatsData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Initialize empty result
+	result := rpctypes.AppRunRuntimeStatsData{
+		AppRunId: peer.AppRunId,
+		AppName:  peer.AppInfo.AppName,
+		Stats:    peer.RuntimeStats.GetRuntimeStats(data.Since),
+	}
+
+	return result, nil
 }
 
 // LogSearchRequestCommand handles search requests for logs

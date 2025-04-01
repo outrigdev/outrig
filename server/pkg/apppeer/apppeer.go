@@ -28,8 +28,6 @@ type SearchManagerInterface interface {
 }
 
 const LogLineBufferSize = 10000
-const WatchBufferSize = 600          // 10 minutes of 1-second samples
-const RuntimeStatsBufferSize = 600   // 10 minutes of 1-second samples
 
 // Application status constants
 const (
@@ -56,25 +54,10 @@ type AppRunPeer struct {
 	searchManagers []SearchManagerInterface // Registered search managers
 	searchLock     sync.RWMutex             // Lock for search managers
 
-	// goroutine fields
-	GoRoutines *GoRoutinePeer
+	GoRoutines    *GoRoutinePeer
+	Watches       *WatchesPeer
+	RuntimeStats  *RuntimeStatsPeer
 
-	// watches fileds
-	Watches       *utilds.SyncMap[Watch]
-	ActiveWatches map[string]bool // Tracks currently active watches
-	WatchNum      int64           // Counter for watch numbers
-
-	// runtimestats fields
-	RuntimeStats *utilds.CirBuf[ds.RuntimeStatsInfo] // History of runtime stats
-
-}
-
-
-type Watch struct {
-	WatchNum  int64
-	Name      string
-	Tags      []string
-	WatchVals *utilds.CirBuf[ds.WatchSample]
 }
 
 // AppRunPeer management constants
@@ -126,9 +109,8 @@ func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 			AppRunId:     appRunId,
 			Logs:         utilds.MakeCirBuf[ds.LogLine](LogLineBufferSize),
 			GoRoutines:   MakeGoRoutinePeer(),
-			Watches:      utilds.MakeSyncMap[Watch](),
-			ActiveWatches: make(map[string]bool),
-			RuntimeStats: utilds.MakeCirBuf[ds.RuntimeStatsInfo](RuntimeStatsBufferSize),
+			Watches:      MakeWatchesPeer(),
+			RuntimeStats: MakeRuntimeStatsPeer(),
 			Status:       AppStatusRunning,
 			LastModTime:  time.Now().UnixMilli(),
 			refCount:     0,
@@ -298,46 +280,8 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			return fmt.Errorf("failed to unmarshal WatchInfo: %w", err)
 		}
 
-		// Create a new map for active watches in this packet
-		activeWatches := make(map[string]bool)
-
-		// Process watch values
-		for _, watchVal := range watchInfo.Watches {
-			watchName := watchVal.Name
-
-			// Mark this watch as active
-			activeWatches[watchName] = true
-
-			// Get or create watch entry in the syncmap atomically
-			watch, exists := p.Watches.GetOrCreate(watchName, func() Watch {
-				// New watch - assign a new watch number
-				// No need to lock since we're already inside the SyncMap's lock
-				p.WatchNum++
-				watchNum := p.WatchNum
-
-				return Watch{
-					WatchNum:  watchNum,
-					Name:      watchVal.Name,
-					Tags:      watchVal.Tags,
-					WatchVals: utilds.MakeCirBuf[ds.WatchSample](WatchBufferSize),
-				}
-			})
-
-			if exists {
-				// Update tags from the watch value
-				// TODO sync issue
-				watch.Tags = watchVal.Tags
-			}
-
-			// Add watch value to the circular buffer
-			watch.WatchVals.Write(watchVal)
-
-			// Update the watch in the syncmap
-			p.Watches.Set(watchName, watch)
-		}
-
-		// Update the active watches map
-		p.ActiveWatches = activeWatches
+		// Process watch values using the WatchesPeer
+		p.Watches.ProcessWatchValues(watchInfo.Watches)
 
 		log.Printf("Processed %d watches for app run ID: %s", len(watchInfo.Watches), p.AppRunId)
 
@@ -351,8 +295,8 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			return fmt.Errorf("failed to unmarshal RuntimeStatsInfo: %w", err)
 		}
 
-		// Add runtime stats to circular buffer
-		p.RuntimeStats.Write(runtimeStats)
+		// Process runtime stats using the RuntimeStatsPeer
+		p.RuntimeStats.ProcessRuntimeStats(runtimeStats)
 
 		log.Printf("Received runtime stats for app run ID: %s", p.AppRunId)
 
@@ -441,8 +385,8 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	numTotalGoRoutines := p.GoRoutines.GetTotalGoRoutineCount()
 
 	// Get the number of active and total watches
-	numActiveWatches := len(p.ActiveWatches)
-	numTotalWatches := len(p.Watches.Keys())
+	numActiveWatches := p.Watches.GetActiveWatchCount()
+	numTotalWatches := p.Watches.GetTotalWatchCount()
 
 	// Create AppRunInfo
 	appRunInfo := rpctypes.AppRunInfo{

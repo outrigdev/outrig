@@ -4,8 +4,6 @@
 package apppeer
 
 import (
-	"context"
-	"fmt"
 	"strconv"
 	"sync"
 
@@ -133,28 +131,4 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 	}
 
 	return parsedGoRoutines
-}
-
-// GetAppRunGoRoutinesCommand retrieves active goroutines for a specific app run
-func GetAppRunGoRoutinesCommand(ctx context.Context, req rpctypes.AppRunRequest) (rpctypes.AppRunGoRoutinesData, error) {
-	// Get the app run peer
-	peer := GetAppRunPeer(req.AppRunId, false)
-	if peer == nil || peer.AppInfo == nil {
-		return rpctypes.AppRunGoRoutinesData{}, fmt.Errorf("app run not found: %s", req.AppRunId)
-	}
-
-	// Get module name from AppInfo
-	moduleName := ""
-	if peer.AppInfo != nil {
-		moduleName = peer.AppInfo.ModuleName
-	}
-
-	// Get parsed goroutines from the GoRoutinePeer
-	parsedGoRoutines := peer.GoRoutines.GetParsedGoRoutines(moduleName)
-
-	return rpctypes.AppRunGoRoutinesData{
-		AppRunId:   peer.AppRunId,
-		AppName:    peer.AppInfo.AppName,
-		GoRoutines: parsedGoRoutines,
-	}, nil
 }
