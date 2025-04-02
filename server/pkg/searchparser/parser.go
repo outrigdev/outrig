@@ -25,7 +25,7 @@
 // Notes:
 // - Empty quoted strings ("" or '') are ignored (no token)
 // - Empty fuzzy prefix (~) followed by whitespace is an error
-// - Empty hash prefix (#) followed by whitespace produces a literal "#" token
+// - Empty hash prefix (#) followed by whitespace is an error
 // - Single quoted tokens are treated as case-sensitive (exactcase)
 // - Fuzzy tokens with single quotes (~'...') are treated as case-sensitive fuzzy search (fzfcase)
 // - Regular expression tokens (/foo/) are case-insensitive by default
@@ -290,10 +290,9 @@ func (p *Parser) parseUnmodifiedToken() *Node {
 		p.nextToken()
 		endPos = p.currentToken().Position.Start
 
-		// If we've reached the end of the input or whitespace, create a token for just "#"
+		// If we've reached the end of the input or whitespace, return error for bare #
 		if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
-			tokenType = "exact" // Default to exact search
-			token = "#"
+			return makeErrorNode("Bare '#' is not allowed", Position{Start: startPos, End: startPos + 1})
 		} else if p.currentTokenIs(TokenWord) {
 			token = p.currentToken().Value
 			endPos = p.currentToken().Position.End

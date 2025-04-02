@@ -246,10 +246,9 @@ func TestParseAST(t *testing.T) {
 				Position: Position{Start: 0, End: 7},
 				Children: []Node{
 					{
-						Type:       "search",
-						Position:   Position{Start: 0, End: 1},
-						SearchType: "exact",
-						SearchTerm: "#",
+						Type:         "error",
+						Position:     Position{Start: 0, End: 1},
+						ErrorMessage: "Bare '#' is not allowed",
 					},
 					{
 						Type:       "search",
@@ -278,10 +277,9 @@ func TestParseAST(t *testing.T) {
 						ErrorMessage: "Bare '~' is not allowed",
 					},
 					{
-						Type:       "search",
-						Position:   Position{Start: 4, End: 5},
-						SearchType: "exact",
-						SearchTerm: "#",
+						Type:         "error",
+						Position:     Position{Start: 4, End: 5},
+						ErrorMessage: "Bare '#' is not allowed",
 					},
 					{
 						Type:       "search",
