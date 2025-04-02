@@ -43,7 +43,29 @@ import (
 	"unicode"
 )
 
-// SearchToken represents a single token in a search query
+// Position represents a position in the source text
+type Position struct {
+	Start int // Start position (inclusive)
+	End   int // End position (exclusive)
+}
+
+// Node represents a node in the search AST
+type Node struct {
+	// Common fields for all nodes
+	Type     string   // "and", "or", "not", "search"
+	Position Position // Position in source text
+
+	// Union fields - used based on node type
+	Children []Node // Used for "and", "or" nodes
+
+	// Fields primarily for leaf nodes (search terms)
+	SearchType string // "exact", "regexp", "fzf", etc. (only for "search" type)
+	SearchTerm string // The actual search text (only for "search" type)
+	Field      string // Optional field specifier (only for "search" type)
+	IsNot      bool   // Whether this is a negated search
+}
+
+// SearchToken represents a single token in a search query (legacy format)
 type SearchToken struct {
 	Type       string // The search type (exact, regexp, fzf, etc.)
 	SearchTerm string // The actual search term
@@ -283,9 +305,22 @@ func (p *Parser) parseFieldPrefix() (string, bool, bool) {
 	return fieldName, true, true
 }
 
+// makeSearchNode creates a search node with the given parameters
+func makeSearchNode(searchType, searchTerm, field string, isNot bool, pos Position) *Node {
+	return &Node{
+		Type:       "search",
+		Position:   pos,
+		SearchType: searchType,
+		SearchTerm: searchTerm,
+		Field:      field,
+		IsNot:      isNot,
+	}
+}
+
 // parseUnmodifiedToken parses a token that is not negated (not preceded by -)
 // This includes fuzzy tokens, regexp tokens, hash tokens, and simple tokens
-func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
+func (p *Parser) parseUnmodifiedToken() *Node {
+	startPos := p.position
 	var token string
 	var tokenType string
 
@@ -296,13 +331,13 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 
 		// If we've reached the end of the input or whitespace, skip this token
 		if p.ch == 0 || unicode.IsSpace(p.ch) {
-			return SearchToken{}, false
+			return nil
 		}
 
 		// Parse the simple token
 		simpleToken, simpleType, valid := p.parseSimpleToken()
 		if !valid {
-			return SearchToken{}, false
+			return nil
 		}
 
 		// Convert to fuzzy search type
@@ -318,7 +353,7 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 
 		// Skip empty regexp
 		if token == "" {
-			return SearchToken{}, false
+			return nil
 		}
 
 		tokenType = "regexp"
@@ -331,7 +366,7 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 
 		// Skip empty regexp
 		if token == "" {
-			return SearchToken{}, false
+			return nil
 		}
 
 		tokenType = "regexpcase"
@@ -378,61 +413,63 @@ func (p *Parser) parseUnmodifiedToken() (SearchToken, bool) {
 		var valid bool
 		token, tokenType, valid = p.parseSimpleToken()
 		if !valid {
-			return SearchToken{}, false
+			return nil
 		}
 	}
 
-	return SearchToken{
-		Type:       tokenType,
-		SearchTerm: token,
-		IsNot:      false,
-	}, true
+	endPos := p.position
+	pos := Position{Start: startPos, End: endPos}
+
+	return makeSearchNode(tokenType, token, "", false, pos)
 }
 
 // parseNotToken parses a token that is negated (preceded by -)
-func (p *Parser) parseNotToken() (SearchToken, bool) {
+func (p *Parser) parseNotToken() *Node {
+	startPos := p.position
+	
 	// Skip the - character
 	p.readChar()
 
 	// If we've reached the end of the input or whitespace, treat '-' as a literal token
 	if p.ch == 0 || unicode.IsSpace(p.ch) {
-		return SearchToken{
-			Type:       "exact", // Default to exact search
-			SearchTerm: "-",
-			IsNot:      false,
-		}, true
+		endPos := p.position
+		pos := Position{Start: startPos, End: endPos}
+		return makeSearchNode("exact", "-", "", false, pos)
 	}
 
 	// Check for field prefix
 	field, hasField, isComplete := p.parseFieldPrefix()
-	
+
 	// If we have a field prefix but it's incomplete, return a token with empty search term
 	if hasField && !isComplete {
-		return SearchToken{
-			Type:       "exact",
-			SearchTerm: "",
-			Field:      field,
-		}, true
+		endPos := p.position
+		pos := Position{Start: startPos, End: endPos}
+		return makeSearchNode("exact", "", field, false, pos)
 	}
 
 	// Parse the unmodified token
-	unmodifiedToken, valid := p.parseUnmodifiedToken()
-	if !valid {
-		return SearchToken{}, false
+	node := p.parseUnmodifiedToken()
+	if node == nil {
+		return nil
 	}
 
 	if hasField {
-		unmodifiedToken.Field = field
+		node.Field = field
 	}
 
 	// Set the IsNot flag to true
-	unmodifiedToken.IsNot = true
+	node.IsNot = true
 
-	return unmodifiedToken, true
+	// Update the position to include the '-' prefix
+	node.Position.Start = startPos
+	
+	return node
 }
 
 // parseToken parses a single token, which can be either a not_token or an unmodified_token
-func (p *Parser) parseToken() (SearchToken, bool) {
+func (p *Parser) parseToken() *Node {
+	startPos := p.position
+	
 	// Check for not operator (-)
 	if p.ch == '-' {
 		return p.parseNotToken()
@@ -440,32 +477,33 @@ func (p *Parser) parseToken() (SearchToken, bool) {
 
 	// Check for field prefix
 	field, hasField, isComplete := p.parseFieldPrefix()
-	
+
 	// If we have a field prefix but it's incomplete, return a token with empty search term
 	if hasField && !isComplete {
-		return SearchToken{
-			Type:       "exact",
-			SearchTerm: "",
-			Field:      field,
-		}, true
+		pos := Position{Start: startPos, End: p.position}
+		return makeSearchNode("exact", "", field, false, pos)
 	}
 
 	// Parse an unmodified token
-	token, valid := p.parseUnmodifiedToken()
-	if !valid {
-		return SearchToken{}, false
+	node := p.parseUnmodifiedToken()
+	if node == nil {
+		return nil
 	}
 
 	if hasField {
-		token.Field = field
+		node.Field = field
+		// Update the position to include the field prefix
+		node.Position.Start = startPos
 	}
 
-	return token, true
+	return node
 }
 
 // parseAndExpr parses a sequence of tokens (AND expression)
-func (p *Parser) parseAndExpr() []SearchToken {
-	var tokens []SearchToken
+func (p *Parser) parseAndExpr() *Node {
+	startPos := p.position
+	var children []*Node
+	var lastTokenEnd int
 
 	for p.ch != 0 && p.ch != '|' {
 		// Skip whitespace
@@ -477,21 +515,52 @@ func (p *Parser) parseAndExpr() []SearchToken {
 		}
 
 		// Parse a token
-		token, valid := p.parseToken()
-		if !valid {
+		token := p.parseToken()
+		if token == nil {
 			continue
 		}
 
-		// Add the token to the result
-		tokens = append(tokens, token)
+		// Add the token to the children
+		children = append(children, token)
+		
+		// Update the last token end position
+		lastTokenEnd = token.Position.End
 	}
 
-	return tokens
+	// If there are no children, return an empty AND node
+	if len(children) == 0 {
+		return &Node{
+			Type:     "and",
+			Position: Position{Start: startPos, End: p.position},
+			Children: make([]Node, 0),
+		}
+	}
+
+	// If there's only one child, return it directly
+	if len(children) == 1 {
+		return children[0]
+	}
+
+	// Create an AND node with the children
+	// Use the last token's end position as the end position for the AND node
+	
+	// Convert []*Node to []Node for the Children field
+	nodeChildren := make([]Node, len(children))
+	for i, child := range children {
+		nodeChildren[i] = *child
+	}
+	
+	return &Node{
+		Type:     "and",
+		Position: Position{Start: startPos, End: lastTokenEnd},
+		Children: nodeChildren,
+	}
 }
 
 // parseOrExpr parses an OR expression (and_expr { "|" and_expr })
-func (p *Parser) parseOrExpr() [][]SearchToken {
-	var orGroups [][]SearchToken
+func (p *Parser) parseOrExpr() *Node {
+	startPos := p.position
+	var children []*Node
 
 	// Handle the case where the expression starts with a pipe
 	if p.ch == '|' {
@@ -501,12 +570,16 @@ func (p *Parser) parseOrExpr() [][]SearchToken {
 		// Skip any whitespace after the "|"
 		p.skipWhitespace()
 
-		// Add an empty group before the pipe
-		orGroups = append(orGroups, []SearchToken{})
+		// Add an empty AND node before the pipe
+		children = append(children, &Node{
+			Type:     "and",
+			Position: Position{Start: startPos, End: startPos},
+			Children: []Node{},
+		})
 
 		// Parse the expression after the pipe
-		andTokens := p.parseAndExpr()
-		orGroups = append(orGroups, andTokens)
+		andNode := p.parseAndExpr()
+		children = append(children, andNode)
 
 		// Continue parsing if there are more pipes
 		for p.ch == '|' {
@@ -517,16 +590,33 @@ func (p *Parser) parseOrExpr() [][]SearchToken {
 			p.skipWhitespace()
 
 			// Parse the next AND expression
-			andTokens = p.parseAndExpr()
-			orGroups = append(orGroups, andTokens)
+			andNode = p.parseAndExpr()
+			children = append(children, andNode)
 		}
 
-		return orGroups
+		// Convert []*Node to []Node for the Children field
+		nodeChildren := make([]Node, len(children))
+		for i, child := range children {
+			nodeChildren[i] = *child
+		}
+
+		// Create an OR node with the children
+		endPos := p.position
+		return &Node{
+			Type:     "or",
+			Position: Position{Start: startPos, End: endPos},
+			Children: nodeChildren,
+		}
 	}
 
 	// Parse the first AND expression
-	andTokens := p.parseAndExpr()
-	orGroups = append(orGroups, andTokens)
+	andNode := p.parseAndExpr()
+	children = append(children, andNode)
+
+	// If there are no OR operators, return the AND node directly
+	if p.ch != '|' {
+		return andNode
+	}
 
 	// Parse additional AND expressions separated by "|"
 	for p.ch == '|' {
@@ -537,56 +627,90 @@ func (p *Parser) parseOrExpr() [][]SearchToken {
 		p.skipWhitespace()
 
 		// Parse the next AND expression
-		andTokens = p.parseAndExpr()
-		orGroups = append(orGroups, andTokens)
+		andNode = p.parseAndExpr()
+		children = append(children, andNode)
 	}
 
-	return orGroups
+	// Convert []*Node to []Node for the Children field
+	nodeChildren := make([]Node, len(children))
+	for i, child := range children {
+		nodeChildren[i] = *child
+	}
+
+	// Create an OR node with the children
+	endPos := p.position
+	return &Node{
+		Type:     "or",
+		Position: Position{Start: startPos, End: endPos},
+		Children: nodeChildren,
+	}
 }
 
-// Parse parses the input string into a slice of tokens with OR groups
-func (p *Parser) Parse() []SearchToken {
+// ParseAST parses the input string into an AST
+func (p *Parser) ParseAST() *Node {
 	// Special case for a single pipe character
 	if p.ch == '|' && p.peek(1) == 0 {
-		return []SearchToken{
-			{
-				Type:       "or",
-				SearchTerm: "|",
-				IsNot:      false,
-			},
-		}
+		return makeSearchNode("or", "|", "", false, Position{Start: 0, End: 1})
 	}
 
 	// Parse the OR expression
-	orGroups := p.parseOrExpr()
+	return p.parseOrExpr()
+}
 
-	// If there's only one group, return it directly
-	if len(orGroups) <= 1 {
-		if len(orGroups) == 0 {
-			return []SearchToken{}
-		}
-		return orGroups[0]
+// NodeToSearchToken converts a Node to a SearchToken
+func NodeToSearchToken(node *Node) SearchToken {
+	return SearchToken{
+		Type:       node.SearchType,
+		SearchTerm: node.SearchTerm,
+		IsNot:      node.IsNot,
+		Field:      node.Field,
 	}
+}
 
-	// Otherwise, create OR tokens
-	var result []SearchToken
-
-	// Add a special token to indicate the start of an OR group
-	for i, group := range orGroups {
-		// Add a special token to indicate OR operation
-		if i > 0 {
-			result = append(result, SearchToken{
-				Type:       "or",
-				SearchTerm: "|",
-				IsNot:      false,
-			})
-		}
-
-		// Add the tokens from this group
-		result = append(result, group...)
+// FlattenAST converts an AST to a flat list of SearchToken objects
+func FlattenAST(node *Node) []SearchToken {
+	if node == nil {
+		return []SearchToken{}
 	}
+	
+	switch node.Type {
+	case "search":
+		return []SearchToken{NodeToSearchToken(node)}
+	case "and":
+		var result []SearchToken
+		for i := range node.Children {
+			// Get a pointer to the child node
+			childPtr := &node.Children[i]
+			result = append(result, FlattenAST(childPtr)...)
+		}
+		return result
+	case "or":
+		var result []SearchToken
+		for i := range node.Children {
+			if i > 0 {
+				result = append(result, SearchToken{
+					Type:       "or",
+					SearchTerm: "|",
+					IsNot:      false,
+				})
+			}
+			// Get a pointer to the child node
+			childPtr := &node.Children[i]
+			result = append(result, FlattenAST(childPtr)...)
+		}
+		return result
+	default:
+		return []SearchToken{}
+	}
+}
 
-	return result
+// Parse parses the input string into a slice of tokens (legacy format)
+func (p *Parser) Parse() []SearchToken {
+	// Parse the input into an AST
+	ast := p.ParseAST()
+	
+	// Flatten the AST into a list of tokens
+	return FlattenAST(ast)
 }
 
 // TokenizeSearch splits a search string into tokens using the parser
@@ -597,4 +721,18 @@ func TokenizeSearch(searchString string) []SearchToken {
 	}
 	parser := NewParser(searchString)
 	return parser.Parse()
+}
+
+// ParseSearch parses a search string into an AST
+func ParseSearch(searchString string) *Node {
+	searchString = strings.TrimSpace(searchString)
+	if searchString == "" {
+		return &Node{
+			Type:     "and",
+			Position: Position{Start: 0, End: 0},
+			Children: []Node{},
+		}
+	}
+	parser := NewParser(searchString)
+	return parser.ParseAST()
 }
