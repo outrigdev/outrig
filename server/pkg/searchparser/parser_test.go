@@ -143,6 +143,155 @@ func TestParseAST(t *testing.T) {
 				ErrorMessage: "Search tokens require whitespace to separate them",
 			},
 		},
+		// New test cases for error handling
+		{
+			name:  "bare dollar sign with following token",
+			input: "$ hello",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 7},
+				Children: []Node{
+					{
+						Type:         "error",
+						Position:     Position{Start: 0, End: 1},
+						ErrorMessage: "Bare '$' is not allowed",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 2, End: 7},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+				},
+			},
+		},
+		{
+			name:  "field name without colon",
+			input: "$field hello",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 12},
+				Children: []Node{
+					{
+						Type:         "error",
+						Position:     Position{Start: 0, End: 6},
+						ErrorMessage: "No whitespace allowed between field name and ':'",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 7, End: 12},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+				},
+			},
+		},
+		{
+			name:  "missing colon after field name",
+			input: "$field",
+			expected: &Node{
+				Type:         "error",
+				Position:     Position{Start: 0, End: 6},
+				ErrorMessage: "Missing ':' after field name",
+			},
+		},
+		{
+			name:  "bare tilde with following token",
+			input: "~ hello",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 7},
+				Children: []Node{
+					{
+						Type:         "error",
+						Position:     Position{Start: 0, End: 1},
+						ErrorMessage: "Bare '~' is not allowed",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 2, End: 7},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+				},
+			},
+		},
+		{
+			name:  "negated bare dollar sign with following token",
+			input: "-$ hello",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 8},
+				Children: []Node{
+					{
+						Type:         "error",
+						Position:     Position{Start: 0, End: 2},
+						ErrorMessage: "Bare '$' is not allowed",
+						IsNot:        true,
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 3, End: 8},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+				},
+			},
+		},
+		{
+			name:  "hash with following token",
+			input: "# hello",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 7},
+				Children: []Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 0, End: 1},
+						SearchType: "exact",
+						SearchTerm: "#",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 2, End: 7},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+				},
+			},
+		},
+		{
+			name:  "multiple errors in sequence",
+			input: "$ ~ # hello",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 11},
+				Children: []Node{
+					{
+						Type:         "error",
+						Position:     Position{Start: 0, End: 1},
+						ErrorMessage: "Bare '$' is not allowed",
+					},
+					{
+						Type:         "error",
+						Position:     Position{Start: 2, End: 3},
+						ErrorMessage: "Bare '~' is not allowed",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 4, End: 5},
+						SearchType: "exact",
+						SearchTerm: "#",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 6, End: 11},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

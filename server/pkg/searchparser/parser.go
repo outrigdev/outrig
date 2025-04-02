@@ -24,8 +24,8 @@
 //
 // Notes:
 // - Empty quoted strings ("" or '') are ignored (no token)
-// - Empty fuzzy prefix (~) followed by whitespace is ignored (no token)
-// - Empty hash prefix (#) followed by whitespace is ignored (no token)
+// - Empty fuzzy prefix (~) followed by whitespace is an error
+// - Empty hash prefix (#) followed by whitespace produces a literal "#" token
 // - Single quoted tokens are treated as case-sensitive (exactcase)
 // - Fuzzy tokens with single quotes (~'...') are treated as case-sensitive fuzzy search (fzfcase)
 // - Regular expression tokens (/foo/) are case-insensitive by default
@@ -182,45 +182,60 @@ func (p *Parser) parseSimpleToken() (string, string, bool, Position) {
 }
 
 // parseFieldPrefix parses a field prefix in the form of "$fieldname:"
-// Returns (fieldName, hasField, isComplete, position)
-func (p *Parser) parseFieldPrefix() (string, bool, bool, Position) {
+// Returns either a field name and position (for valid field prefixes) or an error node (for invalid ones)
+func (p *Parser) parseFieldPrefix() (*Node, string, bool, Position) {
 	startPos := p.currentToken().Position.Start
 	endPos := p.currentToken().Position.End
 
 	// Check for field indicator ($)
 	if !p.currentTokenIs("$") {
-		return "", false, false, Position{Start: startPos, End: endPos}
+		return nil, "", false, Position{Start: startPos, End: endPos}
 	}
 
+	dollarPos := Position{Start: startPos, End: p.currentToken().Position.End}
+	
 	// Skip the $ character
 	p.nextToken()
 
-	// If we've reached the end of the input or whitespace, return empty
+	// If we've reached the end of the input or whitespace, return error for bare $
 	if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
-		endPos = p.currentToken().Position.Start
-		return "", true, false, Position{Start: startPos, End: endPos}
+		errorNode := makeErrorNode("Bare '$' is not allowed", dollarPos)
+		return errorNode, "", false, dollarPos
 	}
 
 	// We need a word token for the field name
 	if !p.currentTokenIs(TokenWord) {
-		endPos = p.currentToken().Position.Start
-		return "", true, false, Position{Start: startPos, End: endPos}
+		errorNode := makeErrorNode("Invalid field name after '$'", 
+			Position{Start: dollarPos.Start, End: p.currentToken().Position.End})
+		return errorNode, "", false, dollarPos
 	}
 
 	fieldName := p.currentToken().Value
+	fieldNamePos := p.currentToken().Position
+	
+	// Skip the field name
 	p.nextToken()
-	endPos = p.currentToken().Position.Start
+	
+	// Check for whitespace between field name and colon
+	if p.currentTokenIs(TokenWhitespace) {
+		errorPos := Position{Start: dollarPos.Start, End: fieldNamePos.End}
+		errorNode := makeErrorNode("No whitespace allowed between field name and ':'", errorPos)
+		return errorNode, "", false, errorPos
+	}
 
 	// If we didn't find a colon, this is an incomplete field prefix
 	if !p.currentTokenIs(":") {
-		return fieldName, true, false, Position{Start: startPos, End: endPos}
+		errorPos := Position{Start: dollarPos.Start, End: fieldNamePos.End}
+		errorNode := makeErrorNode("Missing ':' after field name", errorPos)
+		return errorNode, "", false, errorPos
 	}
 
 	// Skip the colon
+	colonPos := p.currentToken().Position
 	p.nextToken()
-	endPos = p.currentToken().Position.Start
+	endPos = colonPos.End
 
-	return fieldName, true, true, Position{Start: startPos, End: endPos}
+	return nil, fieldName, true, Position{Start: startPos, End: endPos}
 }
 
 // parseUnmodifiedToken parses a token that is not negated (not preceded by -)
@@ -233,18 +248,20 @@ func (p *Parser) parseUnmodifiedToken() *Node {
 
 	// Check for fuzzy search indicator (~)
 	if p.currentTokenIs("~") {
+		tildePos := p.currentToken().Position
 		// Skip the ~ character
 		p.nextToken()
 
-		// If we've reached the end of the input or whitespace, skip this token
+		// If we've reached the end of the input or whitespace, return error for bare ~
 		if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
-			return nil
+			return makeErrorNode("Bare '~' is not allowed", tildePos)
 		}
 
 		// Parse the simple token
 		simpleToken, simpleType, valid, simplePos := p.parseSimpleToken()
 		if !valid {
-			return nil
+			return makeErrorNode("Invalid token after '~'", 
+				Position{Start: tildePos.Start, End: p.currentToken().Position.End})
 		}
 
 		// Convert to fuzzy search type
@@ -336,12 +353,14 @@ func (p *Parser) parseNotToken() *Node {
 	}
 
 	// Check for field prefix
-	field, hasField, isComplete, fieldPos := p.parseFieldPrefix()
+	errorNode, fieldName, hasField, _ := p.parseFieldPrefix()
 
-	// If we have a field prefix but it's incomplete, return a token with empty search term
-	if hasField && !isComplete {
-		pos := Position{Start: startPos, End: fieldPos.End}
-		return makeSearchNode("exact", "", field, false, pos)
+	// If we got an error node from field prefix parsing, return it with IsNot set
+	if errorNode != nil {
+		errorNode.IsNot = true
+		// Update the position to include the '-' prefix
+		errorNode.Position.Start = startPos
+		return errorNode
 	}
 
 	// Parse the unmodified token
@@ -351,7 +370,7 @@ func (p *Parser) parseNotToken() *Node {
 	}
 
 	if hasField {
-		node.Field = field
+		node.Field = fieldName
 	}
 
 	// Set the IsNot flag to true
@@ -373,12 +392,11 @@ func (p *Parser) parseToken() *Node {
 	}
 
 	// Check for field prefix
-	field, hasField, isComplete, fieldPos := p.parseFieldPrefix()
-
-	// If we have a field prefix but it's incomplete, return a token with empty search term
-	if hasField && !isComplete {
-		pos := Position{Start: startPos, End: fieldPos.End}
-		return makeSearchNode("exact", "", field, false, pos)
+	errorNode, field, hasField, _ := p.parseFieldPrefix()
+	
+	// If we got an error node from field prefix parsing, return it
+	if errorNode != nil {
+		return errorNode
 	}
 
 	// Parse an unmodified token
@@ -414,62 +432,73 @@ func (p *Parser) parseAndExpr() *Node {
 		}
 	}
 
-	// Parse the first token
-	firstToken := p.parseToken()
-	if firstToken == nil {
-		// No valid token found
-		endPos := p.currentToken().Position.Start
-		return &Node{
-			Type:     NodeTypeAnd,
-			Position: Position{Start: startPos, End: endPos},
-			Children: make([]Node, 0),
-		}
-	}
-
-	// Add the first token to the children
-	children = append(children, firstToken)
-	lastTokenEnd = firstToken.Position.End
-
-	// Check for more tokens
+	// Parse tokens until we reach EOF or a pipe
 	for !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
-		// Check if we have whitespace between tokens
-		if !p.currentTokenIs(TokenWhitespace) {
-			// No whitespace between tokens - this is an error
-			// Start building an error node from the first token
-			errorStartPos := firstToken.Position.Start
-			errorEndPos := lastTokenEnd
-
-			// Keep parsing tokens until we find whitespace, pipe, or EOF
-			for !p.currentTokenIs(TokenWhitespace) && !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
-				token := p.parseToken()
-				if token == nil {
-					break
-				}
-				errorEndPos = token.Position.End
-			}
-
-			// Create an error node that spans all the tokens without whitespace
-			return makeErrorNode("Search tokens require whitespace to separate them",
-				Position{Start: errorStartPos, End: errorEndPos})
-		}
-
-		// Skip whitespace
-		p.skipWhitespace()
-
-		// If we've reached the end of the input or a pipe, break
-		if p.currentTokenIs(TokenEOF) || p.currentTokenIs("|") {
-			break
-		}
-
 		// Parse the next token
 		token := p.parseToken()
 		if token == nil {
+			// Skip to the next token if we couldn't parse this one
+			p.nextToken()
 			continue
 		}
 
 		// Add the token to the children
 		children = append(children, token)
 		lastTokenEnd = token.Position.End
+
+		// Check if we have whitespace between tokens
+		if !p.currentTokenIs(TokenWhitespace) && !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
+			// No whitespace between tokens - this is an error
+			// If this is the first token, we'll create a single error node
+			if len(children) == 1 {
+				// Start building an error node from the first token
+				errorStartPos := children[0].Position.Start
+				errorEndPos := children[0].Position.End
+
+				// Keep parsing tokens until we find whitespace, pipe, or EOF
+				for !p.currentTokenIs(TokenWhitespace) && !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
+					nextToken := p.parseToken()
+					if nextToken == nil {
+						p.nextToken()
+						continue
+					}
+					errorEndPos = nextToken.Position.End
+				}
+
+				// Create an error node that spans all the tokens without whitespace
+				errorNode := makeErrorNode("Search tokens require whitespace to separate them",
+					Position{Start: errorStartPos, End: errorEndPos})
+				
+				// Replace all children with this single error node
+				children = []*Node{errorNode}
+				lastTokenEnd = errorNode.Position.End
+			} else {
+				// If this isn't the first token, we'll add an error node
+				errorStartPos := token.Position.Start
+				errorEndPos := token.Position.End
+
+				// Keep parsing tokens until we find whitespace, pipe, or EOF
+				for !p.currentTokenIs(TokenWhitespace) && !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
+					nextToken := p.parseToken()
+					if nextToken == nil {
+						p.nextToken()
+						continue
+					}
+					errorEndPos = nextToken.Position.End
+				}
+
+				// Create an error node that spans all the tokens without whitespace
+				errorNode := makeErrorNode("Search tokens require whitespace to separate them",
+					Position{Start: errorStartPos, End: errorEndPos})
+				
+				// Add the error node to the children
+				children = append(children, errorNode)
+				lastTokenEnd = errorNode.Position.End
+			}
+		}
+
+		// Skip whitespace
+		p.skipWhitespace()
 	}
 
 	// If there are no children, return an empty AND node
