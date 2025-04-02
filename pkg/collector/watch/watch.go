@@ -15,20 +15,6 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-const (
-	WatchTypeSync = "sync"
-)
-
-const (
-	WatchFlag_Push     = 1
-	WatchFlag_Counter  = 2
-	WatchFlag_Atomic   = 4
-	WatchFlag_Sync     = 8
-	WatchFlag_Func     = 16
-	WatchFlag_Hook     = 32
-	WatchFlag_Settable = 64
-)
-
 const MaxWatchVals = 10000
 
 type AtomicLoader[T any] interface {
@@ -64,19 +50,19 @@ type WatchDecl struct {
 }
 
 func (d *WatchDecl) IsSync() bool {
-	return d.Flags&WatchFlag_Sync != 0
+	return d.Flags&ds.WatchFlag_Sync != 0
 }
 
 func (d *WatchDecl) IsFunc() bool {
-	return d.Flags&WatchFlag_Func != 0
+	return d.Flags&ds.WatchFlag_Func != 0
 }
 
 func (d *WatchDecl) IsAtomic() bool {
-	return d.Flags&WatchFlag_Atomic != 0
+	return d.Flags&ds.WatchFlag_Atomic != 0
 }
 
 func (d *WatchDecl) IsHook() bool {
-	return d.Flags&WatchFlag_Hook != 0
+	return d.Flags&ds.WatchFlag_Hook != 0
 }
 
 // CollectorName returns the unique name of the collector

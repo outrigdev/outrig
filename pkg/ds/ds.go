@@ -14,6 +14,16 @@ const (
 	PacketTypeRuntimeStats = "runtimestats"
 )
 
+const (
+	WatchFlag_Push     = 1
+	WatchFlag_Counter  = 2
+	WatchFlag_Atomic   = 4
+	WatchFlag_Sync     = 8
+	WatchFlag_Func     = 16
+	WatchFlag_Hook     = 32
+	WatchFlag_Settable = 64
+)
+
 type PacketType struct {
 	Type string `json:"type"`
 	Data any    `json:"data"`

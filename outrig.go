@@ -154,7 +154,7 @@ func WatchCounterSync[T constraints.Integer | constraints.Float](name string, lo
 	}
 	wc := watch.GetInstance()
 	rval := reflect.ValueOf(val)
-	wc.RegisterWatchSync(name, lock, rval, watch.WatchFlag_Sync|watch.WatchFlag_Settable|watch.WatchFlag_Counter)
+	wc.RegisterWatchSync(name, lock, rval, ds.WatchFlag_Sync|ds.WatchFlag_Settable|ds.WatchFlag_Counter)
 }
 
 func WatchSync[T any](name string, lock sync.Locker, val *T) {
@@ -163,7 +163,7 @@ func WatchSync[T any](name string, lock sync.Locker, val *T) {
 	}
 	wc := watch.GetInstance()
 	rval := reflect.ValueOf(val)
-	wc.RegisterWatchSync(name, lock, rval, watch.WatchFlag_Sync|watch.WatchFlag_Settable)
+	wc.RegisterWatchSync(name, lock, rval, ds.WatchFlag_Sync|ds.WatchFlag_Settable)
 }
 
 func WatchAtomicCounter[T constraints.Integer | constraints.Float](name string, val AtomicLoader[T]) {
@@ -171,7 +171,7 @@ func WatchAtomicCounter[T constraints.Integer | constraints.Float](name string, 
 		return
 	}
 	wc := watch.GetInstance()
-	wc.RegisterWatchAtomic(name, val, watch.WatchFlag_Atomic|watch.WatchFlag_Counter)
+	wc.RegisterWatchAtomic(name, val, ds.WatchFlag_Atomic|ds.WatchFlag_Counter)
 }
 
 func WatchAtomic[T any](name string, val AtomicLoader[T]) {
@@ -179,7 +179,7 @@ func WatchAtomic[T any](name string, val AtomicLoader[T]) {
 		return
 	}
 	wc := watch.GetInstance()
-	wc.RegisterWatchAtomic(name, val, watch.WatchFlag_Atomic|watch.WatchFlag_Settable)
+	wc.RegisterWatchAtomic(name, val, ds.WatchFlag_Atomic|ds.WatchFlag_Settable)
 }
 
 func WatchCounterFunc[T constraints.Integer | constraints.Float](name string, getFn func() T) {
@@ -187,7 +187,7 @@ func WatchCounterFunc[T constraints.Integer | constraints.Float](name string, ge
 		return
 	}
 	wc := watch.GetInstance()
-	wc.RegisterWatchFunc(name, getFn, nil, watch.WatchFlag_Func|watch.WatchFlag_Counter)
+	wc.RegisterWatchFunc(name, getFn, nil, ds.WatchFlag_Func|ds.WatchFlag_Counter)
 }
 
 func WatchFunc[T any](name string, getFn func() T, setFn func(T)) {
@@ -195,9 +195,9 @@ func WatchFunc[T any](name string, getFn func() T, setFn func(T)) {
 		return
 	}
 	wc := watch.GetInstance()
-	flags := watch.WatchFlag_Func
+	flags := ds.WatchFlag_Func
 	if setFn != nil {
-		flags |= watch.WatchFlag_Settable
+		flags |= ds.WatchFlag_Settable
 	}
 	wc.RegisterWatchFunc(name, getFn, setFn, flags)
 }
@@ -209,7 +209,7 @@ func TrackValue(name string, val any) {
 	wc := watch.GetInstance()
 	rval := reflect.ValueOf(val)
 	cleanName, tags := utilfn.ParseNameAndTags(name)
-	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), watch.WatchFlag_Push)
+	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), ds.WatchFlag_Push)
 }
 
 func TrackCounter[T constraints.Integer | constraints.Float](name string, val T) {
@@ -219,7 +219,7 @@ func TrackCounter[T constraints.Integer | constraints.Float](name string, val T)
 	wc := watch.GetInstance()
 	rval := reflect.ValueOf(val)
 	cleanName, tags := utilfn.ParseNameAndTags(name)
-	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), watch.WatchFlag_Push|watch.WatchFlag_Counter)
+	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), ds.WatchFlag_Push|ds.WatchFlag_Counter)
 }
 
 func RegisterHook(name string, hookFn any) {
@@ -227,7 +227,7 @@ func RegisterHook(name string, hookFn any) {
 		return
 	}
 	wc := watch.GetInstance()
-	wc.RegisterHook(name, hookFn, watch.WatchFlag_Hook|watch.WatchFlag_Settable)
+	wc.RegisterHook(name, hookFn, ds.WatchFlag_Hook|ds.WatchFlag_Settable)
 }
 
 func RegisterSimpleHook(name string, hookFn func() error) {
@@ -235,7 +235,7 @@ func RegisterSimpleHook(name string, hookFn func() error) {
 		return
 	}
 	wc := watch.GetInstance()
-	wc.RegisterHook(name, hookFn, watch.WatchFlag_Hook|watch.WatchFlag_Settable)
+	wc.RegisterHook(name, hookFn, ds.WatchFlag_Hook|ds.WatchFlag_Settable)
 }
 
 // SetGoRoutineName sets a name for the current goroutine
