@@ -183,6 +183,45 @@ const isInsideUnclosedDelimiter = (text: string, cursorPos: number, openChar: st
 };
 
 /**
+ * Handles wrapping selected text with delimiters
+ * Returns true if the event was handled, false otherwise
+ */
+export const handleSelectionWrapping = (
+    e: React.KeyboardEvent,
+    input: HTMLInputElement,
+    openChar: string,
+    closeChar: string,
+    onValueChange: (value: string) => void
+): boolean => {
+    const selectionStart = input.selectionStart;
+    const selectionEnd = input.selectionEnd;
+    
+    // Only process if text is selected
+    if (selectionStart === null || selectionEnd === null || selectionStart === selectionEnd) {
+        return false;
+    }
+    
+    const text = input.value;
+    const selectedText = text.substring(selectionStart, selectionEnd);
+    
+    // Wrap the selected text with delimiters
+    const newValue = 
+        text.substring(0, selectionStart) + 
+        openChar + selectedText + closeChar + 
+        text.substring(selectionEnd);
+    
+    e.preventDefault();
+    onValueChange(newValue);
+    
+    // Position cursor right before the closing delimiter
+    setTimeout(() => {
+        input.setSelectionRange(selectionEnd + 1, selectionEnd + 1);
+    }, 0);
+    
+    return true;
+};
+
+/**
  * Handles delimiter auto-closing and skipping
  * Returns true if the event was handled, false otherwise
  */
