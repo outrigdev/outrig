@@ -17,18 +17,18 @@ const (
 	TokenSingleQuoted TokenType = "SINGLEQUOTED" // Single quoted string
 	TokenRegexp       TokenType = "REGEXP"       // Regular expression
 	TokenCaseRegexp   TokenType = "CASEREGEXP"   // Case-sensitive regexp
-	TokenWhitespace   TokenType = "WHITESPACE"   // Whitespace
+	TokenWhitespace   TokenType = "WS"           // Whitespace
 	TokenEOF          TokenType = "EOF"          // End of input
-	
+
 	// Token types for simple characters (using the actual character)
-	TokenLParen       TokenType = "("  // Left parenthesis
-	TokenRParen       TokenType = ")"  // Right parenthesis
-	TokenPipe         TokenType = "|"  // Pipe character
-	TokenMinus        TokenType = "-"  // Minus sign
-	TokenDollar       TokenType = "$"  // Dollar sign
-	TokenColon        TokenType = ":"  // Colon
-	TokenTilde        TokenType = "~"  // Tilde
-	TokenHash         TokenType = "#"  // Hash
+	TokenLParen TokenType = "(" // Left parenthesis
+	TokenRParen TokenType = ")" // Right parenthesis
+	TokenPipe   TokenType = "|" // Pipe character
+	TokenMinus  TokenType = "-" // Minus sign
+	TokenDollar TokenType = "$" // Dollar sign
+	TokenColon  TokenType = ":" // Colon
+	TokenTilde  TokenType = "~" // Tilde
+	TokenHash   TokenType = "#" // Hash
 )
 
 // Token represents a token in the search expression
@@ -83,20 +83,20 @@ func (t *Tokenizer) peek() rune {
 // readWhitespace reads a continuous sequence of whitespace
 func (t *Tokenizer) readWhitespace() string {
 	startPos := t.position
-	
+
 	for unicode.IsSpace(t.ch) {
 		t.readChar()
 	}
-	
+
 	return t.input[startPos:t.position]
 }
 
 // NextToken returns the next token from the input
 func (t *Tokenizer) NextToken() Token {
 	var tok Token
-	
+
 	startPos := t.position
-	
+
 	switch {
 	case unicode.IsSpace(t.ch):
 		value := t.readWhitespace()
@@ -128,24 +128,24 @@ func (t *Tokenizer) NextToken() Token {
 	case t.ch == '"':
 		value, incomplete := t.readDoubleQuotedString()
 		tok = Token{
-			Type:       TokenDoubleQuoted, 
-			Value:      value, 
+			Type:       TokenDoubleQuoted,
+			Value:      value,
 			Position:   Position{Start: startPos, End: t.position},
 			Incomplete: incomplete,
 		}
 	case t.ch == '\'':
 		value, incomplete := t.readSingleQuotedString()
 		tok = Token{
-			Type:       TokenSingleQuoted, 
-			Value:      value, 
+			Type:       TokenSingleQuoted,
+			Value:      value,
 			Position:   Position{Start: startPos, End: t.position},
 			Incomplete: incomplete,
 		}
 	case t.ch == '/':
 		value, incomplete := t.readRegexpString()
 		tok = Token{
-			Type:       TokenRegexp, 
-			Value:      value, 
+			Type:       TokenRegexp,
+			Value:      value,
 			Position:   Position{Start: startPos, End: t.position},
 			Incomplete: incomplete,
 		}
@@ -158,8 +158,8 @@ func (t *Tokenizer) NextToken() Token {
 			if t.ch == '/' {
 				value, incomplete := t.readRegexpString()
 				tok = Token{
-					Type:       TokenCaseRegexp, 
-					Value:      value, 
+					Type:       TokenCaseRegexp,
+					Value:      value,
 					Position:   Position{Start: startPos, End: t.position},
 					Incomplete: incomplete,
 				}
@@ -174,7 +174,7 @@ func (t *Tokenizer) NextToken() Token {
 			tok = Token{Type: TokenWord, Value: value, Position: Position{Start: startPos, End: t.position}}
 		}
 	}
-	
+
 	return tok
 }
 
@@ -183,18 +183,18 @@ func (t *Tokenizer) NextToken() Token {
 func (t *Tokenizer) readDoubleQuotedString() (string, bool) {
 	t.readChar() // Skip opening quote
 	startPos := t.position
-	
+
 	for t.ch != '"' && t.ch != 0 {
 		t.readChar()
 	}
-	
+
 	value := t.input[startPos:t.position]
 	incomplete := t.ch == 0 // True if we reached EOF without closing quote
-	
+
 	if t.ch == '"' {
 		t.readChar() // Skip closing quote
 	}
-	
+
 	return value, incomplete
 }
 
@@ -203,18 +203,18 @@ func (t *Tokenizer) readDoubleQuotedString() (string, bool) {
 func (t *Tokenizer) readSingleQuotedString() (string, bool) {
 	t.readChar() // Skip opening quote
 	startPos := t.position
-	
+
 	for t.ch != '\'' && t.ch != 0 {
 		t.readChar()
 	}
-	
+
 	value := t.input[startPos:t.position]
 	incomplete := t.ch == 0 // True if we reached EOF without closing quote
-	
+
 	if t.ch == '\'' {
 		t.readChar() // Skip closing quote
 	}
-	
+
 	return value, incomplete
 }
 
@@ -224,79 +224,79 @@ func (t *Tokenizer) readRegexpString() (string, bool) {
 	t.readChar() // Skip opening slash
 	startPos := t.position
 	escaped := false
-	
+
 	for {
 		if t.ch == 0 {
 			// EOF
 			break
 		}
-		
+
 		if escaped {
 			// Previous character was a backslash, so this character is escaped
 			escaped = false
 			t.readChar()
 			continue
 		}
-		
+
 		if t.ch == '\\' {
 			// Backslash - next character will be escaped
 			escaped = true
 			t.readChar()
 			continue
 		}
-		
+
 		if t.ch == '/' {
 			// Unescaped closing slash
 			break
 		}
-		
+
 		// Regular character
 		t.readChar()
 	}
-	
+
 	value := t.input[startPos:t.position]
 	incomplete := t.ch == 0 // True if we reached EOF without closing slash
-	
+
 	if t.ch == '/' {
 		t.readChar() // Skip closing slash
 	}
-	
+
 	return value, incomplete
 }
 
 // readWord reads a word token (any sequence of non-special characters)
 func (t *Tokenizer) readWord() string {
 	startPos := t.position
-	
+
 	for !isSpecialChar(t.ch) && t.ch != 0 {
 		t.readChar()
 	}
-	
+
 	return t.input[startPos:t.position]
 }
 
 // isSpecialChar returns true if the character is a special character
 func isSpecialChar(ch rune) bool {
-	return unicode.IsSpace(ch) || 
-		ch == '(' || ch == ')' || ch == '|' || 
-		ch == '-' || ch == '$' || ch == ':' || 
-		ch == '~' || ch == '#' || ch == '/' || 
+	return unicode.IsSpace(ch) ||
+		ch == '(' || ch == ')' || ch == '|' ||
+		ch == '-' || ch == '$' || ch == ':' ||
+		ch == '~' || ch == '#' || ch == '/' ||
 		ch == '"' || ch == '\''
 }
 
 // GetAllTokens tokenizes the entire input and returns all tokens
 func (t *Tokenizer) GetAllTokens() []Token {
 	var tokens []Token
-	
+
 	for {
 		tok := t.NextToken()
 		tokens = append(tokens, tok)
-		
+
 		if tok.Type == TokenEOF {
 			break
 		}
 	}
-	
+
 	return tokens
 }
 

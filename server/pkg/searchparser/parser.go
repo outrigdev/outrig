@@ -2,35 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Search Parser Grammar (EBNF):
-//
-// search           = or_expr ;
-// or_expr          = and_expr { "|" and_expr } ;
-// and_expr         = { token } ;
+
+// search           = WS? or_expr WS? EOF ;
+// or_expr          = and_expr { WS? "|" WS? and_expr } ;
+// and_expr         = token { WS token } ;
 // token            = not_token | field_token ;
 // not_token        = "-" field_token ;
-// field_token      = field_prefix? unmodified_token ;
-// field_prefix     = "$" { any_char - ":" - whitespace } ":" ;
-// unmodified_token = fuzzy_token | regexp_token | case_regexp_token | tag_token | simple_token ;
+// field_token      = [ field_prefix ] unmodified_token ;
+// field_prefix     = "$" WORD ":" ;
+// unmodified_token = fuzzy_token | regexp_token | tag_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
-// regexp_token     = "/" { any_char - "/" | "\/" } "/" ;
-// case_regexp_token = "c/" { any_char - "/" | "\/" } "/" ;
-// tag_token        = "#" { any_char - whitespace } [ "/" ] ;
-// simple_token     = quoted_token | single_quoted_token | plain_token ;
-// quoted_token     = '"' { any_char - '"' } '"' ;
-// single_quoted_token = "'" { any_char - "'" } "'" ;
-// plain_token      = { any_char - whitespace } ;
-// any_char         = ? any Unicode character ? ;
-// whitespace       = ? Unicode whitespace character ? ;
+// regexp_token     = REGEXP | CASEREGEXP;
+// tag_token        = "#" WORD [ "/" ] ;
+// simple_token     = DOUBLEQUOTED | SINGLEQUOTED | WORD
 //
 // Notes:
-// - Empty quoted strings ("" or '') are ignored (no token)
-// - Empty fuzzy prefix (~) followed by whitespace is an error
-// - Empty hash prefix (#) followed by whitespace is an error
+// - Empty control tokens (like "~", "$", ":", "-" or "#") followed by whitespace are errors
 // - Single quoted tokens are treated as case-sensitive (exactcase)
 // - Fuzzy tokens with single quotes (~'...') are treated as case-sensitive fuzzy search (fzfcase)
-// - Regular expression tokens (/foo/) are case-insensitive by default
-// - Case-sensitive regular expression tokens (c/Foo/) are prefixed with 'c'
-// - Tag tokens (#foo) search for tags that start at word boundaries
 // - Tag tokens with trailing slash (#foo/) require exact matches
 // - Special case: #marked or #m uses the marked searcher to find marked lines
 // - Not token (-) negates the search result of the token that follows it
@@ -193,7 +182,7 @@ func (p *Parser) parseFieldPrefix() (*Node, string, bool, Position) {
 	}
 
 	dollarPos := Position{Start: startPos, End: p.currentToken().Position.End}
-	
+
 	// Skip the $ character
 	p.nextToken()
 
@@ -205,17 +194,17 @@ func (p *Parser) parseFieldPrefix() (*Node, string, bool, Position) {
 
 	// We need a word token for the field name
 	if !p.currentTokenIs(TokenWord) {
-		errorNode := makeErrorNode("Invalid field name after '$'", 
+		errorNode := makeErrorNode("Invalid field name after '$'",
 			Position{Start: dollarPos.Start, End: p.currentToken().Position.End})
 		return errorNode, "", false, dollarPos
 	}
 
 	fieldName := p.currentToken().Value
 	fieldNamePos := p.currentToken().Position
-	
+
 	// Skip the field name
 	p.nextToken()
-	
+
 	// Check for whitespace between field name and colon
 	if p.currentTokenIs(TokenWhitespace) {
 		errorPos := Position{Start: dollarPos.Start, End: fieldNamePos.End}
@@ -260,7 +249,7 @@ func (p *Parser) parseUnmodifiedToken() *Node {
 		// Parse the simple token
 		simpleToken, simpleType, valid, simplePos := p.parseSimpleToken()
 		if !valid {
-			return makeErrorNode("Invalid token after '~'", 
+			return makeErrorNode("Invalid token after '~'",
 				Position{Start: tildePos.Start, End: p.currentToken().Position.End})
 		}
 
@@ -392,7 +381,7 @@ func (p *Parser) parseToken() *Node {
 
 	// Check for field prefix
 	errorNode, field, hasField, _ := p.parseFieldPrefix()
-	
+
 	// If we got an error node from field prefix parsing, return it
 	if errorNode != nil {
 		return errorNode
@@ -467,7 +456,7 @@ func (p *Parser) parseAndExpr() *Node {
 				// Create an error node that spans all the tokens without whitespace
 				errorNode := makeErrorNode("Search tokens require whitespace to separate them",
 					Position{Start: errorStartPos, End: errorEndPos})
-				
+
 				// Replace all children with this single error node
 				children = []*Node{errorNode}
 				lastTokenEnd = errorNode.Position.End
@@ -489,7 +478,7 @@ func (p *Parser) parseAndExpr() *Node {
 				// Create an error node that spans all the tokens without whitespace
 				errorNode := makeErrorNode("Search tokens require whitespace to separate them",
 					Position{Start: errorStartPos, End: errorEndPos})
-				
+
 				// Add the error node to the children
 				children = append(children, errorNode)
 				lastTokenEnd = errorNode.Position.End
