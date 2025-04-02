@@ -46,6 +46,7 @@ const (
 	NodeTypeSearch = "search"
 	NodeTypeAnd    = "and"
 	NodeTypeOr     = "or"
+	NodeTypeError  = "error"
 )
 
 // Position represents a position in the source text
@@ -57,7 +58,7 @@ type Position struct {
 // Node represents a node in the search AST
 type Node struct {
 	// Common fields for all nodes
-	Type     string   // NodeTypeAnd, NodeTypeOr, NodeTypeSearch
+	Type     string   // NodeTypeAnd, NodeTypeOr, NodeTypeSearch, NodeTypeError
 	Position Position // Position in source text
 
 	// Union fields - used based on node type
@@ -68,6 +69,9 @@ type Node struct {
 	SearchTerm string // The actual search text (only for NodeTypeSearch)
 	Field      string // Optional field specifier (only for NodeTypeSearch)
 	IsNot      bool   // Whether this is a negated search
+
+	// Error information (only for NodeTypeError)
+	ErrorMessage string // Error message (only for NodeTypeError)
 }
 
 // Parser represents a recursive descent parser for search expressions
@@ -123,6 +127,15 @@ func makeSearchNode(searchType, searchTerm, field string, isNot bool, pos Positi
 		SearchTerm: searchTerm,
 		Field:      field,
 		IsNot:      isNot,
+	}
+}
+
+// makeErrorNode creates an error node with the given parameters
+func makeErrorNode(errorMessage string, pos Position) *Node {
+	return &Node{
+		Type:         NodeTypeError,
+		Position:     pos,
+		ErrorMessage: errorMessage,
 	}
 }
 
@@ -222,7 +235,6 @@ func (p *Parser) parseUnmodifiedToken() *Node {
 	if p.currentTokenIs("~") {
 		// Skip the ~ character
 		p.nextToken()
-		endPos = p.currentToken().Position.Start
 
 		// If we've reached the end of the input or whitespace, skip this token
 		if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
@@ -390,7 +402,57 @@ func (p *Parser) parseAndExpr() *Node {
 	var children []*Node
 	var lastTokenEnd int
 
+	// Parse the first token
+	p.skipWhitespace()
+	if p.currentTokenIs(TokenEOF) || p.currentTokenIs("|") {
+		// Empty AND expression
+		endPos := p.currentToken().Position.Start
+		return &Node{
+			Type:     NodeTypeAnd,
+			Position: Position{Start: startPos, End: endPos},
+			Children: make([]Node, 0),
+		}
+	}
+
+	// Parse the first token
+	firstToken := p.parseToken()
+	if firstToken == nil {
+		// No valid token found
+		endPos := p.currentToken().Position.Start
+		return &Node{
+			Type:     NodeTypeAnd,
+			Position: Position{Start: startPos, End: endPos},
+			Children: make([]Node, 0),
+		}
+	}
+
+	// Add the first token to the children
+	children = append(children, firstToken)
+	lastTokenEnd = firstToken.Position.End
+
+	// Check for more tokens
 	for !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
+		// Check if we have whitespace between tokens
+		if !p.currentTokenIs(TokenWhitespace) {
+			// No whitespace between tokens - this is an error
+			// Start building an error node from the first token
+			errorStartPos := firstToken.Position.Start
+			errorEndPos := lastTokenEnd
+
+			// Keep parsing tokens until we find whitespace, pipe, or EOF
+			for !p.currentTokenIs(TokenWhitespace) && !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
+				token := p.parseToken()
+				if token == nil {
+					break
+				}
+				errorEndPos = token.Position.End
+			}
+
+			// Create an error node that spans all the tokens without whitespace
+			return makeErrorNode("Search tokens require whitespace to separate them",
+				Position{Start: errorStartPos, End: errorEndPos})
+		}
+
 		// Skip whitespace
 		p.skipWhitespace()
 
@@ -399,7 +461,7 @@ func (p *Parser) parseAndExpr() *Node {
 			break
 		}
 
-		// Parse a token
+		// Parse the next token
 		token := p.parseToken()
 		if token == nil {
 			continue
@@ -407,16 +469,7 @@ func (p *Parser) parseAndExpr() *Node {
 
 		// Add the token to the children
 		children = append(children, token)
-
-		// Update the last token end position
 		lastTokenEnd = token.Position.End
-
-		// Require whitespace between tokens (except before EOF or pipe)
-		if !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") && !p.currentTokenIs(TokenWhitespace) {
-			// No whitespace between tokens - this is an error
-			// For now, we'll just stop parsing this AND expression
-			break
-		}
 	}
 
 	// If there are no children, return an empty AND node

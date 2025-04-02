@@ -26,6 +26,10 @@ func MakeSearcherFromNode(node *searchparser.Node) (Searcher, error) {
 			return MakeNotSearcher(searcher), nil
 		}
 		return searcher, nil
+	
+	case searchparser.NodeTypeError:
+		// For error nodes, return an AllSearcher (matches everything)
+		return MakeAllSearcher(), nil
 		
 	case searchparser.NodeTypeAnd:
 		// Create an AND searcher with all child searchers

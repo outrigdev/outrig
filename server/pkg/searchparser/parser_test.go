@@ -134,6 +134,15 @@ func TestParseAST(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "tokens without whitespace",
+			input: `"hello"mike/foo/`,
+			expected: &Node{
+				Type:         "error",
+				Position:     Position{Start: 0, End: 16},
+				ErrorMessage: "Search tokens require whitespace to separate them",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -186,6 +195,10 @@ func compareNodes(t *testing.T, actual, expected *Node) {
 		}
 		if actual.IsNot != expected.IsNot {
 			t.Errorf("isNot mismatch: got %t, want %t", actual.IsNot, expected.IsNot)
+		}
+	} else if actual.Type == "error" {
+		if actual.ErrorMessage != expected.ErrorMessage {
+			t.Errorf("error message mismatch: got %s, want %s", actual.ErrorMessage, expected.ErrorMessage)
 		}
 	}
 
