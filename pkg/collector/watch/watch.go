@@ -65,6 +65,24 @@ func (d *WatchDecl) IsHook() bool {
 	return d.Flags&ds.WatchFlag_Hook != 0
 }
 
+func (d *WatchDecl) IsNumeric() bool {
+	kind := reflect.Kind(d.Flags & ds.KindMask)
+	switch kind {
+	case reflect.Bool:
+		return true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return true
+	case reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+		return true
+	case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan:
+		return true
+	default:
+		return false
+	}
+}
+
 // CollectorName returns the unique name of the collector
 func (wc *WatchCollector) CollectorName() string {
 	return "watch"
@@ -265,6 +283,8 @@ func (wc *WatchCollector) collectWatch(decl *WatchDecl) {
 			Type:  reflect.TypeOf(decl.HookFn).String(),
 			Addr:  []string{fmt.Sprintf("%p", decl.HookFn)},
 		}
+		// Set the kind to Func for hooks
+		watch.SetKind(uint(reflect.Func))
 		wc.PushWatchValue(&watch)
 		return
 	}
@@ -334,6 +354,9 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 		watch.Addr = append(watch.Addr, fmt.Sprintf("%p", rval.Interface()))
 		rval = rval.Elem()
 	}
+	// Store the kind in the lower 5 bits of the flags
+	watch.SetKind(uint(rval.Kind()))
+	
 	switch rval.Kind() {
 	case reflect.String:
 		watch.Value = rval.String()

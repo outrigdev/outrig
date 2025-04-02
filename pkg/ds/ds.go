@@ -2,6 +2,8 @@ package ds
 
 import (
 	"net"
+	"reflect"
+	"strconv"
 )
 
 // Transport packet types
@@ -15,13 +17,17 @@ const (
 )
 
 const (
-	WatchFlag_Push     = 1
-	WatchFlag_Counter  = 2
-	WatchFlag_Atomic   = 4
-	WatchFlag_Sync     = 8
-	WatchFlag_Func     = 16
-	WatchFlag_Hook     = 32
-	WatchFlag_Settable = 64
+	// Preserve lower 5 bits for reflect.Kind (0-31)
+	KindMask        = 0x1F      // 00000000_00011111
+	
+	// Shift existing flags up by 5 bits
+	WatchFlag_Push     = 1 << 5  // 00000000_00100000
+	WatchFlag_Counter  = 1 << 6  // 00000000_01000000
+	WatchFlag_Atomic   = 1 << 7  // 00000000_10000000
+	WatchFlag_Sync     = 1 << 8  // 00000001_00000000
+	WatchFlag_Func     = 1 << 9  // 00000010_00000000
+	WatchFlag_Hook     = 1 << 10 // 00000100_00000000
+	WatchFlag_Settable = 1 << 11 // 00001000_00000000
 )
 
 type PacketType struct {
@@ -176,6 +182,66 @@ type WatchSample struct {
 	Cap      int      `json:"cap,omitempty"`
 	Len      int      `json:"len,omitempty"`
 	WaitTime int64    `json:"waittime,omitempty"`
+}
+
+// GetKind extracts the reflect.Kind from the flags
+func (w *WatchSample) GetKind() uint {
+	return uint(w.Flags & KindMask)
+}
+
+// SetKind sets the reflect.Kind in the flags
+func (w *WatchSample) SetKind(kind uint) {
+	// Clear the current kind bits
+	w.Flags &= ^KindMask
+	// Set the new kind bits
+	w.Flags |= int(kind) & KindMask
+}
+
+// IsNumeric checks if the value is numeric based on its Kind
+func (w *WatchSample) IsNumeric() bool {
+	kind := reflect.Kind(w.GetKind())
+	switch kind {
+	case reflect.Bool:
+		return true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return true
+	case reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+		return true
+	case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan:
+		return true
+	default:
+		return false
+	}
+}
+
+// GetNumericVal returns a float64 representation of the value
+func (w *WatchSample) GetNumericVal() float64 {
+	if !w.IsNumeric() {
+		return 0
+	}
+	
+	kind := reflect.Kind(w.GetKind())
+	switch kind {
+	case reflect.Bool:
+		if w.Value == "true" {
+			return 1
+		}
+		return 0
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		 reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		 reflect.Float32, reflect.Float64:
+		val, err := strconv.ParseFloat(w.Value, 64)
+		if err != nil {
+			return 0
+		}
+		return val
+	case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan:
+		return float64(w.Len)
+	default:
+		return 0
+	}
 }
 
 type Controller interface {
