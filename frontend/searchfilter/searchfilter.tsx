@@ -1,6 +1,7 @@
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { Filter } from "lucide-react";
 import React, { useEffect, useRef } from "react";
+import { DELIMITER_PAIRS, SPECIAL_CHARS, handleDelimiter, handleSpecialChar } from "./searchfilter-helpers";
 
 interface SearchFilterProps {
     value: string;
@@ -19,6 +20,42 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     onOutrigKeyDown,
     className = "",
 }) => {
+    // Handle keydown events for the search filter
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const input = e.currentTarget;
+        const key = e.key;
+        
+        // Only process if selection is collapsed (no text is selected)
+        if (input.selectionStart === input.selectionEnd) {
+            // First check for special character handling
+            if (handleSpecialChar(e, input, onValueChange)) {
+                return;
+            }
+            
+            // Then check for delimiter handling
+            if (key in DELIMITER_PAIRS) {
+                if (handleDelimiter(e, input, key, DELIMITER_PAIRS[key], onValueChange)) {
+                    return;
+                }
+            }
+        }
+        
+        // If we didn't handle the key, pass to the regular handler
+        keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
+            // Handle Escape key internally
+            if (checkKeyPressed(keyEvent, "Escape")) {
+                onValueChange("");
+                return true;
+            }
+
+            // Pass other keys to the provided handler
+            if (onOutrigKeyDown) {
+                return onOutrigKeyDown(keyEvent);
+            }
+
+            return false;
+        })(e);
+    };
     // Create internal ref if no external ref is provided
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -57,20 +94,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                 placeholder={placeholder}
                 value={value}
                 onChange={(e) => onValueChange(e.target.value)}
-                onKeyDown={keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
-                    // Handle Escape key internally
-                    if (checkKeyPressed(keyEvent, "Escape")) {
-                        onValueChange("");
-                        return true;
-                    }
-
-                    // Pass other keys to the provided handler
-                    if (onOutrigKeyDown) {
-                        return onOutrigKeyDown(keyEvent);
-                    }
-
-                    return false;
-                })}
+                onKeyDown={handleKeyDown}
                 className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2 
                   border-none ring-0 outline-none focus:outline-none focus:ring-0 font-mono"
             />
