@@ -43,6 +43,12 @@ import (
 	"unicode"
 )
 
+const (
+	NodeTypeSearch = "search"
+	NodeTypeAnd    = "and"
+	NodeTypeOr     = "or"
+)
+
 // Position represents a position in the source text
 type Position struct {
 	Start int // Start position (inclusive)
@@ -52,25 +58,17 @@ type Position struct {
 // Node represents a node in the search AST
 type Node struct {
 	// Common fields for all nodes
-	Type     string   // "and", "or", "not", "search"
+	Type     string   // NodeTypeAnd, NodeTypeOr, NodeTypeSearch
 	Position Position // Position in source text
 
 	// Union fields - used based on node type
-	Children []Node // Used for "and", "or" nodes
+	Children []Node // Used for NodeTypeAnd, NodeTypeOr nodes
 
 	// Fields primarily for leaf nodes (search terms)
-	SearchType string // "exact", "regexp", "fzf", etc. (only for "search" type)
-	SearchTerm string // The actual search text (only for "search" type)
-	Field      string // Optional field specifier (only for "search" type)
+	SearchType string // "exact", "regexp", "fzf", etc. (only for NodeTypeSearch)
+	SearchTerm string // The actual search text (only for NodeTypeSearch)
+	Field      string // Optional field specifier (only for NodeTypeSearch)
 	IsNot      bool   // Whether this is a negated search
-}
-
-// SearchToken represents a single token in a search query (legacy format)
-type SearchToken struct {
-	Type       string // The search type (exact, regexp, fzf, etc.)
-	SearchTerm string // The actual search term
-	IsNot      bool   // Whether this token is negated (e.g., -hello)
-	Field      string // The field to search in (e.g., name, source)
 }
 
 // Parser represents a recursive descent parser for search expressions
@@ -308,7 +306,7 @@ func (p *Parser) parseFieldPrefix() (string, bool, bool) {
 // makeSearchNode creates a search node with the given parameters
 func makeSearchNode(searchType, searchTerm, field string, isNot bool, pos Position) *Node {
 	return &Node{
-		Type:       "search",
+		Type:       NodeTypeSearch,
 		Position:   pos,
 		SearchType: searchType,
 		SearchTerm: searchTerm,
@@ -530,7 +528,7 @@ func (p *Parser) parseAndExpr() *Node {
 	// If there are no children, return an empty AND node
 	if len(children) == 0 {
 		return &Node{
-			Type:     "and",
+			Type:     NodeTypeAnd,
 			Position: Position{Start: startPos, End: p.position},
 			Children: make([]Node, 0),
 		}
@@ -551,7 +549,7 @@ func (p *Parser) parseAndExpr() *Node {
 	}
 	
 	return &Node{
-		Type:     "and",
+		Type:     NodeTypeAnd,
 		Position: Position{Start: startPos, End: lastTokenEnd},
 		Children: nodeChildren,
 	}
@@ -572,7 +570,7 @@ func (p *Parser) parseOrExpr() *Node {
 
 		// Add an empty AND node before the pipe
 		children = append(children, &Node{
-			Type:     "and",
+			Type:     NodeTypeAnd,
 			Position: Position{Start: startPos, End: startPos},
 			Children: []Node{},
 		})
@@ -603,7 +601,7 @@ func (p *Parser) parseOrExpr() *Node {
 		// Create an OR node with the children
 		endPos := p.position
 		return &Node{
-			Type:     "or",
+			Type:     NodeTypeOr,
 			Position: Position{Start: startPos, End: endPos},
 			Children: nodeChildren,
 		}
@@ -640,7 +638,7 @@ func (p *Parser) parseOrExpr() *Node {
 	// Create an OR node with the children
 	endPos := p.position
 	return &Node{
-		Type:     "or",
+		Type:     NodeTypeOr,
 		Position: Position{Start: startPos, End: endPos},
 		Children: nodeChildren,
 	}
@@ -650,85 +648,20 @@ func (p *Parser) parseOrExpr() *Node {
 func (p *Parser) ParseAST() *Node {
 	// Special case for a single pipe character
 	if p.ch == '|' && p.peek(1) == 0 {
-		return makeSearchNode("or", "|", "", false, Position{Start: 0, End: 1})
+		return makeSearchNode(NodeTypeOr, "|", "", false, Position{Start: 0, End: 1})
 	}
 
 	// Parse the OR expression
 	return p.parseOrExpr()
 }
 
-// NodeToSearchToken converts a Node to a SearchToken
-func NodeToSearchToken(node *Node) SearchToken {
-	return SearchToken{
-		Type:       node.SearchType,
-		SearchTerm: node.SearchTerm,
-		IsNot:      node.IsNot,
-		Field:      node.Field,
-	}
-}
-
-// FlattenAST converts an AST to a flat list of SearchToken objects
-func FlattenAST(node *Node) []SearchToken {
-	if node == nil {
-		return []SearchToken{}
-	}
-	
-	switch node.Type {
-	case "search":
-		return []SearchToken{NodeToSearchToken(node)}
-	case "and":
-		var result []SearchToken
-		for i := range node.Children {
-			// Get a pointer to the child node
-			childPtr := &node.Children[i]
-			result = append(result, FlattenAST(childPtr)...)
-		}
-		return result
-	case "or":
-		var result []SearchToken
-		for i := range node.Children {
-			if i > 0 {
-				result = append(result, SearchToken{
-					Type:       "or",
-					SearchTerm: "|",
-					IsNot:      false,
-				})
-			}
-			// Get a pointer to the child node
-			childPtr := &node.Children[i]
-			result = append(result, FlattenAST(childPtr)...)
-		}
-		return result
-	default:
-		return []SearchToken{}
-	}
-}
-
-// Parse parses the input string into a slice of tokens (legacy format)
-func (p *Parser) Parse() []SearchToken {
-	// Parse the input into an AST
-	ast := p.ParseAST()
-	
-	// Flatten the AST into a list of tokens
-	return FlattenAST(ast)
-}
-
-// TokenizeSearch splits a search string into tokens using the parser
-func TokenizeSearch(searchString string) []SearchToken {
-	searchString = strings.TrimSpace(searchString)
-	if searchString == "" {
-		return []SearchToken{}
-	}
-	parser := NewParser(searchString)
-	return parser.Parse()
-}
 
 // ParseSearch parses a search string into an AST
 func ParseSearch(searchString string) *Node {
 	searchString = strings.TrimSpace(searchString)
 	if searchString == "" {
 		return &Node{
-			Type:     "and",
+			Type:     NodeTypeAnd,
 			Position: Position{Start: 0, End: 0},
 			Children: []Node{},
 		}

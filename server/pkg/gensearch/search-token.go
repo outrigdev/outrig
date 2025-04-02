@@ -7,125 +7,112 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
-// createSearcherFromUnmodifiedToken creates a searcher from a token without considering the IsNot field
-func createSearcherFromUnmodifiedToken(token searchparser.SearchToken) (Searcher, error) {
-	// Handle empty search term and special case for marked searcher
-	if token.Type == SearchTypeMarked {
+// MakeSearcherFromNode creates a searcher from an AST node
+func MakeSearcherFromNode(node *searchparser.Node) (Searcher, error) {
+	if node == nil {
+		return MakeAllSearcher(), nil
+	}
+
+	switch node.Type {
+	case searchparser.NodeTypeSearch:
+		// Create a searcher for a leaf node
+		searcher, err := createSearcherFromSearchNode(node)
+		if err != nil {
+			return nil, err
+		}
+		
+		// If this is a negated search, wrap it with a not searcher
+		if node.IsNot {
+			return MakeNotSearcher(searcher), nil
+		}
+		return searcher, nil
+		
+	case searchparser.NodeTypeAnd:
+		// Create an AND searcher with all child searchers
+		if len(node.Children) == 0 {
+			return MakeAllSearcher(), nil
+		}
+		
+		searchers := make([]Searcher, 0, len(node.Children))
+		for i := range node.Children {
+			// Get a pointer to the child node
+			childPtr := &node.Children[i]
+			searcher, err := MakeSearcherFromNode(childPtr)
+			if err != nil {
+				return nil, err
+			}
+			searchers = append(searchers, searcher)
+		}
+		
+		// If there's only one searcher, return it directly
+		if len(searchers) == 1 {
+			return searchers[0], nil
+		}
+		
+		return MakeAndSearcher(searchers), nil
+		
+	case searchparser.NodeTypeOr:
+		// Create an OR searcher with all child searchers
+		if len(node.Children) == 0 {
+			return MakeAllSearcher(), nil
+		}
+		
+		searchers := make([]Searcher, 0, len(node.Children))
+		for i := range node.Children {
+			// Get a pointer to the child node
+			childPtr := &node.Children[i]
+			searcher, err := MakeSearcherFromNode(childPtr)
+			if err != nil {
+				return nil, err
+			}
+			searchers = append(searchers, searcher)
+		}
+		
+		// If there's only one searcher, return it directly
+		if len(searchers) == 1 {
+			return searchers[0], nil
+		}
+		
+		return MakeOrSearcher(searchers), nil
+		
+	default:
+		// Unknown node type, return an all searcher
+		return MakeAllSearcher(), nil
+	}
+}
+
+// createSearcherFromSearchNode creates a searcher from a search node
+func createSearcherFromSearchNode(node *searchparser.Node) (Searcher, error) {
+	// Handle special cases
+	if node.SearchType == SearchTypeMarked {
 		return MakeMarkedSearcher(), nil
-	} else if token.Type == SearchTypeUserQuery {
+	} else if node.SearchType == SearchTypeUserQuery {
 		return MakeUserQuerySearcher(), nil
 	}
 
 	// Handle empty search term
-	if token.SearchTerm == "" {
+	if node.SearchTerm == "" {
 		return MakeAllSearcher(), nil
 	}
 
-	// Create searcher based on token type
-	switch token.Type {
+	// Create searcher based on search type
+	switch node.SearchType {
 	case SearchTypeExact:
-		return MakeExactSearcher(token.Field, token.SearchTerm, false), nil
+		return MakeExactSearcher(node.Field, node.SearchTerm, false), nil
 	case SearchTypeExactCase:
-		return MakeExactSearcher(token.Field, token.SearchTerm, true), nil
+		return MakeExactSearcher(node.Field, node.SearchTerm, true), nil
 	case SearchTypeRegexp:
-		return MakeRegexpSearcher(token.Field, token.SearchTerm, false)
+		return MakeRegexpSearcher(node.Field, node.SearchTerm, false)
 	case SearchTypeRegexpCase:
-		return MakeRegexpSearcher(token.Field, token.SearchTerm, true)
+		return MakeRegexpSearcher(node.Field, node.SearchTerm, true)
 	case SearchTypeFzf:
-		return MakeFzfSearcher(token.Field, token.SearchTerm, false)
+		return MakeFzfSearcher(node.Field, node.SearchTerm, false)
 	case SearchTypeFzfCase:
-		return MakeFzfSearcher(token.Field, token.SearchTerm, true)
+		return MakeFzfSearcher(node.Field, node.SearchTerm, true)
 	case SearchTypeTag:
-		return MakeTagSearcher(token.Field, token.SearchTerm), nil
+		return MakeTagSearcher(node.Field, node.SearchTerm), nil
 	default:
 		// Default to case-insensitive exact search
-		return MakeExactSearcher(token.Field, token.SearchTerm, false), nil
+		return MakeExactSearcher(node.Field, node.SearchTerm, false), nil
 	}
-}
-
-// MakeSearcherFromToken creates a searcher from a single token
-func MakeSearcherFromToken(token searchparser.SearchToken) (Searcher, error) {
-	// Create the base searcher
-	searcher, err := createSearcherFromUnmodifiedToken(token)
-	if err != nil {
-		return nil, err
-	}
-
-	// If this is a not token, wrap it with a not searcher
-	if token.IsNot {
-		return MakeNotSearcher(searcher), nil
-	}
-
-	return searcher, nil
-}
-
-// CreateSearchersFromTokens creates a slice of searchers from tokens
-func CreateSearchersFromTokens(tokens []searchparser.SearchToken) ([]Searcher, error) {
-	// Handle empty tokens list
-	if len(tokens) == 0 {
-		return []Searcher{MakeAllSearcher()}, nil
-	}
-
-	// Check if we have OR tokens
-	hasOrToken := false
-	for _, token := range tokens {
-		if token.Type == "or" && token.SearchTerm == "|" {
-			hasOrToken = true
-			break
-		}
-	}
-
-	// If no OR tokens, process normally
-	if !hasOrToken {
-		searchers := make([]Searcher, len(tokens))
-		for i, token := range tokens {
-			searcher, err := MakeSearcherFromToken(token)
-			if err != nil {
-				return nil, err
-			}
-			searchers[i] = searcher
-		}
-		return searchers, nil
-	}
-
-	// Process OR tokens
-	var orSearchers []Searcher
-	var currentGroup []Searcher
-
-	for i := 0; i < len(tokens); i++ {
-		token := tokens[i]
-
-		// If this is an OR token, add the current group to the OR searchers
-		if token.Type == "or" && token.SearchTerm == "|" {
-			// If we have searchers in the current group, add them as an AND searcher
-			if len(currentGroup) > 0 {
-				orSearchers = append(orSearchers, MakeAndSearcher(currentGroup))
-				currentGroup = nil
-			} else {
-				// Empty group, add an AllSearcher
-				orSearchers = append(orSearchers, MakeAllSearcher())
-			}
-			continue
-		}
-
-		// Regular token, add to current group
-		searcher, err := MakeSearcherFromToken(token)
-		if err != nil {
-			return nil, err
-		}
-		currentGroup = append(currentGroup, searcher)
-	}
-
-	// Add the last group if it's not empty
-	if len(currentGroup) > 0 {
-		orSearchers = append(orSearchers, MakeAndSearcher(currentGroup))
-	}
-
-	// If we only have one searcher, return it directly
-	if len(orSearchers) == 1 {
-		return []Searcher{orSearchers[0]}, nil
-	}
-
-	// Create an OR searcher with all the groups
-	return []Searcher{MakeOrSearcher(orSearchers)}, nil
 }
