@@ -40,7 +40,6 @@ package searchparser
 
 import (
 	"strings"
-	"unicode"
 )
 
 const (
@@ -73,234 +72,46 @@ type Node struct {
 
 // Parser represents a recursive descent parser for search expressions
 type Parser struct {
-	input        string
-	position     int
-	readPosition int
-	ch           rune
+	tokens   []Token
+	position int
+	input    string // Keep original input for error reporting
 }
 
 // NewParser creates a new parser for the given search expression
 func NewParser(input string) *Parser {
-	p := &Parser{input: input}
-	p.initialize()
-	return p
-}
+	tokenizer := NewTokenizer(input)
+	tokens := tokenizer.GetAllTokens()
 
-// initialize sets up the parser
-func (p *Parser) initialize() {
-	p.position = 0
-	p.readPosition = 0
-
-	// Read the first character
-	p.readChar()
-}
-
-// readChar reads the next character from the input
-func (p *Parser) readChar() {
-	if p.readPosition >= len(p.input) {
-		p.ch = 0 // EOF
-	} else {
-		p.ch = rune(p.input[p.readPosition])
+	return &Parser{
+		tokens:   tokens,
+		position: 0,
+		input:    input,
 	}
-	p.position = p.readPosition
-	p.readPosition++
 }
 
-// peek performs n-character lookahead and returns the character at position + n
-// Returns 0 (EOF) if the position is out of range
-func (p *Parser) peek(n int) rune {
-	pos := p.readPosition + n - 1
-	if pos >= len(p.input) {
-		return 0 // EOF
+// currentToken returns the current token
+func (p *Parser) currentToken() Token {
+	if p.position >= len(p.tokens) {
+		return Token{Type: TokenEOF, Value: "", Position: Position{Start: len(p.input), End: len(p.input)}}
 	}
-	return rune(p.input[pos])
+	return p.tokens[p.position]
 }
 
-// skipWhitespace skips any whitespace characters
+// nextToken advances to the next token
+func (p *Parser) nextToken() {
+	p.position++
+}
+
+// skipWhitespace skips any whitespace tokens
 func (p *Parser) skipWhitespace() {
-	for unicode.IsSpace(p.ch) {
-		p.readChar()
+	for p.currentToken().Type == TokenWhitespace {
+		p.nextToken()
 	}
 }
 
-// readToken reads a token (any sequence of non-whitespace characters)
-// If splitOnPipe is true, it will stop at a pipe character
-func (p *Parser) readToken(splitOnPipe bool) string {
-	position := p.position
-
-	// Read until whitespace, pipe (if splitOnPipe is true), or EOF
-	for !unicode.IsSpace(p.ch) && p.ch != 0 && !(splitOnPipe && p.ch == '|') {
-		p.readChar()
-	}
-
-	return p.input[position:p.position]
-}
-
-// readQuotedToken reads a token enclosed in double quotes
-// If the closing quote is missing, it reads until the end of the input
-func (p *Parser) readQuotedToken() string {
-	// Skip the opening quote
-	p.readChar()
-
-	position := p.position
-
-	// Read until closing quote or EOF
-	for p.ch != '"' && p.ch != 0 {
-		p.readChar()
-	}
-
-	// Store the token content
-	token := p.input[position:p.position]
-
-	// Skip the closing quote if present
-	if p.ch == '"' {
-		p.readChar()
-	}
-
-	return token
-}
-
-// readSingleQuotedToken reads a token enclosed in single quotes
-// If the closing quote is missing, it reads until the end of the input
-// Single quoted tokens preserve case (exactcase)
-func (p *Parser) readSingleQuotedToken() string {
-	// Skip the opening quote
-	p.readChar()
-
-	position := p.position
-
-	// Read until closing quote or EOF
-	for p.ch != '\'' && p.ch != 0 {
-		p.readChar()
-	}
-
-	// Store the token content
-	token := p.input[position:p.position]
-
-	// Skip the closing quote if present
-	if p.ch == '\'' {
-		p.readChar()
-	}
-
-	return token
-}
-
-// readRegexpToken reads a token enclosed in slashes (/)
-// Handles escaped slashes (\/) within the regexp
-// If the closing slash is missing, it reads until the end of the input
-func (p *Parser) readRegexpToken() string {
-	// Skip the opening slash
-	p.readChar()
-
-	position := p.position
-	escaped := false
-
-	// Read until closing slash or EOF, handling escaped slashes
-	for {
-		if p.ch == 0 {
-			// EOF
-			break
-		}
-
-		if escaped {
-			// Previous character was a backslash, so this character is escaped
-			escaped = false
-			p.readChar()
-			continue
-		}
-
-		if p.ch == '\\' {
-			// Backslash - next character will be escaped
-			escaped = true
-			p.readChar()
-			continue
-		}
-
-		if p.ch == '/' {
-			// Unescaped closing slash
-			break
-		}
-
-		// Regular character
-		p.readChar()
-	}
-
-	// Store the token content
-	token := p.input[position:p.position]
-
-	// Skip the closing slash if present
-	if p.ch == '/' {
-		p.readChar()
-	}
-
-	return token
-}
-
-// parseSimpleToken parses a simple token (quoted, single-quoted, or plain)
-func (p *Parser) parseSimpleToken() (string, string, bool) {
-	var token string
-	var tokenType string = "exact" // Default type is "exact"
-
-	if p.ch == '"' {
-		// Double quoted tokens
-		token = p.readQuotedToken()
-		// Skip empty quoted strings
-		if token == "" {
-			return "", "", false
-		}
-	} else if p.ch == '\'' {
-		// Single quoted tokens are exactcase
-		token = p.readSingleQuotedToken()
-		// Skip empty quoted strings
-		if token == "" {
-			return "", "", false
-		}
-		tokenType = "exactcase"
-	} else {
-		// For plain tokens, we want to split on pipe characters
-		token = p.readToken(true)
-	}
-
-	return token, tokenType, true
-}
-
-// parseFieldPrefix parses a field prefix in the form of "$fieldname:"
-// Returns (fieldName, hasField, isComplete)
-// - fieldName: the name of the field
-// - hasField: true if a field prefix was found (starts with $)
-// - isComplete: true if the field prefix is complete (ends with :)
-func (p *Parser) parseFieldPrefix() (string, bool, bool) {
-	// Check for field indicator ($)
-	if p.ch != '$' {
-		return "", false, false
-	}
-
-	// Skip the $ character
-	p.readChar()
-
-	// If we've reached the end of the input or whitespace, return empty
-	if p.ch == 0 || unicode.IsSpace(p.ch) {
-		return "", true, false
-	}
-
-	position := p.position
-
-	// Read until colon or whitespace or EOF
-	for p.ch != ':' && !unicode.IsSpace(p.ch) && p.ch != 0 {
-		p.readChar()
-	}
-
-	fieldName := p.input[position:p.position]
-
-	// If we didn't find a colon, this is an incomplete field prefix
-	if p.ch != ':' {
-		return fieldName, true, false
-	}
-
-	// Skip the colon
-	p.readChar()
-
-	return fieldName, true, true
+// currentTokenIs checks if the current token is of the specified type
+func (p *Parser) currentTokenIs(tokenType TokenType) bool {
+	return p.currentToken().Type == tokenType
 }
 
 // makeSearchNode creates a search node with the given parameters
@@ -315,25 +126,111 @@ func makeSearchNode(searchType, searchTerm, field string, isNot bool, pos Positi
 	}
 }
 
+// parseSimpleToken parses a simple token (quoted, single-quoted, or plain)
+func (p *Parser) parseSimpleToken() (string, string, bool, Position) {
+	var token string
+	var tokenType string = "exact" // Default type is "exact"
+	startPos := p.currentToken().Position.Start
+	endPos := p.currentToken().Position.End
+
+	switch p.currentToken().Type {
+	case TokenDoubleQuoted:
+		// Double quoted tokens
+		token = p.currentToken().Value
+		// Skip empty quoted strings
+		if token == "" {
+			p.nextToken()
+			return "", "", false, Position{Start: startPos, End: endPos}
+		}
+		endPos = p.currentToken().Position.End
+		p.nextToken()
+	case TokenSingleQuoted:
+		// Single quoted tokens are exactcase
+		token = p.currentToken().Value
+		// Skip empty quoted strings
+		if token == "" {
+			p.nextToken()
+			return "", "", false, Position{Start: startPos, End: endPos}
+		}
+		tokenType = "exactcase"
+		endPos = p.currentToken().Position.End
+		p.nextToken()
+	case TokenWord:
+		// Plain word token
+		token = p.currentToken().Value
+		endPos = p.currentToken().Position.End
+		p.nextToken()
+	default:
+		// Not a simple token
+		return "", "", false, Position{Start: startPos, End: endPos}
+	}
+
+	return token, tokenType, true, Position{Start: startPos, End: endPos}
+}
+
+// parseFieldPrefix parses a field prefix in the form of "$fieldname:"
+// Returns (fieldName, hasField, isComplete, position)
+func (p *Parser) parseFieldPrefix() (string, bool, bool, Position) {
+	startPos := p.currentToken().Position.Start
+	endPos := p.currentToken().Position.End
+
+	// Check for field indicator ($)
+	if !p.currentTokenIs("$") {
+		return "", false, false, Position{Start: startPos, End: endPos}
+	}
+
+	// Skip the $ character
+	p.nextToken()
+
+	// If we've reached the end of the input or whitespace, return empty
+	if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
+		endPos = p.currentToken().Position.Start
+		return "", true, false, Position{Start: startPos, End: endPos}
+	}
+
+	// We need a word token for the field name
+	if !p.currentTokenIs(TokenWord) {
+		endPos = p.currentToken().Position.Start
+		return "", true, false, Position{Start: startPos, End: endPos}
+	}
+
+	fieldName := p.currentToken().Value
+	p.nextToken()
+	endPos = p.currentToken().Position.Start
+
+	// If we didn't find a colon, this is an incomplete field prefix
+	if !p.currentTokenIs(":") {
+		return fieldName, true, false, Position{Start: startPos, End: endPos}
+	}
+
+	// Skip the colon
+	p.nextToken()
+	endPos = p.currentToken().Position.Start
+
+	return fieldName, true, true, Position{Start: startPos, End: endPos}
+}
+
 // parseUnmodifiedToken parses a token that is not negated (not preceded by -)
 // This includes fuzzy tokens, regexp tokens, hash tokens, and simple tokens
 func (p *Parser) parseUnmodifiedToken() *Node {
-	startPos := p.position
+	startPos := p.currentToken().Position.Start
 	var token string
 	var tokenType string
+	var endPos int
 
 	// Check for fuzzy search indicator (~)
-	if p.ch == '~' {
+	if p.currentTokenIs("~") {
 		// Skip the ~ character
-		p.readChar()
+		p.nextToken()
+		endPos = p.currentToken().Position.Start
 
 		// If we've reached the end of the input or whitespace, skip this token
-		if p.ch == 0 || unicode.IsSpace(p.ch) {
+		if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
 			return nil
 		}
 
 		// Parse the simple token
-		simpleToken, simpleType, valid := p.parseSimpleToken()
+		simpleToken, simpleType, valid, simplePos := p.parseSimpleToken()
 		if !valid {
 			return nil
 		}
@@ -345,52 +242,39 @@ func (p *Parser) parseUnmodifiedToken() *Node {
 			tokenType = "fzf"
 		}
 		token = simpleToken
-	} else if p.ch == '/' {
+		endPos = simplePos.End
+	} else if p.currentTokenIs(TokenRegexp) {
 		// Handle regexp token (case-insensitive by default)
-		token = p.readRegexpToken()
-
-		// Skip empty regexp
-		if token == "" {
-			return nil
-		}
-
+		token = p.currentToken().Value
 		tokenType = "regexp"
-	} else if p.ch == 'c' && p.peek(1) == '/' {
+		endPos = p.currentToken().Position.End
+		p.nextToken()
+	} else if p.currentTokenIs(TokenCaseRegexp) {
 		// Handle case-sensitive regexp token (c/Foo/)
-		// Skip the 'c' character
-		p.readChar()
-
-		token = p.readRegexpToken()
-
-		// Skip empty regexp
-		if token == "" {
-			return nil
-		}
-
+		token = p.currentToken().Value
 		tokenType = "regexpcase"
-	} else if p.ch == '#' {
+		endPos = p.currentToken().Position.End
+		p.nextToken()
+	} else if p.currentTokenIs("#") {
 		// Handle # special character
 		// Skip the # character
-		p.readChar()
+		p.nextToken()
+		endPos = p.currentToken().Position.Start
 
 		// If we've reached the end of the input or whitespace, create a token for just "#"
-		if p.ch == 0 || unicode.IsSpace(p.ch) {
+		if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
 			tokenType = "exact" // Default to exact search
 			token = "#"
-		} else {
-			// Read the token after #
-			position := p.position
+		} else if p.currentTokenIs(TokenWord) {
+			token = p.currentToken().Value
+			endPos = p.currentToken().Position.End
+			p.nextToken()
 
-			for !unicode.IsSpace(p.ch) && p.ch != 0 {
-				// Check for trailing slash indicating exact match
-				if p.ch == '/' && (p.peek(1) == 0 || unicode.IsSpace(p.peek(1))) {
-					p.readChar() // Consume the slash
-					break
-				}
-				p.readChar()
+			// Check for trailing slash indicating exact match
+			if p.currentTokenIs("/") {
+				endPos = p.currentToken().Position.End
+				p.nextToken()
 			}
-
-			token = p.input[position:p.position]
 
 			// Special case for #marked or #userquery
 			if strings.ToLower(token) == "marked" || strings.ToLower(token) == "m" {
@@ -405,43 +289,46 @@ func (p *Parser) parseUnmodifiedToken() *Node {
 				// The exactMatch flag will be passed to the tag searcher
 				// We don't need to modify the token here
 			}
+		} else {
+			// Invalid token after #
+			tokenType = "exact" // Default to exact search
+			token = "#"
 		}
 	} else {
 		// Parse a regular simple token
 		var valid bool
-		token, tokenType, valid = p.parseSimpleToken()
+		var simplePos Position
+		token, tokenType, valid, simplePos = p.parseSimpleToken()
 		if !valid {
 			return nil
 		}
+		endPos = simplePos.End
 	}
 
-	endPos := p.position
 	pos := Position{Start: startPos, End: endPos}
-
 	return makeSearchNode(tokenType, token, "", false, pos)
 }
 
 // parseNotToken parses a token that is negated (preceded by -)
 func (p *Parser) parseNotToken() *Node {
-	startPos := p.position
-	
+	startPos := p.currentToken().Position.Start
+
 	// Skip the - character
-	p.readChar()
+	p.nextToken()
+	endPos := p.currentToken().Position.Start
 
 	// If we've reached the end of the input or whitespace, treat '-' as a literal token
-	if p.ch == 0 || unicode.IsSpace(p.ch) {
-		endPos := p.position
+	if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
 		pos := Position{Start: startPos, End: endPos}
 		return makeSearchNode("exact", "-", "", false, pos)
 	}
 
 	// Check for field prefix
-	field, hasField, isComplete := p.parseFieldPrefix()
+	field, hasField, isComplete, fieldPos := p.parseFieldPrefix()
 
 	// If we have a field prefix but it's incomplete, return a token with empty search term
 	if hasField && !isComplete {
-		endPos := p.position
-		pos := Position{Start: startPos, End: endPos}
+		pos := Position{Start: startPos, End: fieldPos.End}
 		return makeSearchNode("exact", "", field, false, pos)
 	}
 
@@ -460,25 +347,25 @@ func (p *Parser) parseNotToken() *Node {
 
 	// Update the position to include the '-' prefix
 	node.Position.Start = startPos
-	
+
 	return node
 }
 
 // parseToken parses a single token, which can be either a not_token or an unmodified_token
 func (p *Parser) parseToken() *Node {
-	startPos := p.position
-	
+	startPos := p.currentToken().Position.Start
+
 	// Check for not operator (-)
-	if p.ch == '-' {
+	if p.currentTokenIs("-") {
 		return p.parseNotToken()
 	}
 
 	// Check for field prefix
-	field, hasField, isComplete := p.parseFieldPrefix()
+	field, hasField, isComplete, fieldPos := p.parseFieldPrefix()
 
 	// If we have a field prefix but it's incomplete, return a token with empty search term
 	if hasField && !isComplete {
-		pos := Position{Start: startPos, End: p.position}
+		pos := Position{Start: startPos, End: fieldPos.End}
 		return makeSearchNode("exact", "", field, false, pos)
 	}
 
@@ -499,16 +386,16 @@ func (p *Parser) parseToken() *Node {
 
 // parseAndExpr parses a sequence of tokens (AND expression)
 func (p *Parser) parseAndExpr() *Node {
-	startPos := p.position
+	startPos := p.currentToken().Position.Start
 	var children []*Node
 	var lastTokenEnd int
 
-	for p.ch != 0 && p.ch != '|' {
+	for !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
 		// Skip whitespace
 		p.skipWhitespace()
 
 		// If we've reached the end of the input or a pipe, break
-		if p.ch == 0 || p.ch == '|' {
+		if p.currentTokenIs(TokenEOF) || p.currentTokenIs("|") {
 			break
 		}
 
@@ -520,16 +407,24 @@ func (p *Parser) parseAndExpr() *Node {
 
 		// Add the token to the children
 		children = append(children, token)
-		
+
 		// Update the last token end position
 		lastTokenEnd = token.Position.End
+
+		// Require whitespace between tokens (except before EOF or pipe)
+		if !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") && !p.currentTokenIs(TokenWhitespace) {
+			// No whitespace between tokens - this is an error
+			// For now, we'll just stop parsing this AND expression
+			break
+		}
 	}
 
 	// If there are no children, return an empty AND node
 	if len(children) == 0 {
+		endPos := p.currentToken().Position.Start
 		return &Node{
 			Type:     NodeTypeAnd,
-			Position: Position{Start: startPos, End: p.position},
+			Position: Position{Start: startPos, End: endPos},
 			Children: make([]Node, 0),
 		}
 	}
@@ -541,13 +436,13 @@ func (p *Parser) parseAndExpr() *Node {
 
 	// Create an AND node with the children
 	// Use the last token's end position as the end position for the AND node
-	
+
 	// Convert []*Node to []Node for the Children field
 	nodeChildren := make([]Node, len(children))
 	for i, child := range children {
 		nodeChildren[i] = *child
 	}
-	
+
 	return &Node{
 		Type:     NodeTypeAnd,
 		Position: Position{Start: startPos, End: lastTokenEnd},
@@ -557,13 +452,13 @@ func (p *Parser) parseAndExpr() *Node {
 
 // parseOrExpr parses an OR expression (and_expr { "|" and_expr })
 func (p *Parser) parseOrExpr() *Node {
-	startPos := p.position
+	startPos := p.currentToken().Position.Start
 	var children []*Node
 
 	// Handle the case where the expression starts with a pipe
-	if p.ch == '|' {
+	if p.currentTokenIs("|") {
 		// Skip the "|" character
-		p.readChar()
+		p.nextToken()
 
 		// Skip any whitespace after the "|"
 		p.skipWhitespace()
@@ -580,9 +475,9 @@ func (p *Parser) parseOrExpr() *Node {
 		children = append(children, andNode)
 
 		// Continue parsing if there are more pipes
-		for p.ch == '|' {
+		for p.currentTokenIs("|") {
 			// Skip the "|" character
-			p.readChar()
+			p.nextToken()
 
 			// Skip any whitespace after the "|"
 			p.skipWhitespace()
@@ -599,7 +494,7 @@ func (p *Parser) parseOrExpr() *Node {
 		}
 
 		// Create an OR node with the children
-		endPos := p.position
+		endPos := p.currentToken().Position.Start
 		return &Node{
 			Type:     NodeTypeOr,
 			Position: Position{Start: startPos, End: endPos},
@@ -612,14 +507,14 @@ func (p *Parser) parseOrExpr() *Node {
 	children = append(children, andNode)
 
 	// If there are no OR operators, return the AND node directly
-	if p.ch != '|' {
+	if !p.currentTokenIs("|") {
 		return andNode
 	}
 
 	// Parse additional AND expressions separated by "|"
-	for p.ch == '|' {
+	for p.currentTokenIs("|") {
 		// Skip the "|" character
-		p.readChar()
+		p.nextToken()
 
 		// Skip any whitespace after the "|"
 		p.skipWhitespace()
@@ -636,7 +531,7 @@ func (p *Parser) parseOrExpr() *Node {
 	}
 
 	// Create an OR node with the children
-	endPos := p.position
+	endPos := p.currentToken().Position.Start
 	return &Node{
 		Type:     NodeTypeOr,
 		Position: Position{Start: startPos, End: endPos},
@@ -647,14 +542,13 @@ func (p *Parser) parseOrExpr() *Node {
 // ParseAST parses the input string into an AST
 func (p *Parser) ParseAST() *Node {
 	// Special case for a single pipe character
-	if p.ch == '|' && p.peek(1) == 0 {
+	if len(p.tokens) == 2 && p.tokens[0].Type == "|" && p.tokens[1].Type == TokenEOF {
 		return makeSearchNode(NodeTypeOr, "|", "", false, Position{Start: 0, End: 1})
 	}
 
 	// Parse the OR expression
 	return p.parseOrExpr()
 }
-
 
 // ParseSearch parses a search string into an AST
 func ParseSearch(searchString string) *Node {
