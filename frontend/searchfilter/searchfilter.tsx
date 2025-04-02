@@ -72,7 +72,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                     return false;
                 })}
                 className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2 
-                  border-none ring-0 outline-none focus:outline-none focus:ring-0"
+                  border-none ring-0 outline-none focus:outline-none focus:ring-0 font-mono"
             />
         </div>
     );
