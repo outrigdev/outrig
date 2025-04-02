@@ -1,7 +1,7 @@
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { Filter } from "lucide-react";
 import React, { useEffect, useRef } from "react";
-import { DELIMITER_PAIRS, SPECIAL_CHARS, handleDelimiter, handleSpecialChar } from "./searchfilter-helpers";
+import { DELIMITER_PAIRS, handleDelimiter, handleSpecialChar } from "./searchfilter-helpers";
 
 interface SearchFilterProps {
     value: string;
@@ -24,14 +24,14 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const input = e.currentTarget;
         const key = e.key;
-        
+
         // Only process if selection is collapsed (no text is selected)
         if (input.selectionStart === input.selectionEnd) {
             // First check for special character handling
             if (handleSpecialChar(e, input, onValueChange)) {
                 return;
             }
-            
+
             // Then check for delimiter handling
             if (key in DELIMITER_PAIRS) {
                 if (handleDelimiter(e, input, key, DELIMITER_PAIRS[key], onValueChange)) {
@@ -39,7 +39,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                 }
             }
         }
-        
+
         // If we didn't handle the key, pass to the regular handler
         keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
             // Handle Escape key internally
