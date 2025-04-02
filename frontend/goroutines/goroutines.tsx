@@ -1,11 +1,12 @@
 import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
+import { SearchFilter } from "@/searchfilter/searchfilter";
 import { useOutrigModel } from "@/util/hooks";
-import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
+import { checkKeyPressed } from "@/util/keyutil";
 import { cn } from "@/util/util";
 import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
-import { Filter, Layers, Layers2 } from "lucide-react";
+import { Layers, Layers2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
@@ -188,21 +189,11 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
     const [showAll, setShowAll] = useAtom(model.showAll);
     const [selectedStates, setSelectedStates] = useAtom(model.selectedStates);
-    const searchRef = useRef<HTMLInputElement>(null);
     const isSearching = useAtomValue(model.isSearching);
     const searchResultInfo = useAtomValue(model.searchResultInfo);
     const primaryStates = useAtomValue(model.primaryStates);
     const extraStates = useAtomValue(model.extraStates);
     const stateCounts = useAtomValue(model.stateCounts);
-
-    // Focus the search input when the component mounts
-    useEffect(() => {
-        // Use a small timeout to ensure the input is ready
-        const timer = setTimeout(() => {
-            searchRef.current?.focus();
-        }, 50);
-        return () => clearTimeout(timer);
-    }, []);
 
     const handleToggleShowAll = () => {
         model.toggleShowAll();
@@ -212,52 +203,31 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
         model.toggleStateFilter(state);
     };
 
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        setSearch(newValue);
-        model.updateSearchTerm(newValue);
-    };
-
     return (
         <>
             {/* Search filter */}
             <div className="py-1 px-1 border-b border-border">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center flex-grow">
-                        <div className="select-none pr-2 text-muted w-10 text-right font-mono flex justify-end items-center">
-                            <Filter
-                                size={16}
-                                className="text-muted"
-                                fill="currentColor"
-                                stroke="currentColor"
-                                strokeWidth={1}
-                            />
-                        </div>
-                        <input
-                            ref={searchRef}
-                            type="text"
-                            placeholder="Filter goroutines..."
-                            value={search}
-                            onChange={handleSearchChange}
-                            onKeyDown={keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
-                                if (checkKeyPressed(keyEvent, "Escape")) {
-                                    setSearch("");
-                                    return true;
-                                }
-                                if (checkKeyPressed(keyEvent, "PageUp")) {
-                                    model.pageUp();
-                                    return true;
-                                }
-                                if (checkKeyPressed(keyEvent, "PageDown")) {
-                                    model.pageDown();
-                                    return true;
-                                }
-                                return false;
-                            })}
-                            className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
-                                border-none ring-0 outline-none focus:outline-none focus:ring-0"
-                        />
-                    </div>
+                    <SearchFilter
+                        value={search}
+                        onValueChange={(value) => {
+                            setSearch(value);
+                            model.updateSearchTerm(value);
+                        }}
+                        placeholder="Filter goroutines..."
+                        autoFocus={true}
+                        onOutrigKeyDown={(keyEvent) => {
+                            if (checkKeyPressed(keyEvent, "PageUp")) {
+                                model.pageUp();
+                                return true;
+                            }
+                            if (checkKeyPressed(keyEvent, "PageDown")) {
+                                model.pageDown();
+                                return true;
+                            }
+                            return false;
+                        }}
+                    />
 
                     {/* Search stats */}
                     <div className="text-xs text-muted mr-2 select-none">

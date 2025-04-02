@@ -3,10 +3,10 @@ import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tag } from "@/elements/tag";
 import { TimestampDot } from "@/elements/timestampdot";
+import { SearchFilter } from "@/searchfilter/searchfilter";
 import { useOutrigModel } from "@/util/hooks";
-import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
+import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
-import { Filter } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { WatchesModel } from "./watches-model";
 
@@ -123,57 +123,29 @@ interface WatchesFiltersProps {
 
 const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
-    const searchRef = useRef<HTMLInputElement>(null);
     const filteredCount = useAtomValue(model.filteredCount);
     const totalCount = useAtomValue(model.totalCount);
-
-    // Focus the search input when the component mounts
-    useEffect(() => {
-        // Use a small timeout to ensure the input is ready
-        const timer = setTimeout(() => {
-            searchRef.current?.focus();
-        }, 50);
-        return () => clearTimeout(timer);
-    }, []);
 
     return (
         <div className="py-1 px-1 border-b border-border">
             <div className="flex items-center justify-between">
-                <div className="flex items-center flex-grow">
-                    <div className="select-none pr-2 text-muted w-10 text-right font-mono flex justify-end items-center">
-                        <Filter
-                            size={16}
-                            className="text-muted"
-                            fill="currentColor"
-                            stroke="currentColor"
-                            strokeWidth={1}
-                        />
-                    </div>
-                    <input
-                        ref={searchRef}
-                        type="text"
-                        placeholder="Filter watches..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyDown={keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
-                            if (checkKeyPressed(keyEvent, "Escape")) {
-                                setSearch("");
-                                return true;
-                            }
-                            if (checkKeyPressed(keyEvent, "PageUp")) {
-                                model.pageUp();
-                                return true;
-                            }
-                            if (checkKeyPressed(keyEvent, "PageDown")) {
-                                model.pageDown();
-                                return true;
-                            }
-                            return false;
-                        })}
-                        className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
-                                border-none ring-0 outline-none focus:outline-none focus:ring-0"
-                    />
-                </div>
+                <SearchFilter
+                    value={search}
+                    onValueChange={setSearch}
+                    placeholder="Filter watches..."
+                    autoFocus={true}
+                    onOutrigKeyDown={(keyEvent) => {
+                        if (checkKeyPressed(keyEvent, "PageUp")) {
+                            model.pageUp();
+                            return true;
+                        }
+                        if (checkKeyPressed(keyEvent, "PageDown")) {
+                            model.pageDown();
+                            return true;
+                        }
+                        return false;
+                    }}
+                />
 
                 {/* Search stats */}
                 <div className="text-xs text-muted mr-2 select-none">

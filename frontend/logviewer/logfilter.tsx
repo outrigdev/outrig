@@ -1,8 +1,9 @@
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
-import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
+import { SearchFilter } from "@/searchfilter/searchfilter";
+import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
-import { ArrowDown, ArrowDownCircle, Filter } from "lucide-react";
+import { ArrowDown, ArrowDownCircle } from "lucide-react";
 import React, { useCallback } from "react";
 import { LogViewerModel } from "./logviewer-model";
 
@@ -44,75 +45,45 @@ FollowButton.displayName = "FollowButton";
 // Filter component
 interface LogViewerFilterProps {
     model: LogViewerModel;
-    searchRef: React.RefObject<HTMLInputElement>;
     className?: string;
 }
 
-export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, searchRef, className }) => {
+export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, className }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
     const filteredCount = useAtomValue(model.filteredItemCount);
     const searchedCount = useAtomValue(model.searchedItemCount);
     const totalCount = useAtomValue(model.totalItemCount);
 
-    const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent) => {
-            return keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
-                if (checkKeyPressed(keyEvent, "Cmd:ArrowDown")) {
-                    model.scrollToBottom();
-                    return true;
-                }
-
-                if (checkKeyPressed(keyEvent, "Cmd:ArrowUp")) {
-                    model.scrollToTop();
-                    return true;
-                }
-
-                if (checkKeyPressed(keyEvent, "PageUp")) {
-                    model.pageUp();
-                    return true;
-                }
-
-                if (checkKeyPressed(keyEvent, "PageDown")) {
-                    model.pageDown();
-                    return true;
-                }
-
-                if (checkKeyPressed(keyEvent, "Escape")) {
-                    setSearch("");
-                    return true;
-                }
-
-                return false;
-            })(e);
-        },
-        [model, setSearch]
-    );
-
     return (
         <div className={`py-1 px-1 border-b border-border ${className || ""}`}>
             <div className="flex items-center justify-between">
+                {/* Use the SearchFilter component with a custom width for the icon */}
                 <div className="flex items-center flex-grow">
-                    {/* Line number space - 6 characters wide with right-aligned filter icon */}
-                    <div className="select-none pr-2 text-muted w-12 text-right font-mono flex justify-end items-center">
-                        <Filter
-                            size={16}
-                            className="text-muted"
-                            fill="currentColor"
-                            stroke="currentColor"
-                            strokeWidth={1}
-                        />
-                    </div>
-
-                    {/* Filter input */}
-                    <input
-                        ref={searchRef}
-                        type="text"
-                        placeholder="Filter logs..."
+                    <div className="w-2"></div> {/* Extra space for logs */}
+                    <SearchFilter
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2
-                                border-none ring-0 outline-none focus:outline-none focus:ring-0"
+                        onValueChange={setSearch}
+                        placeholder="Filter logs..."
+                        autoFocus={true}
+                        onOutrigKeyDown={(keyEvent) => {
+                            if (checkKeyPressed(keyEvent, "Cmd:ArrowDown")) {
+                                model.scrollToBottom();
+                                return true;
+                            }
+                            if (checkKeyPressed(keyEvent, "Cmd:ArrowUp")) {
+                                model.scrollToTop();
+                                return true;
+                            }
+                            if (checkKeyPressed(keyEvent, "PageUp")) {
+                                model.pageUp();
+                                return true;
+                            }
+                            if (checkKeyPressed(keyEvent, "PageDown")) {
+                                model.pageDown();
+                                return true;
+                            }
+                            return false;
+                        }}
                     />
                 </div>
 

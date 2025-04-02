@@ -215,7 +215,6 @@ interface LogViewerInternalProps {
 }
 
 const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
-    const searchRef = useRef<HTMLInputElement>(null);
     const vlistRef = useRef<HTMLDivElement>(null);
     const searchTerm = useAtomValue(model.searchTerm);
 
@@ -228,29 +227,9 @@ const LogViewerInternal = React.memo<LogViewerInternalProps>(({ model }) => {
         model.onSearchTermUpdate(searchTerm);
     }, [model, searchTerm]);
 
-    // Focus the search input when the component mounts
-    useEffect(() => {
-        // Use a small timeout to ensure the input is ready
-        const timer = setTimeout(() => {
-            searchRef.current?.focus();
-        }, 50);
-        return () => clearTimeout(timer);
-    }, []);
-
-    useEffect(() => {
-        // on window focus, focus the search input
-        const onFocus = () => {
-            searchRef.current?.focus();
-        };
-        window.addEventListener("focus", onFocus);
-        return () => {
-            window.removeEventListener("focus", onFocus);
-        };
-    }, []);
-
     return (
         <div className="w-full h-full flex flex-col overflow-hidden">
-            <LogViewerFilter model={model} searchRef={searchRef} className="flex-shrink-0" />
+            <LogViewerFilter model={model} className="flex-shrink-0" />
             <div className="h-px bg-border flex-shrink-0"></div>
             <LogViewerContent model={model} />
         </div>
