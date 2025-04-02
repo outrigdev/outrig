@@ -52,8 +52,9 @@ type Searcher interface {
 // GetSearcher returns the appropriate searcher based on the search term
 func GetSearcher(searchTerm string) (Searcher, error) {
 	// Parse the search term into an AST
-	node := searchparser.ParseSearch(searchTerm)
-	
+	p := searchparser.NewParser(searchTerm)
+	node := p.Parse()
+
 	// Create a searcher from the AST node
-	return MakeSearcherFromNode(node)
+	return MakeSearcherFromNode(&node)
 }

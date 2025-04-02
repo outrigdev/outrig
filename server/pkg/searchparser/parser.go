@@ -28,8 +28,10 @@
 package searchparser
 
 import (
-	"strings"
+	"fmt"
 )
+
+// --- Node Types & Constants ---
 
 const (
 	NodeTypeSearch = "search"
@@ -38,43 +40,48 @@ const (
 	NodeTypeError  = "error"
 )
 
-// Position represents a position in the source text
+const (
+	SearchTypeExact      = "exact"
+	SearchTypeExactCase  = "exactcase"
+	SearchTypeRegexp     = "regexp"
+	SearchTypeRegexpCase = "regexpcase"
+	SearchTypeFzf        = "fzf"
+	SearchTypeFzfCase    = "fzfcase"
+	SearchTypeNot        = "not"
+	SearchTypeTag        = "tag"
+	SearchTypeUserQuery  = "userquery"
+)
+
+// --- AST Node Definition ---
+
 type Position struct {
-	Start int // Start position (inclusive)
-	End   int // End position (exclusive)
+	Start int // Start position in the input string
+	End   int // End position in the input string
 }
 
-// Node represents a node in the search AST
 type Node struct {
-	// Common fields for all nodes
-	Type     string   // NodeTypeAnd, NodeTypeOr, NodeTypeSearch, NodeTypeError
-	Position Position // Position in source text
-
-	// Union fields - used based on node type
-	Children []Node // Used for NodeTypeAnd, NodeTypeOr nodes
-
-	// Fields primarily for leaf nodes (search terms)
-	SearchType string // "exact", "regexp", "fzf", etc. (only for NodeTypeSearch)
-	SearchTerm string // The actual search text (only for NodeTypeSearch)
-	Field      string // Optional field specifier (only for NodeTypeSearch)
-	IsNot      bool   // Whether this is a negated search
-
-	// Error information (only for NodeTypeError)
-	ErrorMessage string // Error message (only for NodeTypeError)
+	Type         string   // NodeTypeAnd, NodeTypeOr, NodeTypeSearch, NodeTypeError
+	Position     Position // Position in the source text
+	Children     []Node   // For composite nodes (AND/OR)
+	SearchType   string   // e.g., "exact", "regexp", "fzf", etc. (only for search nodes)
+	SearchTerm   string   // The actual search text (only for search nodes)
+	Field        string   // Optional field specifier (only for search nodes)
+	IsNot        bool     // Set to true if preceded by '-' (for not tokens)
+	ErrorMessage string   // For error nodes, a simple error message
 }
 
-// Parser represents a recursive descent parser for search expressions
+// --- Parser Definition ---
+
 type Parser struct {
-	tokens   []Token
+	tokens   []Token // from the tokenizer
 	position int
-	input    string // Keep original input for error reporting
+	input    string // original input (for error reporting)
 }
 
-// NewParser creates a new parser for the given search expression
+// NewParser creates a parser and tokenizes the input.
 func NewParser(input string) *Parser {
 	tokenizer := NewTokenizer(input)
 	tokens := tokenizer.GetAllTokens()
-
 	return &Parser{
 		tokens:   tokens,
 		position: 0,
@@ -82,554 +89,379 @@ func NewParser(input string) *Parser {
 	}
 }
 
-// currentToken returns the current token
-func (p *Parser) currentToken() Token {
-	if p.position >= len(p.tokens) {
-		return Token{Type: TokenEOF, Value: "", Position: Position{Start: len(p.input), End: len(p.input)}}
+// --- Helper Functions ---
+
+func (p *Parser) current() Token {
+	if p.position < len(p.tokens) {
+		return p.tokens[p.position]
 	}
-	return p.tokens[p.position]
+	// Return an EOF token if out of tokens.
+	return Token{Type: TokenEOF, Value: "", Position: Position{Start: len(p.input), End: len(p.input)}}
 }
 
-// nextToken advances to the next token
-func (p *Parser) nextToken() {
-	p.position++
+func (p *Parser) atEOF() bool {
+	return p.current().Type == TokenEOF
 }
 
-// skipWhitespace skips any whitespace tokens
-func (p *Parser) skipWhitespace() {
-	for p.currentToken().Type == TokenWhitespace {
-		p.nextToken()
-	}
-}
-
-// currentTokenIs checks if the current token is of the specified type
-func (p *Parser) currentTokenIs(tokenType TokenType) bool {
-	return p.currentToken().Type == tokenType
-}
-
-// makeSearchNode creates a search node with the given parameters
-func makeSearchNode(searchType, searchTerm, field string, isNot bool, pos Position) *Node {
-	return &Node{
-		Type:       NodeTypeSearch,
-		Position:   pos,
-		SearchType: searchType,
-		SearchTerm: searchTerm,
-		Field:      field,
-		IsNot:      isNot,
+func (p *Parser) advance() {
+	if !p.atEOF() {
+		p.position++
 	}
 }
 
-// makeErrorNode creates an error node with the given parameters
-func makeErrorNode(errorMessage string, pos Position) *Node {
-	return &Node{
-		Type:         NodeTypeError,
-		Position:     pos,
-		ErrorMessage: errorMessage,
+func (p *Parser) save() int {
+	return p.position
+}
+
+func (p *Parser) restore(pos int) {
+	p.position = pos
+}
+
+func combinePositions(a, b Position) Position {
+	return Position{Start: a.Start, End: b.End}
+}
+
+// skipOptionalWhitespace advances over WS tokens.
+func (p *Parser) skipOptionalWhitespace() {
+	for !p.atEOF() && p.current().Type == TokenWhitespace {
+		p.advance()
 	}
 }
 
-// parseSimpleToken parses a simple token (quoted, single-quoted, or plain)
-func (p *Parser) parseSimpleToken() (string, string, bool, Position) {
-	var token string
-	var tokenType string = "exact" // Default type is "exact"
-	startPos := p.currentToken().Position.Start
-	endPos := p.currentToken().Position.End
+// matchToken returns true if the current token’s value matches.
+func (p *Parser) matchToken(val string) bool {
+	if p.atEOF() {
+		return false
+	}
+	return p.current().Value == val
+}
 
-	switch p.currentToken().Type {
-	case TokenDoubleQuoted:
-		// Double quoted tokens
-		token = p.currentToken().Value
-		// Skip empty quoted strings
-		if token == "" {
-			p.nextToken()
-			return "", "", false, Position{Start: startPos, End: endPos}
+// --- Top-Level Parse Function ---
+
+// Parse builds the AST for the entire search expression.
+func (p *Parser) Parse() Node {
+	node := p.parseOrExpr()
+	// If there are leftover tokens (ignoring whitespace), produce an error node.
+	p.skipOptionalWhitespace()
+	if !p.atEOF() {
+		extra := p.current()
+		errNode := Node{
+			Type:         NodeTypeError,
+			Position:     extra.Position,
+			ErrorMessage: "Unexpected extra tokens",
 		}
-		endPos = p.currentToken().Position.End
-		p.nextToken()
-	case TokenSingleQuoted:
-		// Single quoted tokens are exactcase
-		token = p.currentToken().Value
-		// Skip empty quoted strings
-		if token == "" {
-			p.nextToken()
-			return "", "", false, Position{Start: startPos, End: endPos}
+		// Combine valid AST and error into an AND node.
+		node = Node{
+			Type:     NodeTypeAnd,
+			Children: []Node{node, errNode},
+			Position: combinePositions(node.Position, errNode.Position),
 		}
-		tokenType = "exactcase"
-		endPos = p.currentToken().Position.End
-		p.nextToken()
-	case TokenWord:
-		// Plain word token
-		token = p.currentToken().Value
-		endPos = p.currentToken().Position.End
-		p.nextToken()
-	default:
-		// Not a simple token
-		return "", "", false, Position{Start: startPos, End: endPos}
 	}
-
-	return token, tokenType, true, Position{Start: startPos, End: endPos}
-}
-
-// parseFieldPrefix parses a field prefix in the form of "$fieldname:"
-// Returns either a field name and position (for valid field prefixes) or an error node (for invalid ones)
-func (p *Parser) parseFieldPrefix() (*Node, string, bool, Position) {
-	startPos := p.currentToken().Position.Start
-	endPos := p.currentToken().Position.End
-
-	// Check for field indicator ($)
-	if !p.currentTokenIs("$") {
-		return nil, "", false, Position{Start: startPos, End: endPos}
-	}
-
-	dollarPos := Position{Start: startPos, End: p.currentToken().Position.End}
-
-	// Skip the $ character
-	p.nextToken()
-
-	// If we've reached the end of the input or whitespace, return error for bare $
-	if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
-		errorNode := makeErrorNode("Bare '$' is not allowed", dollarPos)
-		return errorNode, "", false, dollarPos
-	}
-
-	// We need a word token for the field name
-	if !p.currentTokenIs(TokenWord) {
-		errorNode := makeErrorNode("Invalid field name after '$'",
-			Position{Start: dollarPos.Start, End: p.currentToken().Position.End})
-		return errorNode, "", false, dollarPos
-	}
-
-	fieldName := p.currentToken().Value
-	fieldNamePos := p.currentToken().Position
-
-	// Skip the field name
-	p.nextToken()
-
-	// Check for whitespace between field name and colon
-	if p.currentTokenIs(TokenWhitespace) {
-		errorPos := Position{Start: dollarPos.Start, End: fieldNamePos.End}
-		errorNode := makeErrorNode("No whitespace allowed between field name and ':'", errorPos)
-		return errorNode, "", false, errorPos
-	}
-
-	// If we didn't find a colon, this is an incomplete field prefix
-	if !p.currentTokenIs(":") {
-		errorPos := Position{Start: dollarPos.Start, End: fieldNamePos.End}
-		errorNode := makeErrorNode("Missing ':' after field name", errorPos)
-		return errorNode, "", false, errorPos
-	}
-
-	// Skip the colon
-	colonPos := p.currentToken().Position
-	p.nextToken()
-	endPos = colonPos.End
-
-	return nil, fieldName, true, Position{Start: startPos, End: endPos}
-}
-
-// parseUnmodifiedToken parses a token that is not negated (not preceded by -)
-// This includes fuzzy tokens, regexp tokens, hash tokens, and simple tokens
-func (p *Parser) parseUnmodifiedToken() *Node {
-	startPos := p.currentToken().Position.Start
-	var token string
-	var tokenType string
-	var endPos int
-
-	// Check for fuzzy search indicator (~)
-	if p.currentTokenIs("~") {
-		tildePos := p.currentToken().Position
-		// Skip the ~ character
-		p.nextToken()
-
-		// If we've reached the end of the input or whitespace, return error for bare ~
-		if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
-			return makeErrorNode("Bare '~' is not allowed", tildePos)
-		}
-
-		// Parse the simple token
-		simpleToken, simpleType, valid, simplePos := p.parseSimpleToken()
-		if !valid {
-			return makeErrorNode("Invalid token after '~'",
-				Position{Start: tildePos.Start, End: p.currentToken().Position.End})
-		}
-
-		// Convert to fuzzy search type
-		if simpleType == "exactcase" {
-			tokenType = "fzfcase"
-		} else {
-			tokenType = "fzf"
-		}
-		token = simpleToken
-		endPos = simplePos.End
-	} else if p.currentTokenIs(TokenRegexp) {
-		// Handle regexp token (case-insensitive by default)
-		token = p.currentToken().Value
-		tokenType = "regexp"
-		endPos = p.currentToken().Position.End
-		p.nextToken()
-	} else if p.currentTokenIs(TokenCaseRegexp) {
-		// Handle case-sensitive regexp token (c/Foo/)
-		token = p.currentToken().Value
-		tokenType = "regexpcase"
-		endPos = p.currentToken().Position.End
-		p.nextToken()
-	} else if p.currentTokenIs("#") {
-		// Handle # special character
-		// Skip the # character
-		p.nextToken()
-		endPos = p.currentToken().Position.Start
-
-		// If we've reached the end of the input or whitespace, return error for bare #
-		if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
-			return makeErrorNode("Bare '#' is not allowed", Position{Start: startPos, End: startPos + 1})
-		} else if p.currentTokenIs(TokenWord) {
-			token = p.currentToken().Value
-			endPos = p.currentToken().Position.End
-			p.nextToken()
-
-			// Check for trailing slash indicating exact match
-			if p.currentTokenIs("/") {
-				endPos = p.currentToken().Position.End
-				p.nextToken()
-			}
-
-			// Special case for #marked or #userquery
-			if strings.ToLower(token) == "marked" || strings.ToLower(token) == "m" {
-				tokenType = "marked"
-				token = "" // The marked searcher doesn't need a search term
-			} else if strings.ToLower(token) == "userquery" {
-				tokenType = "userquery"
-				token = "" // The userquery searcher doesn't need a search term
-			} else {
-				// For tag tokens, use the tag searcher
-				tokenType = "tag" // Use tag search
-				// The exactMatch flag will be passed to the tag searcher
-				// We don't need to modify the token here
-			}
-		} else {
-			// Invalid token after #
-			tokenType = "exact" // Default to exact search
-			token = "#"
-		}
-	} else {
-		// Parse a regular simple token
-		var valid bool
-		var simplePos Position
-		token, tokenType, valid, simplePos = p.parseSimpleToken()
-		if !valid {
-			return nil
-		}
-		endPos = simplePos.End
-	}
-
-	pos := Position{Start: startPos, End: endPos}
-	return makeSearchNode(tokenType, token, "", false, pos)
-}
-
-// parseNotToken parses a token that is negated (preceded by -)
-func (p *Parser) parseNotToken() *Node {
-	startPos := p.currentToken().Position.Start
-
-	// Skip the - character
-	p.nextToken()
-	endPos := p.currentToken().Position.Start
-
-	// If we've reached the end of the input or whitespace, treat '-' as a literal token
-	if p.currentTokenIs(TokenEOF) || p.currentTokenIs(TokenWhitespace) {
-		pos := Position{Start: startPos, End: endPos}
-		return makeSearchNode("exact", "-", "", false, pos)
-	}
-
-	// Check for field prefix
-	errorNode, fieldName, hasField, _ := p.parseFieldPrefix()
-
-	// If we got an error node from field prefix parsing, return it with IsNot set
-	if errorNode != nil {
-		errorNode.IsNot = true
-		// Update the position to include the '-' prefix
-		errorNode.Position.Start = startPos
-		return errorNode
-	}
-
-	// Parse the unmodified token
-	node := p.parseUnmodifiedToken()
-	if node == nil {
-		return nil
-	}
-
-	if hasField {
-		node.Field = fieldName
-	}
-
-	// Set the IsNot flag to true
-	node.IsNot = true
-
-	// Update the position to include the '-' prefix
-	node.Position.Start = startPos
-
 	return node
 }
 
-// parseToken parses a single token, which can be either a not_token or an unmodified_token
-func (p *Parser) parseToken() *Node {
-	startPos := p.currentToken().Position.Start
+// --- Parsing Functions Corresponding to the EBNF ---
 
-	// Check for not operator (-)
-	if p.currentTokenIs("-") {
+// or_expr = and_expr { WS? "|" WS? and_expr }
+func (p *Parser) parseOrExpr() Node {
+	left := p.parseAndExpr()
+	for {
+		p.skipOptionalWhitespace()
+		if p.matchToken("|") {
+			// Consume the '|' token.
+			opToken := p.current()
+			p.advance()
+			p.skipOptionalWhitespace()
+			right := p.parseAndExpr()
+			left = Node{
+				Type:     NodeTypeOr,
+				Children: []Node{left, right},
+				Position: combinePositions(left.Position, right.Position),
+			}
+			_ = opToken // (could be used for more detailed reporting)
+		} else {
+			break
+		}
+	}
+	return left
+}
+
+// and_expr = token { WS token }
+// When two tokens are contiguous (i.e. no WS between), report a single error.
+func (p *Parser) parseAndExpr() Node {
+	var nodes []Node
+
+	// Parse the first token.
+	tokenNode := p.parseToken()
+	nodes = append(nodes, tokenNode)
+	lastPos := tokenNode.Position
+
+	for {
+		// If next token is WS or a delimiter, handle accordingly.
+		if p.atEOF() || p.matchToken("|") {
+			break
+		}
+
+		// Check if there is whitespace between the last token and the current token.
+		cur := p.current()
+		if lastPos.End == cur.Position.Start {
+			// No whitespace: collect all contiguous tokens.
+			errStart := lastPos.End
+			errEnd := cur.Position.End
+			for !p.atEOF() && p.current().Position.Start == errEnd && !p.matchToken("|") {
+				errEnd = p.current().Position.End
+				p.advance()
+			}
+			errNode := Node{
+				Type:         NodeTypeError,
+				Position:     Position{Start: errStart, End: errEnd},
+				ErrorMessage: "Search tokens require whitespace to separate them",
+			}
+			nodes = append(nodes, errNode)
+		} else {
+			// There is whitespace: skip it and parse the next token.
+			p.skipOptionalWhitespace()
+			if p.atEOF() || p.matchToken("|") {
+				break
+			}
+			nextToken := p.parseToken()
+			nodes = append(nodes, nextToken)
+			lastPos = nextToken.Position
+		}
+	}
+
+	// If there's only one node, return it directly.
+	if len(nodes) == 1 {
+		return nodes[0]
+	}
+	// Otherwise, combine them into an AND node.
+	return Node{
+		Type:     NodeTypeAnd,
+		Children: nodes,
+		Position: Position{Start: nodes[0].Position.Start, End: nodes[len(nodes)-1].Position.End},
+	}
+}
+
+// token = not_token | field_token
+func (p *Parser) parseToken() Node {
+	// Check for a NOT token first.
+	if p.current().Type == TokenMinus {
 		return p.parseNotToken()
 	}
+	// Otherwise, parse as a field_token.
+	return p.parseFieldToken()
+}
 
-	// Check for field prefix
-	errorNode, field, hasField, _ := p.parseFieldPrefix()
+// not_token = "-" field_token
+func (p *Parser) parseNotToken() Node {
+	minusToken := p.current()
+	p.advance() // consume '-'
+	// Try to parse a field_token following the '-'
+	tokenNode := p.parseFieldToken()
+	// If the field token was an error, wrap the '-' itself as an error.
+	if tokenNode.Type == NodeTypeError {
+		return Node{
+			Type:         NodeTypeError,
+			Position:     minusToken.Position,
+			ErrorMessage: "Invalid token following '-'",
+		}
+	}
+	// Mark the resulting node as a NOT token.
+	tokenNode.IsNot = true
+	tokenNode.SearchType = SearchTypeNot
+	tokenNode.Position = Position{Start: minusToken.Position.Start, End: tokenNode.Position.End}
+	return tokenNode
+}
 
-	// If we got an error node from field prefix parsing, return it
-	if errorNode != nil {
-		return errorNode
+// field_token = [ field_prefix ] unmodified_token
+// field_prefix = "$" WORD ":"
+func (p *Parser) parseFieldToken() Node {
+	startPos := p.save()
+	var field string
+
+	// Attempt to parse an optional field prefix.
+	if p.current().Type == TokenDollar {
+		dollarToken := p.current()
+		p.advance() // consume '$'
+		if p.current().Type == TokenWord {
+			fieldToken := p.current()
+			p.advance() // consume the field name
+			if p.current().Type == TokenColon {
+				colonToken := p.current()
+				p.advance() // consume ':'
+				field = fieldToken.Value
+				_ = colonToken // (could be used in error reporting)
+			} else {
+				// Missing colon after field name.
+				return Node{
+					Type:         NodeTypeError,
+					Position:     Position{Start: dollarToken.Position.Start, End: p.current().Position.Start},
+					ErrorMessage: "Expected ':' after field name",
+				}
+			}
+		} else {
+			// Expected a field name (WORD) after '$'
+			return Node{
+				Type:         NodeTypeError,
+				Position:     dollarToken.Position,
+				ErrorMessage: "Expected field name after '$'",
+			}
+		}
 	}
 
-	// Parse an unmodified token
-	node := p.parseUnmodifiedToken()
-	if node == nil {
-		return nil
+	// Now try to parse an unmodified token.
+	node, ok := p.tryParseUnmodifiedToken()
+	if !ok {
+		// If we had a field prefix but no valid search term, produce an error node.
+		return Node{
+			Type:         NodeTypeError,
+			Position:     p.tokens[startPos].Position,
+			ErrorMessage: "Invalid field token: missing search term after field prefix",
+		}
 	}
-
-	if hasField {
-		node.Field = field
-		// Update the position to include the field prefix
-		node.Position.Start = startPos
-	}
-
+	// Attach the field if one was found.
+	node.Field = field
 	return node
 }
 
-// parseAndExpr parses a sequence of tokens (AND expression)
-func (p *Parser) parseAndExpr() *Node {
-	startPos := p.currentToken().Position.Start
-	var children []*Node
-	var lastTokenEnd int
-
-	// Parse the first token
-	p.skipWhitespace()
-	if p.currentTokenIs(TokenEOF) || p.currentTokenIs("|") {
-		// Empty AND expression
-		endPos := p.currentToken().Position.Start
-		return &Node{
-			Type:     NodeTypeAnd,
-			Position: Position{Start: startPos, End: endPos},
-			Children: make([]Node, 0),
-		}
+// unmodified_token = fuzzy_token | regexp_token | tag_token | simple_token
+func (p *Parser) tryParseUnmodifiedToken() (Node, bool) {
+	pos := p.save()
+	if node, ok := p.tryParseFuzzyToken(); ok {
+		return node, true
 	}
+	p.restore(pos)
+	if node, ok := p.tryParseRegexpToken(); ok {
+		return node, true
+	}
+	p.restore(pos)
+	if node, ok := p.tryParseTagToken(); ok {
+		return node, true
+	}
+	p.restore(pos)
+	if node, ok := p.tryParseSimpleToken(); ok {
+		return node, true
+	}
+	p.restore(pos)
+	// If nothing matches, return an error node.
+	return Node{
+		Type:         NodeTypeError,
+		Position:     p.current().Position,
+		ErrorMessage: "Expected search term",
+	}, false
+}
 
-	// Parse tokens until we reach EOF or a pipe
-	for !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
-		// Parse the next token
-		token := p.parseToken()
-		if token == nil {
-			// Skip to the next token if we couldn't parse this one
-			p.nextToken()
-			continue
-		}
-
-		// Add the token to the children
-		children = append(children, token)
-		lastTokenEnd = token.Position.End
-
-		// Check if we have whitespace between tokens
-		if !p.currentTokenIs(TokenWhitespace) && !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
-			// No whitespace between tokens - this is an error
-			// If this is the first token, we'll create a single error node
-			if len(children) == 1 {
-				// Start building an error node from the first token
-				errorStartPos := children[0].Position.Start
-				errorEndPos := children[0].Position.End
-
-				// Keep parsing tokens until we find whitespace, pipe, or EOF
-				for !p.currentTokenIs(TokenWhitespace) && !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
-					nextToken := p.parseToken()
-					if nextToken == nil {
-						p.nextToken()
-						continue
-					}
-					errorEndPos = nextToken.Position.End
-				}
-
-				// Create an error node that spans all the tokens without whitespace
-				errorNode := makeErrorNode("Search tokens require whitespace to separate them",
-					Position{Start: errorStartPos, End: errorEndPos})
-
-				// Replace all children with this single error node
-				children = []*Node{errorNode}
-				lastTokenEnd = errorNode.Position.End
+// fuzzy_token = "~" simple_token
+func (p *Parser) tryParseFuzzyToken() (Node, bool) {
+	if p.current().Type == TokenTilde {
+		tildeToken := p.current()
+		p.advance() // consume '~'
+		if node, ok := p.tryParseSimpleToken(); ok {
+			// Choose search type based on the simple token’s case.
+			if node.SearchType == SearchTypeExactCase {
+				node.SearchType = SearchTypeFzfCase
 			} else {
-				// If this isn't the first token, we'll add an error node
-				errorStartPos := token.Position.Start
-				errorEndPos := token.Position.End
-
-				// Keep parsing tokens until we find whitespace, pipe, or EOF
-				for !p.currentTokenIs(TokenWhitespace) && !p.currentTokenIs(TokenEOF) && !p.currentTokenIs("|") {
-					nextToken := p.parseToken()
-					if nextToken == nil {
-						p.nextToken()
-						continue
-					}
-					errorEndPos = nextToken.Position.End
-				}
-
-				// Create an error node that spans all the tokens without whitespace
-				errorNode := makeErrorNode("Search tokens require whitespace to separate them",
-					Position{Start: errorStartPos, End: errorEndPos})
-
-				// Add the error node to the children
-				children = append(children, errorNode)
-				lastTokenEnd = errorNode.Position.End
+				node.SearchType = SearchTypeFzf
 			}
+			node.Position = Position{Start: tildeToken.Position.Start, End: node.Position.End}
+			return node, true
 		}
-
-		// Skip whitespace
-		p.skipWhitespace()
-	}
-
-	// If there are no children, return an empty AND node
-	if len(children) == 0 {
-		endPos := p.currentToken().Position.Start
-		return &Node{
-			Type:     NodeTypeAnd,
-			Position: Position{Start: startPos, End: endPos},
-			Children: make([]Node, 0),
+		// If no simple token follows, return an error node.
+		errorNode := Node{
+			Type:         NodeTypeError,
+			Position:     tildeToken.Position,
+			ErrorMessage: "Expected search term after '~'",
 		}
+		return errorNode, true
 	}
-
-	// If there's only one child, return it directly
-	if len(children) == 1 {
-		return children[0]
-	}
-
-	// Create an AND node with the children
-	// Use the last token's end position as the end position for the AND node
-
-	// Convert []*Node to []Node for the Children field
-	nodeChildren := make([]Node, len(children))
-	for i, child := range children {
-		nodeChildren[i] = *child
-	}
-
-	return &Node{
-		Type:     NodeTypeAnd,
-		Position: Position{Start: startPos, End: lastTokenEnd},
-		Children: nodeChildren,
-	}
+	return Node{}, false
 }
 
-// parseOrExpr parses an OR expression (and_expr { "|" and_expr })
-func (p *Parser) parseOrExpr() *Node {
-	startPos := p.currentToken().Position.Start
-	var children []*Node
-
-	// Handle the case where the expression starts with a pipe
-	if p.currentTokenIs("|") {
-		// Skip the "|" character
-		p.nextToken()
-
-		// Skip any whitespace after the "|"
-		p.skipWhitespace()
-
-		// Add an empty AND node before the pipe
-		children = append(children, &Node{
-			Type:     NodeTypeAnd,
-			Position: Position{Start: startPos, End: startPos},
-			Children: []Node{},
-		})
-
-		// Parse the expression after the pipe
-		andNode := p.parseAndExpr()
-		children = append(children, andNode)
-
-		// Continue parsing if there are more pipes
-		for p.currentTokenIs("|") {
-			// Skip the "|" character
-			p.nextToken()
-
-			// Skip any whitespace after the "|"
-			p.skipWhitespace()
-
-			// Parse the next AND expression
-			andNode = p.parseAndExpr()
-			children = append(children, andNode)
+// regexp_token = REGEXP | CASEREGEXP
+func (p *Parser) tryParseRegexpToken() (Node, bool) {
+	if p.current().Type == TokenRegexp || p.current().Type == TokenCaseRegexp {
+		token := p.current()
+		p.advance()
+		searchType := SearchTypeRegexp
+		if token.Type == TokenCaseRegexp {
+			searchType = SearchTypeRegexpCase
 		}
-
-		// Convert []*Node to []Node for the Children field
-		nodeChildren := make([]Node, len(children))
-		for i, child := range children {
-			nodeChildren[i] = *child
-		}
-
-		// Create an OR node with the children
-		endPos := p.currentToken().Position.Start
-		return &Node{
-			Type:     NodeTypeOr,
-			Position: Position{Start: startPos, End: endPos},
-			Children: nodeChildren,
-		}
+		return Node{
+			Type:       NodeTypeSearch,
+			SearchType: searchType,
+			SearchTerm: token.Value,
+			Position:   token.Position,
+		}, true
 	}
-
-	// Parse the first AND expression
-	andNode := p.parseAndExpr()
-	children = append(children, andNode)
-
-	// If there are no OR operators, return the AND node directly
-	if !p.currentTokenIs("|") {
-		return andNode
-	}
-
-	// Parse additional AND expressions separated by "|"
-	for p.currentTokenIs("|") {
-		// Skip the "|" character
-		p.nextToken()
-
-		// Skip any whitespace after the "|"
-		p.skipWhitespace()
-
-		// Parse the next AND expression
-		andNode = p.parseAndExpr()
-		children = append(children, andNode)
-	}
-
-	// Convert []*Node to []Node for the Children field
-	nodeChildren := make([]Node, len(children))
-	for i, child := range children {
-		nodeChildren[i] = *child
-	}
-
-	// Create an OR node with the children
-	endPos := p.currentToken().Position.Start
-	return &Node{
-		Type:     NodeTypeOr,
-		Position: Position{Start: startPos, End: endPos},
-		Children: nodeChildren,
-	}
+	return Node{}, false
 }
 
-// ParseAST parses the input string into an AST
-func (p *Parser) ParseAST() *Node {
-	// Special case for a single pipe character
-	if len(p.tokens) == 2 && p.tokens[0].Type == "|" && p.tokens[1].Type == TokenEOF {
-		return makeSearchNode(NodeTypeOr, "|", "", false, Position{Start: 0, End: 1})
+// tag_token = "#" WORD [ "/" ]
+func (p *Parser) tryParseTagToken() (Node, bool) {
+	if p.current().Type == TokenHash {
+		hashToken := p.current()
+		p.advance() // consume '#'
+		if p.current().Type == TokenWord {
+			wordToken := p.current()
+			p.advance() // consume the tag name
+			// Optionally, check for a trailing "/" with no intervening whitespace.
+			if !p.atEOF() && p.current().Value == "/" {
+				p.advance() // consume the '/'
+			}
+			return Node{
+				Type:       NodeTypeSearch,
+				SearchType: SearchTypeTag,
+				SearchTerm: wordToken.Value,
+				Position:   combinePositions(hashToken.Position, wordToken.Position),
+			}, true
+		}
+		errorNode := Node{
+			Type:         NodeTypeError,
+			Position:     hashToken.Position,
+			ErrorMessage: "Expected tag name after '#'",
+		}
+		return errorNode, true
 	}
-
-	// Parse the OR expression
-	return p.parseOrExpr()
+	return Node{}, false
 }
 
-// ParseSearch parses a search string into an AST
-func ParseSearch(searchString string) *Node {
-	searchString = strings.TrimSpace(searchString)
-	if searchString == "" {
-		return &Node{
-			Type:     NodeTypeAnd,
-			Position: Position{Start: 0, End: 0},
-			Children: []Node{},
+// simple_token = DOUBLEQUOTED | SINGLEQUOTED | WORD
+func (p *Parser) tryParseSimpleToken() (Node, bool) {
+	current := p.current()
+	if current.Type == TokenWord || current.Type == TokenDoubleQuoted || current.Type == TokenSingleQuoted {
+		p.advance()
+		searchType := SearchTypeExact
+		if current.Type == TokenSingleQuoted {
+			searchType = SearchTypeExactCase
 		}
+		return Node{
+			Type:       NodeTypeSearch,
+			SearchType: searchType,
+			SearchTerm: current.Value,
+			Position:   current.Position,
+		}, true
 	}
-	parser := NewParser(searchString)
-	return parser.ParseAST()
+	return Node{}, false
+}
+
+// --- End of Parser Implementation ---
+
+// For debugging: a simple print of the AST.
+func (n Node) String() string {
+	switch n.Type {
+	case NodeTypeSearch:
+		return fmt.Sprintf("Search(%s:%s)", n.SearchType, n.SearchTerm)
+	case NodeTypeError:
+		return fmt.Sprintf("Error(%s)", n.ErrorMessage)
+	default:
+		s := fmt.Sprintf("%s[", n.Type)
+		for i, child := range n.Children {
+			if i > 0 {
+				s += ", "
+			}
+			s += child.String()
+		}
+		s += "]"
+		return s
+	}
 }
