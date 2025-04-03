@@ -27,10 +27,6 @@
 
 package searchparser
 
-import (
-	"fmt"
-)
-
 // --- Node Types & Constants ---
 
 const (
@@ -62,7 +58,7 @@ type Position struct {
 type Node struct {
 	Type         string   // NodeTypeAnd, NodeTypeOr, NodeTypeSearch, NodeTypeError
 	Position     Position // Position in the source text
-	Children     []Node   // For composite nodes (AND/OR)
+	Children     []*Node  // For composite nodes (AND/OR)
 	SearchType   string   // e.g., "exact", "regexp", "fzf", etc. (only for search nodes)
 	SearchTerm   string   // The actual search text (only for search nodes)
 	Field        string   // Optional field specifier (only for search nodes)
@@ -91,6 +87,15 @@ func NewParser(input string) *Parser {
 
 // --- Helper Functions ---
 
+func (p *Parser) isCurrentADelimiter() bool {
+	switch p.current().Type {
+	case TokenWhitespace, TokenPipe, TokenLParen, TokenRParen, TokenEOF:
+		return true
+	default:
+		return false
+	}
+}
+
 func (p *Parser) current() Token {
 	if p.position < len(p.tokens) {
 		return p.tokens[p.position]
@@ -117,6 +122,16 @@ func (p *Parser) restore(pos int) {
 	p.position = pos
 }
 
+func (p *Parser) tryParse(fn func() *Node) (*Node, bool) {
+	pos := p.save()
+	node := fn()
+	if node != nil {
+		return node, true
+	}
+	p.restore(pos)
+	return nil, false
+}
+
 func combinePositions(a, b Position) Position {
 	return Position{Start: a.Start, End: b.End}
 }
@@ -136,332 +151,155 @@ func (p *Parser) matchToken(val string) bool {
 	return p.current().Value == val
 }
 
+func (p *Parser) consumeToken(tokenType TokenType) (*Token, bool) {
+	if p.atEOF() {
+		return nil, false
+	}
+	cur := p.current()
+	if cur.Type == tokenType {
+		p.advance()
+		return &cur, true
+	}
+	return nil, false
+}
+
+func makeErrorNode(pos Position, msg string) *Node {
+	return &Node{
+		Type:         NodeTypeError,
+		Position:     pos,
+		ErrorMessage: msg,
+	}
+}
+
+func (n *Node) addTokenToErrorNode(token Token) {
+	if n.Type != NodeTypeError {
+		return
+	}
+	if n.Position.Start == 0 && n.Position.End == 0 {
+		n.Position = token.Position
+	} else {
+		n.Position.End = token.Position.End
+	}
+}
+
+func (p *Parser) addToErrorUntilDelimiter(errNode *Node) {
+	for !p.atEOF() && !p.isCurrentADelimiter() {
+		token := p.current()
+		errNode.addTokenToErrorNode(token)
+		p.advance()
+	}
+}
+
+func (p *Parser) createErrorToDelimiter(msg string, pos Position) *Node {
+	errNode := makeErrorNode(pos, msg)
+	p.addToErrorUntilDelimiter(errNode)
+	return errNode
+}
+
+func removeNilNodes(nodes []*Node) []*Node {
+	var result []*Node
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		result = append(result, node)
+	}
+	return result
+}
+
+func makeAndNode(children ...*Node) *Node {
+	children = removeNilNodes(children)
+	if len(children) == 0 {
+		return nil
+	}
+	if len(children) == 1 {
+		return children[0]
+	}
+	return &Node{
+		Type:     NodeTypeAnd,
+		Children: children,
+		Position: Position{Start: children[0].Position.Start, End: children[len(children)-1].Position.End},
+	}
+}
+
+func makeOrNode(children ...*Node) *Node {
+	children = removeNilNodes(children)
+	if len(children) == 0 {
+		return nil
+	}
+	if len(children) == 1 {
+		return children[0]
+	}
+	return &Node{
+		Type:     NodeTypeOr,
+		Children: children,
+		Position: Position{Start: children[0].Position.Start, End: children[len(children)-1].Position.End},
+	}
+}
+
+func containsType(slice []TokenType, item TokenType) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
 // --- Top-Level Parse Function ---
 
 // Parse builds the AST for the entire search expression.
-func (p *Parser) Parse() Node {
-	node := p.parseOrExpr()
-	// If there are leftover tokens (ignoring whitespace), produce an error node.
+// search           = WS? or_expr WS? EOF ;
+func (p *Parser) Parse() *Node {
 	p.skipOptionalWhitespace()
-	if !p.atEOF() {
-		extra := p.current()
-		errNode := Node{
-			Type:         NodeTypeError,
-			Position:     extra.Position,
-			ErrorMessage: "Unexpected extra tokens",
-		}
-		// Combine valid AST and error into an AND node.
-		node = Node{
-			Type:     NodeTypeAnd,
-			Children: []Node{node, errNode},
-			Position: combinePositions(node.Position, errNode.Position),
-		}
-	}
+	node := p.parseOrExpr()
 	return node
 }
 
 // --- Parsing Functions Corresponding to the EBNF ---
 
-// or_expr = and_expr { WS? "|" WS? and_expr }
-func (p *Parser) parseOrExpr() Node {
-	left := p.parseAndExpr()
-	for {
-		p.skipOptionalWhitespace()
-		if p.matchToken("|") {
-			// Consume the '|' token.
-			opToken := p.current()
-			p.advance()
-			p.skipOptionalWhitespace()
-			right := p.parseAndExpr()
-			left = Node{
-				Type:     NodeTypeOr,
-				Children: []Node{left, right},
-				Position: combinePositions(left.Position, right.Position),
-			}
-			_ = opToken // (could be used for more detailed reporting)
-		} else {
-			break
-		}
-	}
-	return left
-}
-
-// and_expr = token { WS token }
-// When two tokens are contiguous (i.e. no WS between), report a single error.
-func (p *Parser) parseAndExpr() Node {
-	var nodes []Node
-
-	// Parse the first token.
-	tokenNode := p.parseToken()
-	nodes = append(nodes, tokenNode)
-	lastPos := tokenNode.Position
-
-	for {
-		// If next token is WS or a delimiter, handle accordingly.
-		if p.atEOF() || p.matchToken("|") {
-			break
-		}
-
-		// Check if there is whitespace between the last token and the current token.
-		cur := p.current()
-		if lastPos.End == cur.Position.Start {
-			// No whitespace: collect all contiguous tokens.
-			errStart := lastPos.End
-			errEnd := cur.Position.End
-			for !p.atEOF() && p.current().Position.Start == errEnd && !p.matchToken("|") {
-				errEnd = p.current().Position.End
-				p.advance()
-			}
-			errNode := Node{
-				Type:         NodeTypeError,
-				Position:     Position{Start: errStart, End: errEnd},
-				ErrorMessage: "Search tokens require whitespace to separate them",
-			}
-			nodes = append(nodes, errNode)
-		} else {
-			// There is whitespace: skip it and parse the next token.
-			p.skipOptionalWhitespace()
-			if p.atEOF() || p.matchToken("|") {
+// parseOrExpr parses an OR expression.
+// or_expr = and_expr { WS? "|" WS? and_expr } ;
+func (p *Parser) parseOrExpr() *Node {
+	var nodes []*Node
+	for !p.atEOF() {
+		if len(nodes) > 0 {
+			p.consumeToken(TokenWhitespace)
+			if p.atEOF() {
 				break
 			}
-			nextToken := p.parseToken()
-			nodes = append(nodes, nextToken)
-			lastPos = nextToken.Position
-		}
-	}
-
-	// If there's only one node, return it directly.
-	if len(nodes) == 1 {
-		return nodes[0]
-	}
-	// Otherwise, combine them into an AND node.
-	return Node{
-		Type:     NodeTypeAnd,
-		Children: nodes,
-		Position: Position{Start: nodes[0].Position.Start, End: nodes[len(nodes)-1].Position.End},
-	}
-}
-
-// token = not_token | field_token
-func (p *Parser) parseToken() Node {
-	// Check for a NOT token first.
-	if p.current().Type == TokenMinus {
-		return p.parseNotToken()
-	}
-	// Otherwise, parse as a field_token.
-	return p.parseFieldToken()
-}
-
-// not_token = "-" field_token
-func (p *Parser) parseNotToken() Node {
-	minusToken := p.current()
-	p.advance() // consume '-'
-	// Try to parse a field_token following the '-'
-	tokenNode := p.parseFieldToken()
-	// If the field token was an error, wrap the '-' itself as an error.
-	if tokenNode.Type == NodeTypeError {
-		return Node{
-			Type:         NodeTypeError,
-			Position:     minusToken.Position,
-			ErrorMessage: "Invalid token following '-'",
-		}
-	}
-	// Mark the resulting node as a NOT token.
-	tokenNode.IsNot = true
-	tokenNode.SearchType = SearchTypeNot
-	tokenNode.Position = Position{Start: minusToken.Position.Start, End: tokenNode.Position.End}
-	return tokenNode
-}
-
-// field_token = [ field_prefix ] unmodified_token
-// field_prefix = "$" WORD ":"
-func (p *Parser) parseFieldToken() Node {
-	startPos := p.save()
-	var field string
-
-	// Attempt to parse an optional field prefix.
-	if p.current().Type == TokenDollar {
-		dollarToken := p.current()
-		p.advance() // consume '$'
-		if p.current().Type == TokenWord {
-			fieldToken := p.current()
-			p.advance() // consume the field name
-			if p.current().Type == TokenColon {
-				colonToken := p.current()
-				p.advance() // consume ':'
-				field = fieldToken.Value
-				_ = colonToken // (could be used in error reporting)
-			} else {
-				// Missing colon after field name.
-				return Node{
-					Type:         NodeTypeError,
-					Position:     Position{Start: dollarToken.Position.Start, End: p.current().Position.Start},
-					ErrorMessage: "Expected ':' after field name",
-				}
-			}
-		} else {
-			// Expected a field name (WORD) after '$'
-			return Node{
-				Type:         NodeTypeError,
-				Position:     dollarToken.Position,
-				ErrorMessage: "Expected field name after '$'",
+			_, ok := p.consumeToken(TokenPipe)
+			if !ok {
+				errToken := p.createErrorToDelimiter("Expected '|'", p.current().Position)
+				nodes = append(nodes, errToken)
+				continue
 			}
 		}
-	}
-
-	// Now try to parse an unmodified token.
-	node, ok := p.tryParseUnmodifiedToken()
-	if !ok {
-		// If we had a field prefix but no valid search term, produce an error node.
-		return Node{
-			Type:         NodeTypeError,
-			Position:     p.tokens[startPos].Position,
-			ErrorMessage: "Invalid field token: missing search term after field prefix",
+		node := p.parseAndExpr()
+		if node == nil {
+			break
 		}
+		nodes = append(nodes, node)
 	}
-	// Attach the field if one was found.
-	node.Field = field
-	return node
+	return makeOrNode(nodes...)
 }
 
-// unmodified_token = fuzzy_token | regexp_token | tag_token | simple_token
-func (p *Parser) tryParseUnmodifiedToken() (Node, bool) {
-	pos := p.save()
-	if node, ok := p.tryParseFuzzyToken(); ok {
-		return node, true
+// token { WS token }
+func (p *Parser) parseAndExpr() *Node {
+	var nodes []*Node
+	for !p.atEOF() {
+		if len(nodes) > 0 {
+			p.consumeToken(TokenWhitespace)
+		}
+		node := p.parseToken()
+		if node == nil {
+			break
+		}
+		nodes = append(nodes, node)
 	}
-	p.restore(pos)
-	if node, ok := p.tryParseRegexpToken(); ok {
-		return node, true
-	}
-	p.restore(pos)
-	if node, ok := p.tryParseTagToken(); ok {
-		return node, true
-	}
-	p.restore(pos)
-	if node, ok := p.tryParseSimpleToken(); ok {
-		return node, true
-	}
-	p.restore(pos)
-	// If nothing matches, return an error node.
-	return Node{
-		Type:         NodeTypeError,
-		Position:     p.current().Position,
-		ErrorMessage: "Expected search term",
-	}, false
+	return makeAndNode(nodes...)
 }
 
-// fuzzy_token = "~" simple_token
-func (p *Parser) tryParseFuzzyToken() (Node, bool) {
-	if p.current().Type == TokenTilde {
-		tildeToken := p.current()
-		p.advance() // consume '~'
-		if node, ok := p.tryParseSimpleToken(); ok {
-			// Choose search type based on the simple token’s case.
-			if node.SearchType == SearchTypeExactCase {
-				node.SearchType = SearchTypeFzfCase
-			} else {
-				node.SearchType = SearchTypeFzf
-			}
-			node.Position = Position{Start: tildeToken.Position.Start, End: node.Position.End}
-			return node, true
-		}
-		// If no simple token follows, return an error node.
-		errorNode := Node{
-			Type:         NodeTypeError,
-			Position:     tildeToken.Position,
-			ErrorMessage: "Expected search term after '~'",
-		}
-		return errorNode, true
-	}
-	return Node{}, false
-}
-
-// regexp_token = REGEXP | CASEREGEXP
-func (p *Parser) tryParseRegexpToken() (Node, bool) {
-	if p.current().Type == TokenRegexp || p.current().Type == TokenCaseRegexp {
-		token := p.current()
-		p.advance()
-		searchType := SearchTypeRegexp
-		if token.Type == TokenCaseRegexp {
-			searchType = SearchTypeRegexpCase
-		}
-		return Node{
-			Type:       NodeTypeSearch,
-			SearchType: searchType,
-			SearchTerm: token.Value,
-			Position:   token.Position,
-		}, true
-	}
-	return Node{}, false
-}
-
-// tag_token = "#" WORD [ "/" ]
-func (p *Parser) tryParseTagToken() (Node, bool) {
-	if p.current().Type == TokenHash {
-		hashToken := p.current()
-		p.advance() // consume '#'
-		if p.current().Type == TokenWord {
-			wordToken := p.current()
-			p.advance() // consume the tag name
-			// Optionally, check for a trailing "/" with no intervening whitespace.
-			if !p.atEOF() && p.current().Value == "/" {
-				p.advance() // consume the '/'
-			}
-			return Node{
-				Type:       NodeTypeSearch,
-				SearchType: SearchTypeTag,
-				SearchTerm: wordToken.Value,
-				Position:   combinePositions(hashToken.Position, wordToken.Position),
-			}, true
-		}
-		errorNode := Node{
-			Type:         NodeTypeError,
-			Position:     hashToken.Position,
-			ErrorMessage: "Expected tag name after '#'",
-		}
-		return errorNode, true
-	}
-	return Node{}, false
-}
-
-// simple_token = DOUBLEQUOTED | SINGLEQUOTED | WORD
-func (p *Parser) tryParseSimpleToken() (Node, bool) {
-	current := p.current()
-	if current.Type == TokenWord || current.Type == TokenDoubleQuoted || current.Type == TokenSingleQuoted {
-		p.advance()
-		searchType := SearchTypeExact
-		if current.Type == TokenSingleQuoted {
-			searchType = SearchTypeExactCase
-		}
-		return Node{
-			Type:       NodeTypeSearch,
-			SearchType: searchType,
-			SearchTerm: current.Value,
-			Position:   current.Position,
-		}, true
-	}
-	return Node{}, false
-}
-
-// --- End of Parser Implementation ---
-
-// For debugging: a simple print of the AST.
-func (n Node) String() string {
-	switch n.Type {
-	case NodeTypeSearch:
-		return fmt.Sprintf("Search(%s:%s)", n.SearchType, n.SearchTerm)
-	case NodeTypeError:
-		return fmt.Sprintf("Error(%s)", n.ErrorMessage)
-	default:
-		s := fmt.Sprintf("%s[", n.Type)
-		for i, child := range n.Children {
-			if i > 0 {
-				s += ", "
-			}
-			s += child.String()
-		}
-		s += "]"
-		return s
-	}
+func (p *Parser) parseToken() *Node {
+	return nil
 }

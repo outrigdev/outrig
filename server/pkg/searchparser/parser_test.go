@@ -19,7 +19,7 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "and",
 				Position: Position{Start: 0, End: 0},
-				Children: []Node{},
+				Children: nil,
 			},
 		},
 		{
@@ -38,7 +38,7 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "and",
 				Position: Position{Start: 0, End: 11},
-				Children: []Node{
+				Children: []*Node{
 					{
 						Type:       "search",
 						Position:   Position{Start: 0, End: 5},
@@ -60,7 +60,7 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "or",
 				Position: Position{Start: 0, End: 13},
-				Children: []Node{
+				Children: []*Node{
 					{
 						Type:       "search",
 						Position:   Position{Start: 0, End: 5},
@@ -104,11 +104,11 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "or",
 				Position: Position{Start: 0, End: 26},
-				Children: []Node{
+				Children: []*Node{
 					{
 						Type:     "and",
 						Position: Position{Start: 0, End: 11},
-						Children: []Node{
+						Children: []*Node{
 							{
 								Type:       "search",
 								Position:   Position{Start: 0, End: 5},
@@ -150,7 +150,7 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "and",
 				Position: Position{Start: 0, End: 7},
-				Children: []Node{
+				Children: []*Node{
 					{
 						Type:         "error",
 						Position:     Position{Start: 0, End: 1},
@@ -171,7 +171,7 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "and",
 				Position: Position{Start: 0, End: 12},
-				Children: []Node{
+				Children: []*Node{
 					{
 						Type:         "error",
 						Position:     Position{Start: 0, End: 6},
@@ -201,7 +201,7 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "and",
 				Position: Position{Start: 0, End: 7},
-				Children: []Node{
+				Children: []*Node{
 					{
 						Type:         "error",
 						Position:     Position{Start: 0, End: 1},
@@ -222,7 +222,7 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "and",
 				Position: Position{Start: 0, End: 8},
-				Children: []Node{
+				Children: []*Node{
 					{
 						Type:         "error",
 						Position:     Position{Start: 0, End: 2},
@@ -244,7 +244,7 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "and",
 				Position: Position{Start: 0, End: 7},
-				Children: []Node{
+				Children: []*Node{
 					{
 						Type:         "error",
 						Position:     Position{Start: 0, End: 1},
@@ -265,7 +265,7 @@ func TestParseAST(t *testing.T) {
 			expected: &Node{
 				Type:     "and",
 				Position: Position{Start: 0, End: 11},
-				Children: []Node{
+				Children: []*Node{
 					{
 						Type:         "error",
 						Position:     Position{Start: 0, End: 1},
@@ -296,9 +296,7 @@ func TestParseAST(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewParser(tt.input)
 			result := p.Parse()
-
-			// Compare the result with the expected value
-			compareNodes(t, &result, tt.expected)
+			compareNodes(t, result, tt.expected)
 		})
 	}
 }
@@ -358,8 +356,8 @@ func compareNodes(t *testing.T, actual, expected *Node) {
 
 	for i := range actual.Children {
 		// Get pointers to the children
-		actualChild := &actual.Children[i]
-		expectedChild := &expected.Children[i]
+		actualChild := actual.Children[i]
+		expectedChild := expected.Children[i]
 
 		// Recursively compare children
 		compareNodes(t, actualChild, expectedChild)

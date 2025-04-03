@@ -10,7 +10,7 @@ import (
 // MakeSearcherFromNode creates a searcher from an AST node
 func MakeSearcherFromNode(node *searchparser.Node) (Searcher, error) {
 	if node == nil {
-		return MakeAllSearcher(), nil
+		return nil, nil
 	}
 
 	switch node.Type {
@@ -20,68 +20,59 @@ func MakeSearcherFromNode(node *searchparser.Node) (Searcher, error) {
 		if err != nil {
 			return nil, err
 		}
-		
-		// If this is a negated search, wrap it with a not searcher
+		if searcher == nil {
+			return nil, nil
+		}
 		if node.IsNot {
 			return MakeNotSearcher(searcher), nil
 		}
 		return searcher, nil
-	
+
 	case searchparser.NodeTypeError:
-		// For error nodes, return an AllSearcher (matches everything)
-		return MakeAllSearcher(), nil
-		
+		return nil, nil
+
 	case searchparser.NodeTypeAnd:
-		// Create an AND searcher with all child searchers
-		if len(node.Children) == 0 {
-			return MakeAllSearcher(), nil
-		}
-		
-		searchers := make([]Searcher, 0, len(node.Children))
-		for i := range node.Children {
-			// Get a pointer to the child node
-			childPtr := &node.Children[i]
-			searcher, err := MakeSearcherFromNode(childPtr)
+		var searchers []Searcher
+		for _, child := range node.Children {
+			searcher, err := MakeSearcherFromNode(child)
 			if err != nil {
 				return nil, err
 			}
+			if searcher == nil {
+				continue
+			}
 			searchers = append(searchers, searcher)
 		}
-		
-		// If there's only one searcher, return it directly
+		if len(searchers) == 0 {
+			return nil, nil
+		}
 		if len(searchers) == 1 {
 			return searchers[0], nil
 		}
-		
 		return MakeAndSearcher(searchers), nil
-		
+
 	case searchparser.NodeTypeOr:
-		// Create an OR searcher with all child searchers
-		if len(node.Children) == 0 {
-			return MakeAllSearcher(), nil
-		}
-		
-		searchers := make([]Searcher, 0, len(node.Children))
-		for i := range node.Children {
-			// Get a pointer to the child node
-			childPtr := &node.Children[i]
-			searcher, err := MakeSearcherFromNode(childPtr)
+		var searchers []Searcher
+		for _, child := range node.Children {
+			searcher, err := MakeSearcherFromNode(child)
 			if err != nil {
 				return nil, err
 			}
+			if searcher == nil {
+				continue
+			}
 			searchers = append(searchers, searcher)
 		}
-		
-		// If there's only one searcher, return it directly
+		if len(searchers) == 0 {
+			return nil, nil
+		}
 		if len(searchers) == 1 {
 			return searchers[0], nil
 		}
-		
 		return MakeOrSearcher(searchers), nil
-		
+
 	default:
-		// Unknown node type, return an all searcher
-		return MakeAllSearcher(), nil
+		return nil, nil
 	}
 }
 
