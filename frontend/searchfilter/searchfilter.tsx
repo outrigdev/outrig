@@ -1,3 +1,4 @@
+import { Tooltip } from "@/elements/tooltip";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
 import { Filter } from "lucide-react";
 import React, { useEffect, useRef } from "react";
@@ -84,13 +85,23 @@ const ErrorOverlay: React.FC<{
 
                     if (segment.isError) {
                         return (
-                            <span
-                                key={index}
-                                className="underline decoration-wavy decoration-red-500 inline"
-                                style={{ textUnderlineOffset: "2px" }}
-                            >
-                                {text}
-                            </span>
+                            <div key={index} className="relative inline-block">
+                                {/* Text content - non-interactive */}
+                                <span
+                                    className="relative z-10 pointer-events-none underline decoration-wavy decoration-red-500 inline"
+                                    style={{ textUnderlineOffset: "2px" }}
+                                >
+                                    {text}
+                                </span>
+
+                                {/* Interactive underline area - just enough height to catch hovers */}
+                                <Tooltip content={segment.errorMessage || "Error"} placement="bottom">
+                                    <div
+                                        className="absolute left-0 w-full z-0 pointer-events-auto"
+                                        style={{ bottom: -4, height: 6 }}
+                                    />
+                                </Tooltip>
+                            </div>
                         );
                     }
 
