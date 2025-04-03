@@ -8,16 +8,63 @@ import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
-import { SearchResultInfo, WatchesModel } from "./watches-model";
+import { WatchesModel } from "./watches-model";
 
-// Constants for watch flags
-const WatchFlag_Push = 1;
-const WatchFlag_Counter = 2;
-const WatchFlag_Atomic = 4;
-const WatchFlag_Sync = 8;
-const WatchFlag_Func = 16;
-const WatchFlag_Hook = 32;
-const WatchFlag_Settable = 64;
+// Constants for watch flags (matching the Go constants)
+const WatchFlag_Push = 1 << 5; // 32
+const WatchFlag_Counter = 1 << 6; // 64
+const WatchFlag_Atomic = 1 << 7; // 128
+const WatchFlag_Sync = 1 << 8; // 256
+const WatchFlag_Func = 1 << 9; // 512
+const WatchFlag_Hook = 1 << 10; // 1024
+const WatchFlag_Settable = 1 << 11; // 2048
+const WatchFlag_JSON = 1 << 12; // 4096
+const WatchFlag_GoFmt = 1 << 13; // 8192
+
+// Kind mask (lower 5 bits of flags)
+const KindMask = 0x1f;
+
+// Go reflect.Kind constants
+enum Kind {
+    Invalid = 0,
+    Bool = 1,
+    Int = 2,
+    Int8 = 3,
+    Int16 = 4,
+    Int32 = 5,
+    Int64 = 6,
+    Uint = 7,
+    Uint8 = 8,
+    Uint16 = 9,
+    Uint32 = 10,
+    Uint64 = 11,
+    Uintptr = 12,
+    Float32 = 13,
+    Float64 = 14,
+    Complex64 = 15,
+    Complex128 = 16,
+    Array = 17,
+    Chan = 18,
+    Func = 19,
+    Interface = 20,
+    Map = 21,
+    Pointer = 22,
+    Slice = 23,
+    String = 24,
+    Struct = 25,
+    UnsafePointer = 26,
+}
+
+// Get the kind from the flags
+function getKind(flags?: number): Kind {
+    if (!flags) return Kind.Invalid;
+    return flags & (KindMask as Kind);
+}
+
+// Get a string representation of the kind
+function kindToString(kind: Kind): string {
+    return Kind[kind] || "Unknown";
+}
 
 // Individual watch view component
 interface WatchViewProps {
@@ -35,7 +82,23 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
             return <span className="text-muted">null</span>;
         }
 
-        // Try to parse JSON if it looks like JSON
+        // Check if the JSON flag is set
+        if (watch.flags && watch.flags & WatchFlag_JSON) {
+            try {
+                const parsed = JSON.parse(watch.value);
+                return <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(parsed, null, 2)}</pre>;
+            } catch {
+                // If parsing fails, fall back to displaying as is
+                return <span>{watch.value}</span>;
+            }
+        }
+
+        // Check if the GoFmt flag is set (formatted by Go's fmt package)
+        if (watch.flags && watch.flags & WatchFlag_GoFmt) {
+            return <pre className="text-xs whitespace-pre-wrap font-mono">{watch.value}</pre>;
+        }
+
+        // Legacy behavior: try to parse JSON if it looks like JSON
         if (watch.value.startsWith("{") || watch.value.startsWith("[")) {
             try {
                 const parsed = JSON.parse(watch.value);
@@ -61,6 +124,8 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
         if (flags & WatchFlag_Func) tags.push({ label: "Func", variant: "secondary" });
         if (flags & WatchFlag_Hook) tags.push({ label: "Hook", variant: "link" });
         if (flags & WatchFlag_Settable) tags.push({ label: "Settable", variant: "info" });
+        if (flags & WatchFlag_JSON) tags.push({ label: "JSON", variant: "success" });
+        if (flags & WatchFlag_GoFmt) tags.push({ label: "GoFmt", variant: "warning" });
 
         return tags;
     };

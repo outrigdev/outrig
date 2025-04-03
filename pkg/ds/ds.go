@@ -28,6 +28,8 @@ const (
 	WatchFlag_Func     = 1 << 9  // 00000010_00000000
 	WatchFlag_Hook     = 1 << 10 // 00000100_00000000
 	WatchFlag_Settable = 1 << 11 // 00001000_00000000
+	WatchFlag_JSON     = 1 << 12 // 00010000_00000000
+	WatchFlag_GoFmt    = 1 << 13 // 00100000_00000000
 )
 
 type PacketType struct {
