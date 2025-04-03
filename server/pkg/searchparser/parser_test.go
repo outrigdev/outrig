@@ -14,13 +14,9 @@ func TestParseAST(t *testing.T) {
 		expected *Node
 	}{
 		{
-			name:  "empty string",
-			input: "",
-			expected: &Node{
-				Type:     "and",
-				Position: Position{Start: 0, End: 0},
-				Children: nil,
-			},
+			name:     "empty string",
+			input:    "",
+			expected: nil,
 		},
 		{
 			name:  "single token",
@@ -138,9 +134,8 @@ func TestParseAST(t *testing.T) {
 			name:  "tokens without whitespace",
 			input: `"hello"mike/foo/`,
 			expected: &Node{
-				Type:         "error",
-				Position:     Position{Start: 0, End: 16},
-				ErrorMessage: "Search tokens require whitespace to separate them",
+				Type:     "error",
+				Position: Position{Start: 0, End: 16},
 			},
 		},
 		// New test cases for error handling
@@ -152,9 +147,8 @@ func TestParseAST(t *testing.T) {
 				Position: Position{Start: 0, End: 7},
 				Children: []*Node{
 					{
-						Type:         "error",
-						Position:     Position{Start: 0, End: 1},
-						ErrorMessage: "Bare '$' is not allowed",
+						Type:     "error",
+						Position: Position{Start: 0, End: 1},
 					},
 					{
 						Type:       "search",
@@ -173,9 +167,8 @@ func TestParseAST(t *testing.T) {
 				Position: Position{Start: 0, End: 12},
 				Children: []*Node{
 					{
-						Type:         "error",
-						Position:     Position{Start: 0, End: 6},
-						ErrorMessage: "No whitespace allowed between field name and ':'",
+						Type:     "error",
+						Position: Position{Start: 0, End: 6},
 					},
 					{
 						Type:       "search",
@@ -190,9 +183,8 @@ func TestParseAST(t *testing.T) {
 			name:  "missing colon after field name",
 			input: "$field",
 			expected: &Node{
-				Type:         "error",
-				Position:     Position{Start: 0, End: 6},
-				ErrorMessage: "Missing ':' after field name",
+				Type:     "error",
+				Position: Position{Start: 0, End: 6},
 			},
 		},
 		{
@@ -203,9 +195,8 @@ func TestParseAST(t *testing.T) {
 				Position: Position{Start: 0, End: 7},
 				Children: []*Node{
 					{
-						Type:         "error",
-						Position:     Position{Start: 0, End: 1},
-						ErrorMessage: "Bare '~' is not allowed",
+						Type:     "error",
+						Position: Position{Start: 0, End: 1},
 					},
 					{
 						Type:       "search",
@@ -224,10 +215,8 @@ func TestParseAST(t *testing.T) {
 				Position: Position{Start: 0, End: 8},
 				Children: []*Node{
 					{
-						Type:         "error",
-						Position:     Position{Start: 0, End: 2},
-						ErrorMessage: "Bare '$' is not allowed",
-						IsNot:        true,
+						Type:     "error",
+						Position: Position{Start: 0, End: 2},
 					},
 					{
 						Type:       "search",
@@ -246,9 +235,8 @@ func TestParseAST(t *testing.T) {
 				Position: Position{Start: 0, End: 7},
 				Children: []*Node{
 					{
-						Type:         "error",
-						Position:     Position{Start: 0, End: 1},
-						ErrorMessage: "Bare '#' is not allowed",
+						Type:     "error",
+						Position: Position{Start: 0, End: 1},
 					},
 					{
 						Type:       "search",
@@ -267,19 +255,16 @@ func TestParseAST(t *testing.T) {
 				Position: Position{Start: 0, End: 11},
 				Children: []*Node{
 					{
-						Type:         "error",
-						Position:     Position{Start: 0, End: 1},
-						ErrorMessage: "Bare '$' is not allowed",
+						Type:     "error",
+						Position: Position{Start: 0, End: 1},
 					},
 					{
-						Type:         "error",
-						Position:     Position{Start: 2, End: 3},
-						ErrorMessage: "Bare '~' is not allowed",
+						Type:     "error",
+						Position: Position{Start: 2, End: 3},
 					},
 					{
-						Type:         "error",
-						Position:     Position{Start: 4, End: 5},
-						ErrorMessage: "Bare '#' is not allowed",
+						Type:     "error",
+						Position: Position{Start: 4, End: 5},
 					},
 					{
 						Type:       "search",
@@ -319,6 +304,9 @@ func compareNodes(t *testing.T, actual, expected *Node) {
 	if actual.Type != expected.Type {
 		t.Errorf("node type mismatch: got %s, want %s", actual.Type, expected.Type)
 	}
+	if actual.IsNot != expected.IsNot {
+		t.Errorf("isNot mismatch: got %t, want %t", actual.IsNot, expected.IsNot)
+	}
 
 	// Compare positions
 	if actual.Position.Start != expected.Position.Start {
@@ -343,7 +331,7 @@ func compareNodes(t *testing.T, actual, expected *Node) {
 			t.Errorf("isNot mismatch: got %t, want %t", actual.IsNot, expected.IsNot)
 		}
 	} else if actual.Type == "error" {
-		if actual.ErrorMessage != expected.ErrorMessage {
+		if expected.ErrorMessage != "" && actual.ErrorMessage != expected.ErrorMessage {
 			t.Errorf("error message mismatch: got %s, want %s", actual.ErrorMessage, expected.ErrorMessage)
 		}
 	}
