@@ -54,6 +54,12 @@ declare global {
         since: number;
     };
 
+    // rpctypes.AppRunWatchesByIdsRequest
+    type AppRunWatchesByIdsRequest = {
+        apprunid: string;
+        watchids: number[];
+    };
+
     // rpctypes.AppRunWatchesData
     type AppRunWatchesData = {
         apprunid: string;
@@ -323,6 +329,21 @@ declare global {
         cap?: number;
         len?: number;
         waittime?: number;
+    };
+
+    // rpctypes.WatchSearchRequestData
+    type WatchSearchRequestData = {
+        apprunid: string;
+        searchterm: string;
+        systemquery?: string;
+    };
+
+    // rpctypes.WatchSearchResultData
+    type WatchSearchResultData = {
+        searchedcount: number;
+        totalcount: number;
+        results: number[];
+        errorspans?: SearchErrorSpan[];
     };
 
 }

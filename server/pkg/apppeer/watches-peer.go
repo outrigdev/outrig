@@ -4,6 +4,7 @@
 package apppeer
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -109,5 +110,64 @@ func (wp *WatchesPeer) GetAllWatches() []ds.WatchSample {
 		watches = append(watches, latestWatch)
 	}
 
+	return watches
+}
+
+// GetWatchNameToNumMap returns a map of watch names to their corresponding watch numbers
+func (wp *WatchesPeer) GetWatchNameToNumMap() map[string]int64 {
+	watchNameToNum := make(map[string]int64)
+	watchNames := wp.watches.Keys()
+	
+	for _, name := range watchNames {
+		watch, exists := wp.watches.GetEx(name)
+		if !exists {
+			continue
+		}
+		watchNameToNum[name] = watch.WatchNum
+	}
+	
+	return watchNameToNum
+}
+
+// GetWatchesByIds returns watches for specific watch IDs
+func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) []ds.WatchSample {
+	// Build a map of WatchNum to watch name for efficient lookups
+	watchNumToName := make(map[int64]string)
+	watchNames := wp.watches.Keys()
+	
+	for _, name := range watchNames {
+		watch, exists := wp.watches.GetEx(name)
+		if !exists {
+			continue
+		}
+		watchNumToName[watch.WatchNum] = name
+	}
+	
+	// Get watches by their IDs using the map
+	watches := make([]ds.WatchSample, 0, len(watchIds))
+	for _, watchId := range watchIds {
+		name, exists := watchNumToName[watchId]
+		if !exists {
+			continue
+		}
+		
+		watch, exists := wp.watches.GetEx(name)
+		if !exists {
+			continue
+		}
+		
+		latestWatch, _, exists := watch.WatchVals.GetLast()
+		if !exists {
+			continue
+		}
+		
+		watches = append(watches, latestWatch)
+	}
+	
+	// Sort watches by ID for consistent ordering
+	sort.Slice(watches, func(i, j int) bool {
+		return watches[i].Name < watches[j].Name
+	})
+	
 	return watches
 }

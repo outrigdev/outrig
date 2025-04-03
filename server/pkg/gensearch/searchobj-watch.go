@@ -2,6 +2,8 @@ package gensearch
 
 import (
 	"strings"
+
+	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 type WatchSearchObject struct {
@@ -70,4 +72,15 @@ func (wso *WatchSearchObject) GetField(fieldName string, fieldMods int) string {
 		return wso.Combined
 	}
 	return ""
+}
+
+// WatchSampleToSearchObject converts a WatchSample to a WatchSearchObject
+func WatchSampleToSearchObject(watch ds.WatchSample, watchNum int64) SearchObject {
+	return &WatchSearchObject{
+		WatchNum: watchNum,
+		Name:     watch.Name,
+		Val:      watch.Value,
+		Tags:     watch.Tags,
+		Type:     watch.Type,
+	}
 }

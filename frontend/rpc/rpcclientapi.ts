@@ -56,6 +56,11 @@ class RpcApiType {
         return client.rpcCall("getapprunwatches", data, opts);
     }
 
+    // command "getapprunwatchesbyids" [call]
+    GetAppRunWatchesByIdsCommand(client: RpcClient, data: AppRunWatchesByIdsRequest, opts?: RpcOpts): Promise<AppRunWatchesData> {
+        return client.rpcCall("getapprunwatchesbyids", data, opts);
+    }
+
     // command "goroutinesearchrequest" [call]
     GoRoutineSearchRequestCommand(client: RpcClient, data: GoRoutineSearchRequestData, opts?: RpcOpts): Promise<GoRoutineSearchResultData> {
         return client.rpcCall("goroutinesearchrequest", data, opts);
@@ -99,6 +104,11 @@ class RpcApiType {
     // command "updatestatus" [call]
     UpdateStatusCommand(client: RpcClient, data: StatusUpdateData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("updatestatus", data, opts);
+    }
+
+    // command "watchsearchrequest" [call]
+    WatchSearchRequestCommand(client: RpcClient, data: WatchSearchRequestData, opts?: RpcOpts): Promise<WatchSearchResultData> {
+        return client.rpcCall("watchsearchrequest", data, opts);
     }
 
 }

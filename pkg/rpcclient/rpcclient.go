@@ -70,6 +70,12 @@ func GetAppRunWatchesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts
 	return resp, err
 }
 
+// command "getapprunwatchesbyids", rpctypes.GetAppRunWatchesByIdsCommand
+func GetAppRunWatchesByIdsCommand(w *rpc.RpcClient, data rpctypes.AppRunWatchesByIdsRequest, opts *rpc.RpcOpts) (rpctypes.AppRunWatchesData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunWatchesData](w, "getapprunwatchesbyids", data, opts)
+	return resp, err
+}
+
 // command "goroutinesearchrequest", rpctypes.GoRoutineSearchRequestCommand
 func GoRoutineSearchRequestCommand(w *rpc.RpcClient, data rpctypes.GoRoutineSearchRequestData, opts *rpc.RpcOpts) (rpctypes.GoRoutineSearchResultData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.GoRoutineSearchResultData](w, "goroutinesearchrequest", data, opts)
@@ -122,6 +128,12 @@ func UpdateBrowserTabUrlCommand(w *rpc.RpcClient, data rpctypes.BrowserTabUrlDat
 func UpdateStatusCommand(w *rpc.RpcClient, data rpctypes.StatusUpdateData, opts *rpc.RpcOpts) error {
 	_, err := SendRpcRequestCallHelper[any](w, "updatestatus", data, opts)
 	return err
+}
+
+// command "watchsearchrequest", rpctypes.WatchSearchRequestCommand
+func WatchSearchRequestCommand(w *rpc.RpcClient, data rpctypes.WatchSearchRequestData, opts *rpc.RpcOpts) (rpctypes.WatchSearchResultData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.WatchSearchResultData](w, "watchsearchrequest", data, opts)
+	return resp, err
 }
 
 

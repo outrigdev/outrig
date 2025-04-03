@@ -46,6 +46,10 @@ type FullRpcInterface interface {
 	// goroutine search
 	GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data AppRunGoRoutinesByIdsRequest) (AppRunGoRoutinesData, error)
 	GoRoutineSearchRequestCommand(ctx context.Context, data GoRoutineSearchRequestData) (GoRoutineSearchResultData, error)
+	
+	// watch search
+	GetAppRunWatchesByIdsCommand(ctx context.Context, data AppRunWatchesByIdsRequest) (AppRunWatchesData, error)
+	WatchSearchRequestCommand(ctx context.Context, data WatchSearchRequestData) (WatchSearchResultData, error)
 
 	// event commands
 	EventPublishCommand(ctx context.Context, data EventType) error
@@ -191,6 +195,12 @@ type AppRunGoRoutinesByIdsRequest struct {
 	GoIds    []int64 `json:"goids"`
 }
 
+// AppRunWatchesByIdsRequest defines the request for getting specific watches by their IDs
+type AppRunWatchesByIdsRequest struct {
+	AppRunId  string  `json:"apprunid"`
+	WatchIds  []int64 `json:"watchids"`
+}
+
 type AppRunLogsData struct {
 	AppRunId string       `json:"apprunid"`
 	AppName  string       `json:"appname"`
@@ -238,6 +248,21 @@ type GoRoutineSearchRequestData struct {
 
 // GoRoutineSearchResultData defines the response for goroutine search
 type GoRoutineSearchResultData struct {
+	SearchedCount int              `json:"searchedcount"`
+	TotalCount    int              `json:"totalcount"`
+	Results       []int64          `json:"results"`
+	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
+}
+
+// WatchSearchRequestData defines the request for watch search
+type WatchSearchRequestData struct {
+	AppRunId    string `json:"apprunid"`
+	SearchTerm  string `json:"searchterm"`
+	SystemQuery string `json:"systemquery,omitempty"`
+}
+
+// WatchSearchResultData defines the response for watch search
+type WatchSearchResultData struct {
 	SearchedCount int              `json:"searchedcount"`
 	TotalCount    int              `json:"totalcount"`
 	Results       []int64          `json:"results"`
