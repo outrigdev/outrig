@@ -3,15 +3,30 @@ import { DefaultRpcClient } from "@/init";
 import { Atom, atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcApi } from "../rpc/rpcclientapi";
 
+// Type for search result info
+export type SearchResultInfo = {
+    searchedCount: number;
+    totalCount: number;
+    errorSpans?: SearchErrorSpan[];
+};
+
 class WatchesModel {
     widgetId: string;
     appRunId: string;
     appRunWatches: PrimitiveAtom<WatchSample[]> = atom<WatchSample[]>([]);
+    matchedWatchIds: PrimitiveAtom<number[]> = atom<number[]>([]);
+    searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({ 
+        searchedCount: 0, 
+        totalCount: 0,
+        errorSpans: [] 
+    });
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
+    isSearching: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
     contentRef: React.RefObject<HTMLDivElement> = null;
+    currentSearchId: string = "";
 
     // Total count of watches (derived from appRunWatches)
     totalCount: Atom<number> = atom((get) => {
@@ -100,46 +115,101 @@ class WatchesModel {
         this.stopAutoRefreshInterval();
     }
 
-    // Filtered watches based on search term
+    // Filtered watches - now just returns the watches loaded from search results
     filteredWatches: Atom<WatchSample[]> = atom((get): WatchSample[] => {
-        const search = get(this.searchTerm);
         const watches = get(this.appRunWatches);
-
-        // Filter out null watches first
+        
+        // Filter out null watches
         const validWatches = watches.filter(watch => watch != null);
         
-        // Then sort by watch name
-        const sortedWatches = [...validWatches].sort((a, b) => a.name.localeCompare(b.name));
-
-        // Apply search filter if there's a search term
-        if (!search) {
-            return sortedWatches;
-        }
-
-        return sortedWatches.filter(
-            (watch) =>
-                watch.name.toLowerCase().includes(search.toLowerCase()) ||
-                watch.type.toLowerCase().includes(search.toLowerCase()) ||
-                (watch.value && watch.value.toLowerCase().includes(search.toLowerCase()))
-        );
+        // Sort by watch name
+        return [...validWatches].sort((a, b) => a.name.localeCompare(b.name));
     });
 
-    async fetchAppRunWatches() {
+    // Search for watches matching the search term
+    async searchWatches(searchTerm: string) {
+        const store = getDefaultStore();
+        const searchId = crypto.randomUUID();
+        this.currentSearchId = searchId;
+
         try {
-            const result = await RpcApi.GetAppRunWatchesCommand(DefaultRpcClient, { apprunid: this.appRunId });
-            return result.watches;
+            store.set(this.isSearching, true);
+
+            // Call the search RPC to get matching watch IDs
+            const searchResult = await RpcApi.WatchSearchRequestCommand(DefaultRpcClient, {
+                apprunid: this.appRunId,
+                searchterm: searchTerm,
+            });
+
+            // Check if this search is still the current one
+            if (this.currentSearchId !== searchId) {
+                return; // Abandon results from stale search
+            }
+
+            // Update search result info
+            store.set(this.searchResultInfo, {
+                searchedCount: searchResult.searchedcount,
+                totalCount: searchResult.totalcount,
+                errorSpans: searchResult.errorspans || []
+            });
+
+            // Store the matched watch IDs
+            const watchIds = searchResult.results;
+            store.set(this.matchedWatchIds, watchIds);
+
+            // If we have matching IDs, fetch the watch details
+            if (watchIds.length > 0) {
+                await this.fetchWatchesByIds(watchIds);
+            } else {
+                // Clear watches if no matches
+                store.set(this.appRunWatches, []);
+            }
         } catch (error) {
-            console.error(`Failed to load watches for app run ${this.appRunId}:`, error);
-            return [];
+            console.error(`Failed to search watches for app run ${this.appRunId}:`, error);
+            // Reset state on error
+            store.set(this.matchedWatchIds, []);
+            store.set(this.appRunWatches, []);
+            store.set(this.searchResultInfo, { searchedCount: 0, totalCount: 0, errorSpans: [] });
+        } finally {
+            store.set(this.isSearching, false);
         }
     }
 
-    // Load watches with a minimum time to show the refreshing state
+    // Fetch watch details by IDs
+    async fetchWatchesByIds(watchIds: number[]) {
+        const searchId = this.currentSearchId;
+        
+        try {
+            if (watchIds.length === 0) {
+                getDefaultStore().set(this.appRunWatches, []);
+                return;
+            }
+
+            const result = await RpcApi.GetAppRunWatchesByIdsCommand(DefaultRpcClient, {
+                apprunid: this.appRunId,
+                watchids: watchIds,
+            });
+
+            // Check if this search is still the current one
+            if (this.currentSearchId !== searchId) {
+                return; // Abandon results from stale search
+            }
+
+            getDefaultStore().set(this.appRunWatches, result.watches);
+        } catch (error) {
+            console.error(`Failed to fetch watch details for app run ${this.appRunId}:`, error);
+            getDefaultStore().set(this.appRunWatches, []);
+        }
+    }
+
+    // Load watches based on current search term
     async loadAppRunWatches(minTime: number = 0) {
         const startTime = new Date().getTime();
+        const store = getDefaultStore();
+        const searchTerm = store.get(this.searchTerm);
 
         try {
-            const watches = await this.fetchAppRunWatches();
+            await this.searchWatches(searchTerm);
 
             // If minTime is specified, ensure we wait at least that long
             if (minTime > 0) {
@@ -148,8 +218,6 @@ class WatchesModel {
                     await new Promise((r) => setTimeout(r, minTime - (curTime - startTime)));
                 }
             }
-
-            getDefaultStore().set(this.appRunWatches, watches);
         } catch (error) {
             console.error(`Failed to load watches for app run ${this.appRunId}:`, error);
         }
@@ -194,12 +262,21 @@ class WatchesModel {
         if (!force && appRunInfo.status !== "running") {
             return;
         }
+        
         try {
-            const watches = await this.fetchAppRunWatches();
-            getDefaultStore().set(this.appRunWatches, watches);
+            // Use the current search term to refresh
+            const searchTerm = store.get(this.searchTerm);
+            await this.searchWatches(searchTerm);
         } catch (error) {
             console.error(`Failed to auto-refresh watches for app run ${this.appRunId}:`, error);
         }
+    }
+
+    // Update search term and trigger search
+    async updateSearchTerm(term: string) {
+        const store = getDefaultStore();
+        store.set(this.searchTerm, term);
+        await this.searchWatches(term);
     }
 }
 

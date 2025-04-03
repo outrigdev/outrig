@@ -8,7 +8,7 @@ import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
-import { WatchesModel } from "./watches-model";
+import { SearchResultInfo, WatchesModel } from "./watches-model";
 
 // Constants for watch flags
 const WatchFlag_Push = 1;
@@ -123,17 +123,22 @@ interface WatchesFiltersProps {
 
 const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
-    const filteredCount = useAtomValue(model.filteredCount);
-    const totalCount = useAtomValue(model.totalCount);
+    const isSearching = useAtomValue(model.isSearching);
+    const searchResultInfo = useAtomValue(model.searchResultInfo);
+    const errorSpans = searchResultInfo.errorSpans || [];
 
     return (
         <div className="py-1 px-1 border-b border-border">
             <div className="flex items-center justify-between">
                 <SearchFilter
                     value={search}
-                    onValueChange={setSearch}
+                    onValueChange={(value) => {
+                        setSearch(value);
+                        model.updateSearchTerm(value);
+                    }}
                     placeholder="Filter watches..."
                     autoFocus={true}
+                    errorSpans={errorSpans}
                     onOutrigKeyDown={(keyEvent) => {
                         if (checkKeyPressed(keyEvent, "PageUp")) {
                             model.pageUp();
@@ -149,7 +154,13 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
 
                 {/* Search stats */}
                 <div className="text-xs text-muted mr-2 select-none">
-                    {filteredCount}/{totalCount}
+                    {isSearching ? (
+                        <span>Searching...</span>
+                    ) : (
+                        <span>
+                            {searchResultInfo.searchedCount}/{searchResultInfo.totalCount}
+                        </span>
+                    )}
                 </div>
 
                 <AutoRefreshButton autoRefreshAtom={model.autoRefresh} onToggle={() => model.toggleAutoRefresh()} />
