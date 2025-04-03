@@ -130,16 +130,6 @@ func (p *Parser) restore(pos int) {
 	p.position = pos
 }
 
-func (p *Parser) tryParse(fn func() *Node) (*Node, bool) {
-	pos := p.save()
-	node := fn()
-	if node != nil {
-		return node, true
-	}
-	p.restore(pos)
-	return nil, false
-}
-
 // skipOptionalWhitespace advances over WS tokens.
 func (p *Parser) skipOptionalWhitespace() {
 	for !p.atEOF() && p.current().Type == TokenWhitespace {
@@ -322,12 +312,15 @@ func (p *Parser) parseTokenWithErrorSync() *Node {
 	}
 	savePoint := p.save()
 	startPos := p.getCurrentStartPos()
-	node := p.parseToken()
+	node, err := p.parseToken()
+	if err != nil {
+		// We have a specific error from the parser
+		p.restore(savePoint)
+		errNode := makeErrorNode(Position{Start: startPos, End: startPos}, err.Error())
+		p.addToErrorUntilDelimiter(errNode)
+		return errNode
+	}
 	if node != nil {
-		if node.Type == NodeTypeError {
-			// if we have an error node, we will consume to the next delimiter
-			p.addToErrorUntilDelimiter(node)
-		}
 		return node
 	}
 	// so we didn't get a valid token, that means there was an error, restore and then produce an error node
@@ -337,16 +330,271 @@ func (p *Parser) parseTokenWithErrorSync() *Node {
 	return errNode
 }
 
-func (p *Parser) parseToken() *Node {
+// parseToken parses a token according to the grammar:
+// token = not_token | field_token
+func (p *Parser) parseToken() (*Node, error) {
+	// Try to parse a not token first
+	node, err := p.parseNotToken()
+	if err != nil {
+		return nil, err
+	}
+	if node != nil {
+		return node, nil
+	}
+
+	// If that fails, try to parse a field token
+	return p.parseFieldToken()
+}
+
+// parseNotToken parses a not token according to the grammar:
+// not_token = "-" field_token
+func (p *Parser) parseNotToken() (*Node, error) {
+	startPos := p.getCurrentStartPos()
+
+	// Check for "-" token
+	_, ok := p.consumeToken(TokenMinus)
+	if !ok {
+		return nil, nil // Not a not_token, no error
+	}
+
+	// Parse a field token
+	node, err := p.parseFieldToken()
+	if err != nil {
+		return nil, fmt.Errorf("after '-': %w", err)
+	}
+	if node == nil {
+		return nil, fmt.Errorf("'-' must be followed by a search term")
+	}
+
+	// Set the IsNot flag and update position
+	node.IsNot = true
+	node.Position.Start = startPos
+
+	return node, nil
+}
+
+// parseFieldToken parses a field token according to the grammar:
+// field_token = [ field_prefix ] unmodified_token
+func (p *Parser) parseFieldToken() (*Node, error) {
+	startPos := p.getCurrentStartPos()
+
+	// Try to parse a field prefix
+	var field string
+	var hadPrefix bool
+	var prefixErr error
+
+	field, prefixErr = p.parseFieldPrefix()
+	if prefixErr != nil {
+		return nil, prefixErr // Return the field prefix error
+	}
+	if field != "" {
+		hadPrefix = true
+	}
+
+	// Parse an unmodified token
+	node, err := p.parseUnmodifiedToken()
+	if err != nil {
+		return nil, err
+	}
+	if node == nil {
+		if hadPrefix {
+			return nil, fmt.Errorf("field prefix must be followed by a search term")
+		}
+		return nil, nil // Not a field_token, no error
+	}
+
+	// Set the field if we have one
+	if hadPrefix {
+		node.Field = field
+		// Update position to include the field prefix
+		node.Position.Start = startPos
+	}
+
+	return node, nil
+}
+
+// parseFieldPrefix parses a field prefix according to the grammar:
+// field_prefix = "$" WORD ":"
+func (p *Parser) parseFieldPrefix() (string, error) {
+	// Check for "$" token
+	_, ok := p.consumeToken(TokenDollar)
+	if !ok {
+		return "", nil // Not a field prefix, no error
+	}
+
+	// Check for WORD token
+	wordToken, ok := p.consumeToken(TokenWord)
+	if !ok {
+		return "", fmt.Errorf("'$' must be followed by a field name")
+	}
+
+	// Check for ":" token
+	_, ok = p.consumeToken(TokenColon)
+	if !ok {
+		return "", fmt.Errorf("field name must be followed by ':'")
+	}
+
+	// Return field name
+	return wordToken.Value, nil
+}
+
+// parseUnmodifiedToken parses an unmodified token according to the grammar:
+// unmodified_token = fuzzy_token | regexp_token | tag_token | simple_token
+func (p *Parser) parseUnmodifiedToken() (*Node, error) {
+	// Try each type of unmodified token in order
+	node, err := p.parseFuzzyToken()
+	if err != nil {
+		return nil, err
+	}
+	if node != nil {
+		return node, nil
+	}
+
+	node, err = p.parseRegexpToken()
+	if err != nil {
+		return nil, err
+	}
+	if node != nil {
+		return node, nil
+	}
+
+	node, err = p.parseTagToken()
+	if err != nil {
+		return nil, err
+	}
+	if node != nil {
+		return node, nil
+	}
+
+	return p.parseSimpleToken()
+}
+
+// parseFuzzyToken parses a fuzzy token according to the grammar:
+// fuzzy_token = "~" simple_token
+func (p *Parser) parseFuzzyToken() (*Node, error) {
+	startPos := p.getCurrentStartPos()
+
+	// Check for "~" token
+	_, ok := p.consumeToken(TokenTilde)
+	if !ok {
+		return nil, nil // Not a fuzzy token, no error
+	}
+
+	// Parse a simple token
+	node, err := p.parseSimpleToken()
+	if err != nil {
+		return nil, fmt.Errorf("after '~': %w", err)
+	}
+	if node == nil {
+		return nil, fmt.Errorf("'~' must be followed by a search term")
+	}
+
+	// Update the search type and position
+	if node.SearchType == SearchTypeExactCase {
+		node.SearchType = SearchTypeFzfCase
+	} else {
+		node.SearchType = SearchTypeFzf
+	}
+
+	node.Position.Start = startPos
+
+	return node, nil
+}
+
+// parseRegexpToken parses a regexp token according to the grammar:
+// regexp_token = REGEXP | CREGEXP
+func (p *Parser) parseRegexpToken() (*Node, error) {
 	cur := p.current()
-	if cur.Type == TokenWord {
+
+	if cur.Type == TokenRegexp {
+		p.advance()
+		return &Node{
+			Type:       NodeTypeSearch,
+			Position:   cur.Position,
+			SearchType: SearchTypeRegexp,
+			SearchTerm: cur.Value,
+		}, nil
+	}
+
+	if cur.Type == TokenCRegexp {
+		p.advance()
+		return &Node{
+			Type:       NodeTypeSearch,
+			Position:   cur.Position,
+			SearchType: SearchTypeRegexpCase,
+			SearchTerm: cur.Value,
+		}, nil
+	}
+
+	return nil, nil // Not a regexp token, no error
+}
+
+// parseTagToken parses a tag token according to the grammar:
+// tag_token = "#" WORD [ "/" ]
+func (p *Parser) parseTagToken() (*Node, error) {
+	startPos := p.getCurrentStartPos()
+
+	// Check for "#" token
+	_, ok := p.consumeToken(TokenHash)
+	if !ok {
+		return nil, nil // Not a tag token, no error
+	}
+
+	// Check for WORD token
+	wordToken, ok := p.consumeToken(TokenWord)
+	if !ok {
+		return nil, fmt.Errorf("'#' must be followed by a tag name")
+	}
+
+	// Create the tag node
+	node := &Node{
+		Type:       NodeTypeSearch,
+		Position:   Position{Start: startPos, End: wordToken.Position.End},
+		SearchType: SearchTypeTag,
+		SearchTerm: wordToken.Value,
+	}
+
+	// Check for optional trailing slash
+	if p.matchToken("/") {
+		slashToken, _ := p.consumeToken(TokenWord) // "/" is tokenized as a word
+		node.Position.End = slashToken.Position.End
+		// Exact tag match required when slash is present
+	}
+
+	return node, nil
+}
+
+// parseSimpleToken parses a simple token according to the grammar:
+// simple_token = DQUOTE | SQUOTE | WORD
+func (p *Parser) parseSimpleToken() (*Node, error) {
+	cur := p.current()
+
+	switch cur.Type {
+	case TokenDQuote:
 		p.advance()
 		return &Node{
 			Type:       NodeTypeSearch,
 			Position:   cur.Position,
 			SearchType: SearchTypeExact,
 			SearchTerm: cur.Value,
-		}
+		}, nil
+	case TokenSQuote:
+		p.advance()
+		return &Node{
+			Type:       NodeTypeSearch,
+			Position:   cur.Position,
+			SearchType: SearchTypeExactCase,
+			SearchTerm: cur.Value,
+		}, nil
+	case TokenWord:
+		p.advance()
+		return &Node{
+			Type:       NodeTypeSearch,
+			Position:   cur.Position,
+			SearchType: SearchTypeExact,
+			SearchTerm: cur.Value,
+		}, nil
+	default:
+		return nil, nil // Not a simple token, no error
 	}
-	return nil
 }
