@@ -64,7 +64,7 @@ func TestTokenizer(t *testing.T) {
 			name:  "double quoted string",
 			input: `"hello world"`,
 			expected: []Token{
-				{Type: TokenDoubleQuoted, Value: "hello world", Position: Position{Start: 0, End: 13}},
+				{Type: TokenDQuote, Value: "hello world", Position: Position{Start: 0, End: 13}},
 				{Type: TokenEOF, Value: "", Position: Position{Start: 13, End: 13}},
 			},
 		},
@@ -72,7 +72,7 @@ func TestTokenizer(t *testing.T) {
 			name:  "single quoted string",
 			input: `'hello world'`,
 			expected: []Token{
-				{Type: TokenSingleQuoted, Value: "hello world", Position: Position{Start: 0, End: 13}},
+				{Type: TokenSQuote, Value: "hello world", Position: Position{Start: 0, End: 13}},
 				{Type: TokenEOF, Value: "", Position: Position{Start: 13, End: 13}},
 			},
 		},
@@ -88,7 +88,7 @@ func TestTokenizer(t *testing.T) {
 			name:  "case-sensitive regular expression",
 			input: `c/Hello\s+World/`,
 			expected: []Token{
-				{Type: TokenCaseRegexp, Value: "Hello\\s+World", Position: Position{Start: 0, End: 16}},
+				{Type: TokenCRegexp, Value: "Hello\\s+World", Position: Position{Start: 0, End: 16}},
 				{Type: TokenEOF, Value: "", Position: Position{Start: 16, End: 16}},
 			},
 		},
@@ -96,7 +96,7 @@ func TestTokenizer(t *testing.T) {
 			name:  "incomplete double quoted string",
 			input: `"hello world`,
 			expected: []Token{
-				{Type: TokenDoubleQuoted, Value: "hello world", Position: Position{Start: 0, End: 12}, Incomplete: true},
+				{Type: TokenDQuote, Value: "hello world", Position: Position{Start: 0, End: 12}, Incomplete: true},
 				{Type: TokenEOF, Value: "", Position: Position{Start: 12, End: 12}},
 			},
 		},
@@ -104,7 +104,7 @@ func TestTokenizer(t *testing.T) {
 			name:  "incomplete single quoted string",
 			input: `'hello world`,
 			expected: []Token{
-				{Type: TokenSingleQuoted, Value: "hello world", Position: Position{Start: 0, End: 12}, Incomplete: true},
+				{Type: TokenSQuote, Value: "hello world", Position: Position{Start: 0, End: 12}, Incomplete: true},
 				{Type: TokenEOF, Value: "", Position: Position{Start: 12, End: 12}},
 			},
 		},
@@ -234,23 +234,23 @@ func TestTokenizer(t *testing.T) {
 
 			for i, expectedToken := range tt.expected {
 				actualToken := tokens[i]
-				
+
 				if actualToken.Type != expectedToken.Type {
 					t.Errorf("Token[%d] type mismatch: got %s, want %s", i, actualToken.Type, expectedToken.Type)
 				}
-				
+
 				if actualToken.Value != expectedToken.Value {
 					t.Errorf("Token[%d] value mismatch: got %q, want %q", i, actualToken.Value, expectedToken.Value)
 				}
-				
+
 				if actualToken.Position.Start != expectedToken.Position.Start {
 					t.Errorf("Token[%d] position start mismatch: got %d, want %d", i, actualToken.Position.Start, expectedToken.Position.Start)
 				}
-				
+
 				if actualToken.Position.End != expectedToken.Position.End {
 					t.Errorf("Token[%d] position end mismatch: got %d, want %d", i, actualToken.Position.End, expectedToken.Position.End)
 				}
-				
+
 				if actualToken.Incomplete != expectedToken.Incomplete {
 					t.Errorf("Token[%d] incomplete flag mismatch: got %t, want %t", i, actualToken.Incomplete, expectedToken.Incomplete)
 				}

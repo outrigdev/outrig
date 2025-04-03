@@ -12,13 +12,13 @@ type TokenType string
 
 const (
 	// Token types for complex tokens
-	TokenWord         TokenType = "WORD"         // Plain word token
-	TokenDoubleQuoted TokenType = "DOUBLEQUOTED" // Double quoted string
-	TokenSingleQuoted TokenType = "SINGLEQUOTED" // Single quoted string
-	TokenRegexp       TokenType = "REGEXP"       // Regular expression
-	TokenCaseRegexp   TokenType = "CASEREGEXP"   // Case-sensitive regexp
-	TokenWhitespace   TokenType = "WS"           // Whitespace
-	TokenEOF          TokenType = "EOF"          // End of input
+	TokenWord       TokenType = "WORD"    // Plain word token
+	TokenDQuote     TokenType = "DQUOTE"  // Double quoted string
+	TokenSQuote     TokenType = "SQUOTE"  // Single quoted string
+	TokenRegexp     TokenType = "REGEXP"  // Regular expression
+	TokenCRegexp    TokenType = "CREGEXP" // Case-sensitive regexp
+	TokenWhitespace TokenType = "WS"      // Whitespace
+	TokenEOF        TokenType = "EOF"     // End of input
 
 	// Token types for simple characters (using the actual character)
 	TokenLParen TokenType = "(" // Left parenthesis
@@ -128,7 +128,7 @@ func (t *Tokenizer) NextToken() Token {
 	case t.ch == '"':
 		value, incomplete := t.readDoubleQuotedString()
 		tok = Token{
-			Type:       TokenDoubleQuoted,
+			Type:       TokenDQuote,
 			Value:      value,
 			Position:   Position{Start: startPos, End: t.position},
 			Incomplete: incomplete,
@@ -136,7 +136,7 @@ func (t *Tokenizer) NextToken() Token {
 	case t.ch == '\'':
 		value, incomplete := t.readSingleQuotedString()
 		tok = Token{
-			Type:       TokenSingleQuoted,
+			Type:       TokenSQuote,
 			Value:      value,
 			Position:   Position{Start: startPos, End: t.position},
 			Incomplete: incomplete,
@@ -158,7 +158,7 @@ func (t *Tokenizer) NextToken() Token {
 			if t.ch == '/' {
 				value, incomplete := t.readRegexpString()
 				tok = Token{
-					Type:       TokenCaseRegexp,
+					Type:       TokenCRegexp,
 					Value:      value,
 					Position:   Position{Start: startPos, End: t.position},
 					Incomplete: incomplete,

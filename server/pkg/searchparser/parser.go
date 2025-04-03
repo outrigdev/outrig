@@ -12,9 +12,9 @@
 // field_prefix     = "$" WORD ":" ;
 // unmodified_token = fuzzy_token | regexp_token | tag_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
-// regexp_token     = REGEXP | CASEREGEXP;
+// regexp_token     = REGEXP | CREGEXP;
 // tag_token        = "#" WORD [ "/" ] ;
-// simple_token     = DOUBLEQUOTED | SINGLEQUOTED | WORD
+// simple_token     = DQUOTE | SQUOTE | WORD
 //
 // Notes:
 // - Empty control tokens (like "~", "$", ":", "-" or "#") followed by whitespace are errors
@@ -26,6 +26,10 @@
 // - A literal "-" at the start of a token must be quoted: "-hello" searches for "-hello" literally
 
 package searchparser
+
+import (
+	"fmt"
+)
 
 // --- Node Types & Constants ---
 
@@ -104,6 +108,10 @@ func (p *Parser) current() Token {
 	return Token{Type: TokenEOF, Value: "", Position: Position{Start: len(p.input), End: len(p.input)}}
 }
 
+func (p *Parser) getCurrentStartPos() int {
+	return p.current().Position.Start
+}
+
 func (p *Parser) atEOF() bool {
 	return p.current().Type == TokenEOF
 }
@@ -130,10 +138,6 @@ func (p *Parser) tryParse(fn func() *Node) (*Node, bool) {
 	}
 	p.restore(pos)
 	return nil, false
-}
-
-func combinePositions(a, b Position) Position {
-	return Position{Start: a.Start, End: b.End}
 }
 
 // skipOptionalWhitespace advances over WS tokens.
@@ -196,6 +200,20 @@ func (p *Parser) createErrorToDelimiter(msg string, pos Position) *Node {
 	return errNode
 }
 
+func (p *Parser) createErrorToEOF(msg string) *Node {
+	cur := p.current()
+	if cur.Type == TokenEOF {
+		return nil
+	}
+	errNode := makeErrorNode(cur.Position, msg)
+	for !p.atEOF() {
+		token := p.current()
+		errNode.addTokenToErrorNode(token)
+		p.advance()
+	}
+	return errNode
+}
+
 func removeNilNodes(nodes []*Node) []*Node {
 	var result []*Node
 	for _, node := range nodes {
@@ -237,15 +255,6 @@ func makeOrNode(children ...*Node) *Node {
 	}
 }
 
-func containsType(slice []TokenType, item TokenType) bool {
-	for _, v := range slice {
-		if v == item {
-			return true
-		}
-	}
-	return false
-}
-
 // --- Top-Level Parse Function ---
 
 // Parse builds the AST for the entire search expression.
@@ -253,6 +262,10 @@ func containsType(slice []TokenType, item TokenType) bool {
 func (p *Parser) Parse() *Node {
 	p.skipOptionalWhitespace()
 	node := p.parseOrExpr()
+	if !p.atEOF() {
+		errNode := p.createErrorToEOF("Unparsed input remaining")
+		return makeAndNode(node, errNode)
+	}
 	return node
 }
 
@@ -274,6 +287,7 @@ func (p *Parser) parseOrExpr() *Node {
 				nodes = append(nodes, errToken)
 				continue
 			}
+			p.consumeToken(TokenWhitespace)
 		}
 		node := p.parseAndExpr()
 		if node == nil {
@@ -291,7 +305,7 @@ func (p *Parser) parseAndExpr() *Node {
 		if len(nodes) > 0 {
 			p.consumeToken(TokenWhitespace)
 		}
-		node := p.parseToken()
+		node := p.parseTokenWithErrorSync()
 		if node == nil {
 			break
 		}
@@ -300,6 +314,39 @@ func (p *Parser) parseAndExpr() *Node {
 	return makeAndNode(nodes...)
 }
 
+// token is where we're going to implement error sync points
+// token            = not_token | field_token ;
+func (p *Parser) parseTokenWithErrorSync() *Node {
+	if p.atEOF() || p.isCurrentADelimiter() {
+		return nil
+	}
+	savePoint := p.save()
+	startPos := p.getCurrentStartPos()
+	node := p.parseToken()
+	if node != nil {
+		if node.Type == NodeTypeError {
+			// if we have an error node, we will consume to the next delimiter
+			p.addToErrorUntilDelimiter(node)
+		}
+		return node
+	}
+	// so we didn't get a valid token, that means there was an error, restore and then produce an error node
+	p.restore(savePoint)
+	errMsg := fmt.Sprintf("unexpected token %s", p.current().Type)
+	errNode := p.createErrorToDelimiter(errMsg, Position{Start: startPos, End: startPos})
+	return errNode
+}
+
 func (p *Parser) parseToken() *Node {
+	cur := p.current()
+	if cur.Type == TokenWord {
+		p.advance()
+		return &Node{
+			Type:       NodeTypeSearch,
+			Position:   cur.Position,
+			SearchType: SearchTypeExact,
+			SearchTerm: cur.Value,
+		}
+	}
 	return nil
 }
