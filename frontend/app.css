@@ -73,7 +73,7 @@
     --themecolor-success: #10b981;
     --themecolor-warning: #f59e0b;
     --themecolor-error: #ef4444;
-    
+
     /* Watch indicator dot colors */
     --watch-dot-active: rgb(34, 197, 94); /* green-500 */
     --watch-dot-inactive: rgb(156, 163, 175); /* gray-400 */
@@ -129,7 +129,7 @@
     --themecolor-success: #22c55e;
     --themecolor-warning: #facc15;
     --themecolor-error: #f87171;
-    
+
     /* Watch indicator dot colors */
     --watch-dot-active: rgb(34, 197, 94); /* green-500 */
     --watch-dot-inactive: rgb(75, 85, 99); /* gray-600 */

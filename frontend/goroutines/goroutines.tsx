@@ -194,6 +194,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const primaryStates = useAtomValue(model.primaryStates);
     const extraStates = useAtomValue(model.extraStates);
     const stateCounts = useAtomValue(model.stateCounts);
+    const errorSpans = searchResultInfo.errorSpans || [];
 
     const handleToggleShowAll = () => {
         model.toggleShowAll();
@@ -216,6 +217,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                         }}
                         placeholder="Filter goroutines..."
                         autoFocus={true}
+                        errorSpans={errorSpans}
                         onOutrigKeyDown={(keyEvent) => {
                             if (checkKeyPressed(keyEvent, "PageUp")) {
                                 model.pageUp();

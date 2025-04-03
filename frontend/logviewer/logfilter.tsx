@@ -53,6 +53,8 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
     const filteredCount = useAtomValue(model.filteredItemCount);
     const searchedCount = useAtomValue(model.searchedItemCount);
     const totalCount = useAtomValue(model.totalItemCount);
+    const searchState = useAtomValue(model.searchStateAtom);
+    const errorSpans = searchState.errorSpans;
 
     return (
         <div className={`py-1 px-1 border-b border-border ${className || ""}`}>
@@ -65,6 +67,7 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                         onValueChange={setSearch}
                         placeholder="Filter logs..."
                         autoFocus={true}
+                        errorSpans={errorSpans}
                         onOutrigKeyDown={(keyEvent) => {
                             if (checkKeyPressed(keyEvent, "Cmd:ArrowDown")) {
                                 model.scrollToBottom();

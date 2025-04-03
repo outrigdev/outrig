@@ -28,6 +28,11 @@ interface LogCounts {
     filtered: number;
 }
 
+// Store error spans from search results
+interface SearchState {
+    errorSpans: SearchErrorSpan[];
+}
+
 class LogViewerModel {
     widgetId: string;
     appRunId: string;
@@ -47,6 +52,11 @@ class LogViewerModel {
         total: 0,
         searched: 0,
         filtered: 0,
+    });
+    
+    // Atom to hold search error spans
+    searchStateAtom: PrimitiveAtom<SearchState> = atom<SearchState>({
+        errorSpans: []
     });
 
     // Derived atoms for individual counts (read-only)
@@ -184,6 +194,10 @@ class LogViewerModel {
                     filtered: results.filteredcount,
                 });
 
+                getDefaultStore().set(this.searchStateAtom, {
+                    errorSpans: results.errorspans || []
+                });
+
                 getDefaultStore().set(this.listAtom, {
                     totalCount: results.filteredcount,
                     pageSize: PAGESIZE,
@@ -200,6 +214,10 @@ class LogViewerModel {
                     total: 0,
                     searched: 0,
                     filtered: 0,
+                });
+
+                getDefaultStore().set(this.searchStateAtom, {
+                    errorSpans: []
                 });
 
                 getDefaultStore().set(this.listAtom, {
@@ -283,11 +301,15 @@ class LogViewerModel {
                     loaded: true,
                 });
 
-                // Also update the counts in case they changed
+                // Also update the counts and error spans in case they changed
                 getDefaultStore().set(this.logCountsAtom, {
                     total: results.totalcount,
                     searched: results.searchedcount,
                     filtered: results.filteredcount,
+                });
+                
+                getDefaultStore().set(this.searchStateAtom, {
+                    errorSpans: results.errorspans || []
                 });
             }
         } catch (e) {

@@ -9,6 +9,7 @@ export type CodeLinkType = null | "vscode";
 export type SearchResultInfo = {
     searchedCount: number;
     totalCount: number;
+    errorSpans?: SearchErrorSpan[];
 };
 
 class GoRoutinesModel {
@@ -16,7 +17,11 @@ class GoRoutinesModel {
     appRunId: string;
     appRunGoRoutines: PrimitiveAtom<ParsedGoRoutine[]> = atom<ParsedGoRoutine[]>([]);
     matchedGoRoutineIds: PrimitiveAtom<number[]> = atom<number[]>([]);
-    searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({ searchedCount: 0, totalCount: 0 });
+    searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({ 
+        searchedCount: 0, 
+        totalCount: 0,
+        errorSpans: [] 
+    });
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     isSearching: PrimitiveAtom<boolean> = atom(false);
@@ -234,6 +239,7 @@ class GoRoutinesModel {
             store.set(this.searchResultInfo, {
                 searchedCount: searchResult.searchedcount,
                 totalCount: searchResult.totalcount,
+                errorSpans: searchResult.errorspans || []
             });
 
             // Convert int64 IDs to numbers and store them
@@ -252,7 +258,7 @@ class GoRoutinesModel {
             // Reset state on error
             store.set(this.matchedGoRoutineIds, []);
             store.set(this.appRunGoRoutines, []);
-            store.set(this.searchResultInfo, { searchedCount: 0, totalCount: 0 });
+            store.set(this.searchResultInfo, { searchedCount: 0, totalCount: 0, errorSpans: [] });
         } finally {
             store.set(this.isSearching, false);
         }
