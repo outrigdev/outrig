@@ -14,16 +14,22 @@ interface TooltipProps {
     children: React.ReactNode;
     content: React.ReactNode;
     placement?: "top" | "bottom" | "left" | "right";
+    forceOpen?: boolean;
 }
 
-export function Tooltip({ children, content, placement = "top" }: TooltipProps) {
-    const [isOpen, setIsOpen] = useState(false);
+export function Tooltip({ children, content, placement = "top", forceOpen = false }: TooltipProps) {
+    const [isOpen, setIsOpen] = useState(forceOpen);
     const [isVisible, setIsVisible] = useState(false);
     const timeoutRef = useRef<number | null>(null);
+    const prevForceOpenRef = useRef<boolean>(forceOpen);
 
     const { refs, floatingStyles, context } = useFloating({
         open: isOpen,
         onOpenChange: (open) => {
+            // Don't close if forceOpen is true
+            if (!open && forceOpen) {
+                return;
+            }
             if (open) {
                 // When opening, set isOpen immediately but delay visibility
                 setIsOpen(true);
@@ -52,6 +58,43 @@ export function Tooltip({ children, content, placement = "top" }: TooltipProps) 
         middleware: [offset(5), flip(), shift()],
         whileElementsMounted: autoUpdate,
     });
+
+    // Update isOpen when forceOpen changes
+    useEffect(() => {
+        if (forceOpen) {
+            // When forceOpen becomes true, open the tooltip immediately
+            setIsOpen(true);
+            setIsVisible(true);
+            
+            // Clear any existing timeout
+            if (timeoutRef.current !== null) {
+                window.clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+        } else {
+            // When forceOpen becomes false, close the tooltip
+            // Only keep it open if it's being hovered AND forceOpen was previously false
+            // (i.e., it was opened by hover, not by forceOpen)
+            if (context.open && !prevForceOpenRef.current) {
+                // Keep it open if it's being hovered and wasn't forced open before
+            } else {
+                setIsVisible(false);
+                
+                // Clear any existing timeout
+                if (timeoutRef.current !== null) {
+                    window.clearTimeout(timeoutRef.current);
+                }
+                
+                // Set a timeout to actually close after transition
+                timeoutRef.current = window.setTimeout(() => {
+                    setIsOpen(false);
+                }, 300);
+            }
+        }
+        
+        // Track previous forceOpen value
+        prevForceOpenRef.current = forceOpen;
+    }, [forceOpen, context.open]);
 
     // Clean up timeouts on unmount
     useEffect(() => {

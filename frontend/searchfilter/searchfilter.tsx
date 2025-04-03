@@ -14,6 +14,11 @@ interface SearchFilterProps {
     errorSpans?: SearchErrorSpan[];
 }
 
+interface CursorInfo {
+    start: number;
+    end: number;
+}
+
 /**
  * ErrorOverlay component to display red squiggly underlines for error spans
  */
@@ -21,7 +26,8 @@ const ErrorOverlay: React.FC<{
     value: string;
     errorSpans: SearchErrorSpan[];
     inputRef: React.RefObject<HTMLInputElement>;
-}> = ({ value, errorSpans, inputRef }) => {
+    cursorInfo: CursorInfo;
+}> = ({ value, errorSpans, inputRef, cursorInfo }) => {
     if (!errorSpans?.length) {
         return null;
     }
@@ -32,6 +38,7 @@ const ErrorOverlay: React.FC<{
         end: number;
         isError: boolean;
         errorMessage?: string;
+        isActive?: boolean;
     };
 
     // Sort error spans by start index to ensure correct segment creation
@@ -39,6 +46,19 @@ const ErrorOverlay: React.FC<{
 
     const segments: Segment[] = [];
     let lastIndex = 0;
+
+    // Calculate if cursor is inside a segment
+    const isCursorInSegment = (segmentStart: number, segmentEnd: number) => {
+        // Only consider cursor positions >= 0 (to handle the -1 case when input is not focused)
+        return cursorInfo.start >= 0 && (
+            // Cursor is inside the span
+            (cursorInfo.start >= segmentStart && cursorInfo.start < segmentEnd) ||
+            // Selection end is inside the span
+            (cursorInfo.end > segmentStart && cursorInfo.end <= segmentEnd) ||
+            // Selection completely contains the span
+            (cursorInfo.start <= segmentStart && cursorInfo.end >= segmentEnd)
+        );
+    };
 
     // Create segments for each error span and the text in between
     sortedErrorSpans.forEach((span) => {
@@ -48,6 +68,7 @@ const ErrorOverlay: React.FC<{
                 start: lastIndex,
                 end: span.start,
                 isError: false,
+                isActive: false,
             });
         }
 
@@ -57,6 +78,7 @@ const ErrorOverlay: React.FC<{
             end: span.end,
             isError: true,
             errorMessage: span.errormessage,
+            isActive: isCursorInSegment(span.start, span.end),
         });
 
         lastIndex = span.end;
@@ -68,6 +90,7 @@ const ErrorOverlay: React.FC<{
             start: lastIndex,
             end: value.length,
             isError: false,
+            isActive: false,
         });
     }
 
@@ -94,8 +117,11 @@ const ErrorOverlay: React.FC<{
                                     {text}
                                 </span>
 
-                                {/* Interactive underline area - just enough height to catch hovers */}
-                                <Tooltip content={segment.errorMessage || "Error"} placement="bottom">
+                                <Tooltip
+                                    content={segment.errorMessage || "Error"}
+                                    placement="bottom"
+                                    forceOpen={segment.isActive}
+                                >
                                     <div
                                         className="absolute left-0 w-full z-0 pointer-events-auto"
                                         style={{ bottom: -4, height: 6 }}
@@ -125,6 +151,35 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     className = "",
     errorSpans = [],
 }) => {
+    // Track cursor position and selection
+    const [cursorInfo, setCursorInfo] = React.useState<CursorInfo>({ start: 0, end: 0 });
+
+    // Update cursor position when selection changes
+    useEffect(() => {
+        const handleSelectionChange = () => {
+            // Check if our input is the active element
+            if (document.activeElement === inputRef.current) {
+                setCursorInfo({
+                    start: inputRef.current.selectionStart || 0,
+                    end: inputRef.current.selectionEnd || 0,
+                });
+            } else {
+                // If input is not focused, set cursor position to -1 so it won't match any error span
+                setCursorInfo({ start: -1, end: -1 });
+            }
+        };
+
+        // Add event listener to document
+        document.addEventListener("selectionchange", handleSelectionChange);
+
+        // Call once on mount to initialize
+        handleSelectionChange();
+
+        // Clean up
+        return () => {
+            document.removeEventListener("selectionchange", handleSelectionChange);
+        };
+    }, []);
     // Handle keydown events for the search filter
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const input = e.currentTarget;
@@ -170,6 +225,20 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     // Create internal ref if no external ref is provided
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // Also update cursor position when input value changes
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        onValueChange(e.target.value);
+        // We need to wait for React to update the input value before getting cursor position
+        setTimeout(() => {
+            if (inputRef.current) {
+                setCursorInfo({
+                    start: inputRef.current.selectionStart || 0,
+                    end: inputRef.current.selectionEnd || 0,
+                });
+            }
+        }, 0);
+    };
+
     // Handle focus management
     useEffect(() => {
         if (!autoFocus) return;
@@ -205,8 +274,12 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                     type="text"
                     placeholder={placeholder}
                     value={value}
-                    onChange={(e) => onValueChange(e.target.value)}
+                    onChange={handleChange}
                     onKeyDown={handleKeyDown}
+                    spellCheck="false"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    autoComplete="off"
                     className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2 
                       border-none ring-0 outline-none focus:outline-none focus:ring-0 font-mono"
                 />
@@ -216,6 +289,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                         value={value}
                         errorSpans={errorSpans}
                         inputRef={inputRef}
+                        cursorInfo={cursorInfo}
                     />
                 )}
             </div>
