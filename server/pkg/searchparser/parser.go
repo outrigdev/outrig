@@ -321,6 +321,16 @@ func (p *Parser) parseTokenWithErrorSync() *Node {
 		return errNode
 	}
 	if node != nil {
+		// Check if the next token is a valid delimiter
+		if !p.isCurrentADelimiter() {
+			// Not a valid delimiter, convert to error node
+			currentToken := p.current()
+			errMsg := fmt.Sprintf("invalid token sequence: unexpected '%s' after search term", currentToken.Type)
+			errNode := makeErrorNode(Position{Start: startPos, End: node.Position.End}, errMsg)
+			// Add everything up to the next delimiter
+			p.addToErrorUntilDelimiter(errNode)
+			return errNode
+		}
 		return node
 	}
 	// so we didn't get a valid token, that means there was an error, restore and then produce an error node
