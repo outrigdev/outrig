@@ -4,8 +4,10 @@
 package gensearch
 
 import (
+	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
+
 
 const (
 	SearchTypeExact      = "exact"
@@ -61,4 +63,25 @@ func GetSearcher(searchTerm string) (Searcher, error) {
 		return MakeAllSearcher(), nil
 	}
 	return searcher, nil
+}
+
+// GetSearcherWithErrors returns both a searcher and any error spans found in the search term
+func GetSearcherWithErrors(searchTerm string) (Searcher, []rpctypes.SearchErrorSpan, error) {
+	p := searchparser.NewParser(searchTerm)
+	node := p.Parse()
+	
+	// Extract error spans from the AST
+	errorSpans := ExtractErrorSpans(node)
+	
+	// Create a searcher from the AST
+	searcher, err := MakeSearcherFromNode(node)
+	if err != nil {
+		return nil, errorSpans, err
+	}
+	
+	if searcher == nil {
+		return MakeAllSearcher(), errorSpans, nil
+	}
+	
+	return searcher, errorSpans, nil
 }

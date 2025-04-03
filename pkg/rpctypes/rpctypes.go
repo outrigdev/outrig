@@ -86,12 +86,20 @@ type PageData struct {
 	Lines   []ds.LogLine `json:"lines"`
 }
 
+// SearchErrorSpan represents an error in a search query with position information
+type SearchErrorSpan struct {
+	Start        int    `json:"start"`        // Start position in the search term
+	End          int    `json:"end"`          // End position in the search term
+	ErrorMessage string `json:"errormessage"` // The error message
+}
+
 type SearchResultData struct {
-	FilteredCount int        `json:"filteredcount"`
-	SearchedCount int        `json:"searchedcount"`
-	TotalCount    int        `json:"totalcount"`
-	MaxCount      int        `json:"maxcount"`
-	Pages         []PageData `json:"pages"`
+	FilteredCount int              `json:"filteredcount"`
+	SearchedCount int              `json:"searchedcount"`
+	TotalCount    int              `json:"totalcount"`
+	MaxCount      int              `json:"maxcount"`
+	Pages         []PageData       `json:"pages"`
+	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
 }
 
 type StreamUpdateData struct {
@@ -230,9 +238,10 @@ type GoRoutineSearchRequestData struct {
 
 // GoRoutineSearchResultData defines the response for goroutine search
 type GoRoutineSearchResultData struct {
-	SearchedCount int     `json:"searchedcount"`
-	TotalCount    int     `json:"totalcount"`
-	Results       []int64 `json:"results"`
+	SearchedCount int              `json:"searchedcount"`
+	TotalCount    int              `json:"totalcount"`
+	Results       []int64          `json:"results"`
+	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
 }
 
 type EventReadHistoryData struct {

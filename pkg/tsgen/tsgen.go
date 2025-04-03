@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/outrigdev/outrig/pkg/rpc"
@@ -140,7 +141,15 @@ func generateEventType(tsTypesMap map[reflect.Type]string) (string, []reflect.Ty
 	buf.WriteString("// EventType union (rpctypes.EventToTypeMap)\n")
 	buf.WriteString("type EventType = \n")
 	tmap := rpctypes.EventToTypeMap
-	for eventName, rtype := range tmap {
+
+	// Extract and sort keys for deterministic output
+	eventNames := make([]string, 0, len(tmap))
+	for eventName := range tmap {
+		eventNames = append(eventNames, eventName)
+	}
+	sort.Strings(eventNames)
+	for _, eventName := range eventNames {
+		rtype := tmap[eventName]
 		var tsType string
 		var optStr string
 		if rtype != nil {

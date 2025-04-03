@@ -4,8 +4,35 @@
 package gensearch
 
 import (
+	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
+
+// ExtractErrorSpans extracts all error nodes from the AST
+func ExtractErrorSpans(node *searchparser.Node) []rpctypes.SearchErrorSpan {
+	if node == nil {
+		return nil
+	}
+	
+	var spans []rpctypes.SearchErrorSpan
+	
+	// Check if this node is an error node
+	if node.Type == searchparser.NodeTypeError {
+		spans = append(spans, rpctypes.SearchErrorSpan{
+			Start:        node.Position.Start,
+			End:          node.Position.End,
+			ErrorMessage: node.ErrorMessage,
+		})
+	}
+	
+	// Recursively check children (for AND/OR nodes)
+	for _, child := range node.Children {
+		childSpans := ExtractErrorSpans(child)
+		spans = append(spans, childSpans...)
+	}
+	
+	return spans
+}
 
 // MakeSearcherFromNode creates a searcher from an AST node
 func MakeSearcherFromNode(node *searchparser.Node) (Searcher, error) {

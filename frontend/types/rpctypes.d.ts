@@ -103,9 +103,9 @@ declare global {
 
     // EventType union (rpctypes.EventToTypeMap)
     type EventType = 
+        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
         | (EventCommonFields & { event: "route:down"; data?: null })
         | (EventCommonFields & { event: "route:up"; data?: null })
-        | (EventCommonFields & { event: "app:statusupdate"; data: StatusUpdateData })
     ;
 
     // rpctypes.GoRoutineSearchRequestData
@@ -120,6 +120,7 @@ declare global {
         searchedcount: number;
         totalcount: number;
         results: number[];
+        errorspans?: SearchErrorSpan[];
     };
 
     // ds.LogLine
@@ -239,6 +240,13 @@ declare global {
         memstats: MemoryStatsInfo;
     };
 
+    // rpctypes.SearchErrorSpan
+    type SearchErrorSpan = {
+        start: number;
+        end: number;
+        errormessage: string;
+    };
+
     // rpctypes.SearchRequestData
     type SearchRequestData = {
         widgetid: string;
@@ -256,6 +264,7 @@ declare global {
         totalcount: number;
         maxcount: number;
         pages: PageData[];
+        errorspans?: SearchErrorSpan[];
     };
 
     // rpctypes.ServerCommandMeta
