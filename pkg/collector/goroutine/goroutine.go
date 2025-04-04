@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -137,53 +136,39 @@ func (gc *GoroutineCollector) GetGoRoutineName(goId int64) (string, bool) {
 	return name, ok
 }
 
-// parseGoroutineStacks parses the output of runtime.Stack()
+var startRe = regexp.MustCompile(`(?m)^goroutine\s+\d+`)
+var stackRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\].*\n((?s).*)`)
+
 func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.GoroutineInfo {
-	stacks := bytes.Split(stackData, []byte("\n\n"))
-	goroutineStacks := make([]ds.GoRoutineStack, 0, len(stacks))
+	goroutineStacks := make([]ds.GoRoutineStack, 0)
 	activeGoroutines := make(map[int64]bool)
 
-	// Regular expression to extract goroutine ID and state
-	re := regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\]`)
-
-	for _, stack := range stacks {
-		if len(stack) == 0 {
+	startIndices := startRe.FindAllIndex(stackData, -1)
+	for i, startIdx := range startIndices {
+		start := startIdx[0]
+		end := len(stackData)
+		if i+1 < len(startIndices) {
+			end = startIndices[i+1][0]
+		}
+		goroutineData := stackData[start:end]
+		matches := stackRe.FindSubmatch(goroutineData)
+		if len(matches) < 4 {
 			continue
 		}
-
-		stackStr := string(stack)
-		matches := re.FindStringSubmatch(stackStr)
-		if len(matches) < 3 {
-			continue
-		}
-
-		id, err := strconv.ParseInt(matches[1], 10, 64)
-		if err != nil {
-			continue
-		}
-
-		// Mark this goroutine as active
+		id, _ := strconv.ParseInt(string(matches[1]), 10, 64) // this is safe because the regex guarantees a number
 		activeGoroutines[id] = true
-
-		state := matches[2]
-
 		grStack := ds.GoRoutineStack{
 			GoId:       id,
-			State:      state,
-			StackTrace: strings.TrimSpace(stackStr),
+			State:      string(matches[2]),
+			StackTrace: string(bytes.TrimSpace(matches[3])),
 		}
-
-		// Add name if available
 		if name, ok := gc.GetGoRoutineName(id); ok {
 			grStack.Name, grStack.Tags = utilfn.ParseNameAndTags(name)
 		}
-
 		goroutineStacks = append(goroutineStacks, grStack)
 	}
 
-	// Clean up names for goroutines that no longer exist
 	gc.cleanupGoroutineNames(activeGoroutines)
-
 	return &ds.GoroutineInfo{
 		Ts:     time.Now().UnixMilli(),
 		Count:  len(goroutineStacks),

@@ -12,11 +12,13 @@ type GoRoutineSearchObject struct {
 	Name  string
 	Tags  []string
 	Stack string
+	State string
 
 	// Cached values for searches
 	NameToLower     string
 	GoIdStr         string
 	StackToLower    string
+	StateToLower    string
 	Combined        string
 	CombinedToLower string
 }
@@ -54,10 +56,19 @@ func (gso *GoRoutineSearchObject) GetField(fieldName string, fieldMods int) stri
 		}
 		return gso.Stack
 	}
+	if fieldName == "state" {
+		if fieldMods&FieldMod_ToLower != 0 {
+			if gso.StateToLower == "" {
+				gso.StateToLower = strings.ToLower(gso.State)
+			}
+			return gso.StateToLower
+		}
+		return gso.State
+	}
 	if fieldName == "" {
-		// Combine name and stack with a newline delimiter
+		// Combine name, state, and stack with a newline delimiter
 		if gso.Combined == "" {
-			gso.Combined = gso.Name + "\n" + gso.Stack
+			gso.Combined = gso.Name + "\n" + gso.State + "\n" + gso.Stack
 		}
 
 		if fieldMods&FieldMod_ToLower != 0 {
@@ -78,5 +89,6 @@ func ParsedGoRoutineToSearchObject(gr rpctypes.ParsedGoRoutine) SearchObject {
 		Name:  gr.Name,
 		Tags:  gr.Tags,
 		Stack: gr.RawStackTrace,
+		State: gr.RawState,
 	}
 }

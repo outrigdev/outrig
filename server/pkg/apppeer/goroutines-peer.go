@@ -108,7 +108,7 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 			continue
 		}
 
-		parsedGoRoutine, err := goroutine.ParseGoRoutineStackTrace(latestStack.StackTrace, moduleName)
+		parsedGoRoutine, err := goroutine.ParseGoRoutineStackTrace(latestStack.StackTrace, moduleName, latestStack.GoId, latestStack.State)
 		if err != nil {
 			continue
 		}
@@ -144,7 +144,7 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 			continue
 		}
 
-		parsedGoRoutine, err := goroutine.ParseGoRoutineStackTrace(latestStack.StackTrace, moduleName)
+		parsedGoRoutine, err := goroutine.ParseGoRoutineStackTrace(latestStack.StackTrace, moduleName, latestStack.GoId, latestStack.State)
 		if err != nil {
 			continue
 		}

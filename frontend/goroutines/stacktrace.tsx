@@ -156,11 +156,18 @@ interface RawStackTraceProps {
 const RawStackTrace: React.FC<RawStackTraceProps> = ({ goroutine, model, linkType }) => {
     if (!goroutine) return null;
 
+    // Create the header line in the format Go would use: "goroutine X [state, X minutes]:"
+    const headerLine = `goroutine ${goroutine.goid} [${goroutine.rawstate}]:`;
+    
     // Split the stacktrace into lines
     const stacktraceLines = goroutine.rawstacktrace.split("\n");
 
     return (
         <pre className="text-xs text-primary whitespace-pre-wrap bg-panel p-2 rounded">
+            {/* First render the header line */}
+            <div>{headerLine}</div>
+            
+            {/* Then render the rest of the stack trace */}
             {stacktraceLines.map((line: string, index: number) => (
                 <StacktraceLine key={index} line={line} model={model} linkType={linkType} />
             ))}

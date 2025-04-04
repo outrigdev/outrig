@@ -18,8 +18,8 @@ const (
 
 const (
 	// Preserve lower 5 bits for reflect.Kind (0-31)
-	KindMask        = 0x1F      // 00000000_00011111
-	
+	KindMask = 0x1F // 00000000_00011111
+
 	// Shift existing flags up by 5 bits
 	WatchFlag_Push     = 1 << 5  // 00000000_00100000
 	WatchFlag_Counter  = 1 << 6  // 00000000_01000000
@@ -126,7 +126,7 @@ type GoroutineInfo struct {
 type GoRoutineStack struct {
 	GoId       int64    `json:"goid"`
 	State      string   `json:"state"`
-	StackTrace string   `json:"stacktrace"`
+	StackTrace string   `json:"stacktrace"` // does not include the goroutine header (goid + state)
 	Name       string   `json:"name,omitempty"`
 	Tags       []string `json:"tags,omitempty"`
 }
@@ -223,7 +223,7 @@ func (w *WatchSample) GetNumericVal() float64 {
 	if !w.IsNumeric() {
 		return 0
 	}
-	
+
 	kind := reflect.Kind(w.GetKind())
 	switch kind {
 	case reflect.Bool:
@@ -232,8 +232,8 @@ func (w *WatchSample) GetNumericVal() float64 {
 		}
 		return 0
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		 reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
-		 reflect.Float32, reflect.Float64:
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
 		val, err := strconv.ParseFloat(w.Value, 64)
 		if err != nil {
 			return 0

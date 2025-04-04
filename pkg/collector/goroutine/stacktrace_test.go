@@ -211,7 +211,7 @@ func TestParseStateComponents(t *testing.T) {
 			if durationMs != tt.expectedDurationMs {
 				t.Errorf("Expected duration %d ms, got %d ms", tt.expectedDurationMs, durationMs)
 			}
-			
+
 			if duration != tt.expectedDuration {
 				t.Errorf("Expected duration string %q, got %q", tt.expectedDuration, duration)
 			}
@@ -235,123 +235,13 @@ func TestParseStateComponents(t *testing.T) {
 	}
 }
 
-func TestParseHeaderLine(t *testing.T) {
-	tests := []struct {
-		name                 string
-		headerLine           string
-		expectError          bool
-		expectedGoId         int64
-		expectedRawState     string
-		expectedPrimaryState string
-		expectedDurationMs   int64
-		expectedExtraStates  []string
-	}{
-		{
-			name:                 "Valid header with simple state",
-			headerLine:           "goroutine 38 [IO wait]:",
-			expectError:          false,
-			expectedGoId:         38,
-			expectedRawState:     "IO wait",
-			expectedPrimaryState: "IO wait",
-			expectedDurationMs:   0,
-			expectedExtraStates:  nil,
-		},
-		{
-			name:                 "Valid header with duration",
-			headerLine:           "goroutine 338 [chan receive, 101 minutes]:",
-			expectError:          false,
-			expectedGoId:         338,
-			expectedRawState:     "chan receive, 101 minutes",
-			expectedPrimaryState: "chan receive",
-			expectedDurationMs:   101 * 60 * 1000,
-			expectedExtraStates:  nil,
-		},
-		{
-			name:                 "Valid header with extra states",
-			headerLine:           "goroutine 42 [chan receive, locked to thread]:",
-			expectError:          false,
-			expectedGoId:         42,
-			expectedRawState:     "chan receive, locked to thread",
-			expectedPrimaryState: "chan receive",
-			expectedDurationMs:   0,
-			expectedExtraStates:  []string{"locked to thread"},
-		},
-		{
-			name:                 "Valid header with duration and extra states",
-			headerLine:           "goroutine 42 [chan receive, 3 minutes, locked to thread]:",
-			expectError:          false,
-			expectedGoId:         42,
-			expectedRawState:     "chan receive, 3 minutes, locked to thread",
-			expectedPrimaryState: "chan receive",
-			expectedDurationMs:   3 * 60 * 1000,
-			expectedExtraStates:  []string{"locked to thread"},
-		},
-		{
-			name:        "Invalid header format",
-			headerLine:  "not a valid goroutine header",
-			expectError: true,
-		},
-		{
-			name:        "Invalid goroutine ID",
-			headerLine:  "goroutine abc [running]:",
-			expectError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			routine, err := parseHeaderLine(tt.headerLine)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got nil")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			if routine.GoId != tt.expectedGoId {
-				t.Errorf("Expected GoId %d, got %d", tt.expectedGoId, routine.GoId)
-			}
-
-			if routine.RawState != tt.expectedRawState {
-				t.Errorf("Expected RawState %q, got %q", tt.expectedRawState, routine.RawState)
-			}
-
-			if routine.PrimaryState != tt.expectedPrimaryState {
-				t.Errorf("Expected PrimaryState %q, got %q", tt.expectedPrimaryState, routine.PrimaryState)
-			}
-
-			if routine.StateDurationMs != tt.expectedDurationMs {
-				t.Errorf("Expected StateDurationMs %d, got %d", tt.expectedDurationMs, routine.StateDurationMs)
-			}
-
-			if tt.expectedExtraStates == nil {
-				if len(routine.ExtraStates) > 0 {
-					t.Errorf("Expected no extra states, got %v", routine.ExtraStates)
-				}
-			} else {
-				if len(routine.ExtraStates) != len(tt.expectedExtraStates) {
-					t.Errorf("Expected %d extra states, got %d", len(tt.expectedExtraStates), len(routine.ExtraStates))
-				} else {
-					for i, expected := range tt.expectedExtraStates {
-						if routine.ExtraStates[i] != expected {
-							t.Errorf("Expected extra state %q at index %d, got %q", expected, i, routine.ExtraStates[i])
-						}
-					}
-				}
-			}
-		})
-	}
-}
 
 func TestParseGoRoutineStackTrace(t *testing.T) {
 	tests := []struct {
 		name                  string
 		input                 string
+		goId                  int64
+		state                 string
 		moduleName            string
 		expectedGoId          int64
 		expectedPrimaryState  string
@@ -363,8 +253,7 @@ func TestParseGoRoutineStackTrace(t *testing.T) {
 	}{
 		{
 			name: "IO wait goroutine",
-			input: `goroutine 38 [IO wait]:
-internal/poll.runtime_pollWait(0x1010b0a98, 0x72)
+			input: `internal/poll.runtime_pollWait(0x1010b0a98, 0x72)
 	/opt/homebrew/Cellar/go/1.23.4/libexec/src/runtime/netpoll.go:351 +0xa0
 internal/poll.(*pollDesc).wait(0x140001223c0?, 0x140000a4f98?, 0x1)
 	/opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_poll_runtime.go:84 +0x28
@@ -380,6 +269,8 @@ github.com/outrigdev/outrig/pkg/collector/logprocess.(*DupWrap).Run(0x1400014670
 	/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl-posix.go:110 +0x64
 created by github.com/outrigdev/outrig/pkg/collector/logprocess.(*LogCollector).initInternal in goroutine 1
 	/Users/mike/work/outrig/pkg/collector/logprocess/loginitimpl.go:69 +0x3dc`,
+			goId:                  38,
+			state:                 "IO wait",
 			expectedGoId:          38,
 			expectedPrimaryState:  "IO wait",
 			expectedFrames:        7,
@@ -390,13 +281,14 @@ created by github.com/outrigdev/outrig/pkg/collector/logprocess.(*LogCollector).
 		},
 		{
 			name: "chan receive goroutine with duration",
-			input: `goroutine 338 [chan receive, 101 minutes]:
-github.com/outrigdev/outrig/pkg/rpc.(*WshRpcProxy).RecvRpcMessage(0x103bab9e0?)
+			input: `github.com/outrigdev/outrig/pkg/rpc.(*WshRpcProxy).RecvRpcMessage(0x103bab9e0?)
 	/Users/mike/work/outrig/pkg/rpc/rpcproxy.go:34 +0x2c
 github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute.func2()
 	/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:326 +0x14c
 created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in goroutine 327
 	/Users/mike/work/outrig/pkg/rpc/rpcrouter.go:315 +0x3cc`,
+			goId:                  338,
+			state:                 "chan receive, 101 minutes",
 			expectedGoId:          338,
 			expectedPrimaryState:  "chan receive",
 			expectedFrames:        2,
@@ -407,9 +299,10 @@ created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in gor
 		},
 		{
 			name: "goroutine 1 with no created by",
-			input: `goroutine 1 [chan receive, 105 minutes]:
-main.main()
+			input: `main.main()
 	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
+			goId:                  1,
+			state:                 "chan receive, 105 minutes",
 			expectedGoId:          1,
 			expectedPrimaryState:  "chan receive",
 			expectedFrames:        1,
@@ -420,9 +313,10 @@ main.main()
 		},
 		{
 			name: "goroutine with multiple extra states",
-			input: `goroutine 42 [chan receive, 3 minutes, locked to thread]:
-main.main()
+			input: `main.main()
 	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
+			goId:                  42,
+			state:                 "chan receive, 3 minutes, locked to thread",
 			expectedGoId:          42,
 			expectedPrimaryState:  "chan receive",
 			expectedFrames:        1,
@@ -433,9 +327,10 @@ main.main()
 		},
 		{
 			name: "goroutine with lock info",
-			input: `goroutine 55 [semacquire, 2 minutes]:
-main.main()
+			input: `main.main()
 	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
+			goId:                  55,
+			state:                 "semacquire, 2 minutes",
 			expectedGoId:          55,
 			expectedPrimaryState:  "semacquire",
 			expectedFrames:        1,
@@ -449,7 +344,7 @@ main.main()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Use empty string for module name in tests
-			routine, err := ParseGoRoutineStackTrace(tt.input, "")
+			routine, err := ParseGoRoutineStackTrace(tt.input, "", tt.goId, tt.state)
 			if err != nil {
 				t.Fatalf("ParseGoRoutineStackTrace returned error: %v", err)
 			}

@@ -1,7 +1,6 @@
 package goroutine
 
 import (
-	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -21,7 +20,6 @@ type rawStackFrame struct {
 
 // PreprocessedGoRoutineLines represents a preprocessed goroutine stack trace
 type PreprocessedGoRoutineLines struct {
-	HeaderLine  string          // The goroutine header line (e.g., "goroutine 1 [running]:")
 	StackFrames []rawStackFrame // Stack frames, where each frame has a function line and optional file line
 	CreatedBy   rawStackFrame   // The "created by" information
 }
@@ -56,36 +54,25 @@ func AnnotateFrame(frame *StackFrame, moduleName string) {
 
 // ParseGoRoutineStackTrace parses a Go routine stack trace string into a struct
 // moduleName is the name of the module that the app belongs to, used to identify important frames
-func ParseGoRoutineStackTrace(stackTrace string, moduleName string) (ParsedGoRoutine, error) {
+// goId and state are required parameters since the stacktrace no longer includes the goroutine header line
+func ParseGoRoutineStackTrace(stackTrace string, moduleName string, goId int64, state string) (ParsedGoRoutine, error) {
 	// Create a basic ParsedGoRoutine with the raw data
 	routine := ParsedGoRoutine{
 		RawStackTrace: stackTrace,
 		Parsed:        false, // Default to not parsed
+		GoId:          goId,
+		RawState:      state,
 	}
+
+	// Parse the state components
+	primaryState, stateDurationMs, stateDuration, extraStates := parseStateComponents(state)
+	routine.PrimaryState = primaryState
+	routine.StateDurationMs = stateDurationMs
+	routine.StateDuration = stateDuration
+	routine.ExtraStates = extraStates
 
 	// Preprocess the stack trace
 	preprocessed := preprocessStackTrace(stackTrace)
-
-	// Return empty struct and error if header line is empty
-	if preprocessed.HeaderLine == "" {
-		routine.ParseError = "no goroutine header found in stack trace"
-		return routine, fmt.Errorf("no goroutine header found in stack trace")
-	}
-
-	// Parse the header line
-	parsedRoutine, err := parseHeaderLine(preprocessed.HeaderLine)
-	if err != nil {
-		routine.ParseError = fmt.Sprintf("failed to parse header: %v", err)
-		return routine, err
-	}
-
-	// Copy the parsed header information
-	routine.GoId = parsedRoutine.GoId
-	routine.RawState = parsedRoutine.RawState
-	routine.PrimaryState = parsedRoutine.PrimaryState
-	routine.StateDurationMs = parsedRoutine.StateDurationMs
-	routine.StateDuration = parsedRoutine.StateDuration
-	routine.ExtraStates = parsedRoutine.ExtraStates
 
 	// Parse stack frames
 	for _, frame := range preprocessed.StackFrames {
@@ -112,7 +99,7 @@ func ParseGoRoutineStackTrace(stackTrace string, moduleName string) (ParsedGoRou
 	return routine, nil
 }
 
-// preprocessStackTrace processes a goroutine stack trace and groups the lines into header, stack frames, and created by sections
+// preprocessStackTrace processes a goroutine stack trace and groups the lines into stack frames and created by sections
 func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 	// Split the stack trace into lines (don't trim yet to preserve indentation)
 	lines := strings.Split(stackTrace, "\n")
@@ -120,26 +107,11 @@ func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 	result := PreprocessedGoRoutineLines{}
 	var currentFuncLine string
 
-	headerRegex := regexp.MustCompile(`^goroutine\s+\d+\s+\[.*\]:$`)
-
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
 
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		// Check if this is a goroutine header line
-		if headerRegex.MatchString(line) {
-			// Found the header line
-			result.HeaderLine = strings.TrimSpace(line)
-			currentFuncLine = ""
-			continue
-		}
-
-		// Skip if we haven't found a goroutine header yet
-		if result.HeaderLine == "" {
 			continue
 		}
 
@@ -206,39 +178,6 @@ func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 	return result
 }
 
-var headerRe = regexp.MustCompile(`^goroutine\s+(\d+)\s+\[(.*)\]:$`)
-
-// parseHeaderLine parses a goroutine header line and returns a ParsedGoRoutine
-func parseHeaderLine(headerLine string) (ParsedGoRoutine, error) {
-	// Parse the goroutine header
-	match := headerRe.FindStringSubmatch(headerLine)
-	if match == nil {
-		return ParsedGoRoutine{}, fmt.Errorf("invalid header format: %s", headerLine)
-	}
-
-	// Parse the goroutine ID and state
-	goId, err := strconv.ParseInt(match[1], 10, 64)
-	if err != nil {
-		return ParsedGoRoutine{}, fmt.Errorf("failed to parse goroutine ID: %v", err)
-	}
-	state := match[2]
-
-	// Parse the state components
-	primaryState, stateDurationMs, stateDuration, extraStates := parseStateComponents(state)
-
-	// Create a new routine
-	routine := ParsedGoRoutine{
-		GoId:            goId,
-		RawState:        state,
-		PrimaryState:    primaryState,
-		StateDurationMs: stateDurationMs,
-		StateDuration:   stateDuration,
-		ExtraStates:     extraStates,
-		ParsedFrames:    []StackFrame{},
-	}
-
-	return routine, nil
-}
 
 // parseFileLine parses a file line from a stack trace
 // Example: /opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go:165 +0x1fc
