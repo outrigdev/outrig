@@ -217,6 +217,41 @@ func TestTokenizer(t *testing.T) {
 				{Type: TokenEOF, Value: "", Position: Position{Start: 9, End: 9}},
 			},
 		},
+		{
+			name:  "word with hyphen in the middle",
+			input: "abc-def",
+			expected: []Token{
+				{Type: TokenWord, Value: "abc-def", Position: Position{Start: 0, End: 7}},
+				{Type: TokenEOF, Value: "", Position: Position{Start: 7, End: 7}},
+			},
+		},
+		{
+			name:  "UUID format",
+			input: "123e4567-e89b-12d3-a456-426614174000",
+			expected: []Token{
+				{Type: TokenWord, Value: "123e4567-e89b-12d3-a456-426614174000", Position: Position{Start: 0, End: 36}},
+				{Type: TokenEOF, Value: "", Position: Position{Start: 36, End: 36}},
+			},
+		},
+		{
+			name:  "hyphen at start still treated as operator",
+			input: "-abc-def",
+			expected: []Token{
+				{Type: "-", Value: "-", Position: Position{Start: 0, End: 1}},
+				{Type: TokenWord, Value: "abc-def", Position: Position{Start: 1, End: 8}},
+				{Type: TokenEOF, Value: "", Position: Position{Start: 8, End: 8}},
+			},
+		},
+		{
+			name:  "multiple words with hyphens",
+			input: "abc-def ghi-jkl",
+			expected: []Token{
+				{Type: TokenWord, Value: "abc-def", Position: Position{Start: 0, End: 7}},
+				{Type: TokenWhitespace, Value: " ", Position: Position{Start: 7, End: 8}},
+				{Type: TokenWord, Value: "ghi-jkl", Position: Position{Start: 8, End: 15}},
+				{Type: TokenEOF, Value: "", Position: Position{Start: 15, End: 15}},
+			},
+		},
 	}
 
 	for _, tt := range tests {
