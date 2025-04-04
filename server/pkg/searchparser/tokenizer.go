@@ -261,14 +261,13 @@ func (t *Tokenizer) readRegexpString() (string, bool) {
 	return value, incomplete
 }
 
-// readWord reads a word token (any sequence of non-special characters)
-// Hyphens are allowed within words but not at the beginning
+// readWord reads a word token (any sequence of non-word-break characters)
 func (t *Tokenizer) readWord() string {
 	startPos := t.position
 
 	for {
-		// Stop at EOF or special characters (except for hyphen in the middle of a word)
-		if t.ch == 0 || (isSpecialChar(t.ch) && !(t.ch == '-' && startPos != t.position)) {
+		// Stop at EOF or word break characters
+		if t.ch == 0 || isWordBreakChar(t.ch) {
 			break
 		}
 		t.readChar()
@@ -277,12 +276,10 @@ func (t *Tokenizer) readWord() string {
 	return t.input[startPos:t.position]
 }
 
-// isSpecialChar returns true if the character is a special character
-func isSpecialChar(ch rune) bool {
+// isWordBreakChar returns true if the character breaks a word
+func isWordBreakChar(ch rune) bool {
 	return unicode.IsSpace(ch) ||
 		ch == '(' || ch == ')' || ch == '|' ||
-		ch == '-' || ch == '$' ||
-		ch == '~' || ch == '#' || ch == '/' ||
 		ch == '"' || ch == '\''
 }
 

@@ -250,6 +250,20 @@ func TestTokenizer(t *testing.T) {
 				{Type: TokenEOF, Value: "", Position: Position{Start: 15, End: 15}},
 			},
 		},
+		{
+			name:  "words with special characters in the middle",
+			input: "hello$world path/to/file user~name tag#value",
+			expected: []Token{
+				{Type: TokenWord, Value: "hello$world", Position: Position{Start: 0, End: 11}},
+				{Type: TokenWhitespace, Value: " ", Position: Position{Start: 11, End: 12}},
+				{Type: TokenWord, Value: "path/to/file", Position: Position{Start: 12, End: 24}},
+				{Type: TokenWhitespace, Value: " ", Position: Position{Start: 24, End: 25}},
+				{Type: TokenWord, Value: "user~name", Position: Position{Start: 25, End: 34}},
+				{Type: TokenWhitespace, Value: " ", Position: Position{Start: 34, End: 35}},
+				{Type: TokenWord, Value: "tag#value", Position: Position{Start: 35, End: 44}},
+				{Type: TokenEOF, Value: "", Position: Position{Start: 44, End: 44}},
+			},
+		},
 	}
 
 	for _, tt := range tests {

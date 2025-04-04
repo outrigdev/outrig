@@ -23,6 +23,7 @@
 // - Special case: #marked or #m uses the marked searcher to find marked lines
 // - Not token (-) negates the search result of the token that follows it
 // - A literal "-" at the start of a token must be quoted: "-hello" searches for "-hello" literally
+// Once parsing a WORD the only characters that break a WORD are whitespace, "|", "(", ")", "\"", "'", and EOF
 
 package searchparser
 
