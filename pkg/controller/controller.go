@@ -151,6 +151,11 @@ func (c *ControllerImpl) Connect() bool {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 
+	// Check if already connected to prevent redundant connections
+	if c.OutrigConnected {
+		return false
+	}
+
 	if c.OutrigForceDisabled {
 		return false
 	}
@@ -194,11 +199,11 @@ func (c *ControllerImpl) Disconnect() {
 }
 
 func (c *ControllerImpl) Enable() {
-	var isConnected bool
 	c.Lock.Lock()
 	c.OutrigForceDisabled = false
-	isConnected = c.OutrigConnected
 	c.Lock.Unlock()
+
+	isConnected := c.IsConnected()
 	if !isConnected {
 		isConnected = c.Connect()
 	}
@@ -219,6 +224,18 @@ func (c *ControllerImpl) Disable(disconnect bool) {
 }
 
 // Configuration methods
+
+func (c *ControllerImpl) IsConnected() bool {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	return c.OutrigConnected
+}
+
+func (c *ControllerImpl) IsForceDisabled() bool {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	return c.OutrigForceDisabled
+}
 
 func (c *ControllerImpl) GetConfig() ds.Config {
 	c.Lock.Lock()
@@ -347,16 +364,24 @@ func (c *ControllerImpl) runConnPoller() {
 }
 
 func (c *ControllerImpl) pollConn() {
-	enabled := global.OutrigEnabled.Load()
-	if enabled {
-		// check for errors
+	// First check if we're already connected
+	if c.IsConnected() {
+		// check for errors only if we're connected
 		if atomic.LoadInt64(&c.TransportErrors) > 0 {
 			c.Disconnect()
-			return
 		}
 		return
-	} else {
-		c.Connect()
+	}
+
+	// Not connected, so attempt to connect
+	enabled := global.OutrigEnabled.Load()
+	if !enabled {
+		// Capture the return value from Connect
+		connected := c.Connect()
+		// If connection was successful, enable the system
+		if connected {
+			c.setEnabled(true)
+		}
 	}
 }
 
