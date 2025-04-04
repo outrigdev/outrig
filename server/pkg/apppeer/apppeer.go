@@ -32,7 +32,6 @@ const (
 	AppStatusDisconnected = "disconnected"
 )
 
-
 // AppRunPeer represents a peer connection to an app client
 type AppRunPeer struct {
 	AppRunId    string
@@ -53,7 +52,9 @@ var appRunPeers = utilds.MakeSyncMap[*AppRunPeer]()
 
 func init() {
 	outrig.WatchFunc("apppeer.keys", func() []string {
-		return appRunPeers.Keys()
+		keys := appRunPeers.Keys()
+		sort.Strings(keys)
+		return keys
 	}, nil)
 
 	// Start a goroutine to periodically prune app run peers
