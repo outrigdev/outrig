@@ -284,6 +284,7 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 	}
 }
 
+// should match tag regexp in searchparser/parser.go
 var tagRegex = regexp.MustCompile(`(?:^|\s)(#[a-zA-Z][a-zA-Z0-9:_.-]+)`)
 var tagSeqRegex = regexp.MustCompile(`(?:^|\s)(?:#[a-zA-Z][a-zA-Z0-9:_.-]+)(?:\s+#[a-zA-Z][a-zA-Z0-9:_.-]+)*`)
 

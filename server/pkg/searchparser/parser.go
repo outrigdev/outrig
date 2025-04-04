@@ -29,8 +29,13 @@ package searchparser
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+// TagRegexp is the regular expression pattern for valid tag names
+// should match tag parsing in utilfn/util.go
+var TagRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9:_.-]+$`)
 
 // --- Node Types & Constants ---
 
@@ -499,6 +504,10 @@ func (p *Parser) parseRegexpToken() (*Node, error) {
 
 	if cur.Type == TokenRegexp {
 		p.advance()
+		// Validate the regexp
+		if _, err := regexp.Compile(cur.Value); err != nil {
+			return nil, fmt.Errorf("invalid regular expression: %w", err)
+		}
 		return &Node{
 			Type:       NodeTypeSearch,
 			Position:   cur.Position,
@@ -509,6 +518,10 @@ func (p *Parser) parseRegexpToken() (*Node, error) {
 
 	if cur.Type == TokenCRegexp {
 		p.advance()
+		// Validate the regexp
+		if _, err := regexp.Compile(cur.Value); err != nil {
+			return nil, fmt.Errorf("invalid case-sensitive regular expression: %w", err)
+		}
 		return &Node{
 			Type:       NodeTypeSearch,
 			Position:   cur.Position,
@@ -535,6 +548,11 @@ func (p *Parser) parseTagToken() (*Node, error) {
 	wordToken, ok := p.consumeToken(TokenWord)
 	if !ok {
 		return nil, fmt.Errorf("'#' must be followed by a tag name")
+	}
+
+	// Validate the tag name against the regex pattern
+	if !TagRegexp.MatchString(wordToken.Value) {
+		return nil, fmt.Errorf("invalid tag name: must match pattern [a-zA-Z][a-zA-Z0-9:_.-]+")
 	}
 
 	// Create the tag node

@@ -275,6 +275,42 @@ func TestParseAST(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "valid tag",
+			input: "#validTag",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 9},
+				SearchType: "tag",
+				SearchTerm: "validTag",
+			},
+		},
+		{
+			name:  "valid tag with special characters",
+			input: "#valid-tag:1.2_3",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 16},
+				SearchType: "tag",
+				SearchTerm: "valid-tag:1.2_3",
+			},
+		},
+		{
+			name:  "invalid tag starting with number",
+			input: "#1invalidTag",
+			expected: &Node{
+				Type:     "error",
+				Position: Position{Start: 0, End: 12},
+			},
+		},
+		{
+			name:  "invalid tag with invalid character",
+			input: "#invalid@Tag",
+			expected: &Node{
+				Type:     "error",
+				Position: Position{Start: 0, End: 12},
+			},
+		},
 	}
 
 	for _, tt := range tests {
