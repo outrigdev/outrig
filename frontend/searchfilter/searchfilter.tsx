@@ -248,18 +248,18 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
             inputRef.current?.focus();
         }, 50);
 
-        // Handle tab/window visibility changes
-        const handleVisibilityChange = () => {
-            if (!document.hidden && autoFocus) {
+        // Handle window focus changes
+        const handleWindowFocus = () => {
+            if (autoFocus) {
                 inputRef.current?.focus();
             }
         };
 
-        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("focus", handleWindowFocus);
 
         return () => {
             clearTimeout(timer);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("focus", handleWindowFocus);
         };
     }, [autoFocus, inputRef]);
 
