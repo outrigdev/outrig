@@ -174,13 +174,18 @@ func WriteLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any
 	ticker := time.NewTicker(wsInitialPingTime)
 	defer ticker.Stop()
 	defer func() {
-		ioutrig.I.SetGoRoutineName("#outrig ws:WriteLoop:DrainChan")
-		utilfn.DrainChan(outputCh)
+		go func() {
+			ioutrig.I.SetGoRoutineName("#outrig ws:WriteLoop:DrainChan")
+			utilfn.DrainChan(outputCh)
+		}()
 	}()
 	initialPing := true
 	for {
 		select {
-		case msg := <-outputCh:
+		case msg, ok := <-outputCh:
+			if !ok {
+				return
+			}
 			barr, err := json.Marshal(msg)
 			if err != nil {
 				log.Printf("[websocket] cannot marshal websocket message: %v\n", err)
