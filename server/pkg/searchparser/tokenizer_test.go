@@ -251,6 +251,38 @@ func TestTokenizer(t *testing.T) {
 			},
 		},
 		{
+			name:  "double quoted string with escaped quotes",
+			input: `"hello \"world\""`,
+			expected: []Token{
+				{Type: TokenDQuote, Value: `hello \"world\"`, Position: Position{Start: 0, End: 17}},
+				{Type: TokenEOF, Value: "", Position: Position{Start: 17, End: 17}},
+			},
+		},
+		{
+			name:  "single quoted string with escaped quotes",
+			input: `'hello \'world\''`,
+			expected: []Token{
+				{Type: TokenSQuote, Value: `hello \'world\'`, Position: Position{Start: 0, End: 17}},
+				{Type: TokenEOF, Value: "", Position: Position{Start: 17, End: 17}},
+			},
+		},
+		{
+			name:  "regexp with escaped slashes",
+			input: `/hello\/world\//`,
+			expected: []Token{
+				{Type: TokenRegexp, Value: `hello\/world\/`, Position: Position{Start: 0, End: 16}},
+				{Type: TokenEOF, Value: "", Position: Position{Start: 16, End: 16}},
+			},
+		},
+		{
+			name:  "double quoted string with various escapes",
+			input: `"line1\nline2\tindented\r\n\"quoted\""`,
+			expected: []Token{
+				{Type: TokenDQuote, Value: `line1\nline2\tindented\r\n\"quoted\"`, Position: Position{Start: 0, End: 38}},
+				{Type: TokenEOF, Value: "", Position: Position{Start: 38, End: 38}},
+			},
+		},
+		{
 			name:  "words with special characters in the middle",
 			input: "hello$world path/to/file user~name tag#value",
 			expected: []Token{

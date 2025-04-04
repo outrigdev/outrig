@@ -175,50 +175,9 @@ func (t *Tokenizer) NextToken() Token {
 	return tok
 }
 
-// readDoubleQuotedString reads a string enclosed in double quotes
-// Returns the content and a boolean indicating if the string is incomplete
-func (t *Tokenizer) readDoubleQuotedString() (string, bool) {
-	t.readChar() // Skip opening quote
-	startPos := t.position
-
-	for t.ch != '"' && t.ch != 0 {
-		t.readChar()
-	}
-
-	value := t.input[startPos:t.position]
-	incomplete := t.ch == 0 // True if we reached EOF without closing quote
-
-	if t.ch == '"' {
-		t.readChar() // Skip closing quote
-	}
-
-	return value, incomplete
-}
-
-// readSingleQuotedString reads a string enclosed in single quotes
-// Returns the content and a boolean indicating if the string is incomplete
-func (t *Tokenizer) readSingleQuotedString() (string, bool) {
-	t.readChar() // Skip opening quote
-	startPos := t.position
-
-	for t.ch != '\'' && t.ch != 0 {
-		t.readChar()
-	}
-
-	value := t.input[startPos:t.position]
-	incomplete := t.ch == 0 // True if we reached EOF without closing quote
-
-	if t.ch == '\'' {
-		t.readChar() // Skip closing quote
-	}
-
-	return value, incomplete
-}
-
-// readRegexpString reads a regexp enclosed in slashes
-// Returns the content and a boolean indicating if the regexp is incomplete
-func (t *Tokenizer) readRegexpString() (string, bool) {
-	t.readChar() // Skip opening slash
+// readUntilDelimiter reads characters until it finds an unescaped delimiter
+// Returns the content and a boolean indicating if the reading is incomplete
+func (t *Tokenizer) readUntilDelimiter(delimiter rune) (string, bool) {
 	startPos := t.position
 	escaped := false
 
@@ -242,8 +201,8 @@ func (t *Tokenizer) readRegexpString() (string, bool) {
 			continue
 		}
 
-		if t.ch == '/' {
-			// Unescaped closing slash
+		if t.ch == delimiter {
+			// Unescaped delimiter found
 			break
 		}
 
@@ -252,13 +211,34 @@ func (t *Tokenizer) readRegexpString() (string, bool) {
 	}
 
 	value := t.input[startPos:t.position]
-	incomplete := t.ch == 0 // True if we reached EOF without closing slash
+	incomplete := t.ch == 0 // True if we reached EOF without closing delimiter
 
-	if t.ch == '/' {
-		t.readChar() // Skip closing slash
+	if t.ch == delimiter {
+		t.readChar() // Skip closing delimiter
 	}
 
 	return value, incomplete
+}
+
+// readDoubleQuotedString reads a string enclosed in double quotes
+// Returns the content and a boolean indicating if the string is incomplete
+func (t *Tokenizer) readDoubleQuotedString() (string, bool) {
+	t.readChar() // Skip opening quote
+	return t.readUntilDelimiter('"')
+}
+
+// readSingleQuotedString reads a string enclosed in single quotes
+// Returns the content and a boolean indicating if the string is incomplete
+func (t *Tokenizer) readSingleQuotedString() (string, bool) {
+	t.readChar() // Skip opening quote
+	return t.readUntilDelimiter('\'')
+}
+
+// readRegexpString reads a regexp enclosed in slashes
+// Returns the content and a boolean indicating if the regexp is incomplete
+func (t *Tokenizer) readRegexpString() (string, bool) {
+	t.readChar() // Skip opening slash
+	return t.readUntilDelimiter('/')
 }
 
 // readWord reads a word token (any sequence of non-word-break characters)
