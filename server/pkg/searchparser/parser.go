@@ -8,8 +8,7 @@
 // and_expr         = token { WS token } ;
 // token            = not_token | field_token ;
 // not_token        = "-" field_token ;
-// field_token      = [ field_prefix ] unmodified_token ;
-// field_prefix     = "$" WORD ":" ;
+// field_token      = "$" WORD | unmodified_token ;
 // unmodified_token = fuzzy_token | regexp_token | tag_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
 // regexp_token     = REGEXP | CREGEXP;
@@ -29,6 +28,7 @@ package searchparser
 
 import (
 	"fmt"
+	"strings"
 )
 
 // --- Node Types & Constants ---
@@ -384,68 +384,48 @@ func (p *Parser) parseNotToken() (*Node, error) {
 }
 
 // parseFieldToken parses a field token according to the grammar:
-// field_token = [ field_prefix ] unmodified_token
+// field_token = "$" WORD | unmodified_token
 func (p *Parser) parseFieldToken() (*Node, error) {
 	startPos := p.getCurrentStartPos()
 
-	// Try to parse a field prefix
-	var field string
-	var hadPrefix bool
-	var prefixErr error
+	// Check if this is a field token starting with "$"
+	_, hasDollar := p.consumeToken(TokenDollar)
+	if hasDollar {
+		// Must be followed by a WORD
+		wordToken, hasWord := p.consumeToken(TokenWord)
+		if !hasWord {
+			return nil, fmt.Errorf("'$' must be followed by a field name")
+		}
 
-	field, prefixErr = p.parseFieldPrefix()
-	if prefixErr != nil {
-		return nil, prefixErr // Return the field prefix error
-	}
-	if field != "" {
-		hadPrefix = true
+		// Check if the word contains a colon
+		fieldValue := wordToken.Value
+		colonPos := strings.Index(fieldValue, ":")
+
+		if colonPos == -1 {
+			return nil, fmt.Errorf("field name must contain a colon to separate field and value")
+		}
+
+		// Extract field name and search term
+		fieldName := fieldValue[:colonPos]
+		searchTerm := fieldValue[colonPos+1:]
+
+		// Create a search node with the field
+		return &Node{
+			Type:       NodeTypeSearch,
+			Position:   Position{Start: startPos, End: wordToken.Position.End},
+			SearchType: SearchTypeExact,
+			SearchTerm: searchTerm,
+			Field:      fieldName,
+		}, nil
 	}
 
-	// Parse an unmodified token
+	// If not a field token with "$", try to parse an unmodified token
 	node, err := p.parseUnmodifiedToken()
 	if err != nil {
 		return nil, err
 	}
-	if node == nil {
-		if hadPrefix {
-			return nil, fmt.Errorf("field prefix must be followed by a search term")
-		}
-		return nil, nil // Not a field_token, no error
-	}
-
-	// Set the field if we have one
-	if hadPrefix {
-		node.Field = field
-		// Update position to include the field prefix
-		node.Position.Start = startPos
-	}
 
 	return node, nil
-}
-
-// parseFieldPrefix parses a field prefix according to the grammar:
-// field_prefix = "$" WORD ":"
-func (p *Parser) parseFieldPrefix() (string, error) {
-	// Check for "$" token
-	_, ok := p.consumeToken(TokenDollar)
-	if !ok {
-		return "", nil // Not a field prefix, no error
-	}
-
-	// Check for WORD token
-	wordToken, ok := p.consumeToken(TokenWord)
-	if !ok {
-		return "", fmt.Errorf("'$' must be followed by a field name")
-	}
-
-	// Check for ":" token
-	_, ok = p.consumeToken(TokenColon)
-	if !ok {
-		return "", fmt.Errorf("field name must be followed by ':'")
-	}
-
-	// Return field name
-	return wordToken.Value, nil
 }
 
 // parseUnmodifiedToken parses an unmodified token according to the grammar:

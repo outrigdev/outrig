@@ -116,9 +116,6 @@ func (t *Tokenizer) NextToken() Token {
 	case t.ch == '$':
 		tok = Token{Type: "$", Value: "$", Position: Position{Start: startPos, End: t.position + 1}}
 		t.readChar()
-	case t.ch == ':':
-		tok = Token{Type: ":", Value: ":", Position: Position{Start: startPos, End: t.position + 1}}
-		t.readChar()
 	case t.ch == '~':
 		tok = Token{Type: "~", Value: "~", Position: Position{Start: startPos, End: t.position + 1}}
 		t.readChar()
@@ -284,7 +281,7 @@ func (t *Tokenizer) readWord() string {
 func isSpecialChar(ch rune) bool {
 	return unicode.IsSpace(ch) ||
 		ch == '(' || ch == ')' || ch == '|' ||
-		ch == '-' || ch == '$' || ch == ':' ||
+		ch == '-' || ch == '$' ||
 		ch == '~' || ch == '#' || ch == '/' ||
 		ch == '"' || ch == '\''
 }
