@@ -192,6 +192,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const [selectedStates, setSelectedStates] = useAtom(model.selectedStates);
     const isSearching = useAtomValue(model.isSearching);
     const searchResultInfo = useAtomValue(model.searchResultInfo);
+    const resultCount = useAtomValue(model.resultCount);
     const primaryStates = useAtomValue(model.primaryStates);
     const extraStates = useAtomValue(model.extraStates);
     const stateCounts = useAtomValue(model.stateCounts);
@@ -242,7 +243,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                             <span>Searching...</span>
                         ) : (
                             <span>
-                                {searchResultInfo.searchedCount}/{searchResultInfo.totalCount}
+                                {resultCount}/{searchResultInfo.totalCount}
                             </span>
                         )}
                     </div>

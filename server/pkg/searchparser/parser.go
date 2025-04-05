@@ -560,7 +560,7 @@ func (p *Parser) parseTagToken() (*Node, error) {
 	// Special cases: #marked or #m uses the marked searcher, #userquery uses userquery searcher
 	searchType := SearchTypeTag
 	searchTerm := wordToken.Value
-	
+
 	if wordToken.Value == "marked" || wordToken.Value == "m" {
 		// Special case for marked searcher
 		searchType = SearchTypeMarked
@@ -570,7 +570,7 @@ func (p *Parser) parseTagToken() (*Node, error) {
 		searchType = SearchTypeUserQuery
 		searchTerm = "" // Unset the value for userquery searcher
 	}
-	
+
 	node := &Node{
 		Type:       NodeTypeSearch,
 		Position:   Position{Start: startPos, End: wordToken.Position.End},

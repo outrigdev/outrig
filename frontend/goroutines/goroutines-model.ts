@@ -17,10 +17,10 @@ class GoRoutinesModel {
     appRunId: string;
     appRunGoRoutines: PrimitiveAtom<ParsedGoRoutine[]> = atom<ParsedGoRoutine[]>([]);
     matchedGoRoutineIds: PrimitiveAtom<number[]> = atom<number[]>([]);
-    searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({ 
-        searchedCount: 0, 
+    searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({
+        searchedCount: 0,
         totalCount: 0,
-        errorSpans: [] 
+        errorSpans: [],
     });
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
@@ -45,6 +45,12 @@ class GoRoutinesModel {
     totalCount: Atom<number> = atom((get) => {
         const goroutines = get(this.appRunGoRoutines);
         return goroutines.length;
+    });
+
+    // Actual result count (derived from matchedGoRoutineIds)
+    resultCount: Atom<number> = atom((get) => {
+        const matchedIds = get(this.matchedGoRoutineIds);
+        return matchedIds.length;
     });
 
     constructor(appRunId: string) {
@@ -224,7 +230,7 @@ class GoRoutinesModel {
         const store = getDefaultStore();
         const showOutrig = store.get(this.showOutrigGoroutines);
         store.set(this.showOutrigGoroutines, !showOutrig);
-        
+
         // Trigger a new search with the current search term
         this.searchGoroutines(store.get(this.searchTerm));
     }
@@ -246,7 +252,7 @@ class GoRoutinesModel {
             const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, {
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
-                systemquery: systemQuery
+                systemquery: systemQuery,
             });
 
             // Check if this search is still the current one
@@ -258,7 +264,7 @@ class GoRoutinesModel {
             store.set(this.searchResultInfo, {
                 searchedCount: searchResult.searchedcount,
                 totalCount: searchResult.totalcount,
-                errorSpans: searchResult.errorspans || []
+                errorSpans: searchResult.errorspans || [],
             });
 
             // Convert int64 IDs to numbers and store them
@@ -286,7 +292,7 @@ class GoRoutinesModel {
     // Fetch goroutine details by IDs
     async fetchGoRoutinesByIds(goIds: number[]) {
         const searchId = this.currentSearchId;
-        
+
         try {
             if (goIds.length === 0) {
                 getDefaultStore().set(this.appRunGoRoutines, []);

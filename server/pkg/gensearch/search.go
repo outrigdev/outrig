@@ -8,21 +8,23 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
-
+// Re-export search type constants from searchparser package
 const (
-	SearchTypeExact      = "exact"
-	SearchTypeExactCase  = "exactcase"
-	SearchTypeRegexp     = "regexp"
-	SearchTypeRegexpCase = "regexpcase"
-	SearchTypeFzf        = "fzf"
-	SearchTypeFzfCase    = "fzfcase"
+	SearchTypeExact      = searchparser.SearchTypeExact
+	SearchTypeExactCase  = searchparser.SearchTypeExactCase
+	SearchTypeRegexp     = searchparser.SearchTypeRegexp
+	SearchTypeRegexpCase = searchparser.SearchTypeRegexpCase
+	SearchTypeFzf        = searchparser.SearchTypeFzf
+	SearchTypeFzfCase    = searchparser.SearchTypeFzfCase
+	SearchTypeNot        = searchparser.SearchTypeNot
+	SearchTypeTag        = searchparser.SearchTypeTag
+	SearchTypeUserQuery  = searchparser.SearchTypeUserQuery
+	SearchTypeMarked     = searchparser.SearchTypeMarked
+	
+	// Additional constants not in searchparser
 	SearchTypeAnd        = "and"
 	SearchTypeOr         = "or"
 	SearchTypeAll        = "all"
-	SearchTypeMarked     = "marked"
-	SearchTypeNot        = "not"
-	SearchTypeTag        = "tag"
-	SearchTypeUserQuery  = "userquery"
 )
 
 const (
