@@ -1,5 +1,5 @@
-import { DefaultRpcClient } from "@/init";
 import { emitter } from "@/events";
+import { DefaultRpcClient } from "@/init";
 import { PromiseQueue } from "@/util/promisequeue";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { selectAtom } from "jotai/utils";
@@ -53,17 +53,17 @@ class LogViewerModel {
         searched: 0,
         filtered: 0,
     });
-    
+
     // Atom to hold search error spans
     searchStateAtom: PrimitiveAtom<SearchState> = atom<SearchState>({
-        errorSpans: []
+        errorSpans: [],
     });
 
     // Derived atoms for individual counts (read-only)
     totalItemCount = selectAtom(this.logCountsAtom, (state) => state.total);
     searchedItemCount = selectAtom(this.logCountsAtom, (state) => state.searched);
     filteredItemCount = selectAtom(this.logCountsAtom, (state) => state.filtered);
-    
+
     // Derived atom for line number width (minimum 3)
     lineNumberWidth = selectAtom(this.totalItemCount, (count) => {
         return Math.max(3, Math.floor(Math.log10(count || 1)) + 1);
@@ -100,7 +100,7 @@ class LogViewerModel {
         }, 5000);
 
         // Register for log stream update events
-        emitter.on('logstreamupdate', this.handleLogStreamUpdate);
+        emitter.on("logstreamupdate", this.handleLogStreamUpdate);
     }
 
     dispose() {
@@ -115,7 +115,7 @@ class LogViewerModel {
         );
 
         // Clean up event listener
-        emitter.off('logstreamupdate', this.handleLogStreamUpdate);
+        emitter.off("logstreamupdate", this.handleLogStreamUpdate);
     }
 
     async onSearchTermUpdate(searchTerm: string) {
@@ -200,7 +200,7 @@ class LogViewerModel {
                 });
 
                 getDefaultStore().set(this.searchStateAtom, {
-                    errorSpans: results.errorspans || []
+                    errorSpans: results.errorspans || [],
                 });
 
                 getDefaultStore().set(this.listAtom, {
@@ -222,7 +222,7 @@ class LogViewerModel {
                 });
 
                 getDefaultStore().set(this.searchStateAtom, {
-                    errorSpans: []
+                    errorSpans: [],
                 });
 
                 getDefaultStore().set(this.listAtom, {
@@ -312,9 +312,9 @@ class LogViewerModel {
                     searched: results.searchedcount,
                     filtered: results.filteredcount,
                 });
-                
+
                 getDefaultStore().set(this.searchStateAtom, {
-                    errorSpans: results.errorspans || []
+                    errorSpans: results.errorspans || [],
                 });
             }
         } catch (e) {

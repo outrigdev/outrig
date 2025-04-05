@@ -30,6 +30,14 @@ class AppModel {
     // App run selection
     selectedAppRunId: PrimitiveAtom<string> = atom<string>("");
 
+    // App run start time
+    appRunStartTimeAtom: Atom<number | null> = atom((get) => {
+        const appRunId = get(this.selectedAppRunId);
+        if (!appRunId) return null;
+        const appRunInfo = get(this.getAppRunInfoAtom(appRunId));
+        return appRunInfo?.starttime || null;
+    });
+
     // App run model
     appRunModel: AppRunModel;
 

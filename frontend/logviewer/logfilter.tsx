@@ -92,7 +92,7 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
 
                 {/* Search stats */}
                 <Tooltip content={`${filteredCount} matched / ${searchedCount} searched / ${totalCount} ingested`}>
-                    <div className="text-xs text-muted mr-2 select-none cursor-pointer">
+                    <div className="text-xs text-muted mr-2 select-none">
                         {filteredCount}/{searchedCount}
                         {totalCount > searchedCount ? "+" : ""}
                     </div>
