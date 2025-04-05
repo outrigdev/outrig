@@ -254,7 +254,7 @@ function App() {
 
     // Otherwise, show the main app UI with tabs
     return (
-        <div className="h-screen w-screen flex flex-col bg-panel" inert={isSettingsModalOpen}>
+        <div className="h-screen w-screen flex flex-col bg-panel">
             <LeftNav />
             <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
                 <div className="flex items-center">
