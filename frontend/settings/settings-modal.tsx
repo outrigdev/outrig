@@ -34,6 +34,7 @@ export const SettingsModal: React.FC = () => {
     }, []);
 
     const showSource = useAtomValue(SettingsModel.logsShowSource);
+    const showTimestamp = useAtomValue(SettingsModel.logsShowTimestamp);
     const showMilliseconds = useAtomValue(SettingsModel.logsShowMilliseconds);
     const timeFormat = useAtomValue(SettingsModel.logsTimeFormat);
 
@@ -59,6 +60,13 @@ export const SettingsModal: React.FC = () => {
                                 checked={showSource}
                                 onChange={(checked) => SettingsModel.setLogsShowSource(checked)}
                                 label="Show Source"
+                            />
+
+                            <Toggle
+                                id="show-timestamp"
+                                checked={showTimestamp}
+                                onChange={(checked) => SettingsModel.setLogsShowTimestamp(checked)}
+                                label="Show Timestamp"
                             />
 
                             <Toggle

@@ -6,6 +6,7 @@ const DEFAULT_SHOW_SOURCE = true;
 export interface Settings {
     logs?: {
         showSource?: boolean;
+        showTimestamp?: boolean;
         showMilliseconds?: boolean;
         timeFormat?: "absolute" | "relative";
     };
@@ -13,10 +14,12 @@ export interface Settings {
 
 const DEFAULT_SHOW_MILLISECONDS = true;
 const DEFAULT_TIME_FORMAT = "absolute";
+const DEFAULT_SHOW_TIMESTAMP = true;
 
 const DEFAULT_SETTINGS: Settings = {
     logs: {
         showSource: DEFAULT_SHOW_SOURCE,
+        showTimestamp: DEFAULT_SHOW_TIMESTAMP,
         showMilliseconds: DEFAULT_SHOW_MILLISECONDS,
         timeFormat: DEFAULT_TIME_FORMAT,
     },
@@ -58,6 +61,24 @@ class SettingsModel {
             logs: {
                 ...(currentSettings.logs || {}),
                 showSource: value,
+            },
+        };
+        getDefaultStore().set(this.settings, newSettings);
+        saveSettings(newSettings);
+    }
+
+    logsShowTimestamp = atom((get) => {
+        const settings = get(this.settings);
+        return settings.logs?.showTimestamp ?? DEFAULT_SHOW_TIMESTAMP;
+    });
+
+    setLogsShowTimestamp(value: boolean): void {
+        const currentSettings = getDefaultStore().get(this.settings) || {};
+        const newSettings = {
+            ...currentSettings,
+            logs: {
+                ...(currentSettings.logs || {}),
+                showTimestamp: value,
             },
         };
         getDefaultStore().set(this.settings, newSettings);

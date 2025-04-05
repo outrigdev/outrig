@@ -85,6 +85,7 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
     useAtomValue(model.markedLinesVersion);
     const lineNumWidth = useAtomValue(model.lineNumberWidth);
     const showSource = useAtomValue(SettingsModel.logsShowSource);
+    const showTimestamp = useAtomValue(SettingsModel.logsShowTimestamp);
     const showMilliseconds = useAtomValue(SettingsModel.logsShowMilliseconds);
     const timeFormat = useAtomValue(SettingsModel.logsTimeFormat);
     const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
@@ -101,9 +102,11 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
             className={cn("flex text-muted select-none", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}
         >
             {formatMarkedLineNumber(line.linenum, isMarked, lineNumWidth, handleLineNumberClick)}
-            <div className="text-secondary flex-shrink-0 pl-2">
-                {formatTimestamp(line.ts, showMilliseconds, timeFormat, appRunStartTime)}
-            </div>
+            {showTimestamp && (
+                <div className="text-secondary flex-shrink-0 pl-2">
+                    {formatTimestamp(line.ts, showMilliseconds, timeFormat, appRunStartTime)}
+                </div>
+            )}
             {showSource && <div className="pl-2">{formatSource(line.source)}</div>}
             <AnsiLine
                 className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre"
