@@ -14,7 +14,7 @@ export const Tag: React.FC<TagProps> = ({ label, isSelected, onToggle, variant =
     return onToggle ? (
         <button
             onClick={onToggle}
-            className={`px-2 py-1 text-xs rounded-md transition-colors ${getTagStyles(variant, isSelected)}`}
+            className={`px-2 py-1 text-xs rounded-md transition-colors cursor-pointer ${getTagStyles(variant, isSelected)}`}
         >
             {label}
         </button>
