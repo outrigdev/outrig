@@ -1,10 +1,16 @@
-import { AppModel } from "@/appmodel";
 import { AnsiLine } from "@/elements/ansiline";
-import { SettingsModel } from "@/settings/settings-model";
+import { LogSettings } from "@/settings/settings-model";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import React, { useCallback } from "react";
 import { LogViewerModel } from "./logviewer-model";
+
+// Interface for combined log line settings
+interface LogLineSettings {
+    lineNumWidth: number;
+    logSettings: LogSettings;
+    appRunStartTime: number | null;
+}
 
 function formatMarkedLineNumber(
     num: number,
@@ -92,13 +98,12 @@ function formatSource(source: string): React.ReactNode {
 interface LogLineComponentProps {
     line: LogLine;
     model?: LogViewerModel;
+    lineSettings: LogLineSettings;
 }
 
-export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model }) => {
+export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model, lineSettings }) => {
     useAtomValue(model.markedLinesVersion);
-    const lineNumWidth = useAtomValue(model.lineNumberWidth);
-    const logSettings = useAtomValue(SettingsModel.logsSettings);
-    const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
+    const { lineNumWidth, logSettings, appRunStartTime } = lineSettings;
 
     const handleLineNumberClick = useCallback(() => {
         model.toggleLineMarked(line.linenum);

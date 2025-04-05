@@ -1,12 +1,21 @@
+import { AppModel } from "@/appmodel";
 import { CopyButton } from "@/elements/copybutton";
 import { LogVList } from "@/logvlist/logvlist";
+import { LogSettings, SettingsModel } from "@/settings/settings-model";
 import { useOutrigModel } from "@/util/hooks";
 import { useAtomValue } from "jotai";
 import { X } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogViewerFilter } from "./logfilter";
 import { LogLineComponent } from "./logline";
 import { LogViewerModel } from "./logviewer-model";
+
+// Interface for combined log line settings
+interface LogLineSettings {
+    lineNumWidth: number;
+    logSettings: LogSettings;
+    appRunStartTime: number | null;
+}
 
 // LogList component for rendering the list of logs using LogVList
 interface LogListProps {
@@ -18,6 +27,18 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const followOutput = useAtomValue(model.followOutput);
     const isRefreshing = useAtomValue(model.isRefreshing);
+    
+    // Subscribe to atoms once at the LogList level
+    const lineNumWidth = useAtomValue(model.lineNumberWidth);
+    const logSettings = useAtomValue(SettingsModel.logsSettings);
+    const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
+    
+    // Memoize the lineSettings object so it only changes when the actual values change
+    const lineSettings = useMemo(() => ({
+        lineNumWidth,
+        logSettings,
+        appRunStartTime
+    }), [lineNumWidth, logSettings, appRunStartTime]);
 
     // Prevent default smooth scrolling for PageUp/PageDown when focus is in the list
     useEffect(() => {
@@ -91,9 +112,9 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     // Create the line component for LogVList
     const lineComponent = useCallback(
         ({ line }: { line: LogLine }) => {
-            return <LogLineComponent line={line} model={model} />;
+            return <LogLineComponent line={line} model={model} lineSettings={lineSettings} />;
         },
-        [model]
+        [model, lineSettings]
     );
 
     // Handle page required callback
