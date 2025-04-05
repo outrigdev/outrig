@@ -1,17 +1,19 @@
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 
+export interface LogSettings {
+    showSource: boolean;
+    showTimestamp: boolean;
+    showMilliseconds: boolean;
+    timeFormat: "absolute" | "relative";
+    showLineNumbers: boolean;
+}
+
 const SETTINGS_STORAGE_KEY = "outrig:settings";
 const DEFAULT_SHOW_SOURCE = true;
 const DEFAULT_SHOW_LINE_NUMBERS = true;
 
 export interface Settings {
-    logs?: {
-        showSource?: boolean;
-        showTimestamp?: boolean;
-        showMilliseconds?: boolean;
-        timeFormat?: "absolute" | "relative";
-        showLineNumbers?: boolean;
-    };
+    logs?: Partial<LogSettings>;
 }
 
 const DEFAULT_SHOW_MILLISECONDS = true;
@@ -141,6 +143,17 @@ class SettingsModel {
         getDefaultStore().set(this.settings, newSettings);
         saveSettings(newSettings);
     }
+
+    // Combined atom for all log settings
+    logsSettings = atom<LogSettings>((get) => {
+        return {
+            showSource: get(this.logsShowSource),
+            showTimestamp: get(this.logsShowTimestamp),
+            showMilliseconds: get(this.logsShowMilliseconds),
+            timeFormat: get(this.logsTimeFormat),
+            showLineNumbers: get(this.logsShowLineNumbers),
+        };
+    });
 }
 
 const model = new SettingsModel();

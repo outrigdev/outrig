@@ -97,11 +97,7 @@ interface LogLineComponentProps {
 export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model }) => {
     useAtomValue(model.markedLinesVersion);
     const lineNumWidth = useAtomValue(model.lineNumberWidth);
-    const showSource = useAtomValue(SettingsModel.logsShowSource);
-    const showTimestamp = useAtomValue(SettingsModel.logsShowTimestamp);
-    const showMilliseconds = useAtomValue(SettingsModel.logsShowMilliseconds);
-    const timeFormat = useAtomValue(SettingsModel.logsTimeFormat);
-    const showLineNumbers = useAtomValue(SettingsModel.logsShowLineNumbers);
+    const logSettings = useAtomValue(SettingsModel.logsSettings);
     const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
 
     const handleLineNumberClick = useCallback(() => {
@@ -115,13 +111,13 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
             data-linenum={line.linenum}
             className={cn("flex text-muted select-none", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}
         >
-            {formatMarkedLineNumber(line.linenum, isMarked, lineNumWidth, handleLineNumberClick, showLineNumbers)}
-            {showTimestamp && (
+            {formatMarkedLineNumber(line.linenum, isMarked, lineNumWidth, handleLineNumberClick, logSettings.showLineNumbers)}
+            {logSettings.showTimestamp && (
                 <div className="text-secondary flex-shrink-0 pl-2">
-                    {formatTimestamp(line.ts, showMilliseconds, timeFormat, appRunStartTime)}
+                    {formatTimestamp(line.ts, logSettings.showMilliseconds, logSettings.timeFormat, appRunStartTime)}
                 </div>
             )}
-            {showSource && <div className="pl-2">{formatSource(line.source)}</div>}
+            {logSettings.showSource && <div className="pl-2">{formatSource(line.source)}</div>}
             <AnsiLine
                 className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre"
                 line={line.msg}
