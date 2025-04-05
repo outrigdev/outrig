@@ -311,6 +311,36 @@ func TestParseAST(t *testing.T) {
 				Position: Position{Start: 0, End: 12},
 			},
 		},
+		{
+			name:  "marked searcher with #marked",
+			input: "#marked",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 7},
+				SearchType: "marked",
+				SearchTerm: "",
+			},
+		},
+		{
+			name:  "marked searcher with #m",
+			input: "#m",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 2},
+				SearchType: "marked",
+				SearchTerm: "",
+			},
+		},
+		{
+			name:  "userquery searcher",
+			input: "#userquery",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 10},
+				SearchType: "userquery",
+				SearchTerm: "",
+			},
+		},
 	}
 
 	for _, tt := range tests {

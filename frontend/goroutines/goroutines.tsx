@@ -188,6 +188,7 @@ interface GoRoutinesFiltersProps {
 const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
     const [showAll, setShowAll] = useAtom(model.showAll);
+    const [showOutrig, setShowOutrig] = useAtom(model.showOutrigGoroutines);
     const [selectedStates, setSelectedStates] = useAtom(model.selectedStates);
     const isSearching = useAtomValue(model.isSearching);
     const searchResultInfo = useAtomValue(model.searchResultInfo);
@@ -198,6 +199,10 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
 
     const handleToggleShowAll = () => {
         model.toggleShowAll();
+    };
+
+    const handleToggleShowOutrig = () => {
+        model.toggleShowOutrigGoroutines();
     };
 
     const handleToggleState = (state: string) => {
@@ -264,6 +269,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                     <div className="w-[70px]">
                         <Tag label="Show All" isSelected={showAll} onToggle={handleToggleShowAll} />
                     </div>
+
                     {/* Primary states first */}
                     {primaryStates.map((state) => (
                         <Tag
@@ -282,6 +288,27 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                             onToggle={() => handleToggleState(state)}
                         />
                     ))}
+
+                    {/* Flex spacer to push #outrig toggle to the right */}
+                    <div className="flex-grow"></div>
+
+                    {/* #outrig toggle with tooltip */}
+                    <Tooltip
+                        content={
+                            showOutrig
+                                ? "Showing Internal Outrig SDK GoRoutines (Click to Toggle)"
+                                : "Hiding Internal Outrig SDK GoRoutines (Click to Toggle)"
+                        }
+                    >
+                        <div>
+                            <Tag
+                                label="#outrig"
+                                isSelected={showOutrig}
+                                onToggle={handleToggleShowOutrig}
+                                variant="accent"
+                            />
+                        </div>
+                    </Tooltip>
                 </div>
                 {/* Duration states on a new line, indented to align with "Show All" */}
                 <DurationStateFilters model={model} selectedStates={selectedStates} onToggleState={handleToggleState} />

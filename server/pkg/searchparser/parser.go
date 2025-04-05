@@ -35,7 +35,7 @@ import (
 
 // TagRegexp is the regular expression pattern for valid tag names
 // should match tag parsing in utilfn/util.go
-var TagRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9:_.-]+$`)
+var TagRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9:_.-]*$`)
 
 // --- Node Types & Constants ---
 
@@ -56,6 +56,7 @@ const (
 	SearchTypeNot        = "not"
 	SearchTypeTag        = "tag"
 	SearchTypeUserQuery  = "userquery"
+	SearchTypeMarked     = "marked"
 )
 
 // --- AST Node Definition ---
@@ -556,11 +557,25 @@ func (p *Parser) parseTagToken() (*Node, error) {
 	}
 
 	// Create the tag node
+	// Special cases: #marked or #m uses the marked searcher, #userquery uses userquery searcher
+	searchType := SearchTypeTag
+	searchTerm := wordToken.Value
+	
+	if wordToken.Value == "marked" || wordToken.Value == "m" {
+		// Special case for marked searcher
+		searchType = SearchTypeMarked
+		searchTerm = "" // Unset the value for marked searcher
+	} else if wordToken.Value == "userquery" {
+		// Special case for userquery searcher
+		searchType = SearchTypeUserQuery
+		searchTerm = "" // Unset the value for userquery searcher
+	}
+	
 	node := &Node{
 		Type:       NodeTypeSearch,
 		Position:   Position{Start: startPos, End: wordToken.Position.End},
-		SearchType: SearchTypeTag,
-		SearchTerm: wordToken.Value,
+		SearchType: searchType,
+		SearchTerm: searchTerm,
 	}
 
 	// Check for optional trailing slash

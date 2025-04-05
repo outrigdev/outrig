@@ -35,6 +35,9 @@ class GoRoutinesModel {
     // Code link settings
     showCodeLinks: PrimitiveAtom<CodeLinkType> = atom<CodeLinkType>("vscode");
 
+    // Toggle for showing/hiding #outrig goroutines
+    showOutrigGoroutines: PrimitiveAtom<boolean> = atom(false);
+
     // Stacktrace display settings - can be "raw", "simplified", or "simplified:files"
     simpleStacktraceMode: PrimitiveAtom<string> = atom("simplified");
 
@@ -210,9 +213,20 @@ class GoRoutinesModel {
         if (!showAll) {
             // If enabling "show all", clear selected states
             store.set(this.selectedStates, new Set<string>());
+            // Note: We do NOT reset showOutrigGoroutines here
         }
 
         store.set(this.showAll, !showAll);
+    }
+
+    // Toggle showing/hiding #outrig goroutines
+    toggleShowOutrigGoroutines(): void {
+        const store = getDefaultStore();
+        const showOutrig = store.get(this.showOutrigGoroutines);
+        store.set(this.showOutrigGoroutines, !showOutrig);
+        
+        // Trigger a new search with the current search term
+        this.searchGoroutines(store.get(this.searchTerm));
     }
 
     // Search for goroutines matching the search term
@@ -220,14 +234,19 @@ class GoRoutinesModel {
         const store = getDefaultStore();
         const searchId = crypto.randomUUID();
         this.currentSearchId = searchId;
+        const showOutrig = store.get(this.showOutrigGoroutines);
 
         try {
             store.set(this.isSearching, true);
+
+            // Set systemquery if showOutrigGoroutines is false
+            const systemQuery = !showOutrig ? "-#outrig #userquery" : undefined;
 
             // Call the search RPC to get matching goroutine IDs
             const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, {
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
+                systemquery: systemQuery
             });
 
             // Check if this search is still the current one
