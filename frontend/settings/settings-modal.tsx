@@ -2,6 +2,7 @@ import { useAtomValue } from "jotai";
 import React, { useEffect, useRef } from "react";
 import { AppModel } from "../appmodel";
 import { Modal } from "../elements/modal";
+import { Toggle } from "../elements/toggle";
 import { SettingsModel } from "./settings-model";
 
 // Container component that checks isOpen state
@@ -50,18 +51,12 @@ export const SettingsModal: React.FC = () => {
                     <div>
                         <h2 className="text-lg font-semibold mb-3">Logs</h2>
                         <div className="space-y-2">
-                            <div className="flex items-center">
-                                <input
-                                    id="show-source"
-                                    type="checkbox"
-                                    className="h-4 w-4 mr-2 cursor-pointer"
-                                    checked={showSource}
-                                    onChange={(e) => SettingsModel.setLogsShowSource(e.target.checked)}
-                                />
-                                <label htmlFor="show-source" className="cursor-pointer">
-                                    Show Source
-                                </label>
-                            </div>
+                            <Toggle
+                                id="show-source"
+                                checked={showSource}
+                                onChange={(checked) => SettingsModel.setLogsShowSource(checked)}
+                                label="Show Source"
+                            />
                         </div>
                     </div>
                 </div>
