@@ -24,7 +24,6 @@ class GoRoutinesModel {
     });
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
-    isSearching: PrimitiveAtom<boolean> = atom(false);
     contentRef: React.RefObject<HTMLDivElement> = null;
     currentSearchId: string = "";
 
@@ -243,8 +242,6 @@ class GoRoutinesModel {
         const showOutrig = store.get(this.showOutrigGoroutines);
 
         try {
-            store.set(this.isSearching, true);
-
             // Set systemquery if showOutrigGoroutines is false
             const systemQuery = !showOutrig ? "-#outrig #userquery" : undefined;
 
@@ -285,7 +282,7 @@ class GoRoutinesModel {
             store.set(this.appRunGoRoutines, []);
             store.set(this.searchResultInfo, { searchedCount: 0, totalCount: 0, errorSpans: [] });
         } finally {
-            store.set(this.isSearching, false);
+            // No cleanup needed
         }
     }
 

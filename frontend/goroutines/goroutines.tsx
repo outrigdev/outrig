@@ -190,7 +190,6 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const [showAll, setShowAll] = useAtom(model.showAll);
     const [showOutrig, setShowOutrig] = useAtom(model.showOutrigGoroutines);
     const [selectedStates, setSelectedStates] = useAtom(model.selectedStates);
-    const isSearching = useAtomValue(model.isSearching);
     const searchResultInfo = useAtomValue(model.searchResultInfo);
     const resultCount = useAtomValue(model.resultCount);
     const primaryStates = useAtomValue(model.primaryStates);
@@ -239,13 +238,9 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
 
                     {/* Search stats */}
                     <div className="text-xs text-muted mr-2 select-none">
-                        {isSearching ? (
-                            <span>Searching...</span>
-                        ) : (
-                            <span>
-                                {resultCount}/{searchResultInfo.totalCount}
-                            </span>
-                        )}
+                        <span>
+                            {resultCount}/{searchResultInfo.totalCount}
+                        </span>
                     </div>
 
                     <div className="flex items-center gap-2">

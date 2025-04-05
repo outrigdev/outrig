@@ -188,8 +188,8 @@ interface WatchesFiltersProps {
 
 const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
-    const isSearching = useAtomValue(model.isSearching);
     const searchResultInfo = useAtomValue(model.searchResultInfo);
+    const resultCount = useAtomValue(model.resultCount);
     const errorSpans = searchResultInfo.errorSpans || [];
 
     return (
@@ -219,13 +219,9 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
 
                 {/* Search stats */}
                 <div className="text-xs text-muted mr-2 select-none">
-                    {isSearching ? (
-                        <span>Searching...</span>
-                    ) : (
-                        <span>
-                            {searchResultInfo.searchedCount}/{searchResultInfo.totalCount}
-                        </span>
-                    )}
+                    <span>
+                        {resultCount}/{searchResultInfo.totalCount}
+                    </span>
                 </div>
 
                 <AutoRefreshButton autoRefreshAtom={model.autoRefresh} onToggle={() => model.toggleAutoRefresh()} />

@@ -22,7 +22,6 @@ class WatchesModel {
     });
     searchTerm: PrimitiveAtom<string> = atom("");
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
-    isSearching: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
     contentRef: React.RefObject<HTMLDivElement> = null;
@@ -32,6 +31,12 @@ class WatchesModel {
     totalCount: Atom<number> = atom((get) => {
         const watches = get(this.appRunWatches);
         return watches.length;
+    });
+
+    // Actual result count (derived from matchedWatchIds)
+    resultCount: Atom<number> = atom((get) => {
+        const matchedIds = get(this.matchedWatchIds);
+        return matchedIds.length;
     });
 
     // Filtered count of watches (derived from filteredWatches)
@@ -133,8 +138,6 @@ class WatchesModel {
         this.currentSearchId = searchId;
 
         try {
-            store.set(this.isSearching, true);
-
             // Call the search RPC to get matching watch IDs
             const searchResult = await RpcApi.WatchSearchRequestCommand(DefaultRpcClient, {
                 apprunid: this.appRunId,
@@ -171,7 +174,7 @@ class WatchesModel {
             store.set(this.appRunWatches, []);
             store.set(this.searchResultInfo, { searchedCount: 0, totalCount: 0, errorSpans: [] });
         } finally {
-            store.set(this.isSearching, false);
+            // No cleanup needed
         }
     }
 
