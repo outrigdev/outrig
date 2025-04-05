@@ -186,6 +186,7 @@ function App() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const [toasts, setToasts] = useAtom(AppModel.toasts);
+    const isSettingsModalOpen = useAtomValue(AppModel.settingsModalOpen);
 
     useEffect(() => {
         AppModel.applyTheme();
@@ -253,7 +254,7 @@ function App() {
 
     // Otherwise, show the main app UI with tabs
     return (
-        <div className="h-screen w-screen flex flex-col bg-panel">
+        <div className="h-screen w-screen flex flex-col bg-panel" inert={isSettingsModalOpen}>
             <LeftNav />
             <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
                 <div className="flex items-center">
