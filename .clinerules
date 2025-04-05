@@ -16,7 +16,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - in general const decls go at the top fo the file (before types and functions)
 - **TypeScript Imports**:
     - Use `@/...` for imports from different parts of the project (configured in `tsconfig.json` as `"@/*": ["frontend/*"]`).
-    - Prefer relative imports (`"./name"`) within the same or child directories.
+    - Prefer relative imports (`"./name"`) only within the same directory.
     - Use named exports exclusively; avoid default exports. It's acceptable to export functions directly (e.g., React Components).
     - Our indent is 4 spaces
 - **JSON Field Naming**: All fields must be lowercase, without underscores.

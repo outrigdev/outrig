@@ -25,7 +25,7 @@ export const HomePage: React.FC = () => {
     const appRunCount = useAtomValue(AppModel.appRunModel.appRunCount);
     const hasAppRuns = appRunCount > 0;
     return (
-        <div className="h-screen bg-background flex flex-col">
+        <>
             {/* Header */}
             <header className="bg-panel border-b border-border p-4 flex items-center justify-between">
                 <div className="flex items-center">
@@ -111,6 +111,6 @@ export const HomePage: React.FC = () => {
             <footer className="bg-panel border-t border-border p-4 text-center text-secondary text-sm">
                 <p>Outrig - Powerful debugging for Go applications</p>
             </footer>
-        </div>
+        </>
     );
 };
