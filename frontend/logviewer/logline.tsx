@@ -1,4 +1,5 @@
 import { AnsiLine } from "@/elements/ansiline";
+import { SettingsModel } from "@/settings/settings-model";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import React, { useCallback } from "react";
@@ -49,6 +50,7 @@ interface LogLineComponentProps {
 export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model }) => {
     useAtomValue(model.markedLinesVersion);
     const lineNumWidth = useAtomValue(model.lineNumberWidth);
+    const showSource = useAtomValue(SettingsModel.logsShowSource);
 
     const handleLineNumberClick = useCallback(() => {
         model.toggleLineMarked(line.linenum);
@@ -63,7 +65,7 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
         >
             {formatMarkedLineNumber(line.linenum, isMarked, lineNumWidth, handleLineNumberClick)}
             <div className="text-secondary flex-shrink-0 pl-2">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</div>
-            <div className="pl-2">{formatSource(line.source)}</div>
+            {showSource && <div className="pl-2">{formatSource(line.source)}</div>}
             <AnsiLine
                 className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre"
                 line={line.msg}
