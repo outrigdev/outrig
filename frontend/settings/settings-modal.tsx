@@ -37,6 +37,7 @@ export const SettingsModal: React.FC = () => {
     const showTimestamp = useAtomValue(SettingsModel.logsShowTimestamp);
     const showMilliseconds = useAtomValue(SettingsModel.logsShowMilliseconds);
     const timeFormat = useAtomValue(SettingsModel.logsTimeFormat);
+    const showLineNumbers = useAtomValue(SettingsModel.logsShowLineNumbers);
 
     return (
         <Modal isOpen={true} title="Outrig Settings">
@@ -55,6 +56,13 @@ export const SettingsModal: React.FC = () => {
                     <div>
                         <h2 className="text-lg font-semibold mb-3">Logs</h2>
                         <div className="space-y-4">
+                            <Toggle
+                                id="show-line-numbers"
+                                checked={showLineNumbers}
+                                onChange={(checked) => SettingsModel.setLogsShowLineNumbers(checked)}
+                                label="Show Line Numbers"
+                            />
+
                             <Toggle
                                 id="show-source"
                                 checked={showSource}

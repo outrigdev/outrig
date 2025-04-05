@@ -6,24 +6,37 @@ import { useAtomValue } from "jotai";
 import React, { useCallback } from "react";
 import { LogViewerModel } from "./logviewer-model";
 
-function formatMarkedLineNumber(num: number, isMarked: boolean, width: number, onClick: () => void): React.ReactNode {
-    const paddedNum = String(num).padStart(isMarked ? width : width + 1, " ");
+function formatMarkedLineNumber(
+    num: number,
+    isMarked: boolean,
+    width: number,
+    onClick: () => void,
+    showLineNumbers: boolean
+): React.ReactNode {
+    // When line numbers are hidden, width is always 1
+    const effectiveWidth = showLineNumbers ? width : 0;
+
+    // For hidden line numbers, just use a space or bullet
+    const content = showLineNumbers ? String(num) : "";
+    const paddedContent = content.padStart(isMarked ? effectiveWidth : effectiveWidth + 1, " ");
 
     if (isMarked) {
         return (
-            <div
-                className="text-right flex-shrink-0 cursor-pointer text-accent hover:text-primary whitespace-pre"
-                onClick={onClick}
-            >
-                <span className="text-accent">•</span>
-                {paddedNum}
-            </div>
+            <>
+                {/* prettier-ignore */}
+                <div
+					className="text-right flex-shrink-0 cursor-pointer text-accent hover:text-primary whitespace-pre"
+					onClick={onClick}
+				>
+					<span className="text-accent">•</span>{paddedContent}
+				</div>
+            </>
         );
     }
 
     return (
         <div className="text-right flex-shrink-0 cursor-pointer hover:text-primary whitespace-pre" onClick={onClick}>
-            {paddedNum}
+            {paddedContent}
         </div>
     );
 }
@@ -88,6 +101,7 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
     const showTimestamp = useAtomValue(SettingsModel.logsShowTimestamp);
     const showMilliseconds = useAtomValue(SettingsModel.logsShowMilliseconds);
     const timeFormat = useAtomValue(SettingsModel.logsTimeFormat);
+    const showLineNumbers = useAtomValue(SettingsModel.logsShowLineNumbers);
     const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
 
     const handleLineNumberClick = useCallback(() => {
@@ -101,7 +115,7 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
             data-linenum={line.linenum}
             className={cn("flex text-muted select-none", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}
         >
-            {formatMarkedLineNumber(line.linenum, isMarked, lineNumWidth, handleLineNumberClick)}
+            {formatMarkedLineNumber(line.linenum, isMarked, lineNumWidth, handleLineNumberClick, showLineNumbers)}
             {showTimestamp && (
                 <div className="text-secondary flex-shrink-0 pl-2">
                     {formatTimestamp(line.ts, showMilliseconds, timeFormat, appRunStartTime)}
