@@ -328,7 +328,13 @@ export const LeftNav: React.FC = () => {
                     <div className="mt-auto border-t border-border p-2">
                         <div className="flex flex-col gap-1">
                             <ThemeToggle />
-                            <button className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer">
+                            <button
+                                className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"
+                                onClick={() => {
+                                    AppModel.openSettingsModal();
+                                    setIsOpen(false);
+                                }}
+                            >
                                 <Settings size={16} />
                                 <span>Settings</span>
                             </button>

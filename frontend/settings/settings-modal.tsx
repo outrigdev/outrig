@@ -31,7 +31,7 @@ export const SettingsModal: React.FC = () => {
     }, []);
 
     return (
-        <Modal isOpen={true} title="Settings">
+        <Modal isOpen={true} title="Outrig Settings">
             <div className="text-primary">
                 {/* Hidden input to capture focus */}
                 <input

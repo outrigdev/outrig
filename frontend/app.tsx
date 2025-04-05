@@ -254,40 +254,42 @@ function App() {
 
     // Otherwise, show the main app UI with tabs
     return (
-        <div className="h-screen w-screen flex flex-col bg-panel">
-            <LeftNav />
-            <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
-                <div className="flex items-center">
-                    <AppHeader />
-                    <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
-                    <div className="flex">
-                        {/* All tabs require an app run ID now */}
-                        {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
-                            <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
-                        ))}
+        <>
+            <div className="h-screen w-screen flex flex-col bg-panel" inert={isSettingsModalOpen || undefined}>
+                <LeftNav />
+                <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
+                    <div className="flex items-center">
+                        <AppHeader />
+                        <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
+                        <div className="flex">
+                            {/* All tabs require an app run ID now */}
+                            {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
+                                <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
+                            ))}
+                        </div>
                     </div>
-                </div>
-                <div className="flex items-center">
-                    <AutoFollowButton />
-                    <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
-                    <SettingsButton onClick={() => AppModel.openSettingsModal()} />
-                </div>
-            </nav>
+                    <div className="flex items-center">
+                        <AutoFollowButton />
+                        <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
+                        <SettingsButton onClick={() => AppModel.openSettingsModal()} />
+                    </div>
+                </nav>
 
-            {/* Main content */}
-            <main className="flex-grow overflow-auto w-full">
-                <FeatureTab />
-            </main>
+                {/* Main content */}
+                <main className="flex-grow overflow-auto w-full">
+                    <FeatureTab />
+                </main>
 
-            {/* Status bar */}
-            <StatusBar />
+                {/* Status bar */}
+                <StatusBar />
 
-            {/* Toast container */}
-            <ToastContainer toasts={toasts} onClose={handleToastClose} />
+                {/* Toast container */}
+                <ToastContainer toasts={toasts} onClose={handleToastClose} />
+            </div>
 
-            {/* Settings modal */}
+            {/* Settings modal - rendered outside the main container */}
             <SettingsModalContainer />
-        </div>
+        </>
     );
 }
 
