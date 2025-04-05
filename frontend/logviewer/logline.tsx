@@ -4,21 +4,21 @@ import { useAtomValue } from "jotai";
 import React, { useCallback } from "react";
 import { LogViewerModel } from "./logviewer-model";
 
-function formatMarkedLineNumber(num: number, isMarked: boolean, width = 4): React.ReactNode {
-    const paddedNum = String(num).padStart(width, " ");
+function formatMarkedLineNumber(num: number, isMarked: boolean, width: number, onClick: () => void): React.ReactNode {
+    const paddedNum = String(num).padStart(isMarked ? width : width + 1, " ");
+
     if (isMarked) {
         return (
-            <span className="text-primary flex items-center">
-                <span className="text-accent w-3 text-center">•</span>
-                <span className="whitespace-pre">{paddedNum}</span>
-            </span>
+            <div className="text-right flex-shrink-0 cursor-pointer text-accent hover:text-primary whitespace-pre" onClick={onClick}>
+                <span className="text-accent">•</span>{paddedNum}
+            </div>
         );
     }
+
     return (
-        <span className="flex items-center">
-            <span className="w-3"></span>
-            <span className="whitespace-pre">{paddedNum}</span>
-        </span>
+        <div className="text-right flex-shrink-0 cursor-pointer hover:text-primary whitespace-pre" onClick={onClick}>
+            {paddedNum}
+        </div>
     );
 }
 
@@ -47,8 +47,8 @@ interface LogLineComponentProps {
 }
 
 export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model }) => {
-    // Subscribe to the version atom to trigger re-renders when marked lines change
     useAtomValue(model.markedLinesVersion);
+    const lineNumWidth = useAtomValue(model.lineNumberWidth);
 
     const handleLineNumberClick = useCallback(() => {
         model.toggleLineMarked(line.linenum);
@@ -61,15 +61,7 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
             data-linenum={line.linenum}
             className={cn("flex text-muted select-none", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}
         >
-            <div
-                className={cn(
-                    "w-12 text-right flex-shrink-0 cursor-pointer",
-                    isMarked ? "text-accent" : "hover:text-primary"
-                )}
-                onClick={handleLineNumberClick}
-            >
-                {formatMarkedLineNumber(line.linenum, isMarked, 4)}
-            </div>
+            {formatMarkedLineNumber(line.linenum, isMarked, lineNumWidth, handleLineNumberClick)}
             <div className="text-secondary flex-shrink-0 pl-2">{formatTimestamp(line.ts, "HH:mm:ss.SSS")}</div>
             <div className="pl-2">{formatSource(line.source)}</div>
             <AnsiLine

@@ -63,6 +63,11 @@ class LogViewerModel {
     totalItemCount = selectAtom(this.logCountsAtom, (state) => state.total);
     searchedItemCount = selectAtom(this.logCountsAtom, (state) => state.searched);
     filteredItemCount = selectAtom(this.logCountsAtom, (state) => state.filtered);
+    
+    // Derived atom for line number width (minimum 3)
+    lineNumberWidth = selectAtom(this.totalItemCount, (count) => {
+        return Math.max(3, Math.floor(Math.log10(count || 1)) + 1);
+    });
 
     // Store marked lines in a regular Set
     markedLines: Set<number> = new Set<number>();

@@ -97,12 +97,17 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - ❌ `counter++ // Increment the counter`
     - ❌ `buffer.Write(data) // Write data to buffer`
     - ❌ `// Header component for app run list` (above AppRunListHeader)
+    - ❌ `// Updated function to include onClick parameter`
+    - ❌ `// Changed padding calculation`
+    - ❌ `// Removed unnecessary div`
+    - ❌ `// Using the model's width value here`
 - **Only use comments for**:
     - Explaining WHY a particular approach was chosen
     - Documenting non-obvious edge cases or side effects
     - Warning about potential pitfalls in usage
     - Explaining complex algorithms that can't be simplified
 - **When in doubt, leave it out**. No comment is better than a redundant comment.
+- **Never add comments explaining code changes** - The code should speak for itself, and version control tracks changes. The one exception to this rule is if it is a very unobvious implementation. Something that someone would typically implement in a different (wrong) way. Then the comment helps us remember WHY we changed it to a less obvious implementation.
 
 ### Tool Use
 
