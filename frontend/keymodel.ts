@@ -3,11 +3,10 @@
 
 import { AppModel } from "@/appmodel";
 import * as keyutil from "@/util/keyutil";
-import * as jotai from "jotai";
+import { getDefaultStore } from "jotai";
 
 type KeyHandler = (event: OutrigKeyboardEvent) => boolean;
 
-const simpleControlShiftAtom = jotai.atom(false);
 const globalKeyMap = new Map<string, (keyEvent: OutrigKeyboardEvent) => boolean>();
 const globalChordMap = new Map<string, Map<string, KeyHandler>>();
 export const CHORD_TIMEOUT = 2000;
@@ -51,6 +50,7 @@ function appHandleKeyDown(keyEvent: OutrigKeyboardEvent): boolean {
         return false;
     }
     lastHandledEvent = nativeEvent;
+
     if (activeChord) {
         console.log("handle activeChord", activeChord);
         // If we're in chord mode, look for the second key.
@@ -97,6 +97,17 @@ function registerGlobalKeys() {
     globalKeyMap.set("Ctrl:4", () => {
         AppModel.selectRuntimeStatsTab();
         return true;
+    });
+
+    // Add Escape key handler to close settings modal
+    globalKeyMap.set("Escape", () => {
+        console.log("Escape key pressed");
+        const settingsModalOpen = getDefaultStore().get(AppModel.settingsModalOpen);
+        if (settingsModalOpen) {
+            AppModel.closeSettingsModal();
+            return true;
+        }
+        return false;
     });
 }
 

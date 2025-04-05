@@ -1,5 +1,8 @@
+import { AppModel } from "@/appmodel";
 import { Tooltip } from "@/elements/tooltip";
+import { emitter } from "@/events";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
+import { useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
 import React, { useEffect, useRef } from "react";
 import { DELIMITER_PAIRS, handleDelimiter, handleSelectionWrapping, handleSpecialChar } from "./searchfilter-helpers";
@@ -50,13 +53,14 @@ const ErrorOverlay: React.FC<{
     // Calculate if cursor is inside a segment
     const isCursorInSegment = (segmentStart: number, segmentEnd: number) => {
         // Only consider cursor positions >= 0 (to handle the -1 case when input is not focused)
-        return cursorInfo.start >= 0 && (
+        return (
+            cursorInfo.start >= 0 &&
             // Cursor is inside the span
-            (cursorInfo.start >= segmentStart && cursorInfo.start < segmentEnd) ||
-            // Selection end is inside the span
-            (cursorInfo.end > segmentStart && cursorInfo.end <= segmentEnd) ||
-            // Selection completely contains the span
-            (cursorInfo.start <= segmentStart && cursorInfo.end >= segmentEnd)
+            ((cursorInfo.start >= segmentStart && cursorInfo.start < segmentEnd) ||
+                // Selection end is inside the span
+                (cursorInfo.end > segmentStart && cursorInfo.end <= segmentEnd) ||
+                // Selection completely contains the span
+                (cursorInfo.start <= segmentStart && cursorInfo.end >= segmentEnd))
         );
     };
 
@@ -154,6 +158,9 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     // Track cursor position and selection
     const [cursorInfo, setCursorInfo] = React.useState<CursorInfo>({ start: 0, end: 0 });
 
+    // Get the settings modal state
+    const settingsModalOpen = useAtomValue(AppModel.settingsModalOpen);
+
     // Update cursor position when selection changes
     useEffect(() => {
         const handleSelectionChange = () => {
@@ -243,14 +250,17 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     useEffect(() => {
         if (!autoFocus) return;
 
-        // Focus on mount
+        // Focus on mount, but only if settings modal is not open
         const timer = setTimeout(() => {
-            inputRef.current?.focus();
+            if (!settingsModalOpen) {
+                inputRef.current?.focus();
+            }
         }, 50);
 
         // Handle window focus changes
         const handleWindowFocus = () => {
-            if (autoFocus) {
+            // Only focus if the settings modal is not open
+            if (autoFocus && !settingsModalOpen) {
                 inputRef.current?.focus();
             }
         };
@@ -260,6 +270,23 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
         return () => {
             clearTimeout(timer);
             window.removeEventListener("focus", handleWindowFocus);
+        };
+    }, [autoFocus, inputRef, settingsModalOpen]);
+
+    // Listen for modalclose event to focus the input
+    useEffect(() => {
+        const handleModalClose = () => {
+            if (autoFocus) {
+                inputRef.current?.focus();
+            }
+        };
+
+        // Add event listener
+        emitter.on("modalclose", handleModalClose);
+
+        // Clean up
+        return () => {
+            emitter.off("modalclose", handleModalClose);
         };
     }, [autoFocus, inputRef]);
 

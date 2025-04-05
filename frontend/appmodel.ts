@@ -1,6 +1,7 @@
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { AppRunModel } from "./apprunlist/apprunlist-model";
 import { Toast } from "./elements/toast";
+import { emitter } from "./events";
 import { DefaultRpcClient } from "./init";
 import { RpcApi } from "./rpc/rpcclientapi";
 
@@ -19,6 +20,7 @@ class AppModel {
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
     autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AUTO_FOLLOW_STORAGE_KEY) !== "false"); // Default to true if not set
     leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for left navigation bar
+    settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
 
     // Toast notifications
     toasts: PrimitiveAtom<Toast[]> = atom<Toast[]>([]);
@@ -250,6 +252,20 @@ class AppModel {
         this.sendBrowserTabUrl();
     }
 
+    openSettingsModal(): void {
+        getDefaultStore().set(this.settingsModalOpen, true);
+
+        // Blur any active element to ensure it doesn't receive input
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+    }
+
+    closeSettingsModal(): void {
+        getDefaultStore().set(this.settingsModalOpen, false);
+        emitter.emit("modalclose");
+    }
+
     getAppRunInfoAtom(appRunId: string): Atom<AppRunInfo> {
         appRunId = appRunId || "";
         if (!this.appRunInfoAtomCache.has(appRunId)) {
@@ -309,7 +325,7 @@ class AppModel {
         const params = new URLSearchParams(window.location.search);
         const tabParam = params.get("tab");
         const appRunIdParam = params.get("appRunId");
-        
+
         const selectedTab = getDefaultStore().get(this.selectedTab);
         const selectedAppRunId = getDefaultStore().get(this.selectedAppRunId);
 

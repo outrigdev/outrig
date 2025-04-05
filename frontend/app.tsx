@@ -2,6 +2,7 @@ import { keydownWrapper } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
 import { useEffect } from "react";
 import { AppModel } from "./appmodel";
+import { SettingsButton } from "./elements/settingsbutton";
 import { ToastContainer } from "./elements/toast";
 import { Tooltip } from "./elements/tooltip";
 import { GoRoutines } from "./goroutines/goroutines";
@@ -10,6 +11,7 @@ import { appHandleKeyDown } from "./keymodel";
 import { LogViewer } from "./logviewer/logviewer";
 import { LeftNav } from "./main/leftnav";
 import { RuntimeStats } from "./runtimestats/runtimestats";
+import { SettingsModalContainer } from "./settings/settings-modal";
 import { StatusBar } from "./statusbar";
 import { Watches } from "./watches/watches";
 
@@ -264,8 +266,10 @@ function App() {
                         ))}
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center">
                     <AutoFollowButton />
+                    <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
+                    <SettingsButton onClick={() => AppModel.openSettingsModal()} />
                 </div>
             </nav>
 
@@ -279,6 +283,9 @@ function App() {
 
             {/* Toast container */}
             <ToastContainer toasts={toasts} onClose={handleToastClose} />
+
+            {/* Settings modal */}
+            <SettingsModalContainer />
         </div>
     );
 }
