@@ -1,13 +1,13 @@
-import { useAtom, useAtomValue } from "jotai";
 import { AppModel } from "@/appmodel";
 import { SettingsButton } from "@/elements/settingsbutton";
+import { Tooltip } from "@/elements/tooltip";
 import { GoRoutines } from "@/goroutines/goroutines";
 import { LogViewer } from "@/logviewer/logviewer";
 import { LeftNav } from "@/main/leftnav";
 import { RuntimeStats } from "@/runtimestats/runtimestats";
-import { StatusBar } from "@/statusbar";
-import { Tooltip } from "@/elements/tooltip";
 import { Watches } from "@/watches/watches";
+import { useAtom, useAtomValue } from "jotai";
+import { StatusBar } from "./statusbar";
 
 const TAB_DISPLAY_NAMES: Record<string, string> = {
     logs: "Logs",
@@ -202,4 +202,4 @@ export function MainApp() {
     );
 }
 
-export { FeatureTab, AppHeader, AutoFollowButton, Tab, TAB_DISPLAY_NAMES };
+export { AppHeader, AutoFollowButton, FeatureTab, Tab };

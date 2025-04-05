@@ -15,6 +15,8 @@ interface UrlState {
 
 // Create a primitive boolean atom.
 class AppModel {
+    // Development mode flag
+    isDev = import.meta.env.DEV;
     // UI state
     selectedTab: PrimitiveAtom<string> = atom("logs"); // Default to logs view
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");

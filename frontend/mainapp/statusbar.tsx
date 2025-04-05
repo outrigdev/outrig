@@ -1,9 +1,8 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { Box, CircleDot, Eye, List, PauseCircle, Wifi, WifiOff } from "lucide-react";
 import { useMemo } from "react";
-import { AppModel } from "./appmodel";
-import { Tooltip } from "./elements/tooltip";
-import { isDev } from "./init";
+import { AppModel } from "@/appmodel";
+import { Tooltip } from "@/elements/tooltip";
 
 function ConnectionStatus({ status }: { status: string }) {
     let icon;
@@ -78,7 +77,7 @@ export function StatusBar() {
     return (
         <div className="h-6 bg-panel border-t border-border flex items-center justify-between px-2 text-xs text-secondary mt-1">
             <div className="flex items-center space-x-4">
-                {isDev && (
+                {AppModel.isDev && (
                     <Tooltip content="Running in Development Mode" placement="bottom">
                         <div className="flex items-center">
                             {/* Custom styling for the DEV badge in the status bar */}

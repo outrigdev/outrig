@@ -14,8 +14,13 @@ declare global {
 window.jotaiStore = getDefaultStore();
 
 // Use different WebSocket port in development mode
-export const isDev = import.meta.env.DEV;
+const isDev = import.meta.env.DEV;
 const WebSocketPort = isDev ? 6006 : 5006;
+
+// Set document title based on development mode
+if (isDev) {
+    document.title = "Outrig (Dev)";
+}
 const WebSocketEndpoint = `ws://localhost:${WebSocketPort}/ws`;
 const RouteIdStorageKey = "outrig:routeid";
 
