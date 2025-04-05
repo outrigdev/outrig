@@ -2,6 +2,7 @@ import { useAtomValue } from "jotai";
 import React, { useEffect, useRef } from "react";
 import { AppModel } from "../appmodel";
 import { Modal } from "../elements/modal";
+import { SettingsModel } from "./settings-model";
 
 // Container component that checks isOpen state
 export const SettingsModalContainer: React.FC = () => {
@@ -30,6 +31,8 @@ export const SettingsModal: React.FC = () => {
         }
     }, []);
 
+    const showSource = useAtomValue(SettingsModel.logsShowSource);
+
     return (
         <Modal isOpen={true} title="Outrig Settings">
             <div className="text-primary">
@@ -42,8 +45,26 @@ export const SettingsModal: React.FC = () => {
                     aria-hidden="true"
                 />
 
-                {/* Settings content will go here */}
-                <p>Settings content will be added in the future.</p>
+                <div className="p-4 space-y-6">
+                    {/* Logs Section */}
+                    <div>
+                        <h2 className="text-lg font-semibold mb-3">Logs</h2>
+                        <div className="space-y-2">
+                            <div className="flex items-center">
+                                <input
+                                    id="show-source"
+                                    type="checkbox"
+                                    className="h-4 w-4 mr-2 cursor-pointer"
+                                    checked={showSource}
+                                    onChange={(e) => SettingsModel.setLogsShowSource(e.target.checked)}
+                                />
+                                <label htmlFor="show-source" className="cursor-pointer">
+                                    Show Source
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </Modal>
     );
