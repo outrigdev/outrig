@@ -53,7 +53,7 @@ export const Dropdown: React.FC<DropdownProps> = ({ id, value, onChange, options
     return (
         <div className={cn("flex flex-col", className)}>
             {label && (
-                <label htmlFor={id} className="mb-1 text-primary">
+                <label htmlFor={id} className="mb-1 text-primary text-sm">
                     {label}
                 </label>
             )}
@@ -62,7 +62,7 @@ export const Dropdown: React.FC<DropdownProps> = ({ id, value, onChange, options
                     id={id}
                     ref={refs.setReference}
                     type="button"
-                    className="flex items-center justify-between w-full px-3 py-2 text-left bg-buttonbg border border-border rounded-md cursor-pointer text-primary hover:bg-buttonhover"
+                    className="flex items-center justify-between w-full px-3 py-2 text-left bg-buttonbg border border-border rounded-md cursor-pointer text-primary text-sm hover:bg-buttonhover"
                     aria-haspopup="listbox"
                     aria-expanded={isOpen}
                     {...getReferenceProps()}
@@ -93,7 +93,7 @@ export const Dropdown: React.FC<DropdownProps> = ({ id, value, onChange, options
                                     <li
                                         key={option.value}
                                         className={cn(
-                                            "px-3 py-2 cursor-pointer hover:bg-buttonhover",
+                                            "px-3 py-2 cursor-pointer hover:bg-buttonhover text-sm",
                                             option.value === value ? "bg-accentbg/20 text-accent" : "text-primary"
                                         )}
                                         onClick={() => {

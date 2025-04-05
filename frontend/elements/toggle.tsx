@@ -35,7 +35,7 @@ export const Toggle: React.FC<ToggleProps> = ({ id, checked, onChange, label, cl
             {label && (
                 <label
                     htmlFor={id}
-                    className="ml-3 cursor-pointer select-none text-primary"
+                    className="ml-3 cursor-pointer select-none text-primary text-sm"
                     onClick={() => onChange(!checked)}
                 >
                     {label}

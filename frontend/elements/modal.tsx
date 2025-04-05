@@ -27,8 +27,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, title, children }) => {
     if (!isOpen) return null;
 
     return (
-        <div 
-            className="fixed inset-0 flex items-center justify-center z-50" 
+        <div
+            className="fixed inset-0 flex items-center justify-center z-50"
             onClick={() => AppModel.closeSettingsModal()}
         >
             {/* Backdrop */}
@@ -37,14 +37,14 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, title, children }) => {
                 aria-hidden="true"
                 onClick={() => AppModel.closeSettingsModal()}
             ></div>
-            
+
             {/* Modal content - stop propagation to prevent closing when clicked */}
             <div
                 ref={modalRef}
                 className="bg-panel border border-border rounded-md shadow-lg w-[500px] max-w-[90vw] max-h-[80vh] flex flex-col focus:outline-none z-10"
                 tabIndex={-1}
                 onClick={(e) => e.stopPropagation()}
-                role="dialog" 
+                role="dialog"
                 aria-modal="true"
             >
                 {/* Header */}

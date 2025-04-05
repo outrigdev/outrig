@@ -60,21 +60,21 @@ export const SettingsModal: React.FC = () => {
                                 onChange={(checked) => SettingsModel.setLogsShowSource(checked)}
                                 label="Show Source"
                             />
-                            
+
                             <Toggle
                                 id="show-milliseconds"
                                 checked={showMilliseconds}
                                 onChange={(checked) => SettingsModel.setLogsShowMilliseconds(checked)}
                                 label="Show Milliseconds"
                             />
-                            
+
                             <Dropdown
                                 id="time-format"
                                 value={timeFormat}
                                 onChange={(value) => SettingsModel.setLogsTimeFormat(value as "absolute" | "relative")}
                                 options={[
                                     { value: "absolute", label: "Absolute Time" },
-                                    { value: "relative", label: "Relative Time" }
+                                    { value: "relative", label: "Relative Time" },
                                 ]}
                                 label="Time Format"
                             />
