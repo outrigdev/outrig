@@ -57,6 +57,7 @@ type SearchManagerInfo struct {
 	RpcSource        string      `json:"rpcsource,omitempty"`
 	TrimmedCount     int         `json:"trimmedcount,omitempty"`
 	Stats            SearchStats `json:"stats"`
+	Streaming        bool        `json:"streaming"`
 }
 
 // SearchManager handles search functionality for a specific widget
@@ -81,6 +82,7 @@ type SearchManager struct {
 
 	MarkManager *MarkManager // Manager for marked lines
 	RpcSource   string       // Source of the last RPC request that used this manager
+	Streaming   bool         // Whether to stream updates to the client
 }
 
 // GetInfo returns a thread-safe copy of the SearchManager's information
@@ -98,6 +100,7 @@ func (m *SearchManager) GetInfo() SearchManagerInfo {
 		RpcSource:        m.RpcSource,
 		TrimmedCount:     m.TrimmedCount,
 		Stats:            m.Stats,
+		Streaming:        m.Streaming,
 	}
 }
 
@@ -106,8 +109,8 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 	m.Lock.Lock()
 	defer m.Lock.Unlock()
 
-	// Skip if we've already processed this line or an earlier one
-	if line.LineNum <= m.Stats.LastLineNum {
+	// Skip processing if streaming is disabled or if we've already processed this line
+	if !m.Streaming || line.LineNum <= m.Stats.LastLineNum {
 		return
 	}
 	m.Stats.LastLineNum = line.LineNum
@@ -169,6 +172,7 @@ func MakeSearchManager(widgetId string, appRunId string, peer PeerInterface) *Se
 		LastUsed:    time.Now(),
 		UserQuery:   uuid.New().String(), // pick a random value that will never match a real search term
 		MarkManager: MakeMarkManager(),
+		Streaming:   true, // Default to streaming mode
 	}
 
 	// Register this manager with the peer
@@ -345,9 +349,9 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 
 // maybeRunNewSearch checks if a new search is needed and performs it if necessary
 // Returns error spans from the user query and an error if the search fails
-func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) ([]rpctypes.SearchErrorSpan, error) {
-	// If the search term and system query haven't changed, no need to run a new search
-	if searchTerm == m.UserQuery && systemQuery == m.SystemQuery {
+func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string, streaming bool) ([]rpctypes.SearchErrorSpan, error) {
+	// If the search term, system query, and streaming flag haven't changed, no need to run a new search
+	if searchTerm == m.UserQuery && systemQuery == m.SystemQuery && streaming == m.Streaming {
 		return nil, nil
 	}
 
@@ -375,6 +379,7 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string) ([]rpc
 	// Update the query fields
 	m.UserQuery = searchTerm
 	m.SystemQuery = systemQuery
+	m.Streaming = streaming
 
 	sctx := &SearchContext{
 		MarkedLines: m.MarkManager.GetMarkedIds(),
@@ -403,7 +408,7 @@ func (m *SearchManager) SearchLogs(ctx context.Context, data rpctypes.SearchRequ
 
 	m.LastUsed = time.Now()
 	m.RpcSource = rpc.GetRpcSourceFromContext(ctx)
-	errorSpans, err := m.maybeRunNewSearch(data.SearchTerm, data.SystemQuery)
+	errorSpans, err := m.maybeRunNewSearch(data.SearchTerm, data.SystemQuery, data.Streaming)
 	if err != nil {
 		return rpctypes.SearchResultData{}, err
 	}

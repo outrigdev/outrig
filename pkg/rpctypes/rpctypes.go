@@ -46,7 +46,7 @@ type FullRpcInterface interface {
 	// goroutine search
 	GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data AppRunGoRoutinesByIdsRequest) (AppRunGoRoutinesData, error)
 	GoRoutineSearchRequestCommand(ctx context.Context, data GoRoutineSearchRequestData) (GoRoutineSearchResultData, error)
-	
+
 	// watch search
 	GetAppRunWatchesByIdsCommand(ctx context.Context, data AppRunWatchesByIdsRequest) (AppRunWatchesData, error)
 	WatchSearchRequestCommand(ctx context.Context, data WatchSearchRequestData) (WatchSearchResultData, error)
@@ -83,6 +83,7 @@ type SearchRequestData struct {
 	SystemQuery  string `json:"systemquery,omitempty"`
 	PageSize     int    `json:"pagesize"`
 	RequestPages []int  `json:"requestpages"`
+	Streaming    bool   `json:"streaming"`
 }
 
 type PageData struct {
@@ -98,11 +99,11 @@ type SearchErrorSpan struct {
 }
 
 type SearchResultData struct {
-	FilteredCount int              `json:"filteredcount"`
-	SearchedCount int              `json:"searchedcount"`
-	TotalCount    int              `json:"totalcount"`
-	MaxCount      int              `json:"maxcount"`
-	Pages         []PageData       `json:"pages"`
+	FilteredCount int               `json:"filteredcount"`
+	SearchedCount int               `json:"searchedcount"`
+	TotalCount    int               `json:"totalcount"`
+	MaxCount      int               `json:"maxcount"`
+	Pages         []PageData        `json:"pages"`
 	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
 }
 
@@ -197,8 +198,8 @@ type AppRunGoRoutinesByIdsRequest struct {
 
 // AppRunWatchesByIdsRequest defines the request for getting specific watches by their IDs
 type AppRunWatchesByIdsRequest struct {
-	AppRunId  string  `json:"apprunid"`
-	WatchIds  []int64 `json:"watchids"`
+	AppRunId string  `json:"apprunid"`
+	WatchIds []int64 `json:"watchids"`
 }
 
 type AppRunLogsData struct {
@@ -248,9 +249,9 @@ type GoRoutineSearchRequestData struct {
 
 // GoRoutineSearchResultData defines the response for goroutine search
 type GoRoutineSearchResultData struct {
-	SearchedCount int              `json:"searchedcount"`
-	TotalCount    int              `json:"totalcount"`
-	Results       []int64          `json:"results"`
+	SearchedCount int               `json:"searchedcount"`
+	TotalCount    int               `json:"totalcount"`
+	Results       []int64           `json:"results"`
 	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
 }
 
@@ -263,9 +264,9 @@ type WatchSearchRequestData struct {
 
 // WatchSearchResultData defines the response for watch search
 type WatchSearchResultData struct {
-	SearchedCount int              `json:"searchedcount"`
-	TotalCount    int              `json:"totalcount"`
-	Results       []int64          `json:"results"`
+	SearchedCount int               `json:"searchedcount"`
+	TotalCount    int               `json:"totalcount"`
+	Results       []int64           `json:"results"`
 	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
 }
 

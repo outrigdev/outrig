@@ -42,6 +42,7 @@ class LogViewerModel {
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     isLoading: PrimitiveAtom<boolean> = atom(false);
     followOutput: PrimitiveAtom<boolean> = atom(true);
+    isStreaming: PrimitiveAtom<boolean> = atom(true);
     vlistRef: React.RefObject<HTMLDivElement> = { current: null };
 
     // LogVList state

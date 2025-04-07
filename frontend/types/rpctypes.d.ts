@@ -261,6 +261,7 @@ declare global {
         systemquery?: string;
         pagesize: number;
         requestpages: number[];
+        streaming: boolean;
     };
 
     // rpctypes.SearchResultData

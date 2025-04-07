@@ -3,7 +3,7 @@ import { Tooltip } from "@/elements/tooltip";
 import { SearchFilter } from "@/searchfilter/searchfilter";
 import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
-import { ArrowDown, ArrowDownCircle } from "lucide-react";
+import { ArrowDown, ArrowDownCircle, Wifi, WifiOff } from "lucide-react";
 import React, { useCallback } from "react";
 import { LogViewerModel } from "./logviewer-model";
 
@@ -41,6 +41,36 @@ const FollowButton = React.memo<FollowButtonProps>(({ model }) => {
     );
 });
 FollowButton.displayName = "FollowButton";
+
+// Streaming Button component
+interface StreamingButtonProps {
+    model: LogViewerModel;
+}
+
+const StreamingButton = React.memo<StreamingButtonProps>(({ model }) => {
+    const [isStreaming, setIsStreaming] = useAtom(model.isStreaming);
+
+    const toggleStreaming = useCallback(() => {
+        setIsStreaming(!isStreaming);
+    }, [isStreaming, setIsStreaming]);
+
+    return (
+        <Tooltip content={isStreaming ? "Streaming On (Click to Disable)" : "Streaming Off (Click to Enable)"}>
+            <button
+                onClick={toggleStreaming}
+                className={`p-1 mr-1 rounded ${
+                    isStreaming
+                        ? "bg-primary/20 text-primary hover:bg-primary/30"
+                        : "text-muted hover:bg-buttonhover hover:text-primary"
+                } cursor-pointer transition-colors`}
+                aria-pressed={isStreaming}
+            >
+                {isStreaming ? <Wifi size={16} /> : <WifiOff size={16} />}
+            </button>
+        </Tooltip>
+    );
+});
+StreamingButton.displayName = "StreamingButton";
 
 // Filter component
 interface LogViewerFilterProps {
@@ -97,8 +127,8 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                         {totalCount > searchedCount ? "+" : ""}
                     </div>
                 </Tooltip>
-
                 <FollowButton model={model} />
+                <StreamingButton model={model} />
                 <RefreshButton
                     isRefreshingAtom={model.isRefreshing}
                     onRefresh={() => model.refresh()}
