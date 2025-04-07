@@ -19,6 +19,7 @@ export interface LogListInterface {
     pageSize: number;
     pages: PrimitiveAtom<LogPageInterface>[];
     version: number;
+    trimmedLines: number;
 }
 
 // Interface for log counts
@@ -86,6 +87,7 @@ class LogViewerModel {
             pageSize: PAGESIZE,
             pages: [],
             version: 0,
+            trimmedLines: 0,
         });
 
         this.keepAliveTimeoutId = setInterval(() => {
@@ -204,10 +206,10 @@ class LogViewerModel {
                 });
 
                 getDefaultStore().set(this.listAtom, {
-                    totalCount: results.filteredcount,
                     pageSize: PAGESIZE,
                     pages: pageAtoms,
                     version: this.listVersion,
+                    trimmedLines: 0, // Initialize with 0, will be updated from stream updates
                 });
             });
         } catch (e) {
@@ -226,10 +228,10 @@ class LogViewerModel {
                 });
 
                 getDefaultStore().set(this.listAtom, {
-                    totalCount: 0,
                     pageSize: PAGESIZE,
                     pages: [],
                     version: this.listVersion,
+                    trimmedLines: 0,
                 });
             });
         } finally {
@@ -474,7 +476,7 @@ class LogViewerModel {
     }
 
     handleLogStreamUpdate = (data: StreamUpdateData) => {
-        const { widgetid, offset, lines, totalcount, searchedcount, filteredcount } = data;
+        const { widgetid, offset, lines, totalcount, searchedcount, filteredcount, trimmedlines } = data;
         if (widgetid !== this.widgetId) return;
         if (!lines || lines.length === 0) return;
 
@@ -495,6 +497,14 @@ class LogViewerModel {
             total: totalcount,
             searched: searchedcount,
             filtered: filteredcount,
+        });
+
+        // Update trimmedLines in the listAtom
+        const store = getDefaultStore();
+        const listState = store.get(this.listAtom);
+        store.set(this.listAtom, {
+            ...listState,
+            trimmedLines: trimmedlines,
         });
     };
 
@@ -571,6 +581,7 @@ class LogViewerModel {
             store.set(this.listAtom, {
                 ...listState,
                 pages: newPages,
+                // Preserve the trimmedLines value
             });
         }
     };
