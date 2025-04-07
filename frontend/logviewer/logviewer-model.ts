@@ -475,6 +475,37 @@ class LogViewerModel {
         }
     }
 
+    // Unload pages that have been trimmed
+    unloadTrimmedPages = (trimmedLines: number, prevTrimmedLines: number) => {
+        const store = getDefaultStore();
+        const listState = store.get(this.listAtom);
+
+        // Calculate how many pages have been trimmed
+        const trimmedPages = Math.floor(trimmedLines / PAGESIZE);
+        const prevTrimmedPages = Math.floor(prevTrimmedLines / PAGESIZE);
+
+        if (trimmedPages <= prevTrimmedPages) {
+            return;
+        }
+        console.log("unloadTrimmedPages", prevTrimmedLines, "->", trimmedLines);
+
+        // For each newly trimmed page, set lines=[] and loaded=false
+        for (let i = prevTrimmedPages; i < trimmedPages && i < listState.pages.length; i++) {
+            const pageAtom = listState.pages[i];
+            if (pageAtom) {
+                const pageState = store.get(pageAtom);
+                if (pageState.loaded) {
+                    // Unload the page (similar to onPageRequired with load=false)
+                    store.set(pageAtom, {
+                        lines: [],
+                        totalCount: pageState.totalCount,
+                        loaded: false,
+                    });
+                }
+            }
+        }
+    };
+
     handleLogStreamUpdate = (data: StreamUpdateData) => {
         const { widgetid, offset, lines, totalcount, searchedcount, filteredcount, trimmedlines } = data;
         if (widgetid !== this.widgetId) return;
@@ -492,20 +523,23 @@ class LogViewerModel {
             currentOffset = 0;
         }
 
-        // Update logCountsAtom with the latest counts from the stream update
         getDefaultStore().set(this.logCountsAtom, {
             total: totalcount,
             searched: searchedcount,
             filtered: filteredcount,
         });
 
-        // Update trimmedLines in the listAtom
         const store = getDefaultStore();
         const listState = store.get(this.listAtom);
+        const prevTrimmedLines = listState.trimmedLines;
         store.set(this.listAtom, {
             ...listState,
             trimmedLines: trimmedlines,
         });
+        // Schedule unloading of trimmed pages with a delay to avoid double updates
+        setTimeout(() => {
+            this.unloadTrimmedPages(trimmedlines, prevTrimmedLines);
+        }, 100);
     };
 
     // Handle updates for a specific page

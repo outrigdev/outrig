@@ -12,15 +12,15 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/gensearch"
 )
 
-const LogLineBufferSize = 10000
+const LogLineBufferSize = gensearch.LogLineBufferSize
 
 // LogLinePeer manages log lines for an AppRunPeer
 type LogLinePeer struct {
 	logLines      *utilds.CirBuf[ds.LogLine]
-	lineNum       int64                            // Counter for log line numbers
-	logLineLock   sync.Mutex                       // Lock for synchronizing log line operations
+	lineNum       int64                              // Counter for log line numbers
+	logLineLock   sync.Mutex                         // Lock for synchronizing log line operations
 	searchMgr     []gensearch.SearchManagerInterface // Registered search managers
-	logSearchLock sync.RWMutex                     // Lock for search managers
+	logSearchLock sync.RWMutex                       // Lock for search managers
 }
 
 // MakeLogLinePeer creates a new LogLinePeer instance
@@ -35,10 +35,10 @@ func MakeLogLinePeer() *LogLinePeer {
 func (lp *LogLinePeer) addLogLine(line *ds.LogLine) {
 	lp.logLineLock.Lock()
 	defer lp.logLineLock.Unlock()
-	
+
 	lp.lineNum++
 	line.LineNum = lp.lineNum
-	
+
 	lp.logLines.Write(*line)
 }
 

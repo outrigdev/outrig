@@ -23,7 +23,7 @@ const (
 	CleanupInterval   = 10 * time.Second
 	MaxIdleTime       = 1 * time.Minute
 	TrimSize          = 1000
-	LogLineBufferSize = 10000 // Copied from apppeer.LogLineBufferSize to remove dependency
+	LogLineBufferSize = 4000
 )
 
 type PeerInterface interface {
@@ -410,21 +410,40 @@ func (m *SearchManager) SearchLogs(ctx context.Context, data rpctypes.SearchRequ
 
 	filteredSize := len(m.CachedResult)
 	totalPages := (filteredSize + data.PageSize - 1) / data.PageSize // Ceiling division
+	trimmedPages := m.TrimmedCount / data.PageSize                   // Number of pages that have been trimmed
+
+	// Total logical pages including trimmed ones
+	totalLogicalPages := totalPages + trimmedPages
+
 	pages := make([]rpctypes.PageData, 0, len(data.RequestPages))
 	seenPages := make(map[int]bool)
 	for _, pageNum := range data.RequestPages {
 		// Handle negative indices (counting from end)
 		resolvedPage := pageNum
 		if pageNum < 0 {
-			resolvedPage = totalPages + pageNum
+			resolvedPage = totalLogicalPages + pageNum
 		}
 
 		// Skip if out of range or already processed
-		if resolvedPage < 0 || resolvedPage >= totalPages || seenPages[resolvedPage] {
+		if resolvedPage < 0 || resolvedPage >= totalLogicalPages || seenPages[resolvedPage] {
 			continue
 		}
 		seenPages[resolvedPage] = true
-		startIndex := resolvedPage * data.PageSize
+
+		// Check if this page is in the trimmed range
+		if resolvedPage < trimmedPages {
+			// This page has been trimmed, return an empty page with the correct page number
+			pages = append(pages, rpctypes.PageData{
+				PageNum: resolvedPage,
+				Lines:   []ds.LogLine{},
+			})
+			continue
+		}
+
+		// Calculate the logical page number by subtracting trimmed pages
+		logicalPage := resolvedPage - trimmedPages
+
+		startIndex := logicalPage * data.PageSize
 		endIndex := utilfn.BoundValue(startIndex+data.PageSize, startIndex, filteredSize)
 		pages = append(pages, rpctypes.PageData{
 			PageNum: resolvedPage,

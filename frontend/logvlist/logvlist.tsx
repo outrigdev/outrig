@@ -84,24 +84,34 @@ export interface LogListProps {
 }
 
 function LogList({ listAtom, defaultItemHeight, lineComponent, onPageRequired, vlistRef }: LogListProps) {
-    const { pages, pageSize } = useAtomValue(listAtom);
+    const { pages, pageSize, trimmedLines } = useAtomValue(listAtom);
+
+    // Calculate how many pages have been trimmed
+    const trimmedPages = Math.floor(trimmedLines / pageSize);
+
+    // Use slice to get only the non-trimmed pages
+    const visiblePages = pages.slice(trimmedPages);
+
     return (
         <>
-            {pages.map((pageAtom, index) =>
-                pageAtom == null ? (
-                    <div key={`page-placeholder-${index}`} style={{ height: defaultItemHeight * pageSize }} />
+            {visiblePages.map((pageAtom, index) => {
+                // Adjust the page number to account for trimmed pages
+                const actualPageNum = index + trimmedPages;
+
+                return pageAtom == null ? (
+                    <div key={`page-placeholder-${actualPageNum}`} style={{ height: defaultItemHeight * pageSize }} />
                 ) : (
                     <LogPage
-                        key={`page-${index}`}
+                        key={`page-${actualPageNum}`}
                         pageAtom={pageAtom}
                         defaultItemHeight={defaultItemHeight}
                         lineComponent={lineComponent}
-                        pageNum={index}
+                        pageNum={actualPageNum}
                         onPageRequired={onPageRequired}
                         vlistRef={vlistRef}
                     />
-                )
-            )}
+                );
+            })}
         </>
     );
 }
@@ -130,6 +140,8 @@ export function LogVList({
     const versionAtom = useRef(atom((get) => get(listAtom).version)).current;
     const version = useAtomValue(versionAtom);
     const prevVersionRef = useRef<number>(version);
+    const { pageSize, trimmedLines } = useAtomValue(listAtom);
+    const prevTrimmedLinesRef = useRef<number>(trimmedLines);
 
     // Handle scroll position adjustment after version changes
     useLayoutEffect(() => {
@@ -146,7 +158,40 @@ export function LogVList({
             }
             prevVersionRef.current = version;
         }
-    }, [version, isPinnedToBottom, vlistRef]);
+    }, [version, isPinnedToBottom, vlistRef, pageSize]);
+
+    // Handle trimmedLines changes
+    useLayoutEffect(() => {
+        const container = vlistRef.current;
+        if (!container || trimmedLines === prevTrimmedLinesRef.current) return;
+
+        // Calculate how many pages were trimmed
+        const trimmedPages = Math.floor(trimmedLines / pageSize);
+
+        if (trimmedPages <= 0) {
+            prevTrimmedLinesRef.current = trimmedLines;
+            return;
+        }
+
+        // Get current scroll position and container dimensions
+        const scrollTop = container.scrollTop;
+
+        // Calculate the height of trimmed content
+        const trimmedHeight = trimmedPages * pageSize * defaultItemHeight;
+
+        // Case 1: User is viewing content that's been trimmed
+        if (scrollTop < trimmedHeight) {
+            // Reset to top of available content
+            container.scrollTop = 0;
+        }
+        // Case 2: User is viewing content below the trim point
+        else {
+            // Adjust scroll position to maintain relative view
+            container.scrollTop = scrollTop - trimmedHeight;
+        }
+
+        prevTrimmedLinesRef.current = trimmedLines;
+    }, [trimmedLines, pageSize, defaultItemHeight, vlistRef]);
     useEffect(() => {
         const content = contentRef.current;
         const container = vlistRef.current;
