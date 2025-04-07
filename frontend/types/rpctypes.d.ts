@@ -182,6 +182,8 @@ declare global {
         lastgc: number;
         pausetotalns: number;
         numgc: number;
+        totalheapobj: number;
+        totalheapobjfree: number;
     };
 
     // rpctypes.PageData

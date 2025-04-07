@@ -18,11 +18,6 @@ type RuntimeStatsCollector struct {
 	controller ds.Controller
 	ticker     *time.Ticker
 	done       chan struct{}
-
-	// These fields don't need locking as they are only accessed by the collector goroutine
-	lastTotalAlloc   uint64    // Last recorded TotalAlloc value
-	lastTotalHeapObj uint64    // Last recorded Mallocs value
-	lastCollection   time.Time // Timestamp of last collection
 }
 
 // CollectorName returns the unique name of the collector
@@ -109,35 +104,6 @@ func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	// Get current time for rate calculation
-	now := time.Now()
-
-	// Calculate allocation rate (bytes per second)
-	allocRate := float64(0)
-	heapObjRate := float64(0)
-	if !rc.lastCollection.IsZero() {
-		// Calculate time elapsed in seconds
-		elapsedSeconds := now.Sub(rc.lastCollection).Seconds()
-		if elapsedSeconds > 0 {
-			// Calculate allocation difference
-			allocDiff := int64(memStats.TotalAlloc) - int64(rc.lastTotalAlloc)
-			if allocDiff >= 0 {
-				allocRate = float64(allocDiff) / elapsedSeconds
-			}
-
-			// Calculate heap object allocation difference
-			heapObjDiff := int64(memStats.Mallocs) - int64(rc.lastTotalHeapObj)
-			if heapObjDiff >= 0 {
-				heapObjRate = float64(heapObjDiff) / elapsedSeconds
-			}
-		}
-	}
-
-	// Update last values for next calculation
-	rc.lastTotalAlloc = memStats.TotalAlloc
-	rc.lastTotalHeapObj = memStats.Mallocs
-	rc.lastCollection = now
-
 	// Create memory stats info
 	memStatsInfo := ds.MemoryStatsInfo{
 		Alloc:            memStats.Alloc,
@@ -159,10 +125,8 @@ func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
 		LastGC:           memStats.LastGC,
 		PauseTotalNs:     memStats.PauseTotalNs,
 		NumGC:            memStats.NumGC,
-		AllocRate:        allocRate,
 		TotalHeapObj:     memStats.Mallocs,
 		TotalHeapObjFree: memStats.Frees,
-		HeapObjRate:      heapObjRate,
 	}
 
 	// Get current process information
