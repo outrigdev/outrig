@@ -396,6 +396,8 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
         "heapMemory",
         "cpuUsage",
         "goroutineCount",
+        "currentHeapObjects",
+        "totalHeapObjects",
         "totalMemoryAllocated",
         "totalProcessMemory",
         "gcCycles",
