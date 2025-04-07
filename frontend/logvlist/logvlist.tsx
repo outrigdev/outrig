@@ -141,7 +141,6 @@ export function LogVList({
     const version = useAtomValue(versionAtom);
     const prevVersionRef = useRef<number>(version);
     const { pageSize, trimmedLines } = useAtomValue(listAtom);
-    const prevTrimmedLinesRef = useRef<number>(trimmedLines);
 
     // Handle scroll position adjustment after version changes
     useLayoutEffect(() => {
@@ -160,38 +159,6 @@ export function LogVList({
         }
     }, [version, isPinnedToBottom, vlistRef, pageSize]);
 
-    // Handle trimmedLines changes
-    useLayoutEffect(() => {
-        const container = vlistRef.current;
-        if (!container || trimmedLines === prevTrimmedLinesRef.current) return;
-
-        // Calculate how many pages were trimmed
-        const trimmedPages = Math.floor(trimmedLines / pageSize);
-
-        if (trimmedPages <= 0) {
-            prevTrimmedLinesRef.current = trimmedLines;
-            return;
-        }
-
-        // Get current scroll position and container dimensions
-        const scrollTop = container.scrollTop;
-
-        // Calculate the height of trimmed content
-        const trimmedHeight = trimmedPages * pageSize * defaultItemHeight;
-
-        // Case 1: User is viewing content that's been trimmed
-        if (scrollTop < trimmedHeight) {
-            // Reset to top of available content
-            container.scrollTop = 0;
-        }
-        // Case 2: User is viewing content below the trim point
-        else {
-            // Adjust scroll position to maintain relative view
-            container.scrollTop = scrollTop - trimmedHeight;
-        }
-
-        prevTrimmedLinesRef.current = trimmedLines;
-    }, [trimmedLines, pageSize, defaultItemHeight, vlistRef]);
     useEffect(() => {
         const content = contentRef.current;
         const container = vlistRef.current;
