@@ -128,6 +128,7 @@ class LogViewerModel {
             getDefaultStore().set(this.isLoading, true);
         }, 200);
         const followOutput = getDefaultStore().get(this.followOutput);
+        const streaming = getDefaultStore().get(this.isStreaming);
 
         // Request initial pages
         let requestPages: number[];
@@ -147,6 +148,7 @@ class LogViewerModel {
                 searchterm: searchTerm,
                 pagesize: PAGESIZE,
                 requestpages: requestPages,
+                streaming: streaming,
             });
         };
 
@@ -279,8 +281,9 @@ class LogViewerModel {
             return;
         }
 
-        // Get the search term
+        // Get the search term and streaming flag
         const searchTerm = getDefaultStore().get(this.searchTerm);
+        const streaming = getDefaultStore().get(this.isStreaming);
 
         const cmdPromiseFn = () => {
             return RpcApi.LogSearchRequestCommand(DefaultRpcClient, {
@@ -289,6 +292,7 @@ class LogViewerModel {
                 searchterm: searchTerm,
                 pagesize: PAGESIZE,
                 requestpages: [pageNum],
+                streaming: streaming,
             });
         };
 
