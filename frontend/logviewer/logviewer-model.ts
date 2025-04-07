@@ -104,6 +104,12 @@ class LogViewerModel {
 
         // Register for log stream update events
         emitter.on("logstreamupdate", this.handleLogStreamUpdate);
+
+        // Set up a listener for streaming flag changes
+        getDefaultStore().sub(this.isStreaming, () => {
+            // Re-issue the search when streaming flag changes
+            this.onStreamingFlagChange();
+        });
     }
 
     dispose() {
@@ -117,7 +123,7 @@ class LogViewerModel {
             { noresponse: true }
         );
 
-        // Clean up event listener
+        // Clean up event listeners
         emitter.off("logstreamupdate", this.handleLogStreamUpdate);
     }
 
@@ -365,6 +371,12 @@ class LogViewerModel {
             // Set refreshing state to false after ensuring minimum display time
             store.set(this.isRefreshing, false);
         }
+    }
+
+    // Handle streaming flag changes
+    async onStreamingFlagChange() {
+        const searchTerm = getDefaultStore().get(this.searchTerm);
+        await this.onSearchTermUpdate(searchTerm);
     }
 
     // Scroll control methods for LogVList
