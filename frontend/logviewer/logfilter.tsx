@@ -25,7 +25,7 @@ const FollowButton = React.memo<FollowButtonProps>(({ model }) => {
     }, [followOutput, model, setFollowOutput]);
 
     return (
-        <Tooltip content={followOutput ? "Tailing Log (Click to Disable)" : "Not Tailing Log (Click to Enable)"}>
+        <Tooltip content={followOutput ? "Pinned to Bottom (Click to Disable)" : "Not Pinned to Bottom (Click to Enable)"}>
             <button
                 onClick={toggleFollow}
                 className={`p-1 mr-1 rounded ${
