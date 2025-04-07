@@ -141,6 +141,7 @@ export function LogVList({
     const version = useAtomValue(versionAtom);
     const prevVersionRef = useRef<number>(version);
     const { pageSize, trimmedLines } = useAtomValue(listAtom);
+    const prevTrimmedLinesRef = useRef<number>(trimmedLines);
 
     // Handle scroll position adjustment after version changes
     useLayoutEffect(() => {
@@ -158,6 +159,26 @@ export function LogVList({
             prevVersionRef.current = version;
         }
     }, [version, isPinnedToBottom, vlistRef, pageSize]);
+
+    // Handle scroll position when lines are trimmed
+    useLayoutEffect(() => {
+        const container = vlistRef.current;
+        if (!container) return;
+
+        // If trimmedLines increased and we're viewing the trimmed portion
+        if (trimmedLines > prevTrimmedLinesRef.current) {
+            const trimmedPixels = (trimmedLines - prevTrimmedLinesRef.current) * defaultItemHeight;
+            // Only reset scroll if current scroll position is within the trimmed portion
+            if (container.scrollTop < trimmedPixels) {
+                // Reset scroll to top
+                container.scrollTop = 0;
+            }
+            // When outside the trimmed portion, the browser handles the adjustment automatically
+        }
+
+        // Update the previous trimmed lines reference
+        prevTrimmedLinesRef.current = trimmedLines;
+    }, [trimmedLines, defaultItemHeight, vlistRef]);
 
     useEffect(() => {
         const content = contentRef.current;
