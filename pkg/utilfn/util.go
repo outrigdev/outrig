@@ -339,3 +339,27 @@ func GetGoroutineID() int64 {
 	}
 	return id
 }
+
+// CalculateDeltas converts a slice of values to deltas between consecutive values
+// The first value is kept as is, and subsequent values are the difference from the previous value
+// If a value is exactly 0, it's treated as a counter reset and outputs 0 (not a negative delta)
+func CalculateDeltas(values []float64) []float64 {
+	if len(values) == 0 {
+		return nil
+	}
+	
+	deltaValues := make([]float64, len(values))
+	deltaValues[0] = values[0] // Keep the first value as is
+	
+	// Calculate deltas for the rest
+	for i := 1; i < len(values); i++ {
+		// If the current value is 0, treat it as a counter reset
+		if values[i] == 0 {
+			deltaValues[i] = 0
+		} else {
+			deltaValues[i] = values[i] - values[i-1]
+		}
+	}
+	
+	return deltaValues
+}
