@@ -15,13 +15,17 @@ import (
 )
 
 const GoRoutineStackBufferSize = 600
+const GoRoutinePruneThreshold = 600 // Number of iterations after which inactive goroutines are pruned
 
 // GoRoutine represents a goroutine with its stack traces
 type GoRoutine struct {
-	GoId        int64
-	Name        string
-	Tags        []string
-	StackTraces *utilds.CirBuf[ds.GoRoutineStack]
+	GoId               int64
+	Name               string
+	Tags               []string
+	StackTraces        *utilds.CirBuf[ds.GoRoutineStack]
+	FirstSeen          int64 // Timestamp when the goroutine was first seen
+	LastSeen           int64 // Timestamp when the goroutine was last seen
+	LastActiveIteration int64 // Iteration when the goroutine was last active
 }
 
 // GoRoutinePeer manages goroutines for an AppRunPeer
@@ -29,6 +33,7 @@ type GoRoutinePeer struct {
 	goRoutines       *utilds.SyncMap[GoRoutine]
 	activeGoRoutines map[int64]bool // Tracks currently running goroutines
 	lock             sync.RWMutex   // Lock for synchronizing goroutine operations
+	currentIteration int64          // Current iteration counter
 }
 
 // MakeGoRoutinePeer creates a new GoRoutinePeer instance
@@ -36,18 +41,23 @@ func MakeGoRoutinePeer() *GoRoutinePeer {
 	return &GoRoutinePeer{
 		goRoutines:       utilds.MakeSyncMap[GoRoutine](),
 		activeGoRoutines: make(map[int64]bool),
+		currentIteration: 0,
 	}
 }
 
 // ProcessGoroutineStacks processes goroutine stacks from a packet
-func (gp *GoRoutinePeer) ProcessGoroutineStacks(stacks []ds.GoRoutineStack) {
+func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 	gp.lock.Lock()
 	defer gp.lock.Unlock()
 
+	// Increment the iteration counter
+	gp.currentIteration++
+
 	activeGoroutines := make(map[int64]bool)
+	timestamp := info.Ts
 
 	// Process goroutine stacks
-	for _, stack := range stacks {
+	for _, stack := range info.Stacks {
 		goId := stack.GoId
 		goIdStr := strconv.FormatInt(goId, 10)
 
@@ -55,10 +65,17 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(stacks []ds.GoRoutineStack) {
 
 		goroutine, _ := gp.goRoutines.GetOrCreate(goIdStr, func() GoRoutine {
 			return GoRoutine{
-				GoId:        goId,
-				StackTraces: utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
+				GoId:               goId,
+				StackTraces:        utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
+				FirstSeen:          timestamp, // Set FirstSeen to the timestamp from GoroutineInfo
+				LastSeen:           timestamp, // Set LastSeen to the timestamp from GoroutineInfo
+				LastActiveIteration: gp.currentIteration,
 			}
 		})
+
+		// Update the last active iteration and last seen timestamp
+		goroutine.LastActiveIteration = gp.currentIteration
+		goroutine.LastSeen = timestamp
 
 		if stack.Name != "" {
 			goroutine.Name = stack.Name
@@ -73,6 +90,36 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(stacks []ds.GoRoutineStack) {
 	}
 
 	gp.activeGoRoutines = activeGoroutines
+
+	// Prune old goroutines
+	gp.pruneOldGoroutines()
+}
+
+// pruneOldGoroutines removes goroutines that haven't been active for more than GoRoutinePruneThreshold iterations
+func (gp *GoRoutinePeer) pruneOldGoroutines() {
+	// Calculate the cutoff iteration
+	cutoffIteration := gp.currentIteration - GoRoutinePruneThreshold
+
+	// Only prune if we have enough iterations
+	if cutoffIteration <= 0 {
+		return
+	}
+
+	// Get all goroutine IDs
+	keys := gp.goRoutines.Keys()
+
+	// Check each goroutine
+	for _, key := range keys {
+		goroutine, exists := gp.goRoutines.GetEx(key)
+		if !exists {
+			continue
+		}
+
+		// If the goroutine hasn't been active for more than GoRoutinePruneThreshold iterations, remove it
+		if goroutine.LastActiveIteration < cutoffIteration {
+			gp.goRoutines.Delete(key)
+		}
+	}
 }
 
 // GetActiveGoRoutineCount returns the number of active goroutines
@@ -114,6 +161,9 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 		}
 		parsedGoRoutine.Name = goroutineObj.Name
 		parsedGoRoutine.Tags = goroutineObj.Tags
+		parsedGoRoutine.FirstSeen = goroutineObj.FirstSeen
+		parsedGoRoutine.LastSeen = goroutineObj.LastSeen
+		parsedGoRoutine.Active = true // All goroutines returned by this method are active
 		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
 	}
 
@@ -129,7 +179,11 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 
 // GetParsedGoRoutinesByIds returns parsed goroutines for specific goroutine IDs
 func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int64) []rpctypes.ParsedGoRoutine {
-	// No lock needed as we're accessing thread-safe structures
+	// Get a local copy of the activeGoRoutines map under lock
+	gp.lock.RLock()
+	activeGoRoutinesCopy := gp.activeGoRoutines
+	gp.lock.RUnlock()
+
 	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(goIds))
 	for _, goId := range goIds {
 		goIdStr := strconv.FormatInt(goId, 10)
@@ -150,6 +204,9 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 		}
 		parsedGoRoutine.Name = goroutineObj.Name
 		parsedGoRoutine.Tags = goroutineObj.Tags
+		parsedGoRoutine.FirstSeen = goroutineObj.FirstSeen
+		parsedGoRoutine.LastSeen = goroutineObj.LastSeen
+		parsedGoRoutine.Active = activeGoRoutinesCopy[goId] // Set active flag based on whether it's in the activeGoRoutines map
 		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
 	}
 

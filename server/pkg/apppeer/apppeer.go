@@ -199,7 +199,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			return fmt.Errorf("failed to unmarshal GoroutineInfo: %w", err)
 		}
 
-		p.GoRoutines.ProcessGoroutineStacks(goroutineInfo.Stacks)
+		p.GoRoutines.ProcessGoroutineStacks(goroutineInfo)
 
 		log.Printf("Processed %d goroutines for app run ID: %s", len(goroutineInfo.Stacks), p.AppRunId)
 
