@@ -65,6 +65,16 @@ func RunServer() error {
 	}
 	defer lock.Close() // the defer statement will keep the lock alive
 
+	// Ensure we have a unique server ID
+	outrigId, isFirstRun, err := serverbase.EnsureOutrigId()
+	if err != nil {
+		return fmt.Errorf("error ensuring outrig ID: %w", err)
+	}
+	
+	// Set the global variables
+	serverbase.OutrigId = outrigId
+	serverbase.OutrigFirstRun = isFirstRun
+
 	outrigRpcServer := rpc.MakeRpcClient(nil, nil, &rpcserver.RpcServerImpl{}, "outrigsrv")
 	rpc.DefaultRouter.RegisterRoute("outrigsrv", outrigRpcServer, true)
 
