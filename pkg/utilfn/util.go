@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package utilfn
 
 import (
@@ -347,10 +350,10 @@ func CalculateDeltas(values []float64) []float64 {
 	if len(values) == 0 {
 		return nil
 	}
-	
+
 	deltaValues := make([]float64, len(values))
 	deltaValues[0] = values[0] // Keep the first value as is
-	
+
 	// Calculate deltas for the rest
 	for i := 1; i < len(values); i++ {
 		// If the current value is 0, treat it as a counter reset
@@ -360,6 +363,6 @@ func CalculateDeltas(values []float64) []float64 {
 			deltaValues[i] = values[i] - values[i-1]
 		}
 	}
-	
+
 	return deltaValues
 }

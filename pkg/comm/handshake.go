@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package comm
 
 import (
@@ -13,8 +16,8 @@ import (
 
 // Constants for handshake protocol
 const (
-	ModePrefix = "MODE:"
-	OkResponse = "OK"
+	ModePrefix  = "MODE:"
+	OkResponse  = "OK"
 	ErrorPrefix = "ERROR"
 )
 
@@ -67,7 +70,7 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	if submode != "" {
 		fullMode = fmt.Sprintf("%s:%s", modeName, submode)
 	}
-	
+
 	// Send the mode line to identify the connection type
 	modeLine := fmt.Sprintf("%s%s %s", ModePrefix, fullMode, appRunId)
 	if err := cw.WriteLine(modeLine); err != nil {
@@ -112,7 +115,7 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 
 	// Extract the part after MODE: prefix
 	modeAndAppId := strings.TrimPrefix(modeLine, ModePrefix)
-	
+
 	// Split into mode part and appRunId
 	parts := strings.SplitN(modeAndAppId, " ", 2)
 	modePart := parts[0]
@@ -120,7 +123,7 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 	if len(parts) > 1 {
 		appRunId = parts[1]
 	}
-	
+
 	// Parse mode and submode
 	// Format can be either "mode" or "mode:submode"
 	var mode, submode string
@@ -128,7 +131,7 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 		modeParts := strings.SplitN(modePart, ":", 2)
 		mode = modeParts[0]
 		submode = modeParts[1]
-		
+
 		// Validate submode format if present
 		if submode != "" && !logSourceRegexp.MatchString(submode) {
 			errMsg := fmt.Sprintf("%s invalid submode format: %s", ErrorPrefix, submode)
@@ -141,9 +144,9 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 	}
 
 	// Validate the mode
-	validMode := mode == base.ConnectionModePacket || 
-	             mode == base.ConnectionModeLog
-	
+	validMode := mode == base.ConnectionModePacket ||
+		mode == base.ConnectionModeLog
+
 	if !validMode {
 		errMsg := fmt.Sprintf("%s unknown connection mode: %s", ErrorPrefix, mode)
 		cw.WriteLine(errMsg)

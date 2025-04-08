@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package goroutine
 
 import (
@@ -234,7 +237,6 @@ func TestParseStateComponents(t *testing.T) {
 		})
 	}
 }
-
 
 func TestParseGoRoutineStackTrace(t *testing.T) {
 	tests := []struct {

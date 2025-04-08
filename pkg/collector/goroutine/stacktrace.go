@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package goroutine
 
 import (
@@ -177,7 +180,6 @@ func preprocessStackTrace(stackTrace string) PreprocessedGoRoutineLines {
 
 	return result
 }
-
 
 // parseFileLine parses a file line from a stack trace
 // Example: /opt/homebrew/Cellar/go/1.23.4/libexec/src/internal/poll/fd_unix.go:165 +0x1fc

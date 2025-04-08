@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package logprocess
 
 import (
@@ -42,7 +45,7 @@ func (lc *LogCollector) Enable() {
 	if config.LogProcessorConfig != nil {
 		// Get the appRunId from the controller
 		appRunId := lc.controller.GetAppRunId()
-		
+
 		// Use the new external log capture mechanism
 		err := loginitex.EnableExternalLogWrap(appRunId, *config.LogProcessorConfig, config.Dev)
 		if err != nil {

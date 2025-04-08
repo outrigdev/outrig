@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package comm
 
 import (
@@ -27,7 +30,7 @@ func Connect(mode string, submode string, appRunId string, domainSocketPath stri
 			conn, err := net.DialTimeout("unix", dsPath, 2*time.Second)
 			if err == nil {
 				connWrap := MakeConnWrap(conn, dsPath)
-				
+
 				// Perform the handshake
 				err := connWrap.ClientHandshake(mode, submode, appRunId)
 				if err != nil {
@@ -45,7 +48,7 @@ func Connect(mode string, submode string, appRunId string, domainSocketPath stri
 		conn, err := net.DialTimeout("tcp", serverAddr, 2*time.Second)
 		if err == nil {
 			connWrap := MakeConnWrap(conn, serverAddr)
-			
+
 			// Perform the handshake
 			err := connWrap.ClientHandshake(mode, submode, appRunId)
 			if err != nil {
