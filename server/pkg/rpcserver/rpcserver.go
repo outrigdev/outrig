@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
@@ -285,20 +284,11 @@ func (*RpcServerImpl) WatchSearchRequestCommand(ctx context.Context, data rpctyp
 		UserQuery: userSearcher,
 	}
 
-	// Get the map of watch names to watch numbers from the WatchesPeer
-	watchNameToNum := peer.Watches.GetWatchNameToNumMap()
-
-	// Create a function to convert WatchSample to WatchSearchObject
-	toSearchObj := func(watch ds.WatchSample) gensearch.SearchObject {
-		watchNum := watchNameToNum[watch.Name]
-		return gensearch.WatchSampleToSearchObject(watch, watchNum)
-	}
-
 	// Perform the search
 	filteredWatches, stats, err := gensearch.PerformSearch(
 		allWatches,
 		totalCount,
-		toSearchObj,
+		gensearch.WatchSampleToSearchObject,
 		effectiveSearcher,
 		sctx,
 	)
@@ -309,8 +299,7 @@ func (*RpcServerImpl) WatchSearchRequestCommand(ctx context.Context, data rpctyp
 	// Extract WatchNums from filtered results
 	results := make([]int64, 0, len(filteredWatches))
 	for _, watch := range filteredWatches {
-		watchNum := watchNameToNum[watch.Name]
-		results = append(results, watchNum)
+		results = append(results, watch.WatchNum)
 	}
 
 	// Sort the results by watch ID for consistent ordering

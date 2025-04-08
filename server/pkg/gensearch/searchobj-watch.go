@@ -75,9 +75,9 @@ func (wso *WatchSearchObject) GetField(fieldName string, fieldMods int) string {
 }
 
 // WatchSampleToSearchObject converts a WatchSample to a WatchSearchObject
-func WatchSampleToSearchObject(watch ds.WatchSample, watchNum int64) SearchObject {
+func WatchSampleToSearchObject(watch ds.WatchSample) SearchObject {
 	return &WatchSearchObject{
-		WatchNum: watchNum,
+		WatchNum: watch.WatchNum,
 		Name:     watch.Name,
 		Val:      watch.Value,
 		Tags:     watch.Tags,

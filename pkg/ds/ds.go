@@ -175,6 +175,7 @@ type RuntimeStatsInfo struct {
 }
 
 type WatchSample struct {
+	WatchNum int64    `json:"watchnum,omitempty"`
 	Name     string   `json:"name"`
 	Tags     []string `json:"tags,omitempty"`
 	Ts       int64    `json:"ts"`
