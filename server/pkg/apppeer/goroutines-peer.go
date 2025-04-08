@@ -5,7 +5,6 @@ package apppeer
 
 import (
 	"sort"
-	"strconv"
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
@@ -30,7 +29,7 @@ type GoRoutine struct {
 
 // GoRoutinePeer manages goroutines for an AppRunPeer
 type GoRoutinePeer struct {
-	goRoutines       *utilds.SyncMap[string, GoRoutine]
+	goRoutines       *utilds.SyncMap[int64, GoRoutine]
 	activeGoRoutines map[int64]bool // Tracks currently running goroutines
 	lock             sync.RWMutex   // Lock for synchronizing goroutine operations
 	currentIteration int64          // Current iteration counter
@@ -39,7 +38,7 @@ type GoRoutinePeer struct {
 // MakeGoRoutinePeer creates a new GoRoutinePeer instance
 func MakeGoRoutinePeer() *GoRoutinePeer {
 	return &GoRoutinePeer{
-		goRoutines:       utilds.MakeSyncMap[string, GoRoutine](),
+		goRoutines:       utilds.MakeSyncMap[int64, GoRoutine](),
 		activeGoRoutines: make(map[int64]bool),
 		currentIteration: 0,
 	}
@@ -59,11 +58,10 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 	// Process goroutine stacks
 	for _, stack := range info.Stacks {
 		goId := stack.GoId
-		goIdStr := strconv.FormatInt(goId, 10)
 
 		activeGoroutines[goId] = true
 
-		goroutine, _ := gp.goRoutines.GetOrCreate(goIdStr, func() GoRoutine {
+		goroutine, _ := gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
 			return GoRoutine{
 				GoId:                goId,
 				StackTraces:         utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
@@ -86,7 +84,7 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 
 		goroutine.StackTraces.Write(stack)
 
-		gp.goRoutines.Set(goIdStr, goroutine)
+		gp.goRoutines.Set(goId, goroutine)
 	}
 
 	gp.activeGoRoutines = activeGoroutines
@@ -143,9 +141,7 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 
 	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(activeGoRoutinesCopy))
 	for goId := range activeGoRoutinesCopy {
-		goIdStr := strconv.FormatInt(goId, 10)
-
-		goroutineObj, exists := gp.goRoutines.GetEx(goIdStr)
+		goroutineObj, exists := gp.goRoutines.GetEx(goId)
 		if !exists {
 			continue
 		}
@@ -186,9 +182,7 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 
 	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(goIds))
 	for _, goId := range goIds {
-		goIdStr := strconv.FormatInt(goId, 10)
-
-		goroutineObj, exists := gp.goRoutines.GetEx(goIdStr)
+		goroutineObj, exists := gp.goRoutines.GetEx(goId)
 		if !exists {
 			continue
 		}
