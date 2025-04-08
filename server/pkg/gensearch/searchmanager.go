@@ -144,14 +144,14 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 	m.CachedResult = append(m.CachedResult, line)
 	if len(m.CachedResult) > LogLineBufferSize+TrimSize {
 		m.TrimmedCount += TrimSize
-		
+
 		// Create a new slice with the remaining elements (after trimming)
 		newSize := len(m.CachedResult) - TrimSize
 		newResult := make([]ds.LogLine, newSize)
-		
+
 		// Copy the remaining elements to the new slice
 		copy(newResult, m.CachedResult[TrimSize:])
-		
+
 		// Replace the old slice with the new one
 		m.CachedResult = newResult
 	}
@@ -188,7 +188,7 @@ func MakeSearchManager(widgetId string, appRunId string, peer PeerInterface) *Se
 }
 
 // WidgetId => SearchManager
-var widgetManagers = utilds.MakeSyncMap[*SearchManager]()
+var widgetManagers = utilds.MakeSyncMap[string, *SearchManager]()
 
 // init starts the background cleanup routine and registers watches
 func init() {

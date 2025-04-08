@@ -48,7 +48,7 @@ type AppRunPeer struct {
 }
 
 // Global synchronized map to hold all AppRunPeers
-var appRunPeers = utilds.MakeSyncMap[*AppRunPeer]()
+var appRunPeers = utilds.MakeSyncMap[string, *AppRunPeer]()
 
 func init() {
 	outrig.WatchFunc("apppeer.keys", func() []string {

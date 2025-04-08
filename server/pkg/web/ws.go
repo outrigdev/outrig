@@ -62,7 +62,7 @@ const EventType_Rpc = "rpc"
 const EventType_Ping = "ping"
 const EventType_Pong = "pong"
 
-var ConnMap = utilds.MakeSyncMap[*WebSocketModel]()
+var ConnMap = utilds.MakeSyncMap[string, *WebSocketModel]()
 
 type WSEventType struct {
 	Type string `json:"type"`

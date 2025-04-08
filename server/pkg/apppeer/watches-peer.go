@@ -23,7 +23,7 @@ type Watch struct {
 
 // WatchesPeer manages watches for an AppRunPeer
 type WatchesPeer struct {
-	watches       *utilds.SyncMap[Watch]
+	watches       *utilds.SyncMap[string, Watch]
 	activeWatches map[string]bool // Tracks currently active watches
 	watchNum      int64           // Counter for watch numbers
 	lock          sync.RWMutex    // Lock for synchronizing watch operations
@@ -32,7 +32,7 @@ type WatchesPeer struct {
 // MakeWatchesPeer creates a new WatchesPeer instance
 func MakeWatchesPeer() *WatchesPeer {
 	return &WatchesPeer{
-		watches:       utilds.MakeSyncMap[Watch](),
+		watches:       utilds.MakeSyncMap[string, Watch](),
 		activeWatches: make(map[string]bool),
 		watchNum:      0,
 	}
@@ -87,11 +87,6 @@ func (wp *WatchesPeer) GetTotalWatchCount() int {
 	return len(wp.watches.Keys())
 }
 
-// GetWatches returns all watches
-func (wp *WatchesPeer) GetWatches() *utilds.SyncMap[Watch] {
-	return wp.watches
-}
-
 // GetAllWatches returns all watches with their most recent values
 func (wp *WatchesPeer) GetAllWatches() []ds.WatchSample {
 	watchNames := wp.watches.Keys()
@@ -117,7 +112,7 @@ func (wp *WatchesPeer) GetAllWatches() []ds.WatchSample {
 func (wp *WatchesPeer) GetWatchNameToNumMap() map[string]int64 {
 	watchNameToNum := make(map[string]int64)
 	watchNames := wp.watches.Keys()
-	
+
 	for _, name := range watchNames {
 		watch, exists := wp.watches.GetEx(name)
 		if !exists {
@@ -125,7 +120,7 @@ func (wp *WatchesPeer) GetWatchNameToNumMap() map[string]int64 {
 		}
 		watchNameToNum[name] = watch.WatchNum
 	}
-	
+
 	return watchNameToNum
 }
 
@@ -134,7 +129,7 @@ func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) []ds.WatchSample {
 	// Build a map of WatchNum to watch name for efficient lookups
 	watchNumToName := make(map[int64]string)
 	watchNames := wp.watches.Keys()
-	
+
 	for _, name := range watchNames {
 		watch, exists := wp.watches.GetEx(name)
 		if !exists {
@@ -142,7 +137,7 @@ func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) []ds.WatchSample {
 		}
 		watchNumToName[watch.WatchNum] = name
 	}
-	
+
 	// Get watches by their IDs using the map
 	watches := make([]ds.WatchSample, 0, len(watchIds))
 	for _, watchId := range watchIds {
@@ -150,24 +145,24 @@ func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) []ds.WatchSample {
 		if !exists {
 			continue
 		}
-		
+
 		watch, exists := wp.watches.GetEx(name)
 		if !exists {
 			continue
 		}
-		
+
 		latestWatch, _, exists := watch.WatchVals.GetLast()
 		if !exists {
 			continue
 		}
-		
+
 		watches = append(watches, latestWatch)
 	}
-	
+
 	// Sort watches by ID for consistent ordering
 	sort.Slice(watches, func(i, j int) bool {
 		return watches[i].Name < watches[j].Name
 	})
-	
+
 	return watches
 }

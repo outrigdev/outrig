@@ -19,18 +19,18 @@ const GoRoutinePruneThreshold = 600 // Number of iterations after which inactive
 
 // GoRoutine represents a goroutine with its stack traces
 type GoRoutine struct {
-	GoId               int64
-	Name               string
-	Tags               []string
-	StackTraces        *utilds.CirBuf[ds.GoRoutineStack]
-	FirstSeen          int64 // Timestamp when the goroutine was first seen
-	LastSeen           int64 // Timestamp when the goroutine was last seen
+	GoId                int64
+	Name                string
+	Tags                []string
+	StackTraces         *utilds.CirBuf[ds.GoRoutineStack]
+	FirstSeen           int64 // Timestamp when the goroutine was first seen
+	LastSeen            int64 // Timestamp when the goroutine was last seen
 	LastActiveIteration int64 // Iteration when the goroutine was last active
 }
 
 // GoRoutinePeer manages goroutines for an AppRunPeer
 type GoRoutinePeer struct {
-	goRoutines       *utilds.SyncMap[GoRoutine]
+	goRoutines       *utilds.SyncMap[string, GoRoutine]
 	activeGoRoutines map[int64]bool // Tracks currently running goroutines
 	lock             sync.RWMutex   // Lock for synchronizing goroutine operations
 	currentIteration int64          // Current iteration counter
@@ -39,7 +39,7 @@ type GoRoutinePeer struct {
 // MakeGoRoutinePeer creates a new GoRoutinePeer instance
 func MakeGoRoutinePeer() *GoRoutinePeer {
 	return &GoRoutinePeer{
-		goRoutines:       utilds.MakeSyncMap[GoRoutine](),
+		goRoutines:       utilds.MakeSyncMap[string, GoRoutine](),
 		activeGoRoutines: make(map[int64]bool),
 		currentIteration: 0,
 	}
@@ -65,10 +65,10 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 
 		goroutine, _ := gp.goRoutines.GetOrCreate(goIdStr, func() GoRoutine {
 			return GoRoutine{
-				GoId:               goId,
-				StackTraces:        utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
-				FirstSeen:          timestamp, // Set FirstSeen to the timestamp from GoroutineInfo
-				LastSeen:           timestamp, // Set LastSeen to the timestamp from GoroutineInfo
+				GoId:                goId,
+				StackTraces:         utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
+				FirstSeen:           timestamp, // Set FirstSeen to the timestamp from GoroutineInfo
+				LastSeen:            timestamp, // Set LastSeen to the timestamp from GoroutineInfo
 				LastActiveIteration: gp.currentIteration,
 			}
 		})
