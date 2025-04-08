@@ -261,7 +261,6 @@ func remarshalEventData(event *EventType) error {
 }
 
 func (b *BrokerType) Publish(event EventType) {
-	// log.Printf("BrokerType.Publish: %v\n", event)
 	if event.Persist > 0 {
 		b.persistEvent(event)
 	}
