@@ -20,6 +20,16 @@ import (
 	"time"
 )
 
+var PTLoc *time.Location
+
+func init() {
+	loc, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		loc = time.FixedZone("PT", -8*60*60)
+	}
+	PTLoc = loc
+}
+
 func GetHomeDir() string {
 	homeVar, err := os.UserHomeDir()
 	if err != nil {
@@ -365,4 +375,11 @@ func CalculateDeltas(values []float64) []float64 {
 	}
 
 	return deltaValues
+}
+
+func ConvertToWallClockPT(t time.Time) time.Time {
+	year, month, day := t.Date()
+	hour, min, sec := t.Clock()
+	pstTime := time.Date(year, month, day, hour, min, sec, 0, PTLoc)
+	return pstTime
 }

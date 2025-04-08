@@ -117,4 +117,3 @@ func OrigStderr() *os.File {
 type internalOutrig struct{}
 
 func (i *internalOutrig) SetGoRoutineName(name string) {}
-
