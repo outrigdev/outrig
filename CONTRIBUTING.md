@@ -4,7 +4,6 @@ We welcome and value contributions to Outrig! Outrig is an open source project, 
 
 - Submit issues related to bugs or new feature requests
 - Fix outstanding [issues](https://github.com/outrigdev/outrig/issues) with the existing code
-- Contribute to documentation in the `aidocs/` directory
 - Spread the word on social media
 - Or simply ⭐️ the repository to show your appreciation
 
