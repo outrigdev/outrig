@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { LogListInterface, LogPageInterface } from "@/logviewer/logviewer-model";
 import { atom, Atom, PrimitiveAtom, useAtomValue } from "jotai";
 import { JSX, useEffect, useLayoutEffect, useRef } from "react";

@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { Tooltip } from "@/elements/tooltip";
 import { cn } from "@/util/util";
 import { Atom, useAtomValue } from "jotai";

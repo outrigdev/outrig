@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import React from "react";
 import { Settings } from "lucide-react";
 import { Tooltip } from "./tooltip";

@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 export interface QueueItem<T> {
     task: () => Promise<T>;
     isStillValid?: () => boolean;

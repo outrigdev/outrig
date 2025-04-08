@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 // CSS is now loaded via link tag in index.html

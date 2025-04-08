@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useAtomValue } from "jotai";
 import { CircleDot, Clock, ExternalLink, Eye, List } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";

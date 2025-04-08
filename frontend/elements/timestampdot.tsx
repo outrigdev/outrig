@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { Tooltip } from "@/elements/tooltip";
 import { formatRelativeTime } from "@/util/util";
 import React, { useEffect, useRef, useState } from "react";

@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { RpcClient, RpcResponseHelper } from "@/rpc/rpc";
 import { RpcRouter } from "@/rpc/rpcrouter";
 import { emitter } from "@/events";

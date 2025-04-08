@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { AppRunList } from "@/apprunlist/apprunlist";
 import { AppModel } from "@/appmodel";
 import { cn } from "@/util/util";

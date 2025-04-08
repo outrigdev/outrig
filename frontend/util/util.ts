@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import base64 from "base64-js";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";

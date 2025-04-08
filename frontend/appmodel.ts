@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { AppRunModel } from "./apprunlist/apprunlist-model";
 import { Toast } from "./elements/toast";

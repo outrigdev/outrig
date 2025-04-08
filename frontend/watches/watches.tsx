@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";

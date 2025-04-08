@@ -1,3 +1,6 @@
+// Copyright 2025, Command Line Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 // Import the LegacyRuntimeStatsData type from the model
 import { LegacyRuntimeStatsData } from "./runtimestats-model";
 
