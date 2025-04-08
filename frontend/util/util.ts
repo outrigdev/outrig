@@ -62,7 +62,7 @@ export function cn(...inputs: ClassValue[]) {
 export function formatRelativeTime(timestamp: number): string {
     const now = Date.now();
     const diffInSeconds = Math.floor((now - timestamp) / 1000);
-    
+
     if (diffInSeconds < 10) {
         return "just now";
     } else if (diffInSeconds < 60) {
@@ -133,4 +133,34 @@ export function mergeArraysByKey<T, K>(arr1: T[], arr2: T[], keyFn: (item: T) =>
     }
 
     return result;
+}
+
+/**
+ * Formats a timestamp as an offset from a start time (e.g., "+50s", "+2m30s", "+5h23m")
+ * Rounds down (floors) the difference to the nearest second
+ */
+export function formatTimeOffset(timestamp: number, startTime: number): string {
+    if (!timestamp || !startTime) {
+        return "";
+    }
+
+    // Calculate difference in seconds, flooring to the nearest second
+    const diffInSeconds = Math.floor((timestamp - startTime) / 1000);
+
+    // If the difference is negative or zero, return "+0s"
+    if (diffInSeconds <= 0) {
+        return "+0s";
+    }
+
+    if (diffInSeconds < 60) {
+        return `+${diffInSeconds}s`;
+    } else if (diffInSeconds < 3600) {
+        const minutes = Math.floor(diffInSeconds / 60);
+        const seconds = diffInSeconds % 60;
+        return seconds > 0 ? `+${minutes}m${seconds}s` : `+${minutes}m`;
+    } else {
+        const hours = Math.floor(diffInSeconds / 3600);
+        const minutes = Math.floor((diffInSeconds % 3600) / 60);
+        return minutes > 0 ? `+${hours}h${minutes}m` : `+${hours}h`;
+    }
 }
