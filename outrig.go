@@ -1,6 +1,8 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build !no_outrig
+
 package outrig
 
 import (
@@ -223,22 +225,6 @@ func TrackCounter[T constraints.Integer | constraints.Float](name string, val T)
 	rval := reflect.ValueOf(val)
 	cleanName, tags := utilfn.ParseNameAndTags(name)
 	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), ds.WatchFlag_Push|ds.WatchFlag_Counter)
-}
-
-func RegisterHook(name string, hookFn any) {
-	if hookFn == nil {
-		return
-	}
-	wc := watch.GetInstance()
-	wc.RegisterHook(name, hookFn, ds.WatchFlag_Hook|ds.WatchFlag_Settable)
-}
-
-func RegisterSimpleHook(name string, hookFn func() error) {
-	if hookFn == nil {
-		return
-	}
-	wc := watch.GetInstance()
-	wc.RegisterHook(name, hookFn, ds.WatchFlag_Hook|ds.WatchFlag_Settable)
 }
 
 // SetGoRoutineName sets a name for the current goroutine
