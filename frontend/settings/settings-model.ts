@@ -56,7 +56,7 @@ class SettingsModel {
 
     logsShowSource = atom((get) => {
         const settings = get(this.settings);
-        return settings.logs?.showSource ?? DEFAULT_SHOW_SOURCE;
+        return settings?.logs?.showSource ?? DEFAULT_SHOW_SOURCE;
     });
 
     setLogsShowSource(value: boolean): void {
@@ -74,7 +74,7 @@ class SettingsModel {
 
     logsShowTimestamp = atom((get) => {
         const settings = get(this.settings);
-        return settings.logs?.showTimestamp ?? DEFAULT_SHOW_TIMESTAMP;
+        return settings?.logs?.showTimestamp ?? DEFAULT_SHOW_TIMESTAMP;
     });
 
     setLogsShowTimestamp(value: boolean): void {
@@ -92,7 +92,7 @@ class SettingsModel {
 
     logsShowMilliseconds = atom((get) => {
         const settings = get(this.settings);
-        return settings.logs?.showMilliseconds ?? DEFAULT_SHOW_MILLISECONDS;
+        return settings?.logs?.showMilliseconds ?? DEFAULT_SHOW_MILLISECONDS;
     });
 
     setLogsShowMilliseconds(value: boolean): void {
@@ -110,7 +110,7 @@ class SettingsModel {
 
     logsTimeFormat = atom((get) => {
         const settings = get(this.settings);
-        return settings.logs?.timeFormat ?? DEFAULT_TIME_FORMAT;
+        return settings?.logs?.timeFormat ?? DEFAULT_TIME_FORMAT;
     });
 
     setLogsTimeFormat(value: "absolute" | "relative"): void {
@@ -128,7 +128,7 @@ class SettingsModel {
 
     logsShowLineNumbers = atom((get) => {
         const settings = get(this.settings);
-        return settings.logs?.showLineNumbers ?? DEFAULT_SHOW_LINE_NUMBERS;
+        return settings?.logs?.showLineNumbers ?? DEFAULT_SHOW_LINE_NUMBERS;
     });
 
     setLogsShowLineNumbers(value: boolean): void {
