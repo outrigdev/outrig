@@ -39,6 +39,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 - We use tailwind v4 to style. Custom stuff is defined in app.css. We have both light/dark mode styles that are defined via CSS variables. Note this means there is not a tailwind.config.ts file! Tailwind v4 uses CSS variables (defined in app.css) to produce custom tailwind classes and overrides.
 - The app must support both light and dark modes. We prefer to use the same tailwind clases for both light/dark and define overrides in the light/dark sections in app.css. So text-primary is a black color in light mode, but a white color in dark mode.
+- _never_ use cursor-help (it looks terrible)
 
 ### Code Generation
 

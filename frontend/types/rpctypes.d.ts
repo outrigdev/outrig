@@ -197,6 +197,9 @@ declare global {
         goid: number;
         name?: string;
         tags?: string[];
+        firstseen?: number;
+        lastseen?: number;
+        active: boolean;
         rawstacktrace: string;
         rawstate: string;
         primarystate: string;

@@ -2,9 +2,10 @@ import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
 import { SearchFilter } from "@/searchfilter/searchfilter";
+import { AppModel } from "@/appmodel";
 import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
-import { cn } from "@/util/util";
+import { cn, formatTimeOffset } from "@/util/util";
 import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
 import { Layers, Layers2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -114,6 +115,7 @@ interface GoroutineViewProps {
 
 const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     const linkType = useAtomValue(model.showCodeLinks);
+    const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
     const simpleMode = useAtomValue(model.simpleStacktraceMode);
     const stackTraceRef = useRef<HTMLDivElement>(null);
 
@@ -141,13 +143,22 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
         <div className="pl-4 pr-2">
             <div className="py-2">
                 <div className="flex justify-between items-center">
-                    <div className="font-semibold text-primary whitespace-nowrap overflow-hidden text-ellipsis pr-4">
-                        {goroutine.name ? (
-                            <>
-                                {goroutine.name} <span className="text-secondary">({goroutine.goid})</span>
-                            </>
-                        ) : (
-                            `Goroutine ${goroutine.goid}`
+                    <div className="font-semibold text-primary whitespace-nowrap overflow-hidden text-ellipsis pr-4 flex items-center">
+                        <span>
+                            {goroutine.name ? (
+                                <>
+                                    {goroutine.name} <span className="text-secondary">({goroutine.goid})</span>
+                                </>
+                            ) : (
+                                `Goroutine ${goroutine.goid}`
+                            )}
+                        </span>
+                        {goroutine.firstseen && appRunStartTime && (
+                            <Tooltip content={`Goroutine started at ${new Date(goroutine.firstseen).toLocaleString()}`}>
+                                <span className="ml-2 text-xs text-muted bg-muted/10 px-1 py-0.5 rounded hover:bg-muted/20 transition-colors">
+                                    {formatTimeOffset(goroutine.firstseen, appRunStartTime)}
+                                </span>
+                            </Tooltip>
                         )}
                     </div>
                     <div>
