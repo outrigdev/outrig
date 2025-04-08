@@ -14,11 +14,14 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
+
+var Disabled atomic.Bool
 
 var ValidEventNames = map[string]bool{
 	"server:install":            true,

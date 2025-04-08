@@ -12,6 +12,7 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/boot"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
+	"github.com/outrigdev/outrig/server/pkg/tevent"
 	"github.com/spf13/cobra"
 )
 
@@ -65,9 +66,17 @@ func main() {
 		Short: "Run the Outrig server",
 		Long:  `Run the Outrig server which provides real-time debugging capabilities.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Check if telemetry should be disabled
+			noTelemetry, _ := cmd.Flags().GetBool("no-telemetry")
+			if noTelemetry {
+				tevent.Disabled.Store(true)
+			}
 			return boot.RunServer()
 		},
 	}
+	
+	// Add no-telemetry flag to server command only
+	serverCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
 
 	versionCmd := &cobra.Command{
 		Use:   "version",
