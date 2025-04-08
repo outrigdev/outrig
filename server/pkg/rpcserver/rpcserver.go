@@ -157,6 +157,42 @@ func (*RpcServerImpl) GetAppRunWatchesByIdsCommand(ctx context.Context, data rpc
 	}, nil
 }
 
+// GetWatchHistoryCommand returns the history of samples for a specific watch
+func (*RpcServerImpl) GetWatchHistoryCommand(ctx context.Context, data rpctypes.WatchHistoryRequest) (rpctypes.WatchHistoryData, error) {
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	if peer == nil || peer.AppInfo == nil {
+		return rpctypes.WatchHistoryData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Get watch history from the WatchesPeer
+	watchHistory := peer.Watches.GetWatchHistory(data.WatchNum)
+
+	return rpctypes.WatchHistoryData{
+		AppRunId:     peer.AppRunId,
+		AppName:      peer.AppInfo.AppName,
+		WatchHistory: watchHistory,
+	}, nil
+}
+
+// GetWatchNumericCommand returns numeric values for a specific watch
+func (*RpcServerImpl) GetWatchNumericCommand(ctx context.Context, data rpctypes.WatchNumericRequest) (rpctypes.WatchNumericData, error) {
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	if peer == nil || peer.AppInfo == nil {
+		return rpctypes.WatchNumericData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Get numeric values from the WatchesPeer
+	numericValues := peer.Watches.GetWatchNumeric(data.WatchNum)
+
+	return rpctypes.WatchNumericData{
+		AppRunId:      peer.AppRunId,
+		AppName:       peer.AppInfo.AppName,
+		NumericValues: numericValues,
+	}, nil
+}
+
 // GetAppRunRuntimeStatsCommand returns runtime stats for a specific app run
 func (*RpcServerImpl) GetAppRunRuntimeStatsCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunRuntimeStatsData, error) {
 	// Get the app run peer

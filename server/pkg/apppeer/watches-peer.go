@@ -129,28 +129,29 @@ func (wp *WatchesPeer) GetWatchNumeric(watchNum int64) []float64 {
 	if !exists {
 		return nil
 	}
-	
+
 	// Get all samples from the circular buffer
 	samples, _ := watch.WatchVals.GetAll()
 	if len(samples) == 0 {
 		return nil
 	}
-	
+
 	// Convert each sample to a numeric value
 	numericValues := make([]float64, 0, len(samples))
 	for _, sample := range samples {
 		numericValues = append(numericValues, sample.GetNumericVal())
 	}
-	
+
 	// Check if this is a counter by examining the flags of the first sample
 	// (assuming all samples have the same flags)
 	if len(samples) > 0 && (samples[0].Flags&ds.WatchFlag_Counter) != 0 {
 		// For counters, convert to deltas
 		return utilfn.CalculateDeltas(numericValues)
 	}
-	
+
 	return numericValues
 }
+
 // GetWatchesByIds returns watches for specific watch IDs
 func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) []ds.WatchSample {
 	// Get watches by their IDs directly
@@ -175,4 +176,21 @@ func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) []ds.WatchSample {
 	})
 
 	return watches
+}
+
+// GetWatchHistory returns the full history of samples for a specific watch
+func (wp *WatchesPeer) GetWatchHistory(watchNum int64) []ds.WatchSample {
+	// Get the watch directly by its number
+	watch, exists := wp.watches.GetEx(watchNum)
+	if !exists {
+		return nil
+	}
+
+	// Get all samples from the circular buffer
+	samples, _ := watch.WatchVals.GetAll()
+	if len(samples) == 0 {
+		return nil
+	}
+
+	return samples
 }

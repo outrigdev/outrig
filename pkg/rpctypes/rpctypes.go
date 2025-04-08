@@ -49,6 +49,8 @@ type FullRpcInterface interface {
 
 	// watch search
 	GetAppRunWatchesByIdsCommand(ctx context.Context, data AppRunWatchesByIdsRequest) (AppRunWatchesData, error)
+	GetWatchHistoryCommand(ctx context.Context, data WatchHistoryRequest) (WatchHistoryData, error)
+	GetWatchNumericCommand(ctx context.Context, data WatchNumericRequest) (WatchNumericData, error)
 	WatchSearchRequestCommand(ctx context.Context, data WatchSearchRequestData) (WatchSearchResultData, error)
 
 	// event commands
@@ -303,6 +305,32 @@ type BrowserTabUrlData struct {
 	AppRunId   string `json:"apprunid,omitempty"`
 	Focused    bool   `json:"focused"`
 	AutoFollow bool   `json:"autofollow"`
+}
+
+// WatchHistoryRequest defines the request for getting watch history
+type WatchHistoryRequest struct {
+	AppRunId string `json:"apprunid"`
+	WatchNum int64  `json:"watchnum"`
+}
+
+// WatchHistoryData defines the response for watch history
+type WatchHistoryData struct {
+	AppRunId     string           `json:"apprunid"`
+	AppName      string           `json:"appname"`
+	WatchHistory []ds.WatchSample `json:"watchhistory"`
+}
+
+// WatchNumericRequest defines the request for getting numeric watch values
+type WatchNumericRequest struct {
+	AppRunId string `json:"apprunid"`
+	WatchNum int64  `json:"watchnum"`
+}
+
+// WatchNumericData defines the response for numeric watch values
+type WatchNumericData struct {
+	AppRunId      string    `json:"apprunid"`
+	AppName       string    `json:"appname"`
+	NumericValues []float64 `json:"numericvalues"`
 }
 
 // StackFrame represents a single frame in a goroutine stack trace
