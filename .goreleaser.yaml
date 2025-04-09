@@ -4,88 +4,89 @@
 project_name: outrig
 
 before:
-  hooks:
-    # Install dependencies and build the frontend before packaging
-    - npm ci
-    - task build:frontend
+    hooks:
+        # Install dependencies and build the frontend before packaging
+        - npm ci
+        - task build:frontend
 
 builds:
-  - main: ./server/main-server.go
-    id: outrig
-    binary: outrig
-    ldflags:
-      - -X main.OutrigVersion={{.Version}} -X main.OutrigBuildTime={{.Timestamp}}
-    goos:
-      - linux
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
+    - main: ./server/main-server.go
+      dir: ./server
+      id: outrig
+      binary: outrig
+      ldflags:
+          - -X main.OutrigVersion={{.Version}} -X main.OutrigBuildTime={{.Timestamp}}
+      goos:
+          - linux
+          - darwin
+      goarch:
+          - amd64
+          - arm64
+      env:
+          - CGO_ENABLED=0
 
 archives:
-  - format: tar.gz
-    name_template: >-
-      {{ .ProjectName }}_{{ .Version }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-    format_overrides:
-      - goos: darwin
-        format: zip
-    files:
-      - LICENSE
-      - README.md
-      - NOTICE
+    - format: tar.gz
+      name_template: >-
+          {{ .ProjectName }}_{{ .Version }}_
+          {{- title .Os }}_
+          {{- if eq .Arch "amd64" }}x86_64
+          {{- else if eq .Arch "386" }}i386
+          {{- else }}{{ .Arch }}{{ end }}
+      format_overrides:
+          - goos: darwin
+            format: zip
+      files:
+          - LICENSE
+          - README.md
+          - NOTICE
 
 checksum:
-  name_template: 'checksums.txt'
+    name_template: "checksums.txt"
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+    name_template: "{{ incpatch .Version }}-next"
 
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-      - Merge pull request
-      - Merge branch
+    sort: asc
+    filters:
+        exclude:
+            - "^docs:"
+            - "^test:"
+            - "^ci:"
+            - Merge pull request
+            - Merge branch
 
 # Homebrew tap configuration
 brews:
-  - tap:
-      owner: outrigdev
-      name: homebrew-outrig
-    homepage: "https://github.com/outrigdev/outrig"
-    description: "Real-time debugging for Go programs, similar to Chrome DevTools"
-    license: "Apache-2.0"
-    folder: Formula
-    install: |
-      bin.install "outrig"
-    test: |
-      system "#{bin}/outrig", "version"
+    - tap:
+          owner: outrigdev
+          name: homebrew-outrig
+      homepage: "https://github.com/outrigdev/outrig"
+      description: "Real-time debugging for Go programs, similar to Chrome DevTools"
+      license: "Apache-2.0"
+      folder: Formula
+      install: |
+          bin.install "outrig"
+      test: |
+          system "#{bin}/outrig", "version"
 
 # Linux packages (.deb and .rpm)
 nfpms:
-  - package_name: outrig
-    homepage: "https://github.com/outrigdev/outrig"
-    description: "Real-time debugging for Go programs, similar to Chrome DevTools"
-    maintainer: "Outrig Dev <info@outrig.dev>"
-    license: "Apache-2.0"
-    vendor: "Outrig Dev"
-    formats:
-      - deb
-      - rpm
-    bindir: /usr/bin
-    contents:
-      - src: LICENSE
-        dst: /usr/share/doc/outrig/LICENSE
-      - src: README.md
-        dst: /usr/share/doc/outrig/README.md
-    recommends:
-      - git
+    - package_name: outrig
+      homepage: "https://github.com/outrigdev/outrig"
+      description: "Real-time debugging for Go programs, similar to Chrome DevTools"
+      maintainer: "Outrig Dev <info@outrig.dev>"
+      license: "Apache-2.0"
+      vendor: "Outrig Dev"
+      formats:
+          - deb
+          - rpm
+      bindir: /usr/bin
+      contents:
+          - src: LICENSE
+            dst: /usr/share/doc/outrig/LICENSE
+          - src: README.md
+            dst: /usr/share/doc/outrig/README.md
+      recommends:
+          - git
