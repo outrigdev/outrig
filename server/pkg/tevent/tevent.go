@@ -19,9 +19,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
 
 var Disabled atomic.Bool
+var uploadLock sync.Mutex
 
 var ValidEventNames = map[string]bool{
 	"server:install":            true,
@@ -237,4 +239,48 @@ func determineLang() string {
 	} else {
 		return os.Getenv("LANG")
 	}
+}
+
+// createCommonUserProps creates a TEventUserProps with common properties set
+func createCommonUserProps() *TEventUserProps {
+	return &TEventUserProps{
+		ClientArch:      ClientArch(),
+		ClientVersion:   serverbase.OutrigVersion,
+		ClientBuildTime: serverbase.OutrigBuildTime,
+		ClientOSRelease: UnameKernelRelease(),
+		ClientIsDev:     serverbase.IsDev(),
+	}
+}
+
+// SendInstallEvent sends an "outrig:install" telemetry event
+func SendInstallEvent() {
+	if Disabled.Load() {
+		return
+	}
+
+	props := TEventProps{}
+
+	// Set regular user properties that should be updated with every event
+	props.UserSet = createCommonUserProps()
+
+	// For install event, also set the initial version as a property that should only be set once
+	event := MakeTEvent("server:install", props)
+	event.UserSetOnceProps().ClientInitialVersion = serverbase.OutrigVersion
+
+	WriteTEvent(*event)
+}
+
+// SendStartupEvent sends a "server:startup" telemetry event
+func SendStartupEvent() {
+	if Disabled.Load() {
+		return
+	}
+
+	props := TEventProps{}
+
+	// Set user properties that should be updated with every startup
+	props.UserSet = createCommonUserProps()
+
+	event := MakeTEvent("server:startup", props)
+	WriteTEvent(*event)
 }

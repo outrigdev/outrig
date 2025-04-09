@@ -4,109 +4,121 @@
 package tevent
 
 import (
-	"encoding/json"
-	"log"
-	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
-	"github.com/outrigdev/outrig/pkg/utilfn"
-	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig"
 )
 
 const (
-	channelBufferSize = 100
+	// Time between automatic flushes (1 hour)
+	flushInterval = time.Hour
+
+	// Time between ticker checks (5 minutes)
+	tickInterval = 5 * time.Minute
+
+	// Maximum number of events to buffer before forcing a flush
+	maxBufferSize = 300
 )
 
 var (
-	eventFile     *os.File
-	errorLogged   sync.Once
-	eventChan     chan TEvent
-	writerOnce    sync.Once
-	eventsWritten atomic.Int64
+	eventBuffer      []TEvent
+	eventBufferLock  sync.Mutex
+	writerOnce       sync.Once
+	eventsWritten    atomic.Int64
+	eventsInBuffer   atomic.Int64
+	lastFlushTime    int64
+	ticker           *time.Ticker
+	telemetryStatus  string
+	lastUploadEvents int
 )
 
-func initEventFile() {
+func initEventBuffer() {
 	if Disabled.Load() {
 		return
 	}
 
-	if err := serverbase.EnsureDataDir(); err != nil {
-		log.Printf("Failed to ensure tevent data directory: %v", err)
-		return
-	}
+	// Initialize the buffer
+	eventBufferLock.Lock()
+	eventBuffer = make([]TEvent, 0, maxBufferSize)
+	eventBufferLock.Unlock()
 
-	filePath := utilfn.ExpandHomeDir(serverbase.GetTEventsFilePath())
-
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Printf("Failed to open local tevent file: %v", err)
-		return
-	}
-	eventFile = file
-	eventChan = make(chan TEvent, channelBufferSize)
-	
-	// Register the events written counter with Outrig
+	// Register counters with Outrig
 	outrig.WatchAtomicCounter("tevent:eventsWritten", &eventsWritten)
-	
-	// Start the writer goroutine
+	outrig.WatchAtomicCounter("tevent:eventsInBuffer", &eventsInBuffer)
+
+	// Set initial flush time
+	atomic.StoreInt64(&lastFlushTime, time.Now().UnixMilli())
+
+	// Start the ticker for periodic checks
+	ticker = time.NewTicker(tickInterval)
 	go func() {
-		outrig.SetGoRoutineName("TEventWriter")
-		eventWriter()
+		outrig.SetGoRoutineName("TEventTicker")
+		for range ticker.C {
+			checkAndFlush()
+		}
 	}()
 }
 
-func eventWriter() {
-	for event := range eventChan {
-		writeEventToFile(event)
+// checkAndFlush checks if it's time to flush events based on time elapsed or buffer size
+func checkAndFlush() {
+	now := time.Now().UnixMilli()
+
+	// Check if an hour has passed since the last flush
+	if now-atomic.LoadInt64(&lastFlushTime) >= flushInterval.Milliseconds() {
+		UploadEventsAsync()
 	}
 }
 
-func writeEventToFile(event TEvent) {
-	if eventFile == nil {
-		return
-	}
-
-	data, err := json.Marshal(event)
-	if err != nil {
-		errorLogged.Do(func() {
-			log.Printf("Failed to marshal tevent: %v", err)
-		})
-		return
-	}
-
-	data = append(data, '\n')
-
-	_, err = eventFile.Write(data)
-	if err != nil {
-		errorLogged.Do(func() {
-			log.Printf("Failed to write tevent to file: %v", err)
-		})
-		return
+// GrabEvents takes the lock, gets the current events, clears the buffer, and returns the events
+func GrabEvents() []TEvent {
+	eventBufferLock.Lock()
+	defer eventBufferLock.Unlock()
+	
+	if len(eventBuffer) == 0 {
+		return nil
 	}
 	
-	// Increment the events written counter
-	eventsWritten.Add(1)
+	// Get the current events
+	events := eventBuffer
+	
+	// Update the events in buffer counter
+	eventsInBuffer.Store(0)
+	
+	// Clear the buffer
+	eventBuffer = make([]TEvent, 0, maxBufferSize)
+	
+	// Remember how many events we grabbed for status updates
+	lastUploadEvents = len(events)
+	
+	return events
 }
 
-// WriteTEvent appends a telemetry event to the local JSONL file
+// WriteTEvent adds a telemetry event to the in-memory buffer
 func WriteTEvent(event TEvent) {
 	if Disabled.Load() {
 		return
 	}
 
-	// Initialize the file and writer goroutine if not already done
-	writerOnce.Do(initEventFile)
+	// Initialize the buffer if not already done
+	writerOnce.Do(initEventBuffer)
 
 	// Ensure timestamps are set
 	event.EnsureTimestamps()
 
-	// Try to send to channel, drop if full (non-blocking)
-	select {
-	case eventChan <- event:
-		// Successfully sent to channel
-	default:
-		// Channel is full, drop the event
+	// Add to buffer with lock protection
+	eventBufferLock.Lock()
+	eventBuffer = append(eventBuffer, event)
+	currentSize := len(eventBuffer)
+	eventBufferLock.Unlock()
+	
+	// Increment counters
+	eventsWritten.Add(1)
+	eventsInBuffer.Add(1)
+
+	// Check if we need to flush due to buffer size
+	if currentSize >= maxBufferSize {
+		UploadEventsAsync()
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/browsertabs"
 	"github.com/outrigdev/outrig/server/pkg/rpcserver"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
+	"github.com/outrigdev/outrig/server/pkg/tevent"
 	"github.com/outrigdev/outrig/server/pkg/web"
 )
 
@@ -70,10 +71,17 @@ func RunServer() error {
 	if err != nil {
 		return fmt.Errorf("error ensuring outrig ID: %w", err)
 	}
-	
 	// Set the global variables
 	serverbase.OutrigId = outrigId
 	serverbase.OutrigFirstRun = isFirstRun
+
+	// Send telemetry events
+	if isFirstRun {
+		// If this is the first run, send an install event
+		tevent.SendInstallEvent()
+	}
+	// Always send a startup event
+	tevent.SendStartupEvent()
 
 	outrigRpcServer := rpc.MakeRpcClient(nil, nil, &rpcserver.RpcServerImpl{}, "outrigsrv")
 	rpc.DefaultRouter.RegisterRoute("outrigsrv", outrigRpcServer, true)
