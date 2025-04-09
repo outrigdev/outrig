@@ -6,7 +6,7 @@ This document describes how to set up a local development environment for Outrig
 
 Before you begin, ensure you have the following installed:
 
-1. **Go** (version 1.23.4 or later)
+1. **Go** (version 1.24 or later)
 
     ```bash
     # Check your Go version
