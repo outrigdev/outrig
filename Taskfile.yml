@@ -53,12 +53,12 @@ tasks:
     testrun:
         desc: run main-test.go to generate some fake data
         cmds:
-            - go run server/main-server.go --dev run cmd/test/main-test.go
+            - go run server/cmd/test/main-test.go
 
     testsmall:
         desc: run main-testsmall.go to generate minimal test data
         cmds:
-            - go run cmd/testsmall/main-testsmall.go
+            - go run server/cmd/testsmall/main-testsmall.go
 
     release:check:
         desc: Check if the GoReleaser configuration is valid
