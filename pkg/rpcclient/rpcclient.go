@@ -76,6 +76,18 @@ func GetAppRunWatchesByIdsCommand(w *rpc.RpcClient, data rpctypes.AppRunWatchesB
 	return resp, err
 }
 
+// command "getwatchhistory", rpctypes.GetWatchHistoryCommand
+func GetWatchHistoryCommand(w *rpc.RpcClient, data rpctypes.WatchHistoryRequest, opts *rpc.RpcOpts) (rpctypes.WatchHistoryData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.WatchHistoryData](w, "getwatchhistory", data, opts)
+	return resp, err
+}
+
+// command "getwatchnumeric", rpctypes.GetWatchNumericCommand
+func GetWatchNumericCommand(w *rpc.RpcClient, data rpctypes.WatchNumericRequest, opts *rpc.RpcOpts) (rpctypes.WatchNumericData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.WatchNumericData](w, "getwatchnumeric", data, opts)
+	return resp, err
+}
+
 // command "goroutinesearchrequest", rpctypes.GoRoutineSearchRequestCommand
 func GoRoutineSearchRequestCommand(w *rpc.RpcClient, data rpctypes.GoRoutineSearchRequestData, opts *rpc.RpcOpts) (rpctypes.GoRoutineSearchResultData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.GoRoutineSearchResultData](w, "goroutinesearchrequest", data, opts)

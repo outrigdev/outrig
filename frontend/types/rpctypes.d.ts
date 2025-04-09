@@ -322,8 +322,35 @@ declare global {
         allscopes?: boolean;
     };
 
+    // rpctypes.WatchHistoryData
+    type WatchHistoryData = {
+        apprunid: string;
+        appname: string;
+        watchhistory: WatchSample[];
+    };
+
+    // rpctypes.WatchHistoryRequest
+    type WatchHistoryRequest = {
+        apprunid: string;
+        watchnum: number;
+    };
+
+    // rpctypes.WatchNumericData
+    type WatchNumericData = {
+        apprunid: string;
+        appname: string;
+        numericvalues: number[];
+    };
+
+    // rpctypes.WatchNumericRequest
+    type WatchNumericRequest = {
+        apprunid: string;
+        watchnum: number;
+    };
+
     // ds.WatchSample
     type WatchSample = {
+        watchnum?: number;
         name: string;
         tags?: string[];
         ts: number;
