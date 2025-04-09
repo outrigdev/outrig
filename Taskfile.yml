@@ -11,8 +11,15 @@ tasks:
         cmds:
             - OUTRIG_DEV=1 go run server/main-server.go server
 
+    clean:
+        desc: Clean build artifacts
+        cmds:
+            - rm -rf dist
+            - rm -rf server/pkg/web/dist
+
     build:frontend:
         desc: Build the frontend for production
+        deps: [clean]
         cmds:
             - npm run build
             - mkdir -p server/pkg/web/dist
@@ -52,3 +59,18 @@ tasks:
         desc: run main-testsmall.go to generate minimal test data
         cmds:
             - go run cmd/testsmall/main-testsmall.go
+
+    release:check:
+        desc: Check if the GoReleaser configuration is valid
+        cmds:
+            - goreleaser check
+
+    release:local:
+        desc: Build a local release for testing (no publishing)
+        cmds:
+            - goreleaser release --snapshot --clean
+
+    release:
+        desc: Create and publish a new release
+        cmds:
+            - goreleaser release --clean
