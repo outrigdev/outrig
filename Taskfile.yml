@@ -47,8 +47,8 @@ tasks:
     generate:
         desc: Generate RPC code (Go/TypeScript)
         cmds:
-            - go run cmd/generatego/main-generatego.go
-            - go run cmd/generatets/main-generatets.go
+            - go run server/cmd/generatego/main-generatego.go
+            - go run server/cmd/generatets/main-generatets.go
 
     testrun:
         desc: run main-test.go to generate some fake data
