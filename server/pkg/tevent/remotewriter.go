@@ -19,6 +19,8 @@ func UploadEvents() error {
 		return nil
 	}
 
+	log.Printf("Uploading telemetry events...")
+
 	// Update the last flush time at the beginning of the upload
 	now := time.Now()
 	atomic.StoreInt64(&lastFlushTime, now.UnixMilli())
@@ -29,6 +31,7 @@ func UploadEvents() error {
 	if len(events) == 0 {
 		// Update status even if no events were uploaded
 		updateTelemetryStatus(now, 0)
+		log.Printf("No telemetry events to upload")
 		return nil
 	}
 
@@ -37,6 +40,8 @@ func UploadEvents() error {
 
 	// Update telemetry status with upload information
 	updateTelemetryStatus(now, len(events))
+	
+	log.Printf("Successfully uploaded %d telemetry events", len(events))
 
 	return nil
 }
@@ -47,7 +52,7 @@ func UploadEventsAsync() {
 		outrig.SetGoRoutineName("TEventUploader")
 		err := UploadEvents()
 		if err != nil {
-			log.Printf("Failed to upload tevents: %v", err)
+			log.Printf("Failed to upload telemetry events: %v", err)
 		}
 	}()
 }

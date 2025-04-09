@@ -47,7 +47,7 @@ func RunServer() error {
 		log.Printf("Received signal: %v - Graceful shutdown initiated\n", sig)
 		
 		// Perform graceful shutdown
-		gracefulShutdown(cancel)
+		gracefulShutdown(cancel, &wg)
 		
 		// Give processes a moment to clean up
 		signal.Stop(signalChan)
@@ -85,13 +85,9 @@ func RunServer() error {
 	}
 	// Always send a startup event
 	tevent.SendStartupEvent()
-	
-	// Flush events after startup
-	log.Printf("Uploading initial telemetry events...")
-	err = tevent.UploadEvents()
-	if err != nil {
-		log.Printf("Failed to upload initial telemetry events: %v", err)
-	}
+
+	// Flush events after startup (asynchronously)
+	tevent.UploadEventsAsync()
 
 	outrigRpcServer := rpc.MakeRpcClient(nil, nil, &rpcserver.RpcServerImpl{}, "outrigsrv")
 	rpc.DefaultRouter.RegisterRoute("outrigsrv", outrigRpcServer, true)
@@ -158,18 +154,22 @@ func RunServer() error {
 // gracefulShutdown performs a graceful shutdown of the server
 // It sends a shutdown event, flushes telemetry events, and sets a timeout
 // after which it will force exit if the server hasn't already shut down
-func gracefulShutdown(cancel context.CancelFunc) {
+func gracefulShutdown(cancel context.CancelFunc, wg *sync.WaitGroup) {
 	// Send shutdown event
 	tevent.SendShutdownEvent()
 	
-	// Try to flush events synchronously
-	log.Printf("Uploading telemetry events before shutdown...")
-	err := tevent.UploadEvents()
-	if err != nil {
-		log.Printf("Failed to upload telemetry events during shutdown: %v", err)
-	} else {
-		log.Printf("Successfully uploaded telemetry events")
-	}
+	// Add to WaitGroup before starting the goroutine
+	wg.Add(1)
+	
+	// Upload telemetry events in a goroutine
+	go func() {
+		defer wg.Done()
+		
+		err := tevent.UploadEvents()
+		if err != nil {
+			log.Printf("Failed to upload telemetry events during shutdown: %v", err)
+		}
+	}()
 	
 	// Cancel the context to stop all processes
 	cancel()
