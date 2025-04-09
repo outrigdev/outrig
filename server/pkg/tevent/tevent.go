@@ -23,7 +23,6 @@ import (
 )
 
 var Disabled atomic.Bool
-var uploadLock sync.Mutex
 
 var ValidEventNames = map[string]bool{
 	"server:install":            true,
@@ -65,6 +64,7 @@ type TEventUserProps struct {
 	ClientBuildTime      string `json:"client:buildtime,omitempty"`
 	ClientOSRelease      string `json:"client:osrelease,omitempty"`
 	ClientIsDev          bool   `json:"client:isdev,omitempty"`
+	ClientLang           string `json:"client:lang,omitempty"`
 }
 
 type TEventProps struct {
@@ -241,6 +241,13 @@ func determineLang() string {
 	}
 }
 
+func OsLang() string {
+	osLangOnce.Do(func() {
+		osLang = determineLang()
+	})
+	return osLang
+}
+
 // createCommonUserProps creates a TEventUserProps with common properties set
 func createCommonUserProps() *TEventUserProps {
 	return &TEventUserProps{
@@ -249,6 +256,7 @@ func createCommonUserProps() *TEventUserProps {
 		ClientBuildTime: serverbase.OutrigBuildTime,
 		ClientOSRelease: UnameKernelRelease(),
 		ClientIsDev:     serverbase.IsDev(),
+		ClientLang:      OsLang(),
 	}
 }
 
@@ -257,16 +265,10 @@ func SendInstallEvent() {
 	if Disabled.Load() {
 		return
 	}
-
 	props := TEventProps{}
-
-	// Set regular user properties that should be updated with every event
 	props.UserSet = createCommonUserProps()
-
-	// For install event, also set the initial version as a property that should only be set once
 	event := MakeTEvent("server:install", props)
 	event.UserSetOnceProps().ClientInitialVersion = serverbase.OutrigVersion
-
 	WriteTEvent(*event)
 }
 
@@ -275,12 +277,8 @@ func SendStartupEvent() {
 	if Disabled.Load() {
 		return
 	}
-
 	props := TEventProps{}
-
-	// Set user properties that should be updated with every startup
 	props.UserSet = createCommonUserProps()
-
 	event := MakeTEvent("server:startup", props)
 	WriteTEvent(*event)
 }
@@ -290,12 +288,15 @@ func SendShutdownEvent() {
 	if Disabled.Load() {
 		return
 	}
+	event := MakeTEvent("server:shutdown", TEventProps{})
+	WriteTEvent(*event)
+}
 
-	props := TEventProps{}
-
-	// Set user properties that should be updated with shutdown
-	props.UserSet = createCommonUserProps()
-
-	event := MakeTEvent("server:shutdown", props)
+// SendAppRunConnectedEvent sends an "apprun:connected" telemetry event
+func SendAppRunConnectedEvent() {
+	if Disabled.Load() {
+		return
+	}
+	event := MakeTEvent("apprun:connected", TEventProps{})
 	WriteTEvent(*event)
 }

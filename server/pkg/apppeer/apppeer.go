@@ -19,6 +19,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
+	"github.com/outrigdev/outrig/server/pkg/tevent"
 )
 
 const (
@@ -185,6 +186,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		p.AppInfo = &appInfo
 		p.Status = AppStatusRunning
 		log.Printf("Received AppInfo for app run ID: %s, app: %s", p.AppRunId, appInfo.AppName)
+		tevent.SendAppRunConnectedEvent()
 
 	case ds.PacketTypeLog:
 		var logLine ds.LogLine

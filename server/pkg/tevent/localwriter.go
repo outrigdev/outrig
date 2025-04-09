@@ -23,15 +23,13 @@ const (
 )
 
 var (
-	eventBuffer      []TEvent
-	eventBufferLock  sync.Mutex
-	writerOnce       sync.Once
-	eventsWritten    atomic.Int64
-	eventsInBuffer   atomic.Int64
-	lastFlushTime    int64
-	ticker           *time.Ticker
-	telemetryStatus  string
-	lastUploadEvents int
+	eventBuffer     []TEvent
+	eventBufferLock sync.Mutex
+	writerOnce      sync.Once
+	eventsWritten   atomic.Int64
+	eventsInBuffer  atomic.Int64
+	lastFlushTime   int64
+	ticker          *time.Ticker
 )
 
 func initEventBuffer() {
@@ -75,23 +73,12 @@ func checkAndFlush() {
 func GrabEvents() []TEvent {
 	eventBufferLock.Lock()
 	defer eventBufferLock.Unlock()
-	
 	if len(eventBuffer) == 0 {
 		return nil
 	}
-	
-	// Get the current events
 	events := eventBuffer
-	
-	// Update the events in buffer counter
 	eventsInBuffer.Store(0)
-	
-	// Clear the buffer
 	eventBuffer = make([]TEvent, 0, maxBufferSize)
-	
-	// Remember how many events we grabbed for status updates
-	lastUploadEvents = len(events)
-	
 	return events
 }
 
@@ -112,7 +99,7 @@ func WriteTEvent(event TEvent) {
 	eventBuffer = append(eventBuffer, event)
 	currentSize := len(eventBuffer)
 	eventBufferLock.Unlock()
-	
+
 	// Increment counters
 	eventsWritten.Add(1)
 	eventsInBuffer.Add(1)
