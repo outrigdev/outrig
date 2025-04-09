@@ -284,3 +284,18 @@ func SendStartupEvent() {
 	event := MakeTEvent("server:startup", props)
 	WriteTEvent(*event)
 }
+
+// SendShutdownEvent sends a "server:shutdown" telemetry event
+func SendShutdownEvent() {
+	if Disabled.Load() {
+		return
+	}
+
+	props := TEventProps{}
+
+	// Set user properties that should be updated with shutdown
+	props.UserSet = createCommonUserProps()
+
+	event := MakeTEvent("server:shutdown", props)
+	WriteTEvent(*event)
+}

@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/rpc"
@@ -43,9 +44,11 @@ func RunServer() error {
 	// Handle signals in a goroutine
 	go func() {
 		sig := <-signalChan
-		log.Printf("Received signal: %v\n", sig)
-		cancel() // Cancel the context to stop all processes
-
+		log.Printf("Received signal: %v - Graceful shutdown initiated\n", sig)
+		
+		// Perform graceful shutdown
+		gracefulShutdown(cancel)
+		
 		// Give processes a moment to clean up
 		signal.Stop(signalChan)
 	}()
@@ -82,6 +85,13 @@ func RunServer() error {
 	}
 	// Always send a startup event
 	tevent.SendStartupEvent()
+	
+	// Flush events after startup
+	log.Printf("Uploading initial telemetry events...")
+	err = tevent.UploadEvents()
+	if err != nil {
+		log.Printf("Failed to upload initial telemetry events: %v", err)
+	}
 
 	outrigRpcServer := rpc.MakeRpcClient(nil, nil, &rpcserver.RpcServerImpl{}, "outrigsrv")
 	rpc.DefaultRouter.RegisterRoute("outrigsrv", outrigRpcServer, true)
@@ -143,4 +153,32 @@ func RunServer() error {
 	wg.Wait()
 	log.Printf("All processes shutdown complete\n")
 	return nil
+}
+
+// gracefulShutdown performs a graceful shutdown of the server
+// It sends a shutdown event, flushes telemetry events, and sets a timeout
+// after which it will force exit if the server hasn't already shut down
+func gracefulShutdown(cancel context.CancelFunc) {
+	// Send shutdown event
+	tevent.SendShutdownEvent()
+	
+	// Try to flush events synchronously
+	log.Printf("Uploading telemetry events before shutdown...")
+	err := tevent.UploadEvents()
+	if err != nil {
+		log.Printf("Failed to upload telemetry events during shutdown: %v", err)
+	} else {
+		log.Printf("Successfully uploaded telemetry events")
+	}
+	
+	// Cancel the context to stop all processes
+	cancel()
+	
+	// Set a timeout for shutdown
+	go func() {
+		// Wait for 5 seconds then force exit if we haven't already
+		time.Sleep(5 * time.Second)
+		log.Printf("Shutdown timeout reached, forcing exit")
+		os.Exit(1)
+	}()
 }
