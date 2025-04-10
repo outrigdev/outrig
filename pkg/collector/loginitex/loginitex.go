@@ -5,8 +5,6 @@
 package loginitex
 
 import (
-	"log"
-
 	"github.com/outrigdev/outrig/pkg/ds"
 )
 
@@ -15,7 +13,6 @@ import (
 // config specifies which streams to wrap (stdout/stderr)
 // isDev specifies whether to run the process in development mode
 func EnableExternalLogWrap(appRunId string, config ds.LogProcessorConfig, isDev bool) error {
-	log.Printf("Enabling external log wrapping: appRunId=%s, config=%+v, isDev=%v", appRunId, config, isDev)
 	// Platform-specific implementation will be provided
 	return enableExternalLogWrapImpl(appRunId, config, isDev)
 }

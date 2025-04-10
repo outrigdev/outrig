@@ -4,7 +4,6 @@
 package goroutine
 
 import (
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -233,7 +232,6 @@ var inGoRoutineRe = regexp.MustCompile(`\s*in goroutine (\d+)`)
 func parseCreatedByFrame(funcLine string, fileLine string) (*StackFrame, int, bool) {
 	// the trick is just removing "created by" off the front and "in goroutine X" off the end
 	if !strings.HasPrefix(funcLine, "created by ") {
-		log.Printf("no created by in %s\n", funcLine)
 		return nil, 0, false
 	}
 	funcLine = strings.TrimPrefix(funcLine, "created by ")
@@ -246,13 +244,11 @@ func parseCreatedByFrame(funcLine string, fileLine string) (*StackFrame, int, bo
 	funcLine = strings.TrimSuffix(funcLine, match[0])
 	goId, err := strconv.Atoi(match[1])
 	if err != nil {
-		log.Printf("failed to parse goroutine ID: %v\n", err)
 		return nil, 0, false
 	}
 	// now parse the frame
 	frame, ok := parseFrame(funcLine, fileLine, false)
 	if !ok {
-		log.Printf("failed to parse created by frame: %q\n", funcLine)
 		return nil, 0, false
 	}
 	return &frame, goId, true
