@@ -22,7 +22,7 @@ import (
 var (
 	origStdoutFD, origStderrFD int
 	stdoutPipeW, stderrPipeW   *os.File
-	origStdout, origStderr     *os.File      // Store original file structures
+	origStdout, origStderr     *os.File // Store original file structures
 	externalCaptureLock        sync.Mutex
 	externalCaptureActive      bool
 	externalCaptureContext     context.Context
@@ -100,15 +100,15 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 
 	// Launch the external process BEFORE redirecting stdout/stderr
 	cmd := exec.CommandContext(externalCaptureContext, outrigPath)
-	
+
 	// Set the AppRunId environment variable
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", base.AppRunIdEnvName, appRunId))
-	
+
 	// Add any additional arguments before "capturelogs"
 	if len(config.AdditionalArgs) > 0 {
 		cmd.Args = append(cmd.Args, config.AdditionalArgs...)
 	}
-	
+
 	// Add the "capturelogs" command and any flags
 	cmd.Args = append(cmd.Args, "capturelogs")
 	if isDev {
@@ -134,7 +134,7 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 
 	// Now that the process is started, redirect stdout and stderr to pipe write ends if enabled
 	if wrapStdout {
-		err = syscall.Dup2(int(stdoutPipeW.Fd()), int(os.Stdout.Fd()))
+		err = dup2Wrap(int(stdoutPipeW.Fd()), int(os.Stdout.Fd()))
 		if err != nil {
 			// Kill the process we just started
 			cmd.Process.Kill()
@@ -145,11 +145,11 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 	}
 
 	if wrapStderr {
-		err = syscall.Dup2(int(stderrPipeW.Fd()), int(os.Stderr.Fd()))
+		err = dup2Wrap(int(stderrPipeW.Fd()), int(os.Stderr.Fd()))
 		if err != nil {
 			// Restore stdout before returning if it was wrapped
 			if wrapStdout {
-				syscall.Dup2(origStdoutFD, int(os.Stdout.Fd()))
+				dup2Wrap(origStdoutFD, int(os.Stdout.Fd()))
 			}
 			// Kill the process we just started
 			cmd.Process.Kill()
@@ -249,12 +249,12 @@ func monitorExternalProcess(cmd *exec.Cmd, ctx context.Context, exitChan chan st
 func restoreOriginalFDs() {
 	// Restore stdout if it was wrapped
 	if wrapStdout && origStdoutFD != 0 {
-		syscall.Dup2(origStdoutFD, int(os.Stdout.Fd()))
+		dup2Wrap(origStdoutFD, int(os.Stdout.Fd()))
 	}
 
 	// Restore stderr if it was wrapped
 	if wrapStderr && origStderrFD != 0 {
-		syscall.Dup2(origStderrFD, int(os.Stderr.Fd()))
+		dup2Wrap(origStderrFD, int(os.Stderr.Fd()))
 	}
 }
 
@@ -287,7 +287,7 @@ func cleanupPipesAndFDs() {
 		syscall.Close(origStderrFD)
 		origStderrFD = 0
 	}
-	
+
 	// Clear file references
 	origStdout = nil
 	origStderr = nil

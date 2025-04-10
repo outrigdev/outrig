@@ -1,6 +1,7 @@
 .task
 dist/
 dist-dev/
+dist-fe/
 
 bin/
 *.dmg
