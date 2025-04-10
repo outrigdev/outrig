@@ -4,17 +4,14 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
@@ -79,48 +76,6 @@ type WebSocketModel struct {
 	OutputCh chan WSEventType
 }
 
-func RunWebSocketServer(ctx context.Context, listener net.Listener) {
-	gr := mux.NewRouter()
-	gr.HandleFunc("/ws", HandleWs)
-	server := &http.Server{
-		ReadTimeout:    HttpReadTimeout,
-		WriteTimeout:   HttpWriteTimeout,
-		MaxHeaderBytes: HttpMaxHeaderBytes,
-		Handler:        gr,
-	}
-	server.SetKeepAlivesEnabled(false)
-
-	// Create a channel to signal when the server is done
-	serverDone := make(chan struct{})
-
-	// Start the server in a goroutine
-	go func() {
-		log.Printf("[websocket] running websocket server on %s\n", listener.Addr())
-		err := server.Serve(listener)
-		if err != nil && err != http.ErrServerClosed {
-			log.Printf("[websocket] error trying to run websocket server: %v\n", err)
-		}
-		close(serverDone)
-	}()
-
-	// Wait for context cancellation or server to finish
-	select {
-	case <-ctx.Done():
-		log.Printf("Shutting down WebSocket server...\n")
-		// Create a shutdown context with timeout (using 100ms since these are local connections)
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		defer shutdownCancel()
-
-		// Attempt graceful shutdown
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			log.Printf("WebSocket server shutdown error: %v\n", err)
-		}
-		log.Printf("WebSocket server shutdown complete\n")
-	case <-serverDone:
-		// Server stopped on its own
-	}
-}
-
 var WebSocketUpgrader = websocket.Upgrader{
 	ReadBufferSize:   4 * 1024,
 	WriteBufferSize:  32 * 1024,
@@ -128,10 +83,14 @@ var WebSocketUpgrader = websocket.Upgrader{
 	CheckOrigin:      func(r *http.Request) bool { return true },
 }
 
+// HandleWs handles WebSocket connections
+// This is now served through the HTTP server on the same port
 func HandleWs(w http.ResponseWriter, r *http.Request) {
-	err := HandleWsInternal(w, r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	// The WebSocket upgrader will handle writing the response
+	// If there's an error, it will be logged but we don't need to write an additional error response
+	// as the headers may have already been sent
+	if err := HandleWsInternal(w, r); err != nil {
+		log.Printf("[websocket] error handling websocket connection: %v", err)
 	}
 }
 
@@ -157,6 +116,14 @@ func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any,
 	readWait := wsReadWaitTimeout
 	conn.SetReadLimit(64 * 1024)
 	conn.SetReadDeadline(time.Now().Add(readWait))
+	
+	// Set pong handler to reset the read deadline when a pong is received
+	// This is crucial for maintaining the WebSocket connection
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(readWait))
+		return nil
+	})
+	
 	defer close(closeCh)
 	for {
 		_, message, err := conn.ReadMessage()

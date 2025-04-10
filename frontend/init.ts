@@ -16,15 +16,17 @@ declare global {
 }
 window.jotaiStore = getDefaultStore();
 
-// Use different WebSocket port in development mode
-const isDev = import.meta.env.DEV;
-const WebSocketPort = isDev ? 6006 : 5006;
-
 // Set document title based on development mode
+const isDev = import.meta.env.DEV;
 if (isDev) {
     document.title = "Outrig (Dev)";
 }
-const WebSocketEndpoint = `ws://localhost:${WebSocketPort}/ws`;
+
+// Use the same host and port that served the application
+// This ensures WebSocket connections work with tunneled ports or Vite's dev server
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const host = window.location.host; // Includes hostname and port
+const WebSocketEndpoint = `${protocol}//${host}/ws`;
 const RouteIdStorageKey = "outrig:routeid";
 
 let DefaultRouter: RpcRouter = null;

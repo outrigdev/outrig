@@ -19,6 +19,10 @@ export default defineConfig({
         },
         proxy: {
             "/api": "http://localhost:6005",
+            "/ws": {
+                target: "http://localhost:6005",
+                ws: true,
+            },
         },
     },
     build: {

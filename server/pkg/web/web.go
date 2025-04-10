@@ -123,6 +123,9 @@ func MakeUnixListener(socketPath string) (net.Listener, error) {
 func RunWebServer(ctx context.Context, listener net.Listener) {
 	gr := mux.NewRouter()
 
+	// WebSocket endpoint - this will be handled separately to avoid the timeout handler
+	gr.HandleFunc("/ws", HandleWs)
+
 	apiRouter := gr.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/health", WebFnWrap(WebFnOpts{AllowCaching: false, JsonErrors: true}, handleHealth))
 
@@ -135,10 +138,24 @@ func RunWebServer(ctx context.Context, listener net.Listener) {
 		ServeIndexOrFile(w, r, fileSystem)
 	})
 
-	handler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")
+	// Create a special handler that bypasses the timeout handler for WebSocket requests
+	// This is necessary because the timeout handler doesn't implement http.Hijacker
+	// which is required for WebSocket connections
+	specialHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/ws" {
+			// WebSocket requests bypass the timeout handler
+			gr.ServeHTTP(w, r)
+		} else {
+			// All other requests go through the timeout handler
+			timeoutHandler := http.TimeoutHandler(gr, HttpTimeoutDuration, "Timeout")
+			timeoutHandler.ServeHTTP(w, r)
+		}
+	})
 
+	// Final handler with CORS if in dev mode
+	var handler http.Handler = specialHandler
 	if serverbase.IsDev() {
-		handler = handlers.CORS(handlers.AllowedOrigins([]string{"*"}))(handler)
+		handler = handlers.CORS(handlers.AllowedOrigins([]string{"*"}))(specialHandler)
 	}
 
 	server := &http.Server{
@@ -168,7 +185,7 @@ func RunWebServer(ctx context.Context, listener net.Listener) {
 		// Create a shutdown context with timeout (using 100ms since these are local connections)
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer shutdownCancel()
-		
+
 		// Attempt graceful shutdown
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Printf("HTTP server shutdown error: %v\n", err)
@@ -179,25 +196,17 @@ func RunWebServer(ctx context.Context, listener net.Listener) {
 	}
 }
 
-// RunAllWebServers initializes and runs the HTTP and WebSocket servers
+// RunAllWebServers initializes and runs the HTTP server (which also handles WebSockets)
 func RunAllWebServers(ctx context.Context) error {
 	webServerPort := serverbase.GetWebServerPort()
-	webSocketPort := serverbase.GetWebSocketPort()
 
 	httpListener, err := MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(webServerPort))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP listener: %w", err)
 	}
-	log.Printf("HTTP server listening on http://%s\n", httpListener.Addr().String())
-
-	wsListener, err := MakeTCPListener("websocket", "127.0.0.1:"+strconv.Itoa(webSocketPort))
-	if err != nil {
-		return fmt.Errorf("failed to create WebSocket listener: %w", err)
-	}
-	log.Printf("WebSocket server listening on ws://%s\n", wsListener.Addr().String())
+	log.Printf("HTTP and WebSocket server listening on http://%s\n", httpListener.Addr().String())
 
 	go RunWebServer(ctx, httpListener)
-	go RunWebSocketServer(ctx, wsListener)
 
 	return nil
 }

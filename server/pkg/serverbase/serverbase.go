@@ -34,13 +34,11 @@ const OutrigDataDir = "data"
 const OutrigDevEnvName = "OUTRIG_DEV"
 const OutrigTEventsFile = "tevents.jsonl"
 
-// Default production ports for server
+// Default production port for server
 const ProdWebServerPort = 5005
-const ProdWebSocketPort = 5006
 
-// Development ports for server
+// Development port for server
 const DevWebServerPort = 6005
-const DevWebSocketPort = 6006
 
 type FDLock interface {
 	Close() error
@@ -113,12 +111,10 @@ func EnsureOutrigId() (string, bool, error) {
 	return newId, true, nil
 }
 
-// GetWebSocketPort returns the appropriate websocket port based on mode
+// GetWebSocketPort returns the same port as the web server port for backward compatibility
+// This function is deprecated and will be removed in a future version
 func GetWebSocketPort() int {
-	if IsDev() {
-		return DevWebSocketPort
-	}
-	return ProdWebSocketPort
+	return GetWebServerPort()
 }
 
 // GetOutrigDataDir returns the path to the data directory
