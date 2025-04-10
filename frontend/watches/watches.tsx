@@ -7,6 +7,7 @@ import { RefreshButton } from "@/elements/refreshbutton";
 import { Tag } from "@/elements/tag";
 import { TimestampDot } from "@/elements/timestampdot";
 import { SearchFilter } from "@/searchfilter/searchfilter";
+import { EmptyMessageDelayMs } from "@/util/constants";
 import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
@@ -256,14 +257,18 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
         model.setContentRef(contentRef);
     }, [model]);
 
-    // Set a timeout to show empty message after component mounts
+    // Set a timeout to show empty message after component mounts or when filtered watches change
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setShowEmptyMessage(true);
-        }, 500);
-
-        return () => clearTimeout(timer);
-    }, []);
+        if (filteredWatches.length === 0 && !isRefreshing) {
+            const timer = setTimeout(() => {
+                setShowEmptyMessage(true);
+            }, EmptyMessageDelayMs);
+            
+            return () => clearTimeout(timer);
+        } else {
+            setShowEmptyMessage(false);
+        }
+    }, [filteredWatches.length, isRefreshing]);
 
     return (
         <div ref={contentRef} className="w-full h-full overflow-auto flex-1 px-0 py-2">
@@ -273,16 +278,10 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                         <span>Refreshing watches...</span>
                     </div>
                 </div>
-            ) : filteredWatches.length === 0 ? (
-                search ? (
-                    // Always show "no watches match the filter" message immediately
-                    <div className="flex items-center justify-center h-full text-secondary">
-                        no watches match the filter
-                    </div>
-                ) : // Only show "no watches found" message after delay
-                showEmptyMessage ? (
-                    <div className="flex items-center justify-center h-full text-secondary">no watches found</div>
-                ) : null
+            ) : filteredWatches.length === 0 && showEmptyMessage ? (
+                <div className="flex items-center justify-center h-full text-secondary">
+                    {search ? "no watches match the filter" : "no watches"}
+                </div>
             ) : (
                 <div>
                     {filteredWatches.map((watch, index) => (

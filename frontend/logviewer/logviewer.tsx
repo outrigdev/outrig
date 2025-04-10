@@ -9,6 +9,7 @@ import { useOutrigModel } from "@/util/hooks";
 import { useAtomValue } from "jotai";
 import { X } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EmptyMessageDelayMs } from "@/util/constants";
 import { LogViewerFilter } from "./logfilter";
 import { LogLineComponent } from "./logline";
 import { LogViewerModel } from "./logviewer-model";
@@ -30,18 +31,21 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const followOutput = useAtomValue(model.followOutput);
     const isRefreshing = useAtomValue(model.isRefreshing);
-    
+
     // Subscribe to atoms once at the LogList level
     const lineNumWidth = useAtomValue(model.lineNumberWidth);
     const logSettings = useAtomValue(SettingsModel.logsSettings);
     const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
-    
+
     // Memoize the lineSettings object so it only changes when the actual values change
-    const lineSettings = useMemo(() => ({
-        lineNumWidth,
-        logSettings,
-        appRunStartTime
-    }), [lineNumWidth, logSettings, appRunStartTime]);
+    const lineSettings = useMemo(
+        () => ({
+            lineNumWidth,
+            logSettings,
+            appRunStartTime,
+        }),
+        [lineNumWidth, logSettings, appRunStartTime]
+    );
 
     // Prevent default smooth scrolling for PageUp/PageDown when focus is in the list
     useEffect(() => {
@@ -203,6 +207,22 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
     const isRefreshing = useAtomValue(model.isRefreshing);
     const isLoading = useAtomValue(model.isLoading);
     const filteredLinesCount = useAtomValue(model.filteredItemCount);
+    const totalLinesCount = useAtomValue(model.totalItemCount);
+    const searchTerm = useAtomValue(model.searchTerm);
+    const [showEmptyMessage, setShowEmptyMessage] = useState(false);
+    
+    // Set a timeout to show empty message after component mounts or when counts change
+    useEffect(() => {
+        if ((filteredLinesCount === 0 || totalLinesCount === 0) && !isRefreshing) {
+            const timer = setTimeout(() => {
+                setShowEmptyMessage(true);
+            }, EmptyMessageDelayMs);
+            
+            return () => clearTimeout(timer);
+        } else {
+            setShowEmptyMessage(false);
+        }
+    }, [filteredLinesCount, totalLinesCount, isRefreshing]);
 
     return (
         <div className="w-full h-full overflow-hidden flex-1 pt-2 px-1 relative">
@@ -224,9 +244,13 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
                 </>
             )}
 
-            {!isRefreshing && filteredLinesCount === 0 && (
+            {!isRefreshing && showEmptyMessage && (
                 <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-background/80">
-                    <span className="text-muted">no matching lines</span>
+                    {totalLinesCount === 0 ? (
+                        <span className="text-muted">no log lines</span>
+                    ) : filteredLinesCount === 0 && searchTerm ? (
+                        <span className="text-muted">no matching lines</span>
+                    ) : null}
                 </div>
             )}
         </div>
