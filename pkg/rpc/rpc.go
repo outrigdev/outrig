@@ -18,8 +18,8 @@ import (
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/rpctypes"
+	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
-	"github.com/outrigdev/outrig/server/pkg/serverds"
 )
 
 const DefaultTimeoutMs = 5000
@@ -29,7 +29,7 @@ const CtxDoneChSize = 10
 const DefaultInputChSize = 32
 const DefaultOutputChSize = 32
 
-var blockingExpMap = serverds.MakeExpMap[bool]()
+var blockingExpMap = utilds.MakeExpMap[bool]()
 
 const (
 	RpcType_Call             = "call"             // single response (regular rpc)

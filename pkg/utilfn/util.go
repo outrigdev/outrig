@@ -5,7 +5,6 @@ package utilfn
 
 import (
 	"bytes"
-	"cmp"
 	"encoding/json"
 	"io"
 	"os"
@@ -185,7 +184,7 @@ func StarMatchString(pattern string, s string, delimiter string) bool {
 	return pLen == sLen
 }
 
-func BoundValue[T cmp.Ordered](val, minVal, maxVal T) T {
+func BoundValue(val, minVal, maxVal int) int {
 	if val < minVal {
 		return minVal
 	}
