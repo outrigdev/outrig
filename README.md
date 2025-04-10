@@ -41,8 +41,7 @@ Outrig consists of two main components that work together:
 For MacOS:
 
 ```bash
-brew tap outrigdev/outrig
-brew install outrig
+brew install outrigdev/outrig/outrig
 ```
 
 For Linux:
