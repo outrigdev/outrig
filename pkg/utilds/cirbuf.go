@@ -34,6 +34,20 @@ func MakeCirBuf[T any](maxSize int) *CirBuf[T] {
 	}
 }
 
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // Write adds an element to the circular buffer.
 // If the buffer is full, the oldest element will be overwritten.
 // Returns a pointer to the element that was kicked out, or nil if no element was kicked out.
