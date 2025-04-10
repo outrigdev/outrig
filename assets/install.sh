@@ -89,8 +89,19 @@ install_outrig() {
     TMP_DIR=$(mktemp -d)
     trap 'rm -rf "$TMP_DIR"' EXIT
     
-    # Get the latest release URL
-    RELEASE_URL="https://github.com/outrigdev/outrig/releases/latest/download/outrig_${OS}_${ARCH}.tar.gz"
+    # Get the version from the redirect URL when accessing the latest release page
+    info "Determining latest version..."
+    REDIRECT_URL=$(curl -s -I -L -o /dev/null -w '%{url_effective}' "https://github.com/outrigdev/outrig/releases/latest")
+    VERSION=$(echo "$REDIRECT_URL" | grep -o '[^/]*$' | sed 's/^v//')
+    
+    if [ -z "$VERSION" ]; then
+        error "Failed to determine the latest version"
+    fi
+    
+    info "Latest version: $VERSION"
+    
+    # Construct the correct asset URL with version number
+    RELEASE_URL="https://github.com/outrigdev/outrig/releases/latest/download/outrig_${VERSION}_${OS}_${ARCH}.tar.gz"
     
     info "Downloading Outrig from $RELEASE_URL..."
     
