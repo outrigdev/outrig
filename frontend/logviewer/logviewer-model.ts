@@ -48,6 +48,10 @@ class LogViewerModel {
     isStreaming: PrimitiveAtom<boolean> = atom(true);
     vlistRef: React.RefObject<HTMLDivElement> = { current: null };
 
+    // Batching for stream updates
+    pendingStreamUpdate: StreamUpdateData = null;
+    animationFrameScheduled: boolean = false;
+
     // LogVList state
     listAtom: PrimitiveAtom<LogListInterface>;
     listVersion: number = 0;
@@ -526,10 +530,73 @@ class LogViewerModel {
         }
     };
 
+    // Merge two StreamUpdateData objects into one
+    mergeStreamUpdates(a: StreamUpdateData, b: StreamUpdateData): StreamUpdateData {
+        if (!a) return b;
+        if (!b) return a;
+
+        // Always use the latest metadata values
+        const result: StreamUpdateData = {
+            widgetid: a.widgetid,
+            filteredcount: b.filteredcount,
+            searchedcount: b.searchedcount,
+            totalcount: b.totalcount,
+            trimmedlines: b.trimmedlines,
+            offset: 0, // Will be set correctly below
+            lines: [],
+        };
+
+        // Find the minimum offset
+        const minOffset = Math.min(a.offset, b.offset);
+        result.offset = minOffset;
+
+        // Calculate the maximum position needed in the array
+        const maxPositionA = a.offset + a.lines.length - 1;
+        const maxPositionB = b.offset + b.lines.length - 1;
+        const maxPosition = Math.max(maxPositionA, maxPositionB);
+
+        // Create an array of the right size, initialized with nulls
+        const mergedLines: LogLine[] = new Array(maxPosition - minOffset + 1).fill(null);
+
+        // Add lines from update A
+        for (let i = 0; i < a.lines.length; i++) {
+            const position = a.offset + i - minOffset;
+            mergedLines[position] = a.lines[i];
+        }
+
+        // Add lines from update B (will overwrite any overlapping lines from A)
+        // but don't overwrite existing values with nulls
+        for (let i = 0; i < b.lines.length; i++) {
+            const position = b.offset + i - minOffset;
+            if (b.lines[i] != null) {
+                mergedLines[position] = b.lines[i];
+            }
+        }
+
+        result.lines = mergedLines;
+        return result;
+    }
+
     handleLogStreamUpdate = (data: StreamUpdateData) => {
-        const { widgetid, offset, lines, totalcount, searchedcount, filteredcount, trimmedlines } = data;
+        const { widgetid } = data;
         if (widgetid !== this.widgetId) return;
-        if (!lines || lines.length === 0) return;
+        if (!data.lines || data.lines.length === 0) return;
+
+        // Merge with any pending update
+        this.pendingStreamUpdate = this.mergeStreamUpdates(this.pendingStreamUpdate, data);
+
+        // Schedule processing on next animation frame if not already scheduled
+        if (!this.animationFrameScheduled) {
+            this.animationFrameScheduled = true;
+            requestAnimationFrame(() => this.processStreamUpdate());
+        }
+    };
+
+    processStreamUpdate = () => {
+        this.animationFrameScheduled = false;
+        if (!this.pendingStreamUpdate) return;
+
+        const { offset, lines, totalcount, searchedcount, filteredcount, trimmedlines } = this.pendingStreamUpdate;
 
         let currentPage = Math.floor(offset / PAGESIZE);
         let currentOffset = offset % PAGESIZE;
@@ -537,7 +604,11 @@ class LogViewerModel {
         for (let i = 0; i < lines.length; ) {
             const remaining = PAGESIZE - currentOffset;
             const batch = lines.slice(i, i + remaining);
-            this.handleLogStreamUpdatePage(currentPage, currentOffset, batch);
+            if (batch.some((line) => line !== null)) {
+                // Filter out null entries before passing to handleLogStreamUpdatePage
+                const filteredBatch = batch.filter((line) => line !== null);
+                this.handleLogStreamUpdatePage(currentPage, currentOffset, filteredBatch);
+            }
             i += batch.length;
             currentPage++;
             currentOffset = 0;
@@ -556,10 +627,14 @@ class LogViewerModel {
             ...listState,
             trimmedLines: trimmedlines,
         });
+
         // Schedule unloading of trimmed pages with a delay to avoid double updates
         setTimeout(() => {
             this.unloadTrimmedPages(trimmedlines, prevTrimmedLines);
         }, 100);
+
+        // Clear the pending update
+        this.pendingStreamUpdate = null;
     };
 
     // Handle updates for a specific page
@@ -579,10 +654,12 @@ class LogViewerModel {
 
                 // Insert new lines at the specified offset
                 for (let i = 0; i < lines.length; i++) {
-                    if (offset + i < newLines.length) {
+                    if (lines[i] != null) {
+                        // Ensure the array is large enough by filling gaps with nulls
+                        while (offset + i >= newLines.length) {
+                            newLines.push(null);
+                        }
                         newLines[offset + i] = lines[i];
-                    } else {
-                        newLines.push(lines[i]);
                     }
                 }
 

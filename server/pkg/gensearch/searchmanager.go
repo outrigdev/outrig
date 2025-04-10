@@ -26,7 +26,7 @@ const (
 	CleanupInterval   = 10 * time.Second
 	MaxIdleTime       = 1 * time.Minute
 	TrimSize          = 1000
-	LogLineBufferSize = 4000
+	LogLineBufferSize = 10000
 )
 
 type PeerInterface interface {
