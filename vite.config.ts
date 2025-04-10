@@ -21,4 +21,7 @@ export default defineConfig({
             "/api": "http://localhost:6005",
         },
     },
+    build: {
+        outDir: "dist-fe", // Changed from default "dist" to "dist-fe"
+    },
 });

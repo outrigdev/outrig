@@ -14,8 +14,7 @@ tasks:
     clean:
         desc: Clean build artifacts
         cmds:
-            - rm -rf dist
-            - rm -rf server/pkg/web/dist
+            - rm -rf dist dist-fe server/pkg/web/dist
 
     build:frontend:
         desc: Build the frontend for production
@@ -23,7 +22,7 @@ tasks:
         cmds:
             - npm run build
             - mkdir -p server/pkg/web/dist
-            - cp -r dist/* server/pkg/web/dist/
+            - cp -r dist-fe/* server/pkg/web/dist/
 
     build:server:
         desc: Build the Go server with embedded frontend
