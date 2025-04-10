@@ -55,7 +55,7 @@ brews:
     - repository:
           owner: outrigdev
           name: homebrew-outrig
-      token: "{{ .Env.HOMEBREW_GITHUB_TOKEN }}"
+          token: "{{ .Env.HOMEBREW_GITHUB_TOKEN }}"
       homepage: "https://github.com/outrigdev/outrig"
       description: "Real-time debugging for Go programs, similar to Chrome DevTools"
       license: "Apache-2.0"
