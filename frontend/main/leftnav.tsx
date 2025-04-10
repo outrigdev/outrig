@@ -2,20 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import {
-    BookOpen,
-    Box,
-    Clock,
-    Github,
-    Home,
-    MessageSquare,
-    Moon,
-    Settings,
-    Sun,
-    Twitter,
-    X,
-    Youtube,
-} from "lucide-react";
+import { Box, Clock, Github, Home, Moon, Settings, Sun, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { AppModel } from "../appmodel";
 import { cn, formatDuration, formatRelativeTime } from "../util/util";
@@ -28,8 +15,6 @@ interface AppRunItemProps {
 
 export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) => {
     const [currentTime, setCurrentTime] = useState(() => Date.now());
-
-    console.log("rendering AppRunItem", appRun.appname, appRun.apprunid, appRun.status);
 
     // Only update the time for running apps
     useEffect(() => {
@@ -344,22 +329,16 @@ export const LeftNav: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Social Links */}
-                    <div className="flex justify-center space-x-3 p-4 border-t border-border">
-                        <a href="#" className="text-secondary hover:text-primary cursor-pointer">
+                    {/* GitHub Link */}
+                    <div className="flex justify-center p-4 border-t border-border">
+                        <a
+                            href="https://github.com/outrigdev/outrig"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-secondary hover:text-primary cursor-pointer"
+                        >
                             <Github size={18} />
-                        </a>
-                        <a href="#" className="text-secondary hover:text-primary cursor-pointer">
-                            <BookOpen size={18} />
-                        </a>
-                        <a href="#" className="text-secondary hover:text-primary cursor-pointer">
-                            <MessageSquare size={18} />
-                        </a>
-                        <a href="#" className="text-secondary hover:text-primary cursor-pointer">
-                            <Youtube size={18} />
-                        </a>
-                        <a href="#" className="text-secondary hover:text-primary cursor-pointer">
-                            <Twitter size={18} />
+                            <span>GitHub</span>
                         </a>
                     </div>
                 </div>

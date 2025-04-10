@@ -5,11 +5,11 @@ import { AppModel } from "@/appmodel";
 import { CopyButton } from "@/elements/copybutton";
 import { LogVList } from "@/logvlist/logvlist";
 import { LogSettings, SettingsModel } from "@/settings/settings-model";
+import { EmptyMessageDelayMs } from "@/util/constants";
 import { useOutrigModel } from "@/util/hooks";
 import { useAtomValue } from "jotai";
 import { X } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EmptyMessageDelayMs } from "@/util/constants";
 import { LogViewerFilter } from "./logfilter";
 import { LogLineComponent } from "./logline";
 import { LogViewerModel } from "./logviewer-model";
@@ -132,8 +132,6 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         [model]
     );
 
-    console.log("LogList render", dimensions, "isRefreshing:", isRefreshing);
-
     return (
         <div ref={listContainerRef} className="w-full min-w-[1200px] h-full font-mono text-xs leading-tight">
             {/* Always render LogVList, even during refresh */}
@@ -210,14 +208,14 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
     const totalLinesCount = useAtomValue(model.totalItemCount);
     const searchTerm = useAtomValue(model.searchTerm);
     const [showEmptyMessage, setShowEmptyMessage] = useState(false);
-    
+
     // Set a timeout to show empty message after component mounts or when counts change
     useEffect(() => {
         if ((filteredLinesCount === 0 || totalLinesCount === 0) && !isRefreshing) {
             const timer = setTimeout(() => {
                 setShowEmptyMessage(true);
             }, EmptyMessageDelayMs);
-            
+
             return () => clearTimeout(timer);
         } else {
             setShowEmptyMessage(false);
@@ -291,9 +289,6 @@ interface LogViewerProps {
 
 export const LogViewer = React.memo<LogViewerProps>((props: LogViewerProps) => {
     const model = useOutrigModel(LogViewerModel, props.appRunId);
-
-    console.log("Render logviewer", props.appRunId, model);
-
     if (!model) {
         return null;
     }

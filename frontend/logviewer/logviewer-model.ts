@@ -173,7 +173,6 @@ class LogViewerModel {
             );
 
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
-            console.log("searchresults", results);
 
             // Increment version to trigger a full reset
             this.listVersion++;
@@ -311,8 +310,6 @@ class LogViewerModel {
 
         const startTime = Date.now();
         try {
-            console.log("Loading page", pageNum, "for search term", searchTerm);
-
             const results = await this.requestQueue.enqueue(cmdPromiseFn);
 
             // Get lines from the requested page
