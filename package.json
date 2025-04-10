@@ -18,7 +18,7 @@
     "jotai": "^2.12.1",
     "lucide-react": "^0.475.0",
     "mitt": "^3.0.1",
-    "prettier": "^3.5.2",
+    "prettier": "^3.5.3",
     "prettier-plugin-jsdoc": "^1.3.2",
     "prettier-plugin-organize-imports": "^4.1.0",
     "react": "^19.0.0",
