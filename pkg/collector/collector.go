@@ -12,7 +12,8 @@ type Collector interface {
 
 	// InitCollector initializes the collector with a controller
 	// The controller can be nil during early initialization
-	InitCollector(controller ds.Controller) error
+	// The config parameter is the collector-specific configuration, which can be cast to the appropriate type
+	InitCollector(controller ds.Controller, config any) error
 
 	Enable()
 	Disable()

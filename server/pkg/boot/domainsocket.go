@@ -4,6 +4,7 @@
 package boot
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -133,7 +134,7 @@ func handleDomainSocketConn(conn net.Conn) {
 	}
 }
 
-func runDomainSocketServer() error {
+func runDomainSocketServer(ctx context.Context) error {
 	outrigPath := utilfn.ExpandHomeDir(serverbase.GetOutrigHome())
 	if err := os.MkdirAll(outrigPath, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", outrigPath, err)
@@ -152,15 +153,40 @@ func runDomainSocketServer() error {
 
 	// Accept connections in a loop.
 	go func() {
-		defer listener.Close()
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				fmt.Printf("failed to accept connection: %v\n", err)
-				continue
+		defer func() {
+			listener.Close()
+			log.Printf("Domain socket server shutdown complete\n")
+			// Clean up the socket file on shutdown
+			_ = os.Remove(socketPath)
+		}()
+
+		// Create a channel to signal when Accept() returns
+		acceptDone := make(chan struct{})
+
+		// Start a goroutine to accept connections
+		go func() {
+			for {
+				conn, err := listener.Accept()
+				if err != nil {
+					// Check if the error is due to the listener being closed
+					if !strings.Contains(err.Error(), "use of closed network connection") {
+						fmt.Printf("failed to accept connection: %v\n", err)
+					}
+					close(acceptDone)
+					return
+				}
+				log.Printf("accepted domain socket connection\n")
+				go handleDomainSocketConn(conn)
 			}
-			log.Printf("accepted domain socket connection\n")
-			go handleDomainSocketConn(conn)
+		}()
+
+		// Wait for either context cancellation or accept to finish
+		select {
+		case <-ctx.Done():
+			log.Printf("Shutting down domain socket server...\n")
+			listener.Close() // This will cause Accept() to return with an error
+		case <-acceptDone:
+			// Accept returned on its own (likely due to an error)
 		}
 	}()
 	return nil

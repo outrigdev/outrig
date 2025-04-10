@@ -64,14 +64,23 @@ func getDefaultConfig(isDev bool) *ds.Config {
 
 	return &ds.Config{
 		DomainSocketPath: base.GetDomainSocketNameForClient(isDev),
-		ServerAddr:       base.GetTCPAddrForClient(isDev),
 		AppName:          "",
 		ModuleName:       "",
 		Dev:              isDev,
 		StartAsync:       false,
-		LogProcessorConfig: &ds.LogProcessorConfig{
+		LogProcessorConfig: ds.LogProcessorConfig{
+			Enabled:    true,
 			WrapStdout: wrapStdout,
 			WrapStderr: wrapStderr,
+		},
+		WatchConfig: ds.WatchConfig{
+			Enabled: true,
+		},
+		GoRoutineConfig: ds.GoRoutineConfig{
+			Enabled: true,
+		},
+		RuntimeStatsConfig: ds.RuntimeStatsConfig{
+			Enabled: true,
 		},
 	}
 }
@@ -93,9 +102,6 @@ func Init(cfgParam *ds.Config) error {
 	finalCfg := *cfgParam
 	if finalCfg.DomainSocketPath == "" {
 		finalCfg.DomainSocketPath = base.GetDomainSocketNameForClient(finalCfg.Dev)
-	}
-	if finalCfg.ServerAddr == "" {
-		finalCfg.ServerAddr = base.GetTCPAddrForClient(finalCfg.Dev)
 	}
 
 	// Create and initialize the controller

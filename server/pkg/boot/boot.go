@@ -30,9 +30,9 @@ func RunServer() error {
 		outrig.Init(outrigConfig)
 	}
 
-	// Create a context that we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// Create a context that we can cancelFn
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
 
 	// Create a WaitGroup to track subprocess shutdown
 	var wg sync.WaitGroup
@@ -45,10 +45,10 @@ func RunServer() error {
 	go func() {
 		sig := <-signalChan
 		log.Printf("Received signal: %v - Graceful shutdown initiated\n", sig)
-		
+
 		// Perform graceful shutdown
-		gracefulShutdown(cancel, &wg)
-		
+		gracefulShutdown(cancelFn, &wg)
+
 		// Give processes a moment to clean up
 		signal.Stop(signalChan)
 	}()
@@ -97,13 +97,13 @@ func RunServer() error {
 	log.Printf("Browser tabs tracking initialized\n")
 
 	// Run domain socket server
-	err = runDomainSocketServer()
+	err = runDomainSocketServer(ctx)
 	if err != nil {
 		return fmt.Errorf("error starting domain socket server: %w", err)
 	}
 
 	// Run web servers (HTTP and WebSocket)
-	err = web.RunAllWebServers()
+	err = web.RunAllWebServers(ctx)
 	if err != nil {
 		return fmt.Errorf("error starting web servers: %w", err)
 	}
@@ -157,23 +157,23 @@ func RunServer() error {
 func gracefulShutdown(cancel context.CancelFunc, wg *sync.WaitGroup) {
 	// Send shutdown event
 	tevent.SendShutdownEvent()
-	
+
 	// Add to WaitGroup before starting the goroutine
 	wg.Add(1)
-	
+
 	// Upload telemetry events in a goroutine
 	go func() {
 		defer wg.Done()
-		
+
 		err := tevent.UploadEvents()
 		if err != nil {
 			log.Printf("Failed to upload telemetry events during shutdown: %v", err)
 		}
 	}()
-	
+
 	// Cancel the context to stop all processes
 	cancel()
-	
+
 	// Set a timeout for shutdown
 	go func() {
 		// Wait for 5 seconds then force exit if we haven't already

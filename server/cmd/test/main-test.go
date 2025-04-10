@@ -151,8 +151,10 @@ func main() {
 	flag.Parse()
 
 	fmt.Printf("log before init\n")
+
 	config := outrig.DefaultDevConfig()
-	config.LogProcessorConfig.WrapStderr = false
+	config.LogProcessorConfig.OutrigPath = "go"
+	config.LogProcessorConfig.AdditionalArgs = []string{"run", "server/main-server.go"}
 	outrig.Init(config)
 	defer outrig.AppDone()
 

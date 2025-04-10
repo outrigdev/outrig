@@ -4,6 +4,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -78,7 +79,7 @@ type WebSocketModel struct {
 	OutputCh chan WSEventType
 }
 
-func RunWebSocketServer(listener net.Listener) {
+func RunWebSocketServer(ctx context.Context, listener net.Listener) {
 	gr := mux.NewRouter()
 	gr.HandleFunc("/ws", HandleWs)
 	server := &http.Server{
@@ -88,10 +89,35 @@ func RunWebSocketServer(listener net.Listener) {
 		Handler:        gr,
 	}
 	server.SetKeepAlivesEnabled(false)
-	log.Printf("[websocket] running websocket server on %s\n", listener.Addr())
-	err := server.Serve(listener)
-	if err != nil {
-		log.Printf("[websocket] error trying to run websocket server: %v\n", err)
+	
+	// Create a channel to signal when the server is done
+	serverDone := make(chan struct{})
+	
+	// Start the server in a goroutine
+	go func() {
+		log.Printf("[websocket] running websocket server on %s\n", listener.Addr())
+		err := server.Serve(listener)
+		if err != nil && err != http.ErrServerClosed {
+			log.Printf("[websocket] error trying to run websocket server: %v\n", err)
+		}
+		close(serverDone)
+	}()
+	
+	// Wait for context cancellation or server to finish
+	select {
+	case <-ctx.Done():
+		log.Printf("Shutting down WebSocket server...\n")
+		// Create a shutdown context with timeout (using 100ms since these are local connections)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer shutdownCancel()
+		
+		// Attempt graceful shutdown
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("WebSocket server shutdown error: %v\n", err)
+		}
+		log.Printf("WebSocket server shutdown complete\n")
+	case <-serverDone:
+		// Server stopped on its own
 	}
 }
 

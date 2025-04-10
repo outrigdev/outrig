@@ -21,6 +21,7 @@ import (
 type GoroutineCollector struct {
 	lock           sync.Mutex
 	controller     ds.Controller
+	config         ds.GoRoutineConfig
 	ticker         *time.Ticker
 	done           chan struct{}
 	goroutineNames map[int64]string // map from goroutine ID to name
@@ -45,9 +46,12 @@ func GetInstance() *GoroutineCollector {
 	return instance
 }
 
-// InitCollector initializes the goroutine collector with a controller
-func (gc *GoroutineCollector) InitCollector(controller ds.Controller) error {
+// InitCollector initializes the goroutine collector with a controller and configuration
+func (gc *GoroutineCollector) InitCollector(controller ds.Controller, config any) error {
 	gc.controller = controller
+	if goConfig, ok := config.(ds.GoRoutineConfig); ok {
+		gc.config = goConfig
+	}
 	return nil
 }
 

@@ -32,6 +32,7 @@ type AtomicStorer[T any] interface {
 type WatchCollector struct {
 	lock       sync.Mutex
 	controller ds.Controller
+	config     ds.WatchConfig
 	ticker     *time.Ticker
 	done       chan struct{}
 
@@ -162,9 +163,12 @@ func (wc *WatchCollector) UnregisterWatch(name string) {
 	delete(wc.watchDecls, cleanName)
 }
 
-// InitCollector initializes the watch collector with a controller
-func (wc *WatchCollector) InitCollector(controller ds.Controller) error {
+// InitCollector initializes the watch collector with a controller and configuration
+func (wc *WatchCollector) InitCollector(controller ds.Controller, config any) error {
 	wc.controller = controller
+	if watchConfig, ok := config.(ds.WatchConfig); ok {
+		wc.config = watchConfig
+	}
 	return nil
 }
 

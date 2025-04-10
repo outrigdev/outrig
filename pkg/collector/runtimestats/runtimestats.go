@@ -19,6 +19,7 @@ import (
 type RuntimeStatsCollector struct {
 	lock       sync.Mutex
 	controller ds.Controller
+	config     ds.RuntimeStatsConfig
 	ticker     *time.Ticker
 	done       chan struct{}
 }
@@ -40,9 +41,12 @@ func GetInstance() *RuntimeStatsCollector {
 	return instance
 }
 
-// InitCollector initializes the runtime stats collector with a controller
-func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller) error {
+// InitCollector initializes the runtime stats collector with a controller and configuration
+func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, config any) error {
 	rc.controller = controller
+	if statsConfig, ok := config.(ds.RuntimeStatsConfig); ok {
+		rc.config = statsConfig
+	}
 	return nil
 }
 

@@ -15,7 +15,7 @@ Outrig runs 100% locally. No data ever leaves your machine.
 It is currently available for MacOS and Linux (Windows builds coming soon).
 
 <p align="center">
-  <img src="assets/outrig-loop.gif" alt="Outrig in action" width="800" style="border-radius: 10px;">
+  <img src="assets/outrig-loop.gif" alt="Outrig in action" width="800">
 </p>
 
 ## Features

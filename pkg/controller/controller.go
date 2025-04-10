@@ -58,21 +58,21 @@ func MakeController(config ds.Config) (*ControllerImpl, error) {
 		connected = c.Connect()
 	}
 
-	// Initialize collectors
+	// Initialize collectors with their respective configurations
 	logCollector := logprocess.GetInstance()
-	logCollector.InitCollector(c)
+	logCollector.InitCollector(c, c.config.LogProcessorConfig)
 	c.Collectors[logCollector.CollectorName()] = logCollector
 
 	goroutineCollector := goroutine.GetInstance()
-	goroutineCollector.InitCollector(c)
+	goroutineCollector.InitCollector(c, c.config.GoRoutineConfig)
 	c.Collectors[goroutineCollector.CollectorName()] = goroutineCollector
 
 	watchCollector := watch.GetInstance()
-	watchCollector.InitCollector(c)
+	watchCollector.InitCollector(c, c.config.WatchConfig)
 	c.Collectors[watchCollector.CollectorName()] = watchCollector
 
 	runtimeStatsCollector := runtimestats.GetInstance()
-	runtimeStatsCollector.InitCollector(c)
+	runtimeStatsCollector.InitCollector(c, c.config.RuntimeStatsConfig)
 	c.Collectors[runtimeStatsCollector.CollectorName()] = runtimeStatsCollector
 
 	if connected {
@@ -170,7 +170,7 @@ func (c *ControllerImpl) Connect() bool {
 
 	// Use the new Connect function to establish a connection
 	connWrap, err := comm.Connect(base.ConnectionModePacket, "", c.AppInfo.AppRunId,
-		c.config.DomainSocketPath, c.config.ServerAddr)
+		c.config.DomainSocketPath, "")
 
 	if err != nil {
 		// Connection failed
@@ -395,8 +395,26 @@ func (c *ControllerImpl) setEnabled(enabled bool) {
 	}
 	if enabled {
 		global.OutrigEnabled.Store(true)
-		for _, collector := range c.Collectors {
-			collector.Enable()
+		// Only enable collectors that have Enabled set to true in their config
+		for name, collector := range c.Collectors {
+			switch name {
+			case "logprocess":
+				if c.config.LogProcessorConfig.Enabled {
+					collector.Enable()
+				}
+			case "goroutine":
+				if c.config.GoRoutineConfig.Enabled {
+					collector.Enable()
+				}
+			case "watch":
+				if c.config.WatchConfig.Enabled {
+					collector.Enable()
+				}
+			case "runtimestats":
+				if c.config.RuntimeStatsConfig.Enabled {
+					collector.Enable()
+				}
+			}
 		}
 	} else {
 		for _, collector := range c.Collectors {

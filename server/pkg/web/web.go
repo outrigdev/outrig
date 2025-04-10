@@ -4,6 +4,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -119,7 +120,7 @@ func MakeUnixListener(socketPath string) (net.Listener, error) {
 }
 
 // blocking
-func RunWebServer(listener net.Listener) {
+func RunWebServer(ctx context.Context, listener net.Listener) {
 	gr := mux.NewRouter()
 
 	apiRouter := gr.PathPrefix("/api").Subrouter()
@@ -147,15 +148,39 @@ func RunWebServer(listener net.Listener) {
 		Handler:        handler,
 	}
 
-	log.Printf("HTTP server running on http://%s\n", listener.Addr())
-	err := server.Serve(listener)
-	if err != nil {
-		log.Printf("ERROR: %v\n", err)
+	// Create a channel to signal when the server is done
+	serverDone := make(chan struct{})
+
+	// Start the server in a goroutine
+	go func() {
+		log.Printf("HTTP server running on http://%s\n", listener.Addr())
+		err := server.Serve(listener)
+		if err != nil && err != http.ErrServerClosed {
+			log.Printf("HTTP server error: %v\n", err)
+		}
+		close(serverDone)
+	}()
+
+	// Wait for context cancellation or server to finish
+	select {
+	case <-ctx.Done():
+		log.Printf("Shutting down HTTP server...\n")
+		// Create a shutdown context with timeout (using 100ms since these are local connections)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer shutdownCancel()
+		
+		// Attempt graceful shutdown
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("HTTP server shutdown error: %v\n", err)
+		}
+		log.Printf("HTTP server shutdown complete\n")
+	case <-serverDone:
+		// Server stopped on its own
 	}
 }
 
 // RunAllWebServers initializes and runs the HTTP and WebSocket servers
-func RunAllWebServers() error {
+func RunAllWebServers(ctx context.Context) error {
 	webServerPort := serverbase.GetWebServerPort()
 	webSocketPort := serverbase.GetWebSocketPort()
 
@@ -171,8 +196,8 @@ func RunAllWebServers() error {
 	}
 	log.Printf("WebSocket server listening on ws://%s\n", wsListener.Addr().String())
 
-	go RunWebServer(httpListener)
-	go RunWebSocketServer(wsListener)
+	go RunWebServer(ctx, httpListener)
+	go RunWebSocketServer(ctx, wsListener)
 
 	return nil
 }

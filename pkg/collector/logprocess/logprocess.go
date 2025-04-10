@@ -14,6 +14,7 @@ import (
 // LogCollector implements the collector.Collector interface for log collection
 type LogCollector struct {
 	controller ds.Controller
+	config     ds.LogProcessorConfig
 }
 
 // CollectorName returns the unique name of the collector
@@ -33,26 +34,27 @@ func GetInstance() *LogCollector {
 	return instance
 }
 
-// InitCollector initializes the log collector with a controller
-func (lc *LogCollector) InitCollector(controller ds.Controller) error {
+// InitCollector initializes the log collector with a controller and configuration
+func (lc *LogCollector) InitCollector(controller ds.Controller, config any) error {
 	lc.controller = controller
+	if logConfig, ok := config.(ds.LogProcessorConfig); ok {
+		lc.config = logConfig
+	}
 	return nil
 }
 
 func (lc *LogCollector) Enable() {
 	// Enable external log wrapping if controller is available
+	// Get the appRunId from the controller
+	appRunId := lc.controller.GetAppRunId()
 	config := lc.controller.GetConfig()
-	if config.LogProcessorConfig != nil {
-		// Get the appRunId from the controller
-		appRunId := lc.controller.GetAppRunId()
 
-		// Use the new external log capture mechanism
-		err := loginitex.EnableExternalLogWrap(appRunId, *config.LogProcessorConfig, config.Dev)
-		if err != nil {
-			fmt.Printf("Failed to enable external log wrapping: %v\n", err)
-		} else {
-			fmt.Printf("External log wrapping enabled\n")
-		}
+	// Use the new external log capture mechanism
+	err := loginitex.EnableExternalLogWrap(appRunId, lc.config, config.Dev)
+	if err != nil {
+		fmt.Printf("Failed to enable external log wrapping: %v\n", err)
+	} else {
+		fmt.Printf("External log wrapping enabled\n")
 	}
 }
 

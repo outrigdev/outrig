@@ -41,6 +41,8 @@ type PacketType struct {
 }
 
 type LogProcessorConfig struct {
+	// Enabled indicates whether the log processor is enabled
+	Enabled bool
 	WrapStdout bool
 	WrapStderr bool
 	// OutrigPath is the full path to the outrig executable (including the executable name)
@@ -51,14 +53,25 @@ type LogProcessorConfig struct {
 	AdditionalArgs []string
 }
 
+type WatchConfig struct {
+	// Enabled indicates whether the watch collector is enabled
+	Enabled bool
+}
+
+type GoRoutineConfig struct {
+	// Enabled indicates whether the goroutine collector is enabled
+	Enabled bool
+}
+
+type RuntimeStatsConfig struct {
+	// Enabled indicates whether the runtime stats collector is enabled
+	Enabled bool
+}
+
 type Config struct {
 	// DomainSocketPath is the path to the Unix domain socket. If "" => use default.
 	// If "-" => disable domain socket.
 	DomainSocketPath string
-
-	// ServerAddr is the TCP address (host:port). If "" => use default.
-	// If "-" => disable TCP.
-	ServerAddr string
 
 	// AppName is the name of the application. If not specified, it will be determined
 	// from the executable name.
@@ -73,7 +86,11 @@ type Config struct {
 
 	StartAsync bool
 
-	LogProcessorConfig *LogProcessorConfig
+	// Collector configurations
+	LogProcessorConfig LogProcessorConfig
+	WatchConfig        WatchConfig
+	GoRoutineConfig    GoRoutineConfig
+	RuntimeStatsConfig RuntimeStatsConfig
 }
 
 // ClientType represents our active connection client
