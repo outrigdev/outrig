@@ -167,3 +167,11 @@ export function formatTimeOffset(timestamp: number, startTime: number): string {
         return minutes > 0 ? `+${hours}h${minutes}m` : `+${hours}h`;
     }
 }
+
+/**
+ * Escapes special characters in a string for use in a regular expression.
+ * This prevents potential security issues when using user input in RegExp.
+ */
+export function escapeRegExp(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

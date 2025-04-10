@@ -1,7 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
-
-import { cn } from "@/util/util";
+import { cn, escapeRegExp } from "@/util/util";
 import React, { useState } from "react";
 import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
 
@@ -161,7 +160,7 @@ const RawStackTrace: React.FC<RawStackTraceProps> = ({ goroutine, model, linkTyp
 
     // Create the header line in the format Go would use: "goroutine X [state, X minutes]:"
     const headerLine = `goroutine ${goroutine.goid} [${goroutine.rawstate}]:`;
-    
+
     // Split the stacktrace into lines
     const stacktraceLines = goroutine.rawstacktrace.split("\n");
 
@@ -169,7 +168,7 @@ const RawStackTrace: React.FC<RawStackTraceProps> = ({ goroutine, model, linkTyp
         <pre className="text-xs text-primary whitespace-pre-wrap bg-panel p-2 rounded">
             {/* First render the header line */}
             <div>{headerLine}</div>
-            
+
             {/* Then render the rest of the stack trace */}
             {stacktraceLines.map((line: string, index: number) => (
                 <StacktraceLine key={index} line={line} model={model} linkType={linkType} />
@@ -426,7 +425,8 @@ const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }
     }
 
     // Find the file:line part in the text to make it clickable
-    const fileLinePattern = new RegExp(`(${filePath.replace(/\//g, "\\/")}:${lineNumber})`);
+    const escapedFilePath = escapeRegExp(filePath);
+    const fileLinePattern = new RegExp(`(${escapedFilePath}:${lineNumber})`);
     const parts = line.split(fileLinePattern);
 
     if (parts.length === 1) {
