@@ -129,6 +129,16 @@ This will:
 
 The production binary will be available at `bin/outrig`.
 
+### Installing the Production Build
+
+To build and install Outrig to your local bin directory:
+
+```bash
+task install
+```
+
+This will build the project and copy the binary to `~/.local/bin/outrig`, making it available in your PATH (if `~/.local/bin` is in your PATH).
+
 ### Running the Production Build
 
 To run the production build:

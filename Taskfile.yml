@@ -73,3 +73,13 @@ tasks:
         desc: Create and publish a new release
         cmds:
             - goreleaser release --clean
+
+    install:
+        desc: Build and install outrig to ~/.local/bin
+        deps:
+            - build
+        cmds:
+            - mkdir -p ~/.local/bin
+            - cp bin/outrig ~/.local/bin/
+            - chmod 755 ~/.local/bin/outrig
+            - echo "Outrig installed to ~/.local/bin/outrig"

@@ -47,15 +47,19 @@ brew install outrig
 
 For Linux:
 
-Download the latest release from the [releases page](https://github.com/outrigdev/outrig/releases). We have deb and rpm releases.
-
 ```bash
-# Example installation on macOS/Linux
-curl -L https://github.com/outrigdev/outrig/releases/latest/download/outrig_$(uname -s)_$(uname -m).tar.gz | tar xz
-sudo mv outrig /usr/local/bin/
+# Quick installation script (installs to ~/.local/bin)
+curl -sf https://raw.githubusercontent.com/outrigdev/outrig/main/assets/install.sh | sh
 ```
 
-For developers interested in building from source, see [BUILD.md](docs/BUILD.md).
+Alternatively, you can download the latest release from the [releases page](https://github.com/outrigdev/outrig/releases). We have deb, rpm, and tar.gz packages available (since outrig is a go program it is just a single binary).
+
+For developers interested in building from source, see [BUILD.md](docs/BUILD.md). If you've already cloned the repository, you can build and install with:
+
+```bash
+# Build from source and install to ~/.local/bin
+task install
+```
 
 ## Usage
 
