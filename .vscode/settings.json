@@ -31,7 +31,14 @@
     "[yaml]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode",
         "editor.insertSpaces": true,
-        "editor.autoIndent": "keep"
+        "editor.autoIndent": "keep",
+        "editor.tabSize": 4
+    },
+    "[github-actions-workflow]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.insertSpaces": true,
+        "editor.autoIndent": "keep",
+        "editor.tabSize": 4
     },
     "[go]": {
         "editor.defaultFormatter": "golang.go"
@@ -43,9 +50,7 @@
         "editor.wordWrap": "on"
     },
     "files.associations": {
-        "*.css": "tailwindcss"
-    },
-    "search.exclude": {
-        "!**/internaldocs/*.md": true
+        "*.css": "tailwindcss",
+        ".github/workflows/*.yml": "github-actions-workflow"
     }
 }
