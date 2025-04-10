@@ -1,18 +1,18 @@
-# GoReleaser configuration for Outrig
-# See https://goreleaser.com for documentation
+# Copyright 2025, Command Line Inc.
+# SPDX-License-Identifier: Apache-2.0
 
+version: 2
 project_name: outrig
 
 before:
     hooks:
-        # Install dependencies and build the frontend before packaging
         - npm ci
         - task build:frontend
 
 builds:
-    - main: ./server/main-server.go
+    - id: outrig
+      main: ./main-server.go
       dir: ./server
-      id: outrig
       binary: outrig
       ldflags:
           - -X main.OutrigVersion={{.Version}} -X main.OutrigBuildTime={{.Timestamp}}
@@ -26,16 +26,10 @@ builds:
           - CGO_ENABLED=0
 
 archives:
-    - format: tar.gz
-      name_template: >-
-          {{ .ProjectName }}_{{ .Version }}_
-          {{- title .Os }}_
-          {{- if eq .Arch "amd64" }}x86_64
-          {{- else if eq .Arch "386" }}i386
-          {{- else }}{{ .Arch }}{{ end }}
-      format_overrides:
-          - goos: darwin
-            format: zip
+    - id: default
+      name_template: >
+          {{- .ProjectName }}_{{ .Version }}_{{ title .Os }}_{{ if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "386" }}i386{{ else }}{{ .Arch }}{{ end -}}
+      wrap_in_directory: true
       files:
           - LICENSE
           - README.md
@@ -43,9 +37,6 @@ archives:
 
 checksum:
     name_template: "checksums.txt"
-
-snapshot:
-    name_template: "{{ incpatch .Version }}-next"
 
 changelog:
     sort: asc
@@ -57,21 +48,19 @@ changelog:
             - Merge pull request
             - Merge branch
 
-# Homebrew tap configuration
 brews:
-    - tap:
+    - repository:
           owner: outrigdev
           name: homebrew-outrig
       homepage: "https://github.com/outrigdev/outrig"
       description: "Real-time debugging for Go programs, similar to Chrome DevTools"
       license: "Apache-2.0"
-      folder: Formula
+      directory: Formula
       install: |
           bin.install "outrig"
       test: |
           system "#{bin}/outrig", "version"
 
-# Linux packages (.deb and .rpm)
 nfpms:
     - package_name: outrig
       homepage: "https://github.com/outrigdev/outrig"
