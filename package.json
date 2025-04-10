@@ -25,7 +25,7 @@
     "react-dom": "^19.0.0",
     "react-virtuoso": "^4.12.5",
     "react-window": "^1.8.11",
-    "tailwind-merge": "^3.0.2"
+    "tailwind-merge": "^3.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
