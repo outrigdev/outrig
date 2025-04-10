@@ -42,7 +42,7 @@ func Initialize() {
 	browserTabsRpcClient = rpc.MakeRpcClient(nil, nil, nil, BrowserTabsRouteId)
 
 	// Register the client with the router
-	rpc.DefaultRouter.RegisterRoute(BrowserTabsRouteId, browserTabsRpcClient, true)
+	rpc.GetDefaultRouter().RegisterRoute(BrowserTabsRouteId, browserTabsRpcClient, true)
 
 	// Subscribe to route down events
 	rpc.Broker.Subscribe(BrowserTabsRouteId, rpctypes.SubscriptionRequest{

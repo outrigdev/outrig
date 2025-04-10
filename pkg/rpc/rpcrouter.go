@@ -78,14 +78,25 @@ func MakeFeBlockRouteId(blockId string) string {
 	return "feblock:" + blockId
 }
 
+var (
+	defaultRouter     *WshRouter
+	defaultRouterOnce sync.Once
+)
+
+// GetDefaultRouter returns the DefaultRouter, initializing it if needed
+func GetDefaultRouter() *WshRouter {
+	defaultRouterOnce.Do(func() {
+		defaultRouter = NewWshRouter()
+	})
+	return defaultRouter
+}
+
 func init() {
 	// Register a watch function that returns a sorted list of RouteMap keys
 	outrig.WatchFunc("rpcroutes", func() []string {
-		return DefaultRouter.GetRouteKeys()
+		return GetDefaultRouter().GetRouteKeys()
 	}, nil)
 }
-
-var DefaultRouter = NewWshRouter()
 
 // GetRouteKeys returns a sorted list of all route keys in the router
 func (router *WshRouter) GetRouteKeys() []string {

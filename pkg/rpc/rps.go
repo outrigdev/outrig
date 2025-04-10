@@ -26,8 +26,11 @@ var Broker = &BrokerType{
 }
 
 func init() {
-	Broker.SetClient(DefaultRouter)
 	outrig.WatchSync("rpc-brokersubs", Broker.Lock, &Broker.SubMap)
+}
+
+func InitBroker() {
+	Broker.SetClient(GetDefaultRouter())
 }
 
 type EventType = rpctypes.EventType

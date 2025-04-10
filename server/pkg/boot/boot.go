@@ -90,7 +90,8 @@ func RunServer() error {
 	tevent.UploadEventsAsync()
 
 	outrigRpcServer := rpc.MakeRpcClient(nil, nil, &rpcserver.RpcServerImpl{}, "outrigsrv")
-	rpc.DefaultRouter.RegisterRoute("outrigsrv", outrigRpcServer, true)
+	rpc.GetDefaultRouter().RegisterRoute("outrigsrv", outrigRpcServer, true)
+	rpc.InitBroker()
 
 	// Initialize browser tabs tracking
 	browsertabs.Initialize()

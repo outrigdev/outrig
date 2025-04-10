@@ -168,7 +168,7 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 		Offset:        len(m.CachedResult) - 1 + m.TrimmedCount,
 		Lines:         []ds.LogLine{line},
 	}
-	go rpcclient.LogStreamUpdateCommand(rpcclient.BareClient, streamUpdate, &rpc.RpcOpts{Route: m.RpcSource, NoResponse: true})
+	go rpcclient.LogStreamUpdateCommand(rpcclient.GetBareClient(), streamUpdate, &rpc.RpcOpts{Route: m.RpcSource, NoResponse: true})
 }
 
 // MakeSearchManager creates a new SearchManager for a specific widget

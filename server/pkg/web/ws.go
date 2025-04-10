@@ -89,10 +89,10 @@ func RunWebSocketServer(ctx context.Context, listener net.Listener) {
 		Handler:        gr,
 	}
 	server.SetKeepAlivesEnabled(false)
-	
+
 	// Create a channel to signal when the server is done
 	serverDone := make(chan struct{})
-	
+
 	// Start the server in a goroutine
 	go func() {
 		log.Printf("[websocket] running websocket server on %s\n", listener.Addr())
@@ -102,7 +102,7 @@ func RunWebSocketServer(ctx context.Context, listener net.Listener) {
 		}
 		close(serverDone)
 	}()
-	
+
 	// Wait for context cancellation or server to finish
 	select {
 	case <-ctx.Done():
@@ -110,7 +110,7 @@ func RunWebSocketServer(ctx context.Context, listener net.Listener) {
 		// Create a shutdown context with timeout (using 100ms since these are local connections)
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer shutdownCancel()
-		
+
 		// Attempt graceful shutdown
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Printf("WebSocket server shutdown error: %v\n", err)
@@ -273,8 +273,8 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	}()
 
 	proxy := rpc.MakeRpcProxy()
-	rpc.DefaultRouter.RegisterRoute(routeId, proxy, true)
-	defer rpc.DefaultRouter.UnregisterRoute(routeId)
+	rpc.GetDefaultRouter().RegisterRoute(routeId, proxy, true)
+	defer rpc.GetDefaultRouter().UnregisterRoute(routeId)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(2)

@@ -5,6 +5,7 @@ package rpcclient
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
@@ -13,11 +14,18 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-var BareClient *rpc.RpcClient
+var (
+	bareClient     *rpc.RpcClient
+	bareClientOnce sync.Once
+)
 
-func init() {
-	BareClient = rpc.MakeRpcClient(nil, nil, nil, "outrigsrv-client")
-	rpc.DefaultRouter.RegisterRoute(rpc.BareClientRoute, BareClient, true)
+// GetBareClient returns the BareClient, initializing it if needed
+func GetBareClient() *rpc.RpcClient {
+	bareClientOnce.Do(func() {
+		bareClient = rpc.MakeRpcClient(nil, nil, nil, "outrigsrv-client")
+		rpc.GetDefaultRouter().RegisterRoute(rpc.BareClientRoute, bareClient, true)
+	})
+	return bareClient
 }
 
 func SendRpcRequestCallHelper[T any](w *rpc.RpcClient, command string, data interface{}, opts *rpc.RpcOpts) (T, error) {
