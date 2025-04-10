@@ -58,7 +58,11 @@ export function Tooltip({ children, content, placement = "top", forceOpen = fals
             }
         },
         placement,
-        middleware: [offset(5), flip(), shift()],
+        middleware: [
+            offset(10), // Increased from 5px to 10px for more space
+            flip(),
+            shift({ padding: 12 }), // Added 12px padding to keep tooltip away from viewport edges
+        ],
         whileElementsMounted: autoUpdate,
     });
 
@@ -68,7 +72,7 @@ export function Tooltip({ children, content, placement = "top", forceOpen = fals
             // When forceOpen becomes true, open the tooltip immediately
             setIsOpen(true);
             setIsVisible(true);
-            
+
             // Clear any existing timeout
             if (timeoutRef.current !== null) {
                 window.clearTimeout(timeoutRef.current);
@@ -82,19 +86,19 @@ export function Tooltip({ children, content, placement = "top", forceOpen = fals
                 // Keep it open if it's being hovered and wasn't forced open before
             } else {
                 setIsVisible(false);
-                
+
                 // Clear any existing timeout
                 if (timeoutRef.current !== null) {
                     window.clearTimeout(timeoutRef.current);
                 }
-                
+
                 // Set a timeout to actually close after transition
                 timeoutRef.current = window.setTimeout(() => {
                     setIsOpen(false);
                 }, 300);
             }
         }
-        
+
         // Track previous forceOpen value
         prevForceOpenRef.current = forceOpen;
     }, [forceOpen, context.open]);
@@ -126,7 +130,7 @@ export function Tooltip({ children, content, placement = "top", forceOpen = fals
                             transition: "opacity 200ms ease",
                         }}
                         {...getFloatingProps()}
-                        className="bg-panel border border-border rounded-md px-2 py-1 text-xs text-secondary shadow-md z-50"
+                        className="bg-white dark:bg-[#4a5060] border border-border rounded-md px-2 py-1 text-xs text-primary shadow-xl z-50"
                     >
                         {content}
                     </div>

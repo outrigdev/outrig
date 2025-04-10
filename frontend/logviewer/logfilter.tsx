@@ -28,7 +28,9 @@ const FollowButton = React.memo<FollowButtonProps>(({ model }) => {
     }, [followOutput, model, setFollowOutput]);
 
     return (
-        <Tooltip content={followOutput ? "Pinned to Bottom (Click to Disable)" : "Not Pinned to Bottom (Click to Enable)"}>
+        <Tooltip
+            content={followOutput ? "Pinned to Bottom (Click to Disable)" : "Not Pinned to Bottom (Click to Enable)"}
+        >
             <button
                 onClick={toggleFollow}
                 className={`p-1 mr-1 rounded ${
@@ -124,7 +126,19 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                 </div>
 
                 {/* Search stats */}
-                <Tooltip content={`${filteredCount} matched / ${searchedCount} searched / ${totalCount} ingested`}>
+                <Tooltip
+                    content={
+                        <>
+                            {filteredCount} matched / {searchedCount} searched / {totalCount} ingested
+                            {totalCount >= 10000 && (
+                                <>
+                                    <br />
+                                    <span className="text-secondary">Only the most recent 10k lines are stored</span>
+                                </>
+                            )}
+                        </>
+                    }
+                >
                     <div className="text-xs text-muted mr-2 select-none">
                         {filteredCount}/{searchedCount}
                         {totalCount > searchedCount ? "+" : ""}
