@@ -21,11 +21,25 @@ import (
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilfn"
-	"golang.org/x/exp/constraints"
 )
 
 // Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:
 type Config = ds.Config
+
+// Integer is a constraint that permits any integer type.
+type Integer interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+// Float is a constraint that permits any floating-point type.
+type Float interface {
+	~float32 | ~float64
+}
+
+// Number is a constraint that permits any numeric type.
+type Number interface {
+	Integer | Float
+}
 
 var ctrl atomic.Pointer[controller.ControllerImpl]
 
@@ -159,7 +173,7 @@ type AtomicStorer[T any] interface {
 	Store(val T)
 }
 
-func WatchCounterSync[T constraints.Integer | constraints.Float](name string, lock sync.Locker, val *T) {
+func WatchCounterSync[T Number](name string, lock sync.Locker, val *T) {
 	if val == nil {
 		return
 	}
@@ -177,7 +191,7 @@ func WatchSync[T any](name string, lock sync.Locker, val *T) {
 	wc.RegisterWatchSync(name, lock, rval, ds.WatchFlag_Sync|ds.WatchFlag_Settable)
 }
 
-func WatchAtomicCounter[T constraints.Integer | constraints.Float](name string, val AtomicLoader[T]) {
+func WatchAtomicCounter[T Number](name string, val AtomicLoader[T]) {
 	if val == nil {
 		return
 	}
@@ -193,7 +207,7 @@ func WatchAtomic[T any](name string, val AtomicLoader[T]) {
 	wc.RegisterWatchAtomic(name, val, ds.WatchFlag_Atomic|ds.WatchFlag_Settable)
 }
 
-func WatchCounterFunc[T constraints.Integer | constraints.Float](name string, getFn func() T) {
+func WatchCounterFunc[T Number](name string, getFn func() T) {
 	if getFn == nil {
 		return
 	}
@@ -223,7 +237,7 @@ func TrackValue(name string, val any) {
 	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), ds.WatchFlag_Push)
 }
 
-func TrackCounter[T constraints.Integer | constraints.Float](name string, val T) {
+func TrackCounter[T Number](name string, val T) {
 	if !global.OutrigEnabled.Load() {
 		return
 	}

@@ -6,7 +6,6 @@ require (
 	github.com/emirpasic/gods v1.18.1
 	github.com/google/uuid v1.6.0
 	github.com/shirou/gopsutil/v4 v4.25.3
-	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 )
 
 require (

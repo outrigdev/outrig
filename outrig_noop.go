@@ -10,11 +10,25 @@ import (
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/ds"
-	"golang.org/x/exp/constraints"
 )
 
 // Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:
 type Config = ds.Config
+
+// Integer is a constraint that permits any integer type.
+type Integer interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+// Float is a constraint that permits any floating-point type.
+type Float interface {
+	~float32 | ~float64
+}
+
+// Number is a constraint that permits any numeric type.
+type Number interface {
+	Integer | Float
+}
 
 type AtomicLoader[T any] interface {
 	Load() T
@@ -75,21 +89,21 @@ func GetAppRunId() string {
 func AppDone() {}
 
 // WatchCounterSync is a no-op when no_outrig is set
-func WatchCounterSync[T constraints.Integer | constraints.Float](name string, lock sync.Locker, val *T) {
+func WatchCounterSync[T Number](name string, lock sync.Locker, val *T) {
 }
 
 // WatchSync is a no-op when no_outrig is set
 func WatchSync[T any](name string, lock sync.Locker, val *T) {}
 
 // WatchAtomicCounter is a no-op when no_outrig is set
-func WatchAtomicCounter[T constraints.Integer | constraints.Float](name string, val AtomicLoader[T]) {
+func WatchAtomicCounter[T Number](name string, val AtomicLoader[T]) {
 }
 
 // WatchAtomic is a no-op when no_outrig is set
 func WatchAtomic[T any](name string, val AtomicLoader[T]) {}
 
 // WatchCounterFunc is a no-op when no_outrig is set
-func WatchCounterFunc[T constraints.Integer | constraints.Float](name string, getFn func() T) {}
+func WatchCounterFunc[T Number](name string, getFn func() T) {}
 
 // WatchFunc is a no-op when no_outrig is set
 func WatchFunc[T any](name string, getFn func() T, setFn func(T)) {}
@@ -98,7 +112,7 @@ func WatchFunc[T any](name string, getFn func() T, setFn func(T)) {}
 func TrackValue(name string, val any) {}
 
 // TrackCounter is a no-op when no_outrig is set
-func TrackCounter[T constraints.Integer | constraints.Float](name string, val T) {}
+func TrackCounter[T Number](name string, val T) {}
 
 // SetGoRoutineName is a no-op when no_outrig is set
 func SetGoRoutineName(name string) {}
