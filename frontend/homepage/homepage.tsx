@@ -1,8 +1,8 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { AppRunList } from "@/apprunlist/apprunlist";
 import { AppModel } from "@/appmodel";
+import { AppRunList } from "@/apprunlist/apprunlist";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import { Activity, BarChart2, List, Search } from "lucide-react";
@@ -27,13 +27,17 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description }) =
 export const HomePage: React.FC = () => {
     const appRunCount = useAtomValue(AppModel.appRunModel.appRunCount);
     const hasAppRuns = appRunCount > 0;
+    const isDarkMode = useAtomValue(AppModel.darkMode);
     return (
         <>
             {/* Header */}
             <header className="bg-panel border-b border-border p-4 flex items-center justify-between">
                 <div className="flex items-center">
-                    <img src="/outriglogo.svg" alt="Outrig Logo" className="w-8 h-8 mr-3" />
-                    <h1 className="text-primary text-xl font-medium">Outrig</h1>
+                    <img
+                        src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"}
+                        alt="Outrig Logo"
+                        className="h-8"
+                    />
                 </div>
             </header>
 
