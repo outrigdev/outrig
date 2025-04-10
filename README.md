@@ -8,7 +8,7 @@
   </picture>
 </p>
 
-Outrig is an open-source, real-time debugger for Go programs — think Chrome DevTools for Go. Search logs, monitor goroutines, track variables, and explore runtime metrics. Integrate in seconds.
+Outrig is an open-source, dev-time observability tool for Go programs — think Chrome DevTools for Go. Search logs, monitor goroutines, track variables, and explore runtime metrics. Integrate in seconds.
 
 Outrig runs 100% locally. No data ever leaves your machine.
 
@@ -88,9 +88,27 @@ outrig server
 
 ## Key Features
 
-### Variable Watching
+### Logs
 
-Monitor variables in your application:
+Outrig captures and displays logs from your Go application in real-time out of the box by tee-ing stdout/stderr.
+
+```go
+// Logs are automatically captured from stdout and stderr
+fmt.Println("This will be captured by Outrig")
+log.Printf("Standard Go logging is captured too")
+```
+
+Features:
+
+- Real-time log streaming
+- Instant type-ahead progressive searching
+- Advanced search and filtering capabilities (exact match, fuzzy search, regexp, ANDs, and ORs)
+- Line marking for important logs
+- Follow mode to automatically track latest logs
+
+### Watches
+
+Easily monitor variables in your application. Outrig can display structures (JSON or %v output) and numeric values (easy graphing and historical data viewing coming soon).
 
 ```go
 // Watch a counter with mutex protection
@@ -111,9 +129,9 @@ outrig.WatchFunc("app.config", func() string {
 outrig.TrackValue("app.push1", myVal)
 ```
 
-### Goroutine Naming
+### Goroutine Monitoring
 
-Name your goroutines for easier searching:
+Outrig dumps your goroutine stack traces every second for easy search/viewing. You can optionally name your goroutines for easier inspecting.
 
 ```go
 go func() {
@@ -121,6 +139,18 @@ go func() {
     // Goroutine code...
 }()
 ```
+
+### Runtime Stats
+
+Outrig gathers runtime stats every second. Including:
+
+- Memory usage breakdown with visual charts
+- CPU usage monitoring
+- Goroutine count tracking
+- Heap memory allocation statistics
+- Garbage collection cycle monitoring
+- Process information display (PID, uptime, etc.)
+- Go runtime version and environment details
 
 ## Architecture
 
