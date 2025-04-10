@@ -167,7 +167,7 @@ func gracefulShutdown(cancel context.CancelFunc, wg *sync.WaitGroup) {
 
 		err := tevent.UploadEvents()
 		if err != nil {
-			log.Printf("Failed to upload telemetry events during shutdown: %v", err)
+			log.Printf("Failed to upload telemetry during shutdown: %v", err)
 		}
 	}()
 

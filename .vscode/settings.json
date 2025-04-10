@@ -44,5 +44,8 @@
     },
     "files.associations": {
         "*.css": "tailwindcss"
+    },
+    "search.exclude": {
+        "!**/internaldocs/*.md": true
     }
 }
