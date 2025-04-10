@@ -27,7 +27,7 @@ Example from AppModel:
 class AppModel {
     // UI state
     selectedTab: PrimitiveAtom<string> = atom("appruns");
-    darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
+    darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(ThemeLocalStorageKey) !== "light");
 
     // App runs data
     appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);

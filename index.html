@@ -38,7 +38,7 @@
             }
             // Set the initial background color based on theme to prevent flash
             (function () {
-                const isDarkMode = localStorage.getItem("theme") === "dark";
+                const isDarkMode = localStorage.getItem("outrig:theme") !== "light";
                 document.documentElement.dataset.theme = isDarkMode ? "dark" : "light";
                 // Set body background color after DOM is loaded
                 document.addEventListener("DOMContentLoaded", function () {

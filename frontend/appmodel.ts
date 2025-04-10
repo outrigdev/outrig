@@ -9,6 +9,7 @@ import { DefaultRpcClient } from "./init";
 import { RpcApi } from "./rpc/rpcclientapi";
 
 const AUTO_FOLLOW_STORAGE_KEY = "outrig:autoFollow";
+const ThemeLocalStorageKey = "outrig:theme";
 
 // Define URL state type
 interface UrlState {
@@ -22,7 +23,7 @@ class AppModel {
     isDev = import.meta.env.DEV;
     // UI state
     selectedTab: PrimitiveAtom<string> = atom("logs"); // Default to logs view
-    darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem("theme") === "dark");
+    darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(ThemeLocalStorageKey) !== "light");
     autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AUTO_FOLLOW_STORAGE_KEY) !== "false"); // Default to true if not set
     leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for left navigation bar
     settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
@@ -240,18 +241,18 @@ class AppModel {
     }
 
     applyTheme(): void {
-        if (localStorage.getItem("theme") === "dark") {
-            document.documentElement.dataset.theme = "dark";
-        } else {
+        if (localStorage.getItem(ThemeLocalStorageKey) === "light") {
             document.documentElement.dataset.theme = "light";
+        } else {
+            document.documentElement.dataset.theme = "dark";
         }
     }
 
     setDarkMode(update: boolean): void {
         if (update) {
-            localStorage.setItem("theme", "dark");
+            localStorage.setItem(ThemeLocalStorageKey, "dark");
         } else {
-            localStorage.setItem("theme", "light");
+            localStorage.setItem(ThemeLocalStorageKey, "light");
         }
         this.applyTheme();
         getDefaultStore().set(this.darkMode, update);
