@@ -1,6 +1,6 @@
 module github.com/outrigdev/outrig/server
 
-go 1.24
+go 1.24.2
 
 require (
 	github.com/alexflint/go-filemutex v1.3.0
