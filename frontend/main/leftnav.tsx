@@ -256,6 +256,7 @@ const ThemeToggle: React.FC = () => {
 
 export const LeftNav: React.FC = () => {
     const [isOpen, setIsOpen] = useAtom(AppModel.leftNavOpen);
+    const isDarkMode = useAtomValue(AppModel.darkMode);
 
     const handleClose = () => {
         setIsOpen(false);
@@ -274,12 +275,15 @@ export const LeftNav: React.FC = () => {
             <div className="fixed top-0 left-0 h-full w-64 bg-panel border-r-2 border-border z-50 flex flex-col transition-transform duration-300 ease-in-out translate-x-0">
                 {/* Header with close button */}
                 <div
-                    className="flex items-center justify-between p-4 border-b border-border cursor-pointer"
+                    className="flex items-center justify-between p-3 border-b border-border cursor-pointer"
                     onClick={() => setIsOpen(false)}
                 >
-                    <div className="flex items-center space-x-2">
-                        <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
-                        <span className="text-primary font-medium">Outrig</span>
+                    <div className="flex items-center">
+                        <img
+                            src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"}
+                            alt="Outrig Logo"
+                            className="h-6"
+                        />
                     </div>
                     <button
                         onClick={(e) => {
