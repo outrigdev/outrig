@@ -18,7 +18,7 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
 
     // Only update the time for running apps
     useEffect(() => {
-        let interval: number | null = null;
+        let interval: NodeJS.Timeout = null;
 
         if (appRun.status === "running") {
             interval = setInterval(() => {
@@ -276,11 +276,7 @@ export const LeftNav: React.FC = () => {
                 onClick={() => setIsOpen(false)}
             >
                 <div className="flex items-center">
-                    <img
-                        src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"}
-                        alt="Outrig Logo"
-                        className="h-6"
-                    />
+                    <img src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"} alt="Outrig Logo" className="h-6" />
                 </div>
                 <button
                     onClick={(e) => {
