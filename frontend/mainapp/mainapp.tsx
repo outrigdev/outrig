@@ -39,14 +39,14 @@ function FeatureTab() {
 }
 
 function AppHeader() {
-    const [_, setLeftNavOpen] = useAtom(AppModel.leftNavOpen);
+    const [isLeftNavOpen, setLeftNavOpen] = useAtom(AppModel.leftNavOpen);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const appRunInfoAtom = AppModel.getAppRunInfoAtom(selectedAppRunId || "");
     const appRunInfo = useAtomValue(appRunInfoAtom);
     const allAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
 
     const handleHeaderClick = () => {
-        setLeftNavOpen(true);
+        setLeftNavOpen(!isLeftNavOpen); // Toggle the left nav
     };
 
     // Determine if this is the latest run for this app name
@@ -77,12 +77,16 @@ function AppHeader() {
 
     return (
         <div className="flex items-center cursor-pointer" onClick={handleHeaderClick}>
-            <div className="flex items-center space-x-2">
-                <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
-            </div>
+            {!isLeftNavOpen && ( // Only show the logo when left nav is closed
+                <div className="flex items-center space-x-2">
+                    <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
+                </div>
+            )}
             {appRunInfo && selectedAppRunId && (
                 <>
-                    <div className="items-center ml-3 mr-1 text-primary text-sm font-medium max-w-[150px] truncate overflow-hidden whitespace-nowrap">
+                    <div
+                        className={`items-center ${isLeftNavOpen ? "ml-[-4px]" : "ml-3"} mr-1 text-primary text-sm font-medium max-w-[150px] truncate overflow-hidden whitespace-nowrap`}
+                    >
                         {appRunInfo.appname}
                     </div>
                     <div className="text-xs text-secondary relative top-[1px]">{getRunLabel()}</div>
@@ -176,32 +180,39 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
 }
 
 export function MainApp() {
+    const isLeftNavOpen = useAtomValue(AppModel.leftNavOpen);
+
     return (
-        <>
+        <div className="flex h-full w-full">
+            {/* Left Navigation */}
             <LeftNav />
-            <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
-                <div className="flex items-center">
-                    <AppHeader />
-                    <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
-                    <div className="flex">
-                        {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
-                            <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
-                        ))}
+
+            {/* Main Content */}
+            <div className="flex flex-col flex-grow overflow-hidden">
+                <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
+                    <div className="flex items-center">
+                        <AppHeader />
+                        <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
+                        <div className="flex">
+                            {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
+                                <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
+                            ))}
+                        </div>
                     </div>
-                </div>
-                <div className="flex items-center">
-                    <AutoFollowButton />
-                    <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
-                    <SettingsButton onClick={() => AppModel.openSettingsModal()} />
-                </div>
-            </nav>
+                    <div className="flex items-center">
+                        <AutoFollowButton />
+                        <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
+                        <SettingsButton onClick={() => AppModel.openSettingsModal()} />
+                    </div>
+                </nav>
 
-            <main className="flex-grow overflow-auto w-full">
-                <FeatureTab />
-            </main>
+                <main className="flex-grow overflow-auto w-full">
+                    <FeatureTab />
+                </main>
 
-            <StatusBar />
-        </>
+                <StatusBar />
+            </div>
+        </div>
     );
 }
 

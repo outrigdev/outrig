@@ -18,7 +18,7 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
 
     // Only update the time for running apps
     useEffect(() => {
-        let interval: NodeJS.Timeout | null = null;
+        let interval: number | null = null;
 
         if (appRun.status === "running") {
             interval = setInterval(() => {
@@ -262,91 +262,87 @@ export const LeftNav: React.FC = () => {
         setIsOpen(false);
     };
 
+    // Instead of returning null, we'll return a div with width 0
+    // This allows us to maintain the component in the DOM for the flex layout
     if (!isOpen) {
-        return null;
+        return <div className="w-0 flex-shrink-0"></div>;
     }
 
     return (
-        <>
-            {/* Overlay */}
-            <div className="fixed inset-0 bg-black/20 backdrop-blur-[1px] z-40" onClick={handleClose} />
-
-            {/* Left Navigation */}
-            <div className="fixed top-0 left-0 h-full w-64 bg-panel border-r-2 border-border z-50 flex flex-col transition-transform duration-300 ease-in-out translate-x-0">
-                {/* Header with close button */}
-                <div
-                    className="flex items-center justify-between p-3 border-b border-border cursor-pointer"
-                    onClick={() => setIsOpen(false)}
+        <div className="w-64 h-full bg-panel border-r-2 border-border flex flex-col flex-shrink-0">
+            {/* Header with close button */}
+            <div
+                className="flex items-center justify-between p-3 border-b border-border cursor-pointer"
+                onClick={() => setIsOpen(false)}
+            >
+                <div className="flex items-center">
+                    <img
+                        src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"}
+                        alt="Outrig Logo"
+                        className="h-6"
+                    />
+                </div>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleClose();
+                    }}
+                    className="text-secondary hover:text-primary cursor-pointer"
                 >
-                    <div className="flex items-center">
-                        <img
-                            src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"}
-                            alt="Outrig Logo"
-                            className="h-6"
-                        />
-                    </div>
+                    <X size={18} />
+                </button>
+            </div>
+
+            {/* Navigation Links */}
+            <div className="flex-1 overflow-hidden flex flex-col">
+                {/* Top Links */}
+                <div className="p-2 border-b border-border">
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleClose();
+                        className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"
+                        onClick={() => {
+                            // Navigate to homepage
+                            AppModel.navToHomepage();
+                            setIsOpen(false);
                         }}
-                        className="text-secondary hover:text-primary cursor-pointer"
                     >
-                        <X size={18} />
+                        <Home size={16} />
+                        <span>Home</span>
                     </button>
                 </div>
 
-                {/* Navigation Links */}
-                <div className="flex-1 overflow-hidden flex flex-col">
-                    {/* Top Links */}
-                    <div className="p-2 border-b border-border">
+                {/* App Runs Section */}
+                <LeftNavAppRunList />
+
+                {/* Bottom Links */}
+                <div className="mt-auto border-t border-border p-2">
+                    <div className="flex flex-col gap-1">
+                        <ThemeToggle />
                         <button
                             className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"
                             onClick={() => {
-                                // Navigate to homepage
-                                AppModel.navToHomepage();
+                                AppModel.openSettingsModal();
                                 setIsOpen(false);
                             }}
                         >
-                            <Home size={16} />
-                            <span>Home</span>
+                            <Settings size={16} />
+                            <span>Settings</span>
                         </button>
                     </div>
+                </div>
 
-                    {/* App Runs Section */}
-                    <LeftNavAppRunList />
-
-                    {/* Bottom Links */}
-                    <div className="mt-auto border-t border-border p-2">
-                        <div className="flex flex-col gap-1">
-                            <ThemeToggle />
-                            <button
-                                className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"
-                                onClick={() => {
-                                    AppModel.openSettingsModal();
-                                    setIsOpen(false);
-                                }}
-                            >
-                                <Settings size={16} />
-                                <span>Settings</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* GitHub Link */}
-                    <div className="flex justify-center p-4 border-t border-border">
-                        <a
-                            href="https://github.com/outrigdev/outrig"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-secondary hover:text-primary cursor-pointer"
-                        >
-                            <Github size={18} />
-                            <span>GitHub</span>
-                        </a>
-                    </div>
+                {/* GitHub Link */}
+                <div className="flex justify-center p-4 border-t border-border">
+                    <a
+                        href="https://github.com/outrigdev/outrig"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-secondary hover:text-primary cursor-pointer"
+                    >
+                        <Github size={18} />
+                        <span>GitHub</span>
+                    </a>
                 </div>
             </div>
-        </>
+        </div>
     );
 };
