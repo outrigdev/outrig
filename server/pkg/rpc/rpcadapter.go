@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/outrigdev/outrig/pkg/ioutrig"
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
@@ -128,7 +128,7 @@ func serverImplAdapter(impl any) func(*RpcResponseHandler) bool {
 				return true
 			}
 			go func() {
-				ioutrig.I.SetGoRoutineName("#outrig rpc:responseStream")
+				outrig.SetGoRoutineName("#outrig rpc:responseStream")
 				defer func() {
 					panichandler.PanicHandler("serverImplAdapter:responseStream", recover())
 				}()

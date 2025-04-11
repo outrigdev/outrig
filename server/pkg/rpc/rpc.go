@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/outrigdev/outrig/pkg/ioutrig"
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -233,7 +233,7 @@ func MakeRpcClient(inputCh chan []byte, outputCh chan []byte, serverImpl RpcServ
 		ResponseHandlerMap: make(map[string]*RpcResponseHandler),
 	}
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig RpcClient:" + debugName)
+		outrig.SetGoRoutineName("#outrig RpcClient:" + debugName)
 		rtn.runServer()
 	}()
 	return rtn
@@ -318,7 +318,7 @@ func (w *RpcClient) handleRequest(req *RpcMessage) {
 		}
 		if isAsync {
 			go func() {
-				ioutrig.I.SetGoRoutineName("#outrig RpcClient:Finalize:" + w.DebugName)
+				outrig.SetGoRoutineName("#outrig RpcClient:Finalize:" + w.DebugName)
 				defer func() {
 					panichandler.PanicHandler("handleRequest:finalize", recover())
 				}()
@@ -376,7 +376,7 @@ outer:
 		}
 		if msg.IsRpcRequest() {
 			go func() {
-				ioutrig.I.SetGoRoutineName("#outrig RpcClient:handleRequest:" + w.DebugName + " command:" + msg.Command)
+				outrig.SetGoRoutineName("#outrig RpcClient:handleRequest:" + w.DebugName + " command:" + msg.Command)
 				defer func() {
 					panichandler.PanicHandler("handleRequest:goroutine", recover())
 				}()
@@ -422,7 +422,7 @@ func (w *RpcClient) registerRpc(handler *RpcRequestHandler, command string, rout
 		ResCh:   rpcCh,
 	}
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig RpcClient:timeouthandler")
+		outrig.SetGoRoutineName("#outrig RpcClient:timeouthandler")
 		defer func() {
 			panichandler.PanicHandler("registerRpc:timeout", recover())
 		}()
@@ -733,7 +733,7 @@ func (w *RpcClient) setServerDone() {
 	w.ServerDone = true
 	close(w.CtxDoneCh)
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig RpcClient:close:DrainChan")
+		outrig.SetGoRoutineName("#outrig RpcClient:close:DrainChan")
 		utilfn.DrainChan(w.InputCh)
 	}()
 }

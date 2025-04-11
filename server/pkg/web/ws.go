@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/outrigdev/outrig"
-	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/rpc"
@@ -169,7 +168,7 @@ func WriteLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any
 	defer ticker.Stop()
 	defer func() {
 		go func() {
-			ioutrig.I.SetGoRoutineName("#outrig ws:WriteLoop:DrainChan")
+			outrig.SetGoRoutineName("#outrig ws:WriteLoop:DrainChan")
 			utilfn.DrainChan(outputCh)
 		}()
 	}()

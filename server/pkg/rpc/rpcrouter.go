@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig"
-	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
@@ -123,7 +122,7 @@ func NewWshRouter() *WshRouter {
 		InputCh:          make(chan msgAndRoute, DefaultInputChSize),
 	}
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig WshRouter:runServer")
+		outrig.SetGoRoutineName("#outrig WshRouter:runServer")
 		rtn.runServer()
 	}()
 	return rtn
@@ -346,14 +345,14 @@ func (router *WshRouter) RegisterRoute(routeId string, rpc AbstractRpcClient, sh
 	}
 	router.RouteMap[routeId] = rpc
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig WshRouter:publish:routeup")
+		outrig.SetGoRoutineName("#outrig WshRouter:publish:routeup")
 		defer func() {
 			panichandler.PanicHandler("RpcRouter:registerRoute:routeup", recover())
 		}()
 		Broker.Publish(EventType{Event: rpctypes.Event_RouteUp, Scopes: []string{routeId}})
 	}()
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig WshRouter:registerRoute:recvloop")
+		outrig.SetGoRoutineName("#outrig WshRouter:registerRoute:recvloop")
 		defer func() {
 			panichandler.PanicHandler("WshRouter:registerRoute:recvloop", recover())
 		}()
@@ -402,7 +401,7 @@ func (router *WshRouter) UnregisterRoute(routeId string) {
 		}
 	}
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig WshRouter:publish:routedown")
+		outrig.SetGoRoutineName("#outrig WshRouter:publish:routedown")
 		defer func() {
 			panichandler.PanicHandler("RpcRouter:unregisterRoute:routedown", recover())
 		}()
