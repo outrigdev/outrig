@@ -171,9 +171,6 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 		monitorExternalProcess(cmd, ctx, exitChan)
 	}()
 
-	// Print a message to the redirected stdout (will be captured by the external process)
-	fmt.Println("[outrig] External log capture process started")
-
 	return nil
 }
 

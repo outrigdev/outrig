@@ -4,7 +4,6 @@
 package logprocess
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
@@ -52,9 +51,9 @@ func (lc *LogCollector) Enable() {
 	// Use the new external log capture mechanism
 	err := loginitex.EnableExternalLogWrap(appRunId, lc.config, config.Dev)
 	if err != nil {
-		fmt.Printf("Failed to enable external log wrapping: %v\n", err)
+		lc.controller.ILog("Failed to enable external log wrapping: %v", err)
 	} else {
-		fmt.Printf("External log wrapping enabled\n")
+		lc.controller.ILog("External log wrapping enabled")
 	}
 }
 

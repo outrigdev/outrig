@@ -42,7 +42,7 @@ type PacketType struct {
 
 type LogProcessorConfig struct {
 	// Enabled indicates whether the log processor is enabled
-	Enabled bool
+	Enabled    bool
 	WrapStdout bool
 	WrapStderr bool
 	// OutrigPath is the full path to the outrig executable (including the executable name)
@@ -69,6 +69,8 @@ type RuntimeStatsConfig struct {
 }
 
 type Config struct {
+	Quiet bool // If true, suppresses init, connect, and disconnect messages
+
 	// DomainSocketPath is the path to the Unix domain socket. If "" => use default.
 	// If "-" => disable domain socket.
 	DomainSocketPath string
@@ -284,4 +286,6 @@ type Controller interface {
 	SendPacket(pk *PacketType) (bool, error)
 
 	Shutdown()
+
+	ILog(format string, args ...any)
 }

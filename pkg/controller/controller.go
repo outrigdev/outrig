@@ -26,10 +26,12 @@ import (
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
+	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 const ConnPollTime = 1 * time.Second
+const MaxInternalLog = 100
 
 type ControllerImpl struct {
 	Lock                 sync.Mutex                    // lock for this struct
@@ -42,11 +44,18 @@ type ControllerImpl struct {
 	OutrigConnected      bool                           // whether outrig is connected
 	OutrigForceDisabled  bool                           // whether outrig is force disabled
 	Collectors           map[string]collector.Collector // map of collectors by name
+	InternalLogBuf       *utilds.CirBuf[string]         // internal log for debugging
 }
 
 func MakeController(config ds.Config) (*ControllerImpl, error) {
 	c := &ControllerImpl{
-		Collectors: make(map[string]collector.Collector),
+		Collectors:     make(map[string]collector.Collector),
+		InternalLogBuf: utilds.MakeCirBuf[string](MaxInternalLog),
+	}
+	var cif ds.Controller = c
+	ok := global.Controller.CompareAndSwap(nil, &cif)
+	if !ok {
+		return nil, fmt.Errorf("controller already initialized")
 	}
 
 	// Initialize AppInfo using the dedicated function
@@ -178,7 +187,9 @@ func (c *ControllerImpl) Connect() bool {
 	}
 
 	// Connection and handshake successful
-	fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
+	if !c.config.Quiet {
+		fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
+	}
 	c.conn.Store(connWrap)
 	c.sendAppInfo()
 	c.OutrigConnected = true
@@ -192,7 +203,9 @@ func (c *ControllerImpl) Disconnect() {
 	connPtr := c.conn.Load()
 	if connPtr != nil {
 		conn := *connPtr
-		fmt.Printf("Outrig disconnected from %s\n", conn.PeerName)
+		if !c.config.Quiet {
+			fmt.Printf("Outrig disconnected from %s\n", conn.PeerName)
+		}
 		c.conn.Store(nil)
 		time.Sleep(50 * time.Millisecond)
 		conn.Close()
@@ -422,4 +435,15 @@ func (c *ControllerImpl) setEnabled(enabled bool) {
 		}
 		global.OutrigEnabled.Store(false)
 	}
+}
+
+func (c *ControllerImpl) ILog(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	if len(msg) == 0 {
+		return
+	}
+	if msg[len(msg)-1] != '\n' {
+		msg += "\n"
+	}
+	c.InternalLogBuf.Write(msg)
 }
