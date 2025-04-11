@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/outrigdev/outrig/pkg/rpc"
-	"github.com/outrigdev/outrig/pkg/tsgen"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/tsgen"
 )
 
 const TypesFileName = "frontend/types/rpctypes.d.ts"

@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/outrigdev/outrig/pkg/gogen"
 	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/gogen"
 )
 
 const RpcClientFileName = "pkg/rpcclient/rpcclient.go"
