@@ -15,9 +15,9 @@ import (
 
 	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/ds"
-	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/tevent"
 )

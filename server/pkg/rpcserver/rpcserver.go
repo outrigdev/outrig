@@ -9,11 +9,11 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/outrigdev/outrig/pkg/rpc"
-	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
 	"github.com/outrigdev/outrig/server/pkg/browsertabs"
 	"github.com/outrigdev/outrig/server/pkg/gensearch"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 type RpcServerImpl struct{}

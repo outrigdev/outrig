@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/outrigdev/outrig/pkg/rpctypes"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 type GoRoutineSearchObject struct {

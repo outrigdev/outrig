@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/ds"
-	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 const RuntimeStatsBufferSize = 600 // 10 minutes of 1-second samples

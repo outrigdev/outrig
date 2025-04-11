@@ -17,9 +17,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
-	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 const DefaultTimeoutMs = 5000

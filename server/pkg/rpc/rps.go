@@ -12,8 +12,8 @@ import (
 	"sync"
 
 	"github.com/outrigdev/outrig"
-	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 // this broker interface is mostly generic

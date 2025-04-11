@@ -4,7 +4,7 @@
 package gensearch
 
 import (
-	"github.com/outrigdev/outrig/pkg/rpctypes"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
@@ -20,11 +20,11 @@ const (
 	SearchTypeTag        = searchparser.SearchTypeTag
 	SearchTypeUserQuery  = searchparser.SearchTypeUserQuery
 	SearchTypeMarked     = searchparser.SearchTypeMarked
-	
+
 	// Additional constants not in searchparser
-	SearchTypeAnd        = "and"
-	SearchTypeOr         = "or"
-	SearchTypeAll        = "all"
+	SearchTypeAnd = "and"
+	SearchTypeOr  = "or"
+	SearchTypeAll = "all"
 )
 
 const (
@@ -71,19 +71,19 @@ func GetSearcher(searchTerm string) (Searcher, error) {
 func GetSearcherWithErrors(searchTerm string) (Searcher, []rpctypes.SearchErrorSpan, error) {
 	p := searchparser.NewParser(searchTerm)
 	node := p.Parse()
-	
+
 	// Extract error spans from the AST
 	errorSpans := ExtractErrorSpans(node)
-	
+
 	// Create a searcher from the AST
 	searcher, err := MakeSearcherFromNode(node)
 	if err != nil {
 		return nil, errorSpans, err
 	}
-	
+
 	if searcher == nil {
 		return MakeAllSearcher(), errorSpans, nil
 	}
-	
+
 	return searcher, errorSpans, nil
 }

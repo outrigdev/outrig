@@ -15,9 +15,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
-	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
 )
 
 // WSInfo contains information about a WebSocket connection
@@ -116,14 +116,14 @@ func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any,
 	readWait := wsReadWaitTimeout
 	conn.SetReadLimit(64 * 1024)
 	conn.SetReadDeadline(time.Now().Add(readWait))
-	
+
 	// Set pong handler to reset the read deadline when a pong is received
 	// This is crucial for maintaining the WebSocket connection
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(readWait))
 		return nil
 	})
-	
+
 	defer close(closeCh)
 	for {
 		_, message, err := conn.ReadMessage()

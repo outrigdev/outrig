@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/outrigdev/outrig/pkg/rpc"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
 )
 
 func GenerateBoilerplate(buf *strings.Builder, pkgName string, imports []string) {

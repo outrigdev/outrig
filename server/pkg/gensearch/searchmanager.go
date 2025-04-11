@@ -14,11 +14,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/ds"
-	"github.com/outrigdev/outrig/pkg/rpc"
-	"github.com/outrigdev/outrig/pkg/rpcclient"
-	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
+	"github.com/outrigdev/outrig/server/pkg/rpcclient"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 const (

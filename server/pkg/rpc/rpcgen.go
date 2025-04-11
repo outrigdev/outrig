@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/outrigdev/outrig/pkg/rpctypes"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 type RpcMethodDecl struct {

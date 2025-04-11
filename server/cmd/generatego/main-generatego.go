@@ -8,19 +8,19 @@ import (
 	"os"
 	"strings"
 
-	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/gogen"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
 )
 
-const RpcClientFileName = "pkg/rpcclient/rpcclient.go"
+const RpcClientFileName = "server/pkg/rpcclient/rpcclient.go"
 
 func GenerateRpcClient() error {
 	fmt.Fprintf(os.Stderr, "generating rpcclient file to %s\n", RpcClientFileName)
 	var buf strings.Builder
 	gogen.GenerateBoilerplate(&buf, "rpcclient", []string{
-		"github.com/outrigdev/outrig/pkg/rpc",
-		"github.com/outrigdev/outrig/pkg/rpctypes",
+		"github.com/outrigdev/outrig/server/pkg/rpc",
+		"github.com/outrigdev/outrig/server/pkg/rpctypes",
 	})
 	rpcDeclMap := rpc.GenerateRpcCommandDeclMap()
 	for _, key := range utilfn.GetOrderedMapKeys(rpcDeclMap) {

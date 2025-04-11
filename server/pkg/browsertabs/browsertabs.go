@@ -9,9 +9,9 @@ import (
 	"sync"
 
 	"github.com/outrigdev/outrig"
-	"github.com/outrigdev/outrig/pkg/rpc"
-	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 // Constants

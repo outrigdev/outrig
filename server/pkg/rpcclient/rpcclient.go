@@ -6,8 +6,8 @@
 package rpcclient
 
 import (
-	"github.com/outrigdev/outrig/pkg/rpc"
-	"github.com/outrigdev/outrig/pkg/rpctypes"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 // command "eventpublish", rpctypes.EventPublishCommand

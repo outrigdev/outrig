@@ -4,7 +4,7 @@
 package gensearch
 
 import (
-	"github.com/outrigdev/outrig/pkg/rpctypes"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
@@ -13,9 +13,9 @@ func ExtractErrorSpans(node *searchparser.Node) []rpctypes.SearchErrorSpan {
 	if node == nil {
 		return nil
 	}
-	
+
 	var spans []rpctypes.SearchErrorSpan
-	
+
 	// Check if this node is an error node
 	if node.Type == searchparser.NodeTypeError {
 		spans = append(spans, rpctypes.SearchErrorSpan{
@@ -24,13 +24,13 @@ func ExtractErrorSpans(node *searchparser.Node) []rpctypes.SearchErrorSpan {
 			ErrorMessage: node.ErrorMessage,
 		})
 	}
-	
+
 	// Recursively check children (for AND/OR nodes)
 	for _, child := range node.Children {
 		childSpans := ExtractErrorSpans(child)
 		spans = append(spans, childSpans...)
 	}
-	
+
 	return spans
 }
 

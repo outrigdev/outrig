@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig"
-	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/server/pkg/browsertabs"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
 	"github.com/outrigdev/outrig/server/pkg/rpcserver"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/tevent"

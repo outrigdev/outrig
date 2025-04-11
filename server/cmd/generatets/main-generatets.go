@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/outrigdev/outrig/pkg/rpc"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
 	"github.com/outrigdev/outrig/server/pkg/tsgen"
 )
 

@@ -9,9 +9,9 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
-	"github.com/outrigdev/outrig/pkg/rpc"
-	"github.com/outrigdev/outrig/pkg/rpctypes"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"github.com/outrigdev/outrig/server/pkg/rpc"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 var (
