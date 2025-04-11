@@ -8,8 +8,9 @@ import { emitter } from "./events";
 import { DefaultRpcClient } from "./init";
 import { RpcApi } from "./rpc/rpcclientapi";
 
-const AUTO_FOLLOW_STORAGE_KEY = "outrig:autoFollow";
+const AutoFollowStorageKey = "outrig:autoFollow";
 const ThemeLocalStorageKey = "outrig:theme";
+const LeftNavOpenStorageKey = "outrig:leftNavOpen";
 
 // Define URL state type
 interface UrlState {
@@ -24,8 +25,8 @@ class AppModel {
     // UI state
     selectedTab: PrimitiveAtom<string> = atom("logs"); // Default to logs view
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(ThemeLocalStorageKey) !== "light");
-    autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AUTO_FOLLOW_STORAGE_KEY) !== "false"); // Default to true if not set
-    leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for left navigation bar
+    autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AutoFollowStorageKey) !== "false"); // Default to true if not set
+    leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(LeftNavOpenStorageKey) === "true"); // State for left navigation bar
     settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
 
     // Toast notifications
@@ -259,11 +260,16 @@ class AppModel {
     }
 
     setAutoFollow(update: boolean): void {
-        sessionStorage.setItem(AUTO_FOLLOW_STORAGE_KEY, update.toString());
+        sessionStorage.setItem(AutoFollowStorageKey, update.toString());
         getDefaultStore().set(this.autoFollow, update);
 
         // Send updated browser tab info to the backend
         this.sendBrowserTabUrl();
+    }
+
+    setLeftNavOpen(update: boolean): void {
+        localStorage.setItem(LeftNavOpenStorageKey, update.toString());
+        getDefaultStore().set(this.leftNavOpen, update);
     }
 
     openSettingsModal(): void {

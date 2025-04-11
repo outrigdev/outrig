@@ -1,7 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getDefaultStore, useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { Box, Clock, Github, Home, Moon, Settings, Sun, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { AppModel } from "../appmodel";
@@ -40,7 +40,6 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
             )}
             onClick={() => {
                 AppModel.selectAppRun(appRun.apprunid);
-                getDefaultStore().set(AppModel.leftNavOpen, false);
             }}
         >
             <div className="flex items-center justify-between">
@@ -204,7 +203,7 @@ export const LeftNavAppRunList: React.FC = () => {
                         onClick={() => {
                             // Navigate to homepage
                             AppModel.navToHomepage();
-                            setIsOpen(false);
+                            AppModel.setLeftNavOpen(false);
                         }}
                     >
                         Show All
@@ -259,7 +258,7 @@ export const LeftNav: React.FC = () => {
     const isDarkMode = useAtomValue(AppModel.darkMode);
 
     const handleClose = () => {
-        setIsOpen(false);
+        AppModel.setLeftNavOpen(false);
     };
 
     // Instead of returning null, we'll return a div with width 0
@@ -273,7 +272,7 @@ export const LeftNav: React.FC = () => {
             {/* Header with close button */}
             <div
                 className="flex items-center justify-between p-3 border-b border-border cursor-pointer"
-                onClick={() => setIsOpen(false)}
+                onClick={() => AppModel.setLeftNavOpen(false)}
             >
                 <div className="flex items-center">
                     <img src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"} alt="Outrig Logo" className="h-6" />
@@ -298,7 +297,7 @@ export const LeftNav: React.FC = () => {
                         onClick={() => {
                             // Navigate to homepage
                             AppModel.navToHomepage();
-                            setIsOpen(false);
+                            AppModel.setLeftNavOpen(false);
                         }}
                     >
                         <Home size={16} />
@@ -317,7 +316,6 @@ export const LeftNav: React.FC = () => {
                             className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"
                             onClick={() => {
                                 AppModel.openSettingsModal();
-                                setIsOpen(false);
                             }}
                         >
                             <Settings size={16} />

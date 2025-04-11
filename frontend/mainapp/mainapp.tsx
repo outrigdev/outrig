@@ -46,7 +46,7 @@ function AppHeader() {
     const allAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
 
     const handleHeaderClick = () => {
-        setLeftNavOpen(!isLeftNavOpen); // Toggle the left nav
+        AppModel.setLeftNavOpen(!isLeftNavOpen); // Toggle the left nav
     };
 
     // Determine if this is the latest run for this app name
