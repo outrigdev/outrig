@@ -7,13 +7,10 @@ import { LegacyRuntimeStatsData } from "./runtimestats-model";
 // Helper function to format uptime in a human-readable way
 export function formatUptime(milliseconds: number): string {
     if (milliseconds < 0) return "0s";
-    
     const seconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
-    
-    // Format based on duration
     if (seconds < 60) {
         // Less than a minute: show seconds
         return `${seconds}s`;
@@ -70,7 +67,7 @@ export const runtimeStatsMetadata: Record<string, RuntimeStatMetadata> = {
     currentHeapObjects: {
         statFn: (stat) => {
             if (!stat.memstats) return "N/A";
-            
+
             const total = stat.memstats.totalheapobj || 0;
             const free = stat.memstats.totalheapobjfree || 0;
             const current = total - free;
@@ -82,7 +79,7 @@ export const runtimeStatsMetadata: Record<string, RuntimeStatMetadata> = {
     totalHeapObjects: {
         statFn: (stat) => {
             if (!stat.memstats) return "N/A";
-            
+
             const total = stat.memstats.totalheapobj || 0;
             return total.toLocaleString();
         },

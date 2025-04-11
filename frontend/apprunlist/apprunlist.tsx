@@ -122,7 +122,7 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
                     }}
                 >
                     <CircleDot size={12} />
-                    <span>{appRun.status === "running" ? appRun.numactivegoroutines : appRun.numtotalgoroutines}</span>
+                    <span>{appRun.numactivegoroutines - appRun.numoutriggoroutines}</span>
                 </a>
                 {appRun.numactivewatches > 0 && (
                     <a

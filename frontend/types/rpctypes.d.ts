@@ -26,8 +26,9 @@ declare global {
         isrunning: boolean;
         status: string;
         numlogs: number;
-        numactivegoroutines: number;
         numtotalgoroutines: number;
+        numactivegoroutines: number;
+        numoutriggoroutines: number;
         numactivewatches: number;
         numtotalwatches: number;
         lastmodtime: number;
@@ -46,7 +47,7 @@ declare global {
     type AppRunRuntimeStatsData = {
         apprunid: string;
         appname: string;
-        numgoroutines: number;
+        numtotalgoroutines: number;
         numactivegoroutines: number;
         numoutriggoroutines: number;
         stats: RuntimeStatData[];

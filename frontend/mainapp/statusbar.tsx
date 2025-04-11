@@ -1,11 +1,11 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
+import { Tooltip } from "@/elements/tooltip";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Box, CircleDot, Eye, List, PauseCircle, Wifi, WifiOff } from "lucide-react";
 import { useMemo } from "react";
-import { AppModel } from "@/appmodel";
-import { Tooltip } from "@/elements/tooltip";
 
 function ConnectionStatus({ status }: { status: string }) {
     let icon;
@@ -56,25 +56,20 @@ export function StatusBar() {
         return appRuns.filter((run) => run.status === "running").length;
     }, [appRuns]);
 
-    // Determine which goroutine count to display based on app status
+    // Determine which goroutine count to display
     const goroutineCount = useMemo(() => {
         if (!selectedAppRun) return 0;
 
-        // For running apps, show active goroutines; otherwise show total goroutines
-        return selectedAppRun.status === "running"
-            ? selectedAppRun.numactivegoroutines
-            : selectedAppRun.numtotalgoroutines;
+        // Show active goroutines minus outrig goroutines
+        return selectedAppRun.numactivegoroutines - selectedAppRun.numoutriggoroutines;
     }, [selectedAppRun]);
 
     // Determine the tooltip text for goroutines
     const goroutineTooltip = useMemo(() => {
         if (!selectedAppRun) return "";
 
-        if (selectedAppRun.status === "running") {
-            return `${selectedAppRun.numactivegoroutines} Active GoRoutines (${selectedAppRun.numtotalgoroutines} Total)`;
-        } else {
-            return `${selectedAppRun.numtotalgoroutines} GoRoutines`;
-        }
+        const goroutineCount = selectedAppRun.numactivegoroutines - selectedAppRun.numoutriggoroutines;
+        return `${goroutineCount} GoRoutines`;
     }, [selectedAppRun]);
 
     return (
