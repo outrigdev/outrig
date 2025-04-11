@@ -33,8 +33,7 @@ const DurationStateFilters: React.FC<DurationStateFiltersProps> = ({ model, sele
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-x-1.5 mt-2">
-            <div className="w-[70px]"></div>
+        <div className="flex flex-wrap items-start gap-1.5">
             {durationStates.map((state) => (
                 <Tag
                     key={state}
@@ -275,54 +274,59 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
 
             {/* State filters */}
             <div className="px-4 py-2 border-b border-border">
-                <div className="flex flex-wrap items-center gap-x-1.5">
-                    {/* Show All in its own column */}
-                    <div className="w-[70px]">
+                <div className="flex items-start gap-x-2">
+                    {/* Box 1: Show All */}
+                    <div className="shrink-0">
                         <Tag label="Show All" isSelected={showAll} onToggle={handleToggleShowAll} />
                     </div>
 
-                    {/* Primary states first */}
-                    {primaryStates.map((state) => (
-                        <Tag
-                            key={state}
-                            label={`${state} (${stateCounts.get(state) || 0})`}
-                            isSelected={selectedStates.has(state)}
-                            onToggle={() => handleToggleState(state)}
-                        />
-                    ))}
-                    {/* Extra states next */}
-                    {extraStates.map((state) => (
-                        <Tag
-                            key={state}
-                            label={`${state} (${stateCounts.get(state) || 0})`}
-                            isSelected={selectedStates.has(state)}
-                            onToggle={() => handleToggleState(state)}
-                        />
-                    ))}
-
-                    {/* Flex spacer to push #outrig toggle to the right */}
-                    <div className="flex-grow"></div>
-
-                    {/* #outrig toggle with tooltip */}
-                    <Tooltip
-                        content={
-                            showOutrig
-                                ? "Showing Internal Outrig SDK GoRoutines (Click to Toggle)"
-                                : "Hiding Internal Outrig SDK GoRoutines (Click to Toggle)"
-                        }
-                    >
-                        <div>
-                            <Tag
-                                label="#outrig"
-                                isSelected={showOutrig}
-                                onToggle={handleToggleShowOutrig}
-                                variant="accent"
-                            />
+                    {/* Box 2: Primary and Extra states in a flex column with flex-grow */}
+                    <div className="flex-grow flex flex-col gap-y-1">
+                        <div className="flex flex-wrap items-start gap-1.5">
+                            {/* Primary states first */}
+                            {primaryStates.map((state) => (
+                                <Tag
+                                    key={state}
+                                    label={`${state} (${stateCounts.get(state) || 0})`}
+                                    isSelected={selectedStates.has(state)}
+                                    onToggle={() => handleToggleState(state)}
+                                />
+                            ))}
+                            {/* Extra states next */}
+                            {extraStates.map((state) => (
+                                <Tag
+                                    key={state}
+                                    label={`${state} (${stateCounts.get(state) || 0})`}
+                                    isSelected={selectedStates.has(state)}
+                                    onToggle={() => handleToggleState(state)}
+                                />
+                            ))}
                         </div>
-                    </Tooltip>
+                        
+                        {/* Duration states on second row of the flex column */}
+                        <DurationStateFilters model={model} selectedStates={selectedStates} onToggleState={handleToggleState} />
+                    </div>
+
+                    {/* Box 3: #outrig toggle */}
+                    <div className="shrink-0">
+                        <Tooltip
+                            content={
+                                showOutrig
+                                    ? "Showing Internal Outrig SDK GoRoutines (Click to Toggle)"
+                                    : "Hiding Internal Outrig SDK GoRoutines (Click to Toggle)"
+                            }
+                        >
+                            <div>
+                                <Tag
+                                    label="#outrig"
+                                    isSelected={showOutrig}
+                                    onToggle={handleToggleShowOutrig}
+                                    variant="accent"
+                                />
+                            </div>
+                        </Tooltip>
+                    </div>
                 </div>
-                {/* Duration states on a new line, indented to align with "Show All" */}
-                <DurationStateFilters model={model} selectedStates={selectedStates} onToggleState={handleToggleState} />
             </div>
         </>
     );
