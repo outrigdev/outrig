@@ -46,6 +46,9 @@ declare global {
     type AppRunRuntimeStatsData = {
         apprunid: string;
         appname: string;
+        numgoroutines: number;
+        numactivegoroutines: number;
+        numoutriggoroutines: number;
         stats: RuntimeStatData[];
     };
 

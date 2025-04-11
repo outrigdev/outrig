@@ -4,6 +4,7 @@
 package apppeer
 
 import (
+	"slices"
 	"sort"
 	"sync"
 
@@ -33,6 +34,7 @@ type GoRoutinePeer struct {
 	activeGoRoutines map[int64]bool // Tracks currently running goroutines
 	lock             sync.RWMutex   // Lock for synchronizing goroutine operations
 	currentIteration int64          // Current iteration counter
+	maxGoId          int64          // Maximum goroutine ID seen
 }
 
 // MakeGoRoutinePeer creates a new GoRoutinePeer instance
@@ -41,6 +43,7 @@ func MakeGoRoutinePeer() *GoRoutinePeer {
 		goRoutines:       utilds.MakeSyncMap[int64, GoRoutine](),
 		activeGoRoutines: make(map[int64]bool),
 		currentIteration: 0,
+		maxGoId:          0,
 	}
 }
 
@@ -60,6 +63,11 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		goId := stack.GoId
 
 		activeGoroutines[goId] = true
+
+		// Update maxGoId if we see a larger goroutine ID
+		if goId > gp.maxGoId {
+			gp.maxGoId = goId
+		}
 
 		goroutine, _ := gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
 			return GoRoutine{
@@ -89,7 +97,6 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 
 	gp.activeGoRoutines = activeGoroutines
 
-	// Prune old goroutines
 	gp.pruneOldGoroutines()
 }
 
@@ -120,24 +127,46 @@ func (gp *GoRoutinePeer) pruneOldGoroutines() {
 	}
 }
 
-// GetActiveGoRoutineCount returns the number of active goroutines
-func (gp *GoRoutinePeer) GetActiveGoRoutineCount() int {
+func (gp *GoRoutinePeer) getActiveGoRoutinesCopy() map[int64]bool {
 	gp.lock.RLock()
 	defer gp.lock.RUnlock()
-	return len(gp.activeGoRoutines)
+	return gp.activeGoRoutines
 }
 
-// GetTotalGoRoutineCount returns the total number of goroutines (active and inactive)
-func (gp *GoRoutinePeer) GetTotalGoRoutineCount() int {
-	return gp.goRoutines.Len()
+// getMaxGoId returns the maximum goroutine ID seen with proper locking
+func (gp *GoRoutinePeer) getMaxGoId() int64 {
+	gp.lock.RLock()
+	defer gp.lock.RUnlock()
+	return gp.maxGoId
+}
+
+// GetGoRoutineCounts returns (total, active, activeOutrig) goroutine counts
+func (gp *GoRoutinePeer) GetGoRoutineCounts() (int, int, int) {
+	activeGoRoutinesCopy := gp.getActiveGoRoutinesCopy()
+
+	total := int(gp.getMaxGoId()) // Goroutine IDs start at 1
+	active := len(activeGoRoutinesCopy)
+
+	// Count active Outrig goroutines by checking for the "outrig" tag
+	activeOutrigCount := 0
+
+	for goId := range activeGoRoutinesCopy {
+		goroutine, exists := gp.goRoutines.GetEx(goId)
+		if !exists {
+			continue
+		}
+
+		if slices.Contains(goroutine.Tags, "outrig") {
+			activeOutrigCount++
+		}
+	}
+
+	return total, active, activeOutrigCount
 }
 
 // GetParsedGoRoutines returns parsed goroutines for RPC
 func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.ParsedGoRoutine {
-	// Get a local copy of the activeGoRoutines map under lock
-	gp.lock.RLock()
-	activeGoRoutinesCopy := gp.activeGoRoutines
-	gp.lock.RUnlock()
+	activeGoRoutinesCopy := gp.getActiveGoRoutinesCopy()
 
 	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(activeGoRoutinesCopy))
 	for goId := range activeGoRoutinesCopy {
@@ -175,10 +204,7 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 
 // GetParsedGoRoutinesByIds returns parsed goroutines for specific goroutine IDs
 func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int64) []rpctypes.ParsedGoRoutine {
-	// Get a local copy of the activeGoRoutines map under lock
-	gp.lock.RLock()
-	activeGoRoutinesCopy := gp.activeGoRoutines
-	gp.lock.RUnlock()
+	activeGoRoutinesCopy := gp.getActiveGoRoutinesCopy()
 
 	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(goIds))
 	for _, goId := range goIds {

@@ -204,11 +204,17 @@ func (*RpcServerImpl) GetAppRunRuntimeStatsCommand(ctx context.Context, data rpc
 		return rpctypes.AppRunRuntimeStatsData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
 	}
 
-	// Initialize empty result
+	// Get goroutine counts
+	numGoRoutines, numActiveGoRoutines, numOutrigGoRoutines := peer.GoRoutines.GetGoRoutineCounts()
+
+	// Initialize result with goroutine counts
 	result := rpctypes.AppRunRuntimeStatsData{
-		AppRunId: peer.AppRunId,
-		AppName:  peer.AppInfo.AppName,
-		Stats:    peer.RuntimeStats.GetRuntimeStats(data.Since),
+		AppRunId:              peer.AppRunId,
+		AppName:               peer.AppInfo.AppName,
+		NumTotalGoRoutines:    numGoRoutines,
+		NumActiveGoRoutines:   numActiveGoRoutines,
+		NumOutrigGoRoutines:   numOutrigGoRoutines,
+		Stats:                 peer.RuntimeStats.GetRuntimeStats(data.Since),
 	}
 
 	return result, nil

@@ -172,8 +172,9 @@ type AppRunInfo struct {
 	IsRunning           bool           `json:"isrunning"`
 	Status              string         `json:"status"`
 	NumLogs             int            `json:"numlogs"`
-	NumActiveGoRoutines int            `json:"numactivegoroutines"`
 	NumTotalGoRoutines  int            `json:"numtotalgoroutines"`
+	NumActiveGoRoutines int            `json:"numactivegoroutines"`
+	NumOutrigGoRoutines int            `json:"numoutriggoroutines"`
 	NumActiveWatches    int            `json:"numactivewatches"`
 	NumTotalWatches     int            `json:"numtotalwatches"`
 	LastModTime         int64          `json:"lastmodtime"`
@@ -240,9 +241,12 @@ type RuntimeStatData struct {
 }
 
 type AppRunRuntimeStatsData struct {
-	AppRunId string            `json:"apprunid"`
-	AppName  string            `json:"appname"`
-	Stats    []RuntimeStatData `json:"stats"`
+	AppRunId            string            `json:"apprunid"`
+	AppName             string            `json:"appname"`
+	NumTotalGoRoutines  int               `json:"numtotalgoroutines"`
+	NumActiveGoRoutines int               `json:"numactivegoroutines"`
+	NumOutrigGoRoutines int               `json:"numoutriggoroutines"`
+	Stats               []RuntimeStatData `json:"stats"`
 }
 
 // GoRoutineSearchRequestData defines the request for goroutine search

@@ -275,8 +275,7 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	}
 
 	isRunning := p.Status == AppStatusRunning
-	numActiveGoRoutines := p.GoRoutines.GetActiveGoRoutineCount()
-	numTotalGoRoutines := p.GoRoutines.GetTotalGoRoutineCount()
+	numTotalGoRoutines, numActiveGoRoutines, numOutrigGoRoutines := p.GoRoutines.GetGoRoutineCounts()
 	numActiveWatches := p.Watches.GetActiveWatchCount()
 	numTotalWatches := p.Watches.GetTotalWatchCount()
 	numLogs := p.Logs.GetTotalCount()
@@ -287,8 +286,9 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 		IsRunning:           isRunning,
 		Status:              p.Status,
 		NumLogs:             numLogs,
-		NumActiveGoRoutines: numActiveGoRoutines,
 		NumTotalGoRoutines:  numTotalGoRoutines,
+		NumActiveGoRoutines: numActiveGoRoutines,
+		NumOutrigGoRoutines: numOutrigGoRoutines,
 		NumActiveWatches:    numActiveWatches,
 		NumTotalWatches:     numTotalWatches,
 		LastModTime:         p.LastModTime,
