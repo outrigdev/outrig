@@ -35,7 +35,7 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
     return (
         <div
             className={cn(
-                "p-2 rounded text-sm cursor-pointer",
+                "py-1 px-2 rounded text-sm cursor-pointer",
                 isSelected ? "bg-buttonhover text-primary" : "text-secondary hover:bg-buttonhover hover:text-primary"
             )}
             onClick={() => {
@@ -51,12 +51,12 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
                         appRun.status === "running" ? "visible" : "invisible"
                     )}
                 ></div>
-                <div className="flex items-center flex-1">
+                <div className="flex items-center flex-1 text-xs">
                     <span className="inline-block w-24">
                         {appRun.status === "running" ? "Running" : formatRelativeTime(appRun.starttime)}
                     </span>
                     <Clock size={12} className="mr-1" />
-                    <span>
+                    <span className="whitespace-nowrap">
                         {appRun.status === "running"
                             ? formatDuration(Math.floor((currentTime - appRun.starttime) / 1000))
                             : formatDuration(Math.floor((appRun.lastmodtime - appRun.starttime) / 1000))}
@@ -87,7 +87,7 @@ export const AppNameGroup: React.FC<AppNameGroupProps> = ({ appName, appRuns, se
     return (
         <div className="mb-2">
             {/* App Name Header */}
-            <div className="flex items-center justify-between px-2 py-1 text-sm font-medium text-primary rounded">
+            <div className="flex items-center justify-between py-1 text-sm font-medium text-primary rounded">
                 <div className="flex items-center">
                     <Box size={16} className="mr-1" />
                     <span>{appName}</span>
@@ -217,7 +217,7 @@ export const LeftNavAppRunList: React.FC = () => {
                 {unsortedAppRuns.length === 0 ? (
                     <div className="px-4 py-2 text-secondary text-sm">No app runs found</div>
                 ) : (
-                    <div className="pl-3 pr-2">
+                    <div className="pl-4 pr-2">
                         {groupedAppRuns.sortedAppNames.map((appName) => (
                             <AppNameGroup
                                 key={appName}
