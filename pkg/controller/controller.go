@@ -34,66 +34,70 @@ const ConnPollTime = 1 * time.Second
 const MaxInternalLog = 100
 
 type ControllerImpl struct {
-	Lock                 sync.Mutex                    // lock for this struct
-	conn                 atomic.Pointer[comm.ConnWrap] // connection to server (atomic pointer for lock-free access)
+	Lock                 sync.Mutex // lock for this struct
 	config               *ds.Config
 	pollerOnce           sync.Once                      // ensures poller is started only once
 	AppInfo              ds.AppInfo                     // combined application information
-	TransportErrors      int64                          // count of transport errors
 	TransportPacketsSent int64                          // count of packets sent
-	OutrigConnected      bool                           // whether outrig is connected
 	OutrigForceDisabled  bool                           // whether outrig is force disabled
 	Collectors           map[string]collector.Collector // map of collectors by name
 	InternalLogBuf       *utilds.CirBuf[string]         // internal log for debugging
+
+	connLock sync.Mutex
+	conn     *comm.ConnWrap // connection to server
 }
 
+// this is idempotent
 func MakeController(config ds.Config) (*ControllerImpl, error) {
 	c := &ControllerImpl{
 		Collectors:     make(map[string]collector.Collector),
 		InternalLogBuf: utilds.MakeCirBuf[string](MaxInternalLog),
-	}
-	var cif ds.Controller = c
-	ok := global.Controller.CompareAndSwap(nil, &cif)
-	if !ok {
-		return nil, fmt.Errorf("controller already initialized")
 	}
 
 	// Initialize AppInfo using the dedicated function
 	c.AppInfo = c.createAppInfo(&config)
 	c.config = &config
 
-	var connected bool
-	if !config.StartAsync {
-		connected = c.Connect()
+	arCtx := ds.AppRunContext{
+		AppRunId: c.AppInfo.AppRunId,
+		IsDev:    c.config.Dev,
 	}
 
 	// Initialize collectors with their respective configurations
 	logCollector := logprocess.GetInstance()
-	logCollector.InitCollector(c, c.config.LogProcessorConfig)
+	logCollector.InitCollector(c, c.config.LogProcessorConfig, arCtx)
 	c.Collectors[logCollector.CollectorName()] = logCollector
 
 	goroutineCollector := goroutine.GetInstance()
-	goroutineCollector.InitCollector(c, c.config.GoRoutineConfig)
+	goroutineCollector.InitCollector(c, c.config.GoRoutineConfig, arCtx)
 	c.Collectors[goroutineCollector.CollectorName()] = goroutineCollector
 
 	watchCollector := watch.GetInstance()
-	watchCollector.InitCollector(c, c.config.WatchConfig)
+	watchCollector.InitCollector(c, c.config.WatchConfig, arCtx)
 	c.Collectors[watchCollector.CollectorName()] = watchCollector
 
 	runtimeStatsCollector := runtimestats.GetInstance()
-	runtimeStatsCollector.InitCollector(c, c.config.RuntimeStatsConfig)
+	runtimeStatsCollector.InitCollector(c, c.config.RuntimeStatsConfig, arCtx)
 	c.Collectors[runtimeStatsCollector.CollectorName()] = runtimeStatsCollector
 
+	return c, nil
+}
+
+func (c *ControllerImpl) InitialStart() {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+
+	var connected bool
+	if !c.config.StartAsync {
+		connected = c.connectInternal()
+	}
 	if connected {
 		c.setEnabled(true)
 	}
-
 	go func() {
 		ioutrig.I.SetGoRoutineName("#outrig ConnPoller")
 		c.runConnPoller()
 	}()
-
-	return c, nil
 }
 
 // createAppInfo creates and initializes the AppInfo structure
@@ -159,69 +163,72 @@ func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
 
 // Connection management methods
 
-func (c *ControllerImpl) Connect() bool {
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
-
+// lock should be held
+func (c *ControllerImpl) connectInternal() bool {
 	// Check if already connected to prevent redundant connections
-	if c.OutrigConnected {
+	if c.isConnected() {
 		return false
 	}
-
 	if c.OutrigForceDisabled {
 		return false
 	}
-	if global.OutrigEnabled.Load() {
-		return false
-	}
-
-	atomic.StoreInt64(&c.TransportErrors, 0)
-
 	// Use the new Connect function to establish a connection
-	connWrap, err := comm.Connect(base.ConnectionModePacket, "", c.AppInfo.AppRunId,
-		c.config.DomainSocketPath, "")
-
+	connWrap, err := comm.Connect(base.ConnectionModePacket, "", c.AppInfo.AppRunId, c.config.DomainSocketPath, "")
 	if err != nil {
 		// Connection failed
 		return false
 	}
-
 	// Connection and handshake successful
 	if !c.config.Quiet {
 		fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
 	}
-	c.conn.Store(connWrap)
+	c.setConn(connWrap)
 	c.sendAppInfo()
-	c.OutrigConnected = true
 	return true
 }
 
-func (c *ControllerImpl) Disconnect() {
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
+func (c *ControllerImpl) isConnected() bool {
+	c.connLock.Lock()
+	defer c.connLock.Unlock()
+	return c.conn != nil
+}
 
-	connPtr := c.conn.Load()
-	if connPtr != nil {
-		conn := *connPtr
-		if !c.config.Quiet {
-			fmt.Printf("Outrig disconnected from %s\n", conn.PeerName)
-		}
-		c.conn.Store(nil)
-		time.Sleep(50 * time.Millisecond)
-		conn.Close()
+func (c *ControllerImpl) setConn(conn *comm.ConnWrap) {
+	c.connLock.Lock()
+	defer c.connLock.Unlock()
+	c.conn = conn
+}
+
+func (c *ControllerImpl) closeConn_nolock() {
+	if c.conn == nil {
+		return
 	}
-	c.OutrigConnected = false
+	if !c.config.Quiet {
+		fmt.Printf("[outrig] disconnecting from %s\n", c.conn.PeerName)
+	}
+	c.conn.Close()
+	c.conn = nil
+}
+
+func (c *ControllerImpl) closeConn() {
+	c.connLock.Lock()
+	defer c.connLock.Unlock()
+	c.closeConn_nolock()
+}
+
+// lock should be held
+func (c *ControllerImpl) disconnectInternal() {
+	c.closeConn()
 	c.setEnabled(false)
 }
 
 func (c *ControllerImpl) Enable() {
 	c.Lock.Lock()
+	defer c.Lock.Unlock()
 	c.OutrigForceDisabled = false
-	c.Lock.Unlock()
-
-	isConnected := c.IsConnected()
+	isConnected := c.isConnected()
 	if !isConnected {
-		isConnected = c.Connect()
+		isConnected = c.connectInternal()
 	}
 	if isConnected {
 		c.setEnabled(true)
@@ -230,22 +237,15 @@ func (c *ControllerImpl) Enable() {
 
 func (c *ControllerImpl) Disable(disconnect bool) {
 	c.Lock.Lock()
+	defer c.Lock.Unlock()
 	c.OutrigForceDisabled = true
-	c.Lock.Unlock()
-
 	c.setEnabled(false)
 	if disconnect {
-		c.Disconnect()
+		c.disconnectInternal()
 	}
 }
 
 // Configuration methods
-
-func (c *ControllerImpl) IsConnected() bool {
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
-	return c.OutrigConnected
-}
 
 func (c *ControllerImpl) IsForceDisabled() bool {
 	c.Lock.Lock()
@@ -268,26 +268,28 @@ func (c *ControllerImpl) GetAppRunId() string {
 // Transport methods
 
 func (c *ControllerImpl) sendPacketInternal(pk *ds.PacketType) (bool, error) {
-	// No lock needed - using atomic pointer
-	connPtr := c.conn.Load()
-	if connPtr == nil {
-		return false, nil
-	}
-	conn := *connPtr
-
 	barr, err := json.Marshal(pk)
 	if err != nil {
 		return false, err
 	}
-
-	// Convert to string and write with newline
 	jsonStr := string(barr)
-	err = conn.WriteLine(jsonStr)
-	if err != nil {
-		atomic.AddInt64(&c.TransportErrors, 1) // this will force a disconnect later
+	c.connLock.Lock()
+	defer c.connLock.Unlock()
+	if c.conn == nil {
 		return false, nil
 	}
-
+	err = c.conn.WriteLine(jsonStr)
+	if err != nil {
+		c.ILog("[error] writing to %s: %v\n", c.conn.PeerName, err)
+		c.closeConn_nolock()
+		go func() {
+			ioutrig.I.SetGoRoutineName("#outrig sendPacket:error")
+			c.Lock.Lock()
+			defer c.Lock.Unlock()
+			c.disconnectInternal()
+		}()
+		return false, nil
+	}
 	atomic.AddInt64(&c.TransportPacketsSent, 1)
 	return true, nil
 }
@@ -363,9 +365,11 @@ func (c *ControllerImpl) determineAppName() string {
 }
 
 func (c *ControllerImpl) Shutdown() {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
 	// TODO: wait for last log lines to be sent
 	// TODO: send shutdown log lines
-	c.Disconnect()
+	c.disconnectInternal()
 }
 
 // Private methods
@@ -380,27 +384,18 @@ func (c *ControllerImpl) runConnPoller() {
 }
 
 func (c *ControllerImpl) pollConn() {
-	// First check if we're already connected
-	if c.IsConnected() {
-		// check for errors only if we're connected
-		if atomic.LoadInt64(&c.TransportErrors) > 0 {
-			c.Disconnect()
-		}
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	if c.isConnected() {
 		return
 	}
-
-	// Not connected, so attempt to connect
-	enabled := global.OutrigEnabled.Load()
-	if !enabled {
-		// Capture the return value from Connect
-		connected := c.Connect()
-		// If connection was successful, enable the system
-		if connected {
-			c.setEnabled(true)
-		}
+	connected := c.connectInternal()
+	if connected {
+		c.setEnabled(true)
 	}
 }
 
+// lock should be held
 func (c *ControllerImpl) setEnabled(enabled bool) {
 	oldEnabled := global.OutrigEnabled.Load()
 	if enabled == oldEnabled {

@@ -271,13 +271,8 @@ func (w *WatchSample) GetNumericVal() float64 {
 	}
 }
 
+// for internal use (import cycles)
 type Controller interface {
-	Enable()
-	Disable(disconnect bool)
-
-	Connect() bool
-	Disconnect()
-
 	// Configuration
 	GetConfig() Config
 	GetAppRunId() string
@@ -285,7 +280,10 @@ type Controller interface {
 	// Transport
 	SendPacket(pk *PacketType) (bool, error)
 
-	Shutdown()
-
 	ILog(format string, args ...any)
+}
+
+type AppRunContext struct {
+	IsDev    bool
+	AppRunId string
 }

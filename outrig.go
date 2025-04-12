@@ -6,10 +6,10 @@
 package outrig
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/base"
@@ -41,15 +41,13 @@ type Number interface {
 	Integer | Float
 }
 
-var ctrl atomic.Pointer[controller.ControllerImpl]
-
 func init() {
 	ioutrig.I = &internalOutrig{}
 }
 
 // Disable disables Outrig
 func Disable(disconnect bool) {
-	ctrlPtr := ctrl.Load()
+	ctrlPtr := getController()
 	if ctrlPtr != nil {
 		ctrlPtr.Disable(disconnect)
 	}
@@ -57,7 +55,7 @@ func Disable(disconnect bool) {
 
 // Enable enables Outrig
 func Enable() {
-	ctrlPtr := ctrl.Load()
+	ctrlPtr := getController()
 	if ctrlPtr != nil {
 		ctrlPtr.Enable()
 	}
@@ -124,16 +122,31 @@ func Init(cfgParam *ds.Config) error {
 	if err != nil {
 		return err
 	}
-
-	// Store the controller in the atomic pointer
-	ctrl.Store(ctrlImpl)
-
+	// Store the controller in global.Controller
+	var cif ds.Controller = ctrlImpl
+	ok := global.Controller.CompareAndSwap(nil, &cif)
+	if !ok {
+		return fmt.Errorf("controller already initialized")
+	}
+	ctrlImpl.InitialStart()
 	return nil
+}
+
+func getController() *controller.ControllerImpl {
+	c := global.Controller.Load()
+	if c == nil {
+		return nil
+	}
+	if (*c) == nil {
+		return nil
+	}
+	ctrlPtr := (*c).(*controller.ControllerImpl)
+	return ctrlPtr
 }
 
 // Shutdown shuts down Outrig
 func Shutdown() {
-	ctrlPtr := ctrl.Load()
+	ctrlPtr := getController()
 	if ctrlPtr != nil {
 		ctrlPtr.Shutdown()
 	}
@@ -141,7 +154,7 @@ func Shutdown() {
 
 // GetAppRunId returns the unique identifier for the current application run
 func GetAppRunId() string {
-	ctrlPtr := ctrl.Load()
+	ctrlPtr := getController()
 	if ctrlPtr != nil {
 		return ctrlPtr.GetAppRunId()
 	}
@@ -151,7 +164,7 @@ func GetAppRunId() string {
 // AppDone signals that the application is done
 // This should be deferred in the program's main function
 func AppDone() {
-	ctrlPtr := ctrl.Load()
+	ctrlPtr := getController()
 	if ctrlPtr != nil {
 		// Send an AppDone packet
 		packet := &ds.PacketType{

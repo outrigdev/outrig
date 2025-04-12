@@ -9,6 +9,8 @@ tasks:
     dev:
         desc: Run the Go server in development mode
         cmds:
+            - mkdir -p server/pkg/web/dist
+            - touch server/pkg/web/dist/placeholder.txt
             - OUTRIG_DEV=1 go run server/main-server.go server
 
     clean:

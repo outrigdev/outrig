@@ -164,7 +164,7 @@ func (wc *WatchCollector) UnregisterWatch(name string) {
 }
 
 // InitCollector initializes the watch collector with a controller and configuration
-func (wc *WatchCollector) InitCollector(controller ds.Controller, config any) error {
+func (wc *WatchCollector) InitCollector(controller ds.Controller, config any, arCtx ds.AppRunContext) error {
 	wc.controller = controller
 	if watchConfig, ok := config.(ds.WatchConfig); ok {
 		wc.config = watchConfig
