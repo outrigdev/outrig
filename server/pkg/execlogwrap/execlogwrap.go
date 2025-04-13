@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/base"
@@ -17,20 +16,72 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-var stdoutConn atomic.Pointer[comm.ConnWrap]
-var stderrConn atomic.Pointer[comm.ConnWrap]
-var connLock sync.Mutex
-var connPollerStarted bool
-
 const ConnPollTime = 1 * time.Second
 
-func getAtomicPointerForSource(source string) *atomic.Pointer[comm.ConnWrap] {
+// LogDataWrap encapsulates a connection with its lock and related functionality
+type LogDataWrap struct {
+	conn   *comm.ConnWrap
+	lock   sync.Mutex
+	source string
+}
+
+// TeeStreamDecl defines a stream to be processed with TeeCopy
+type TeeStreamDecl struct {
+	Input  io.Reader
+	Output io.Writer
+	Source string
+}
+
+var stdoutWrap = LogDataWrap{source: "/dev/stdout"}
+var stderrWrap = LogDataWrap{source: "/dev/stderr"}
+
+// getLogDataWrap returns the appropriate LogDataWrap for the given source
+func getLogDataWrap(source string) *LogDataWrap {
 	if source == "/dev/stdout" {
-		return &stdoutConn
+		return &stdoutWrap
 	} else if source == "/dev/stderr" {
-		return &stderrConn
+		return &stderrWrap
 	}
 	return nil
+}
+
+// processLogData sends log data to the connection if available
+func (ldw *LogDataWrap) processLogData(data []byte) {
+	ldw.lock.Lock()
+	defer ldw.lock.Unlock()
+
+	if ldw.conn == nil {
+		return
+	}
+
+	_, err := ldw.conn.Conn.Write(data)
+	if err != nil {
+		ldw.conn = nil
+	}
+}
+
+// ensureConnection ensures that we have a connection to the Outrig server
+func (ldw *LogDataWrap) ensureConnection(isDev bool) {
+	ldw.lock.Lock()
+	defer ldw.lock.Unlock()
+
+	if ldw.conn == nil {
+		if conn := tryConnect(ldw.source, isDev); conn != nil {
+			ldw.conn = conn
+			// fmt.Printf("[outrig] connected %s via %s\n", ldw.source, conn.PeerName)
+		}
+	}
+}
+
+// closeConnection closes the connection and resets the connection pointer
+func (ldw *LogDataWrap) closeConnection() {
+	ldw.lock.Lock()
+	defer ldw.lock.Unlock()
+
+	if ldw.conn != nil {
+		ldw.conn.Close()
+		ldw.conn = nil
+	}
 }
 
 // tryConnect attempts to connect to the Outrig server for the specified source
@@ -55,38 +106,13 @@ func tryConnect(source string, isDev bool) *comm.ConnWrap {
 // ensureConnections ensures that we have connections to the Outrig server
 // for both stdout and stderr
 func ensureConnections(isDev bool) {
-	connLock.Lock()
-	defer connLock.Unlock()
-
-	// Try to connect stdout if not already connected
-	if stdoutConn.Load() == nil {
-		if conn := tryConnect("/dev/stdout", isDev); conn != nil {
-			stdoutConn.Store(conn)
-			// fmt.Printf("[outrig] connected stdout via %s\n", conn.PeerName)
-		}
-	}
-
-	// Try to connect stderr if not already connected
-	if stderrConn.Load() == nil {
-		if conn := tryConnect("/dev/stderr", isDev); conn != nil {
-			stderrConn.Store(conn)
-			// fmt.Printf("[outrig] connected stderr via %s\n", conn.PeerName)
-		}
-	}
+	stdoutWrap.ensureConnection(isDev)
+	stderrWrap.ensureConnection(isDev)
 }
 
 // startConnPoller starts a goroutine that periodically tries to establish
 // connections to the Outrig server if they don't already exist
 func startConnPoller(isDev bool) {
-	connLock.Lock()
-	defer connLock.Unlock()
-
-	if connPollerStarted {
-		return
-	}
-
-	connPollerStarted = true
-
 	go func() {
 		for {
 			ensureConnections(isDev)
@@ -95,50 +121,23 @@ func startConnPoller(isDev bool) {
 	}()
 }
 
-// ProcessLogData sends log data to the appropriate Outrig connection if available
-func ProcessLogData(source string, data []byte) {
-	ptr := getAtomicPointerForSource(source)
-	if ptr == nil {
-		return
-	}
-	connPtr := ptr.Load()
-	if connPtr == nil {
-		return
-	}
-
-	_, err := connPtr.Conn.Write(data)
-	if err != nil {
-		ptr.Store(nil)
-	}
-}
-
 // closeConnections closes any open connections and resets the connection pointers
 func closeConnections() {
-	if conn := stdoutConn.Load(); conn != nil {
-		conn.Close()
-		stdoutConn.Store(nil)
-	}
-
-	if conn := stderrConn.Load(); conn != nil {
-		conn.Close()
-		stderrConn.Store(nil)
-	}
-}
-
-// TeeStreamDecl defines a stream to be processed with TeeCopy
-type TeeStreamDecl struct {
-	Input  io.Reader
-	Output io.Writer
-	Source string
+	stdoutWrap.closeConnection()
+	stderrWrap.closeConnection()
 }
 
 // processStream processes a stream using TeeCopy in a goroutine
 func processStream(wg *sync.WaitGroup, decl TeeStreamDecl) {
+	ldw := getLogDataWrap(decl.Source)
+	
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		err := utilfn.TeeCopy(decl.Input, decl.Output, func(data []byte) {
-			ProcessLogData(decl.Source, data)
+			if ldw != nil {
+				ldw.processLogData(data)
+			}
 		})
 		if err != nil && err != io.EOF {
 			fmt.Fprintf(os.Stderr, "Error copying %s: %v\n", decl.Source, err)
