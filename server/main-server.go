@@ -74,7 +74,6 @@ func main() {
 			return boot.RunServer()
 		},
 	}
-	
 	// Add no-telemetry flag to server command only
 	serverCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
 
@@ -97,7 +96,6 @@ func main() {
 		Long:  `Capture logs from stdin (stdout of the process) and fd 3 (stderr of the process) and write them to stdout and stderr respectively.`,
 		RunE:  runCaptureLogs,
 	}
-
 	captureLogsCmd.Flags().String("source", "", "Override the source name for stdout logs (default: /dev/stdout)")
 
 	runCmd := &cobra.Command{

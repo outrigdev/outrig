@@ -1,7 +1,13 @@
 .task
+node_modules
 dist/
 dist-dev/
 dist-fe/
+dist
+dist-ssr
+!server/pkg/web/dist/
+server/pkg/web/dist/**
+!server/pkg/web/dist/.gitkeep
 
 bin/
 *.dmg
@@ -40,9 +46,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
 *.local
 
 # Editor directories and files
