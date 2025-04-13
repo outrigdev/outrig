@@ -10,20 +10,27 @@ tasks:
         desc: Run the Go server in development mode
         cmds:
             - mkdir -p server/pkg/web/dist
-            - touch server/pkg/web/dist/placeholder.txt
+            - touch server/pkg/web/dist/.gitkeep
             - OUTRIG_DEV=1 go run server/main-server.go server
+
+    clean:webdist:
+        desc: Clean the web embed directory for Go server
+        cmds:
+            - rm -rf server/pkg/web/dist
+            - mkdir -p server/pkg/web/dist
+            - touch server/pkg/web/dist/.gitkeep
 
     clean:
         desc: Clean build artifacts
+        deps: [clean:webdist]
         cmds:
-            - rm -rf dist dist-fe server/pkg/web/dist
+            - rm -rf dist dist-fe
 
     build:frontend:
         desc: Build the frontend for production
         deps: [clean]
         cmds:
             - npm run build
-            - mkdir -p server/pkg/web/dist
             - cp -r dist-fe/* server/pkg/web/dist/
 
     build:server:
