@@ -53,6 +53,12 @@ func RunServer() error {
 		signal.Stop(signalChan)
 	}()
 
+	if serverbase.IsDev() {
+		log.Printf("Starting Outrig server (dev mode)\n")
+	} else {
+		log.Printf("Starting Outrig server %s (%s)...\n", serverbase.OutrigVersion, serverbase.OutrigBuildTime)
+	}
+
 	err := serverbase.EnsureHomeDir()
 	if err != nil {
 		return fmt.Errorf("cannot create outrig home directory (%s): %w", serverbase.GetOutrigHome(), err)
