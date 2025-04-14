@@ -211,6 +211,9 @@ class GoRoutinesModel {
         }
 
         store.set(this.selectedStates, newSelectedStates);
+        
+        // Trigger a new search with the current search term to apply the filter
+        this.searchGoroutines(store.get(this.searchTerm));
     }
 
     // Toggle "show all" filter
@@ -225,6 +228,9 @@ class GoRoutinesModel {
         }
 
         store.set(this.showAll, !showAll);
+        
+        // Trigger a new search with the current search term to apply the filter
+        this.searchGoroutines(store.get(this.searchTerm));
     }
 
     // Toggle showing/hiding #outrig goroutines
@@ -243,10 +249,36 @@ class GoRoutinesModel {
         const searchId = crypto.randomUUID();
         this.currentSearchId = searchId;
         const showOutrig = store.get(this.showOutrigGoroutines);
+        const selectedStates = store.get(this.selectedStates);
 
         try {
-            // Set systemquery if showOutrigGoroutines is false
-            const systemQuery = !showOutrig ? "-#outrig #userquery" : undefined;
+            // Build the systemQuery based on selected states and showOutrig setting
+            let systemQuery: string | undefined;
+            
+            // Start with the base query parts
+            const outrigPart = !showOutrig ? "-#outrig" : "";
+            const userQueryPart = "#userquery";
+            
+            // Handle state filters
+            let statesPart = "";
+            if (selectedStates.size > 0) {
+                const statesArray = Array.from(selectedStates);
+                
+                if (statesArray.length === 1) {
+                    // Single state filter
+                    statesPart = `"${statesArray[0]}"`;
+                } else if (statesArray.length > 1) {
+                    // Multiple state filters with OR logic
+                    const statesString = statesArray.map(state => `"${state}"`).join(" ");
+                    statesPart = `(${statesString})`;
+                }
+            }
+            
+            // Combine the parts to form the final query
+            if (outrigPart || statesPart || userQueryPart) {
+                const parts = [outrigPart, statesPart, userQueryPart].filter(Boolean);
+                systemQuery = parts.join(" ");
+            }
 
             // Call the search RPC to get matching goroutine IDs
             const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, {
