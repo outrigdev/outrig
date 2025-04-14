@@ -62,6 +62,7 @@ type TEventUserProps struct {
 	ClientVersion        string `json:"client:version,omitempty"`
 	ClientInitialVersion string `json:"client:initial_version,omitempty"`
 	ClientBuildTime      string `json:"client:buildtime,omitempty"`
+	ClientCommit         string `json:"client:commit,omitempty"`
 	ClientOSRelease      string `json:"client:osrelease,omitempty"`
 	ClientIsDev          bool   `json:"client:isdev,omitempty"`
 	ClientLang           string `json:"client:lang,omitempty"`
@@ -254,6 +255,7 @@ func createCommonUserProps() *TEventUserProps {
 		ClientArch:      ClientArch(),
 		ClientVersion:   serverbase.OutrigVersion,
 		ClientBuildTime: serverbase.OutrigBuildTime,
+		ClientCommit:    serverbase.OutrigCommit,
 		ClientOSRelease: UnameKernelRelease(),
 		ClientIsDev:     serverbase.IsDev(),
 		ClientLang:      OsLang(),

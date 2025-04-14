@@ -20,6 +20,8 @@ var OutrigVersion = "v0.0.0"
 
 var OutrigBuildTime = ""
 
+var OutrigCommit = ""
+
 func runCaptureLogs(cmd *cobra.Command, args []string) error {
 	stderrIn := os.NewFile(3, "stderr-in")
 	source, _ := cmd.Flags().GetString("source")
@@ -53,6 +55,7 @@ func main() {
 	// Set serverbase version from main version (which gets overridden by build tags)
 	serverbase.OutrigVersion = OutrigVersion
 	serverbase.OutrigBuildTime = OutrigBuildTime
+	serverbase.OutrigCommit = OutrigCommit
 
 	rootCmd := &cobra.Command{
 		Use:   "outrig",
@@ -82,7 +85,9 @@ func main() {
 		Short: "Print the version number of Outrig",
 		Long:  `Print the version number of Outrig and exit.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if OutrigBuildTime != "" {
+			if OutrigCommit != "" {
+				fmt.Printf("%s+%s\n", OutrigVersion, OutrigCommit)
+			} else if OutrigBuildTime != "" {
 				fmt.Printf("%s+%s\n", OutrigVersion, OutrigBuildTime)
 			} else {
 				fmt.Printf("%s+dev\n", OutrigVersion)

@@ -22,6 +22,10 @@ var OutrigVersion = "v0.0.0"
 // This gets set from main-server.go during initialization
 var OutrigBuildTime = ""
 
+// OutrigCommit is the git commit hash of this build
+// This gets set from main-server.go during initialization
+var OutrigCommit = ""
+
 // OutrigId is the unique identifier for this Outrig server instance
 var OutrigId string
 

@@ -38,7 +38,7 @@ tasks:
         deps: [build:frontend]
         cmds:
             - mkdir -p bin/
-            - go build -ldflags "-X main.OutrigBuildTime=$(date +%Y%m%d%H%M%S)" -o bin/outrig server/main-server.go
+            - go build -ldflags "-X main.OutrigBuildTime=$(date +%Y%m%d%H%M%S) -X main.OutrigCommit=$(git rev-parse --short HEAD)" -o bin/outrig server/main-server.go
 
     build:
         desc: Build everything for production
