@@ -1,15 +1,15 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
 import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tooltip } from "@/elements/tooltip";
 import { SearchFilter } from "@/searchfilter/searchfilter";
-import { AppModel } from "@/appmodel";
+import { EmptyMessageDelayMs } from "@/util/constants";
 import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
 import { cn, formatTimeOffset } from "@/util/util";
-import { EmptyMessageDelayMs } from "@/util/constants";
 import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
 import { Layers, Layers2 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -37,7 +37,8 @@ const DurationStateFilters: React.FC<DurationStateFiltersProps> = ({ model, sele
             {durationStates.map((state) => (
                 <Tag
                     key={state}
-                    label={`${state} (${stateCounts.get(state) || 0})`}
+                    label={state}
+                    count={stateCounts.get(state) || 0}
                     isSelected={selectedStates.has(state)}
                     onToggle={() => onToggleState(state)}
                 />
@@ -287,7 +288,8 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                             {primaryStates.map((state) => (
                                 <Tag
                                     key={state}
-                                    label={`${state} (${stateCounts.get(state) || 0})`}
+                                    label={state}
+                                    count={stateCounts.get(state) || 0}
                                     isSelected={selectedStates.has(state)}
                                     onToggle={() => handleToggleState(state)}
                                 />
@@ -296,15 +298,20 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                             {extraStates.map((state) => (
                                 <Tag
                                     key={state}
-                                    label={`${state} (${stateCounts.get(state) || 0})`}
+                                    label={state}
+                                    count={stateCounts.get(state) || 0}
                                     isSelected={selectedStates.has(state)}
                                     onToggle={() => handleToggleState(state)}
                                 />
                             ))}
                         </div>
-                        
+
                         {/* Duration states on second row of the flex column */}
-                        <DurationStateFilters model={model} selectedStates={selectedStates} onToggleState={handleToggleState} />
+                        <DurationStateFilters
+                            model={model}
+                            selectedStates={selectedStates}
+                            onToggleState={handleToggleState}
+                        />
                     </div>
 
                     {/* Box 3: #outrig toggle */}
@@ -356,7 +363,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
             const timer = setTimeout(() => {
                 setShowEmptyMessage(true);
             }, EmptyMessageDelayMs);
-            
+
             return () => clearTimeout(timer);
         } else {
             setShowEmptyMessage(false);

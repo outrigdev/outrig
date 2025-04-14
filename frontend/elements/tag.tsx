@@ -10,10 +10,31 @@ interface TagProps {
     isSelected: boolean;
     onToggle?: () => void;
     variant?: TagVariant;
+    count?: number;
 }
 
-export const Tag: React.FC<TagProps> = ({ label, isSelected, onToggle, variant = "primary" }) => {
-    // If onToggle is provided, render as a button, otherwise as a span
+export const Tag: React.FC<TagProps> = ({ label, isSelected, onToggle, variant = "primary", count }) => {
+    // If count is provided, we'll use a split pill design
+    if (count != null) {
+        const baseClasses = `text-xs rounded-md transition-colors ${getTagStyles(variant, isSelected)}`;
+
+        const content = (
+            <div className="flex items-center h-full">
+                <span className="px-2 py-1">{label}</span>
+                <span className="count px-1.5 py-1 font-medium border-l border-current/30">{count}</span>
+            </div>
+        );
+
+        return onToggle ? (
+            <button onClick={onToggle} className={`cursor-pointer ${baseClasses}`}>
+                {content}
+            </button>
+        ) : (
+            <span className={baseClasses}>{content}</span>
+        );
+    }
+
+    // If no count, use the original design
     return onToggle ? (
         <button
             onClick={onToggle}
