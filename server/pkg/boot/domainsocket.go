@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -125,9 +124,9 @@ func handleDomainSocketConn(conn net.Conn) {
 
 	// Dispatch to the appropriate handler based on the mode
 	switch mode {
-	case base.ConnectionModePacket:
+	case comm.ConnectionModePacket:
 		handlePacketMode(connWrap, appRunId)
-	case base.ConnectionModeLog:
+	case comm.ConnectionModeLog:
 		handleLogMode(connWrap, appRunId, submode)
 	default:
 		log.Printf("Unhandled connection mode: %s\n", mode)
@@ -149,7 +148,7 @@ func runDomainSocketServer(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to listen on %s: %w", socketPath, err)
 	}
-	fmt.Printf("Server listening on %s\n", socketPath)
+	log.Printf("Domain Socket Server listening at %s\n", socketPath)
 
 	// Accept connections in a loop.
 	go func() {

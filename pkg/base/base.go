@@ -3,12 +3,6 @@
 
 package base
 
-// Connection mode constants
-const (
-	ConnectionModePacket = "packet"
-	ConnectionModeLog    = "log"
-)
-
 // Home directory paths
 const OutrigHome = "~/.outrig"
 const DevOutrigHome = "~/.outrig-dev"

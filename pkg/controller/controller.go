@@ -173,7 +173,7 @@ func (c *ControllerImpl) connectInternal() bool {
 		return false
 	}
 	// Use the new Connect function to establish a connection
-	connWrap, err := comm.Connect(base.ConnectionModePacket, "", c.AppInfo.AppRunId, c.config.DomainSocketPath, "")
+	connWrap, err := comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, c.config.DomainSocketPath, "")
 	if err != nil {
 		// Connection failed
 		return false

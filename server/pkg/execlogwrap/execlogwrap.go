@@ -92,7 +92,7 @@ func tryConnect(source string, isDev bool) *comm.ConnWrap {
 		return nil
 	}
 	domainSocketPath := base.GetDomainSocketNameForClient(isDev)
-	connWrap, err := comm.Connect(base.ConnectionModeLog, source, appRunId, domainSocketPath, "")
+	connWrap, err := comm.Connect(comm.ConnectionModeLog, source, appRunId, domainSocketPath, "")
 	if err != nil {
 		return nil
 	}
