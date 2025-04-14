@@ -79,7 +79,7 @@ func getDefaultConfig(isDev bool) *ds.Config {
 		AppName:          "",
 		ModuleName:       "",
 		Dev:              isDev,
-		StartAsync:       false,
+		ConnectOnInit:    true,
 		LogProcessorConfig: ds.LogProcessorConfig{
 			Enabled:    true,
 			WrapStdout: wrapStdout,

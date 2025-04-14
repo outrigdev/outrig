@@ -4,6 +4,7 @@
 package comm
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -20,11 +21,13 @@ import (
 // If that fails and serverAddr is not empty, it will fall back to TCP.
 // If both are empty or "-", it will return nil and an error.
 //
-// The function returns a new ConnWrap and error. If the connection is successful,
-// the error will be nil. If the connection fails, the error will contain the reason.
-func Connect(mode string, submode string, appRunId string, domainSocketPath string, serverAddr string) (*ConnWrap, error) {
+// The function returns (ConnWrap, PermanentError, TransientError)
+func Connect(mode string, submode string, appRunId string, domainSocketPath string, serverAddr string) (*ConnWrap, error, error) {
 	// Skip domain socket if path is empty or "-"
+	var triedConnect bool
+
 	if domainSocketPath != "" && domainSocketPath != "-" {
+		triedConnect = true
 		dsPath := utilfn.ExpandHomeDir(domainSocketPath)
 		if _, errStat := os.Stat(dsPath); errStat == nil {
 			conn, err := net.DialTimeout("unix", dsPath, 2*time.Second)
@@ -35,9 +38,9 @@ func Connect(mode string, submode string, appRunId string, domainSocketPath stri
 				err := connWrap.ClientHandshake(mode, submode, appRunId)
 				if err != nil {
 					connWrap.Close()
-					return nil, fmt.Errorf("handshake failed with %s: %w", connWrap.PeerName, err)
+					return nil, nil, fmt.Errorf("handshake failed with %s: %w", connWrap.PeerName, err)
 				} else {
-					return connWrap, nil
+					return connWrap, nil, nil
 				}
 			}
 		}
@@ -45,6 +48,7 @@ func Connect(mode string, submode string, appRunId string, domainSocketPath stri
 
 	// Fall back to TCP if domain socket failed and TCP is not disabled
 	if serverAddr != "" && serverAddr != "-" {
+		triedConnect = true
 		conn, err := net.DialTimeout("tcp", serverAddr, 2*time.Second)
 		if err == nil {
 			connWrap := MakeConnWrap(conn, serverAddr)
@@ -53,12 +57,27 @@ func Connect(mode string, submode string, appRunId string, domainSocketPath stri
 			err := connWrap.ClientHandshake(mode, submode, appRunId)
 			if err != nil {
 				connWrap.Close()
-				return nil, fmt.Errorf("handshake failed with %s: %w", connWrap.PeerName, err)
+				return nil, nil, fmt.Errorf("handshake failed with %s: %w", connWrap.PeerName, err)
 			} else {
-				return connWrap, nil
+				return connWrap, nil, nil
 			}
 		}
 	}
+	// If both connection methods are disabled or not provided, return nil without error
+	if !triedConnect {
+		return nil, nil, nil
+	}
 
-	return nil, fmt.Errorf("failed to connect to domain socket or TCP server")
+	// Construct appropriate error message based on what connection methods were attempted
+	errMsg := "failed to connect to outrig "
+	if domainSocketPath != "" && domainSocketPath != "-" {
+		errMsg += fmt.Sprintf("domain socket %s", domainSocketPath)
+		if serverAddr != "" && serverAddr != "-" {
+			errMsg += fmt.Sprintf(" and TCP server %s", serverAddr)
+		}
+	} else if serverAddr != "" && serverAddr != "-" {
+		errMsg += fmt.Sprintf("TCP server %s", serverAddr)
+	}
+
+	return nil, nil, errors.New(errMsg)
 }

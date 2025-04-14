@@ -119,6 +119,11 @@ func (cw *ConnWrap) Close() error {
 // It receives a ServerHandshakePacket, validates compatibility,
 // sends a ClientHandshakePacket, and processes the server's response.
 func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId string) error {
+	clientModeVersion, hasModeVersion := ClientModeVersions[modeName]
+	if !hasModeVersion {
+		return fmt.Errorf("client does not support mode: %s", modeName)
+	}
+
 	// Read the server handshake packet
 	packetLine, err := cw.ReadLine()
 	if err != nil {
@@ -134,12 +139,12 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	}
 
 	// Validate the server version using semver
-	serverVersion, err := semver.NewVersion(strings.TrimPrefix(serverPacket.OutrigVersion, "v"))
+	serverVersion, err := semver.NewVersion(serverPacket.OutrigVersion)
 	if err != nil {
 		return fmt.Errorf("invalid server version format: %s", serverPacket.OutrigVersion)
 	}
 
-	minVersion, _ := semver.NewVersion(strings.TrimPrefix(MinServerVersion, "v"))
+	minVersion, _ := semver.NewVersion(MinServerVersion)
 	if serverVersion.LessThan(minVersion) {
 		return fmt.Errorf("server version %s is less than minimum required version %s",
 			serverPacket.OutrigVersion, MinServerVersion)
@@ -149,12 +154,6 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	protocolDef, modeSupported := serverPacket.Modes[modeName]
 	if !modeSupported {
 		return fmt.Errorf("server does not support mode: %s", modeName)
-	}
-
-	// Get the client's version for this mode
-	clientModeVersion, hasModeVersion := ClientModeVersions[modeName]
-	if !hasModeVersion {
-		return fmt.Errorf("client does not support mode: %s", modeName)
 	}
 
 	// Check if the server accepts this mode version
@@ -286,14 +285,14 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 	}
 
 	// Validate the client SDK version using semver
-	clientVersion, err := semver.NewVersion(strings.TrimPrefix(packet.OutrigSDK, "v"))
+	clientVersion, err := semver.NewVersion(packet.OutrigSDK)
 	if err != nil {
 		errMsg := fmt.Sprintf("%s invalid client SDK version format: %s", ErrorPrefix, packet.OutrigSDK)
 		sendErrorResponse(cw, errMsg)
 		return "", "", "", fmt.Errorf("invalid client SDK version format: %s", packet.OutrigSDK)
 	}
 
-	minVersion, _ := semver.NewVersion(strings.TrimPrefix(MinClientVersion, "v"))
+	minVersion, _ := semver.NewVersion(MinClientVersion)
 	if clientVersion.LessThan(minVersion) {
 		errMsg := fmt.Sprintf("%s client SDK version %s is less than minimum required version %s",
 			ErrorPrefix, packet.OutrigSDK, MinClientVersion)

@@ -86,7 +86,8 @@ type Config struct {
 	// Dev indicates whether the client is in development mode
 	Dev bool
 
-	StartAsync bool
+	// If true, try to synchronously connect to the server on Init
+	ConnectOnInit bool
 
 	// Collector configurations
 	LogProcessorConfig LogProcessorConfig

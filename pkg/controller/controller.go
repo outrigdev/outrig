@@ -88,7 +88,7 @@ func (c *ControllerImpl) InitialStart() {
 	defer c.Lock.Unlock()
 
 	var connected bool
-	if !c.config.StartAsync {
+	if !c.config.ConnectOnInit {
 		connected = c.connectInternal()
 	}
 	if connected {
@@ -173,8 +173,8 @@ func (c *ControllerImpl) connectInternal() bool {
 		return false
 	}
 	// Use the new Connect function to establish a connection
-	connWrap, err := comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, c.config.DomainSocketPath, "")
-	if err != nil {
+	connWrap, _, transErr := comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, c.config.DomainSocketPath, "")
+	if transErr != nil {
 		// Connection failed
 		return false
 	}
