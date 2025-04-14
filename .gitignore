@@ -12,6 +12,7 @@ server/pkg/web/dist/**
 bin/
 *.dmg
 *.exe
+*.bak
 .DS_Store
 *~
 out/

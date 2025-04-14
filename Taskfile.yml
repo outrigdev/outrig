@@ -92,3 +92,80 @@ tasks:
             - cp bin/outrig ~/.local/bin/
             - chmod 755 ~/.local/bin/outrig
             - echo "Outrig installed to ~/.local/bin/outrig"
+
+    updateversions:
+        desc: Set the Outrig version in both server and SDK
+        vars:
+            VERSION: "{{.CLI_ARGS}}"
+        cmds:
+            - echo "Setting Outrig version to {{.VERSION}}"
+            - sed -i.bak 's/var OutrigServerVersion = ".*"/var OutrigServerVersion = "{{.VERSION}}"/' server/pkg/serverbase/serverbase.go && rm server/pkg/serverbase/serverbase.go.bak
+            - sed -i.bak 's/const OutrigSDKVersion = ".*"/const OutrigSDKVersion = "{{.VERSION}}"/' pkg/base/base.go && rm pkg/base/base.go.bak
+            # Update version in package.json (strip the 'v' prefix if present)
+            - |
+                VERSION_NO_V=$(echo "{{.VERSION}}" | sed 's/^v//')
+                sed -i.bak 's/"version": ".*"/"version": "'$VERSION_NO_V'"/' package.json && rm package.json.bak
+            - echo "✅ Version updated to {{.VERSION}} in server, SDK, and package.json"
+
+    release:tag:git:
+        desc: Create a git tag after verifying versions match and git directory is clean
+        vars:
+            VERSION: "{{.CLI_ARGS}}"
+        cmds:
+            # Check if git directory is clean
+            - |
+                if [ -n "$(git status --porcelain)" ]; then
+                  echo "❌ Error: Git directory is not clean. Please commit all changes before tagging."
+                  exit 1
+                fi
+            # Check if server version matches
+            - |
+                SERVER_VERSION=$(grep 'var OutrigServerVersion = ' server/pkg/serverbase/serverbase.go | cut -d'"' -f2)
+                if [ "$SERVER_VERSION" != "{{.VERSION}}" ]; then
+                  echo "❌ Error: Server version ($SERVER_VERSION) does not match requested tag version ({{.VERSION}})"
+                  echo "Run 'task updateversions {{.VERSION}}' first to update versions"
+                  exit 1
+                fi
+            # Check if SDK version matches
+            - |
+                SDK_VERSION=$(grep 'const OutrigSDKVersion = ' pkg/base/base.go | cut -d'"' -f2)
+                if [ "$SDK_VERSION" != "{{.VERSION}}" ]; then
+                  echo "❌ Error: SDK version ($SDK_VERSION) does not match requested tag version ({{.VERSION}})"
+                  echo "Run 'task updateversions {{.VERSION}}' first to update versions"
+                  exit 1
+                fi
+            # Check if package.json version matches (without 'v' prefix)
+            - |
+                VERSION_NO_V=$(echo "{{.VERSION}}" | sed 's/^v//')
+                PKG_VERSION=$(grep '"version": "' package.json | cut -d'"' -f4)
+                if [ "$PKG_VERSION" != "$VERSION_NO_V" ]; then
+                  echo "❌ Error: package.json version ($PKG_VERSION) does not match requested tag version ($VERSION_NO_V)"
+                  echo "Run 'task updateversions {{.VERSION}}' first to update versions"
+                  exit 1
+                fi
+            # Create the git tag
+            - git tag -a {{.VERSION}} -m "Release {{.VERSION}}"
+            - echo "✅ Created git tag {{.VERSION}}"
+            - echo "To push the tag, run\n  git push origin {{.VERSION}}"
+
+    release:tag:
+        desc: Set version in files and create a git tag in one step
+        vars:
+            VERSION: "{{.CLI_ARGS}}"
+        cmds:
+            # Check if git directory is clean before making any changes
+            - |
+                if [ -n "$(git status --porcelain)" ]; then
+                  echo "❌ Error: Git directory is not clean. Please commit all changes before releasing."
+                  exit 1
+                fi
+            # Update versions in files
+            - task: updateversions
+              vars: { VERSION: "{{.VERSION}}" }
+            # Commit the version changes
+            - git add server/pkg/serverbase/serverbase.go pkg/base/base.go package.json
+            - git commit -m "Bump version to {{.VERSION}}"
+            # Create the git tag
+            - task: release:tag:git
+              vars: { VERSION: "{{.VERSION}}" }
+            - echo "✅ Version {{.VERSION}} released successfully"

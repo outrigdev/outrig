@@ -20,7 +20,7 @@ const DefaultDomainSocketName = "/outrig.sock"
 const ExternalLogCaptureEnvName = "OUTRIG_EXTERNALLOGCAPTURE"
 const AppRunIdEnvName = "OUTRIG_APPRUNID"
 
-const OutrigSDKVersion = "v0.1.9"
+const OutrigSDKVersion = "v0.1.10-pre"
 
 // Client-specific functions that use the client's Dev flag
 
