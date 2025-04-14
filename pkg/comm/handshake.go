@@ -6,7 +6,9 @@ package comm
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"regexp"
 	"strings"
@@ -205,6 +207,9 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 
 	// Read the client handshake packet
 	packetLine, err := cw.ReadLine()
+	if errors.Is(err, io.EOF) {
+		return "", "", "", io.EOF
+	}
 	if err != nil {
 		errMsg := fmt.Sprintf("%s failed to read client handshake packet: %v", ErrorPrefix, err)
 		sendErrorResponse(cw, errMsg)

@@ -6,7 +6,9 @@ package boot
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -115,6 +117,10 @@ func handleDomainSocketConn(conn net.Conn) {
 
 	// Perform the handshake
 	mode, submode, appRunId, err := connWrap.ServerHandshake()
+	if errors.Is(err, io.EOF) {
+		// not a valid connection attempt, just ignore it
+		return
+	}
 	if err != nil {
 		log.Printf("Handshake failed: %v\n", err)
 		return
@@ -174,7 +180,6 @@ func runDomainSocketServer(ctx context.Context) error {
 					close(acceptDone)
 					return
 				}
-				log.Printf("accepted domain socket connection\n")
 				go handleDomainSocketConn(conn)
 			}
 		}()

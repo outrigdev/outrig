@@ -89,7 +89,7 @@ func (c *ControllerImpl) InitialStart() {
 
 	var connected bool
 	if !c.config.ConnectOnInit {
-		connected = c.connectInternal()
+		connected, _ = c.connectInternal()
 	}
 	if connected {
 		c.setEnabled(true)
@@ -165,19 +165,27 @@ func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
 // Connection management methods
 
 // lock should be held
-func (c *ControllerImpl) connectInternal() bool {
+// returns (connected, transientError)
+func (c *ControllerImpl) connectInternal() (bool, error) {
 	// Check if already connected to prevent redundant connections
 	if c.isConnected() {
-		return false
+		return false, nil
 	}
 	if c.OutrigForceDisabled {
-		return false
+		return false, nil
 	}
 	// Use the new Connect function to establish a connection
-	connWrap, _, transErr := comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, c.config.DomainSocketPath, "")
+	connWrap, permErr, transErr := comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, c.config.DomainSocketPath, "")
 	if transErr != nil {
 		// Connection failed
-		return false
+		return false, transErr
+	}
+	if permErr != nil {
+		c.OutrigForceDisabled = true
+		if !c.config.Quiet {
+			fmt.Printf("[outrig] connection error: %v\n", permErr)
+		}
+		return false, nil
 	}
 	// Connection and handshake successful
 	if !c.config.Quiet {
@@ -185,7 +193,7 @@ func (c *ControllerImpl) connectInternal() bool {
 	}
 	c.setConn(connWrap)
 	c.sendAppInfo()
-	return true
+	return true, nil
 }
 
 func (c *ControllerImpl) isConnected() bool {
@@ -229,7 +237,7 @@ func (c *ControllerImpl) Enable() {
 	c.OutrigForceDisabled = false
 	isConnected := c.isConnected()
 	if !isConnected {
-		isConnected = c.connectInternal()
+		isConnected, _ = c.connectInternal()
 	}
 	if isConnected {
 		c.setEnabled(true)
@@ -390,7 +398,7 @@ func (c *ControllerImpl) pollConn() {
 	if c.isConnected() {
 		return
 	}
-	connected := c.connectInternal()
+	connected, _ := c.connectInternal()
 	if connected {
 		c.setEnabled(true)
 	}
