@@ -88,7 +88,7 @@ func (c *ControllerImpl) InitialStart() {
 	defer c.Lock.Unlock()
 
 	var connected bool
-	if !c.config.ConnectOnInit {
+	if c.config.ConnectOnInit {
 		connected, _ = c.connectInternal()
 	}
 	if connected {
