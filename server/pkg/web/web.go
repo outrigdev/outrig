@@ -197,8 +197,12 @@ func RunWebServer(ctx context.Context, listener net.Listener) {
 }
 
 // RunAllWebServers initializes and runs the HTTP server (which also handles WebSockets)
-func RunAllWebServers(ctx context.Context) error {
+// If overridePort is non-zero, it will be used instead of the default port
+func RunAllWebServers(ctx context.Context, overridePort int) error {
 	webServerPort := serverbase.GetWebServerPort()
+	if overridePort > 0 {
+		webServerPort = overridePort
+	}
 
 	httpListener, err := MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(webServerPort))
 	if err != nil {

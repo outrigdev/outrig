@@ -22,8 +22,14 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/web"
 )
 
+// CLIConfig holds configuration options passed from the command line
+type CLIConfig struct {
+	// Port overrides the default web server port if non-zero
+	Port int
+}
+
 // RunServer initializes and runs the Outrig server
-func RunServer() error {
+func RunServer(config CLIConfig) error {
 	if serverbase.IsDev() {
 		outrigConfig := outrig.DefaultConfig()
 		outrigConfig.LogProcessorConfig.OutrigPath = "bin/outrig"
@@ -110,7 +116,7 @@ func RunServer() error {
 	}
 
 	// Run web servers (HTTP and WebSocket)
-	err = web.RunAllWebServers(ctx)
+	err = web.RunAllWebServers(ctx, config.Port)
 	if err != nil {
 		return fmt.Errorf("error starting web servers: %w", err)
 	}

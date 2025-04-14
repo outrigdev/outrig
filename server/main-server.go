@@ -74,11 +74,21 @@ func main() {
 			if noTelemetry {
 				tevent.Disabled.Store(true)
 			}
-			return boot.RunServer()
+			
+			// Get the port flag value
+			port, _ := cmd.Flags().GetInt("port")
+			
+			// Create CLI config
+			config := boot.CLIConfig{
+				Port: port,
+			}
+			
+			return boot.RunServer(config)
 		},
 	}
-	// Add no-telemetry flag to server command only
+	// Add flags to server command
 	serverCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
+	serverCmd.Flags().Int("port", 0, "Override the default web server port (default: 5005 for production, 6005 for development)")
 
 	versionCmd := &cobra.Command{
 		Use:   "version",
