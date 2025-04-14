@@ -181,6 +181,7 @@ type AppRunInfo struct {
 	BuildInfo           *BuildInfoData `json:"buildinfo,omitempty"`
 	ModuleName          string         `json:"modulename,omitempty"`
 	Executable          string         `json:"executable,omitempty"`
+	OutrigSDKVersion    string         `json:"outrigsdkversion,omitempty"`
 }
 
 type AppRunsData struct {

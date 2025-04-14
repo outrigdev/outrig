@@ -35,6 +35,7 @@ declare global {
         buildinfo?: BuildInfoData;
         modulename?: string;
         executable?: string;
+        outrigsdkversion?: string;
     };
 
     // rpctypes.AppRunRequest

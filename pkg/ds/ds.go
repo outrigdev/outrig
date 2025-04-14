@@ -127,17 +127,18 @@ type BuildInfoData struct {
 }
 
 type AppInfo struct {
-	AppRunId   string         `json:"apprunid"`
-	AppName    string         `json:"appname"`
-	ModuleName string         `json:"modulename"`
-	Executable string         `json:"executable"`
-	Args       []string       `json:"args"`
-	Env        []string       `json:"env"`
-	StartTime  int64          `json:"starttime"`
-	Pid        int            `json:"pid"`
-	User       string         `json:"user,omitempty"`
-	Hostname   string         `json:"hostname,omitempty"`
-	BuildInfo  *BuildInfoData `json:"buildinfo,omitempty"`
+	AppRunId         string         `json:"apprunid"`
+	AppName          string         `json:"appname"`
+	ModuleName       string         `json:"modulename"`
+	Executable       string         `json:"executable"`
+	Args             []string       `json:"args"`
+	Env              []string       `json:"env"`
+	StartTime        int64          `json:"starttime"`
+	Pid              int            `json:"pid"`
+	User             string         `json:"user,omitempty"`
+	Hostname         string         `json:"hostname,omitempty"`
+	BuildInfo        *BuildInfoData `json:"buildinfo,omitempty"`
+	OutrigSDKVersion string         `json:"outrigsdkversion,omitempty"`
 }
 
 type GoroutineInfo struct {

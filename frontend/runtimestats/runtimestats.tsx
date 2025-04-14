@@ -384,13 +384,16 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
         { key: "goVersion", label: "Go Version", value: stats.goversion },
     ];
 
-    // Add Module and Executable from appRunInfo if available
+    // Add Module, Executable, and SDK Version from appRunInfo if available
     if (appRunInfo) {
         if (appRunInfo.modulename) {
             infoItems.push({ key: "moduleName", label: "Module", value: appRunInfo.modulename });
         }
         if (appRunInfo.executable) {
             infoItems.push({ key: "executable", label: "Executable", value: appRunInfo.executable });
+        }
+        if (appRunInfo.outrigsdkversion) {
+            infoItems.push({ key: "sdkVersion", label: "Outrig SDK Version", value: appRunInfo.outrigsdkversion });
         }
     }
 

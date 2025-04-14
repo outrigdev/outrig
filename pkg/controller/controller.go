@@ -130,6 +130,7 @@ func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
 	appInfo.Executable, _ = os.Executable()
 	appInfo.Env = utilfn.CopyStrArr(os.Environ())
 	appInfo.Pid = os.Getpid()
+	appInfo.OutrigSDKVersion = base.OutrigSDKVersion
 
 	// Get user information
 	user, err := user.Current()

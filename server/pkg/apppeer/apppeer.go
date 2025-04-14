@@ -294,6 +294,7 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 		LastModTime:         p.LastModTime,
 		ModuleName:          p.AppInfo.ModuleName,
 		Executable:          p.AppInfo.Executable,
+		OutrigSDKVersion:    p.AppInfo.OutrigSDKVersion,
 	}
 
 	if p.AppInfo.BuildInfo != nil {
