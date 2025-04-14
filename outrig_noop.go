@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/ds"
 )
 
@@ -131,3 +132,8 @@ func OrigStderr() *os.File {
 type internalOutrig struct{}
 
 func (i *internalOutrig) SetGoRoutineName(name string) {}
+
+// semver
+func OutrigVersion() string {
+	return base.OutrigSDKVersion
+}

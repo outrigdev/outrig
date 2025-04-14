@@ -285,3 +285,8 @@ func OrigStdout() *os.File {
 func OrigStderr() *os.File {
 	return loginitex.OrigStderr()
 }
+
+// semver
+func OutrigVersion() string {
+	return base.OutrigSDKVersion
+}

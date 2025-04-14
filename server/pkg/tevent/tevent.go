@@ -253,7 +253,7 @@ func OsLang() string {
 func createCommonUserProps() *TEventUserProps {
 	return &TEventUserProps{
 		ClientArch:      ClientArch(),
-		ClientVersion:   serverbase.OutrigVersion,
+		ClientVersion:   serverbase.OutrigServerVersion,
 		ClientBuildTime: serverbase.OutrigBuildTime,
 		ClientCommit:    serverbase.OutrigCommit,
 		ClientOSRelease: UnameKernelRelease(),
@@ -270,7 +270,7 @@ func SendInstallEvent() {
 	props := TEventProps{}
 	props.UserSet = createCommonUserProps()
 	event := MakeTEvent("server:install", props)
-	event.UserSetOnceProps().ClientInitialVersion = serverbase.OutrigVersion
+	event.UserSetOnceProps().ClientInitialVersion = serverbase.OutrigServerVersion
 	WriteTEvent(*event)
 }
 

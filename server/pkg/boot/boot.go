@@ -62,7 +62,7 @@ func RunServer(config CLIConfig) error {
 	if serverbase.IsDev() {
 		log.Printf("Starting Outrig server (dev mode)\n")
 	} else {
-		log.Printf("Starting Outrig server %s (%s)...\n", serverbase.OutrigVersion, serverbase.OutrigCommit)
+		log.Printf("Starting Outrig server %s (%s)...\n", serverbase.OutrigServerVersion, serverbase.OutrigCommit)
 	}
 
 	err := serverbase.EnsureHomeDir()
@@ -116,7 +116,7 @@ func RunServer(config CLIConfig) error {
 	}
 
 	// Run web servers (HTTP and WebSocket)
-	err = web.RunAllWebServers(ctx, config.Port)
+	err = web.RunWebServer(ctx, config.Port)
 	if err != nil {
 		return fmt.Errorf("error starting web servers: %w", err)
 	}

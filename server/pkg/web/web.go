@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -104,23 +103,11 @@ func MakeTCPListener(serviceName string, addr string) (net.Listener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating listener at %v: %v", addr, err)
 	}
-	log.Printf("Server [%s] listening on %s\n", serviceName, rtn.Addr())
-	return rtn, nil
-}
-
-func MakeUnixListener(socketPath string) (net.Listener, error) {
-	os.Remove(socketPath) // ignore error
-	rtn, err := net.Listen("unix", socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating listener at %v: %v", socketPath, err)
-	}
-	os.Chmod(socketPath, 0700)
-	log.Printf("Server [unix-domain] listening on %s\n", socketPath)
 	return rtn, nil
 }
 
 // blocking
-func RunWebServer(ctx context.Context, listener net.Listener) {
+func runWebServerInternal(ctx context.Context, listener net.Listener) {
 	gr := mux.NewRouter()
 
 	// WebSocket endpoint - this will be handled separately to avoid the timeout handler
@@ -170,7 +157,6 @@ func RunWebServer(ctx context.Context, listener net.Listener) {
 
 	// Start the server in a goroutine
 	go func() {
-		log.Printf("HTTP server running on http://%s\n", listener.Addr())
 		err := server.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
 			log.Printf("HTTP server error: %v\n", err)
@@ -196,9 +182,9 @@ func RunWebServer(ctx context.Context, listener net.Listener) {
 	}
 }
 
-// RunAllWebServers initializes and runs the HTTP server (which also handles WebSockets)
+// RunWebServer initializes and runs the HTTP server (which also handles WebSockets)
 // If overridePort is non-zero, it will be used instead of the default port
-func RunAllWebServers(ctx context.Context, overridePort int) error {
+func RunWebServer(ctx context.Context, overridePort int) error {
 	webServerPort := serverbase.GetWebServerPort()
 	if overridePort > 0 {
 		webServerPort = overridePort
@@ -208,9 +194,9 @@ func RunAllWebServers(ctx context.Context, overridePort int) error {
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP listener: %w", err)
 	}
-	log.Printf("HTTP and WebSocket server listening on http://%s\n", httpListener.Addr().String())
+	log.Printf("Outrig server running on http://%s\n", httpListener.Addr().String())
 
-	go RunWebServer(ctx, httpListener)
+	go runWebServerInternal(ctx, httpListener)
 
 	return nil
 }

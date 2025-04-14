@@ -14,9 +14,9 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
-// OutrigVersion is the current version of Outrig
+// OutrigServerVersion is the current version of Outrig
 // This gets set from main-server.go during initialization
-var OutrigVersion = "v0.0.0"
+var OutrigServerVersion = "v0.0.0"
 
 // OutrigBuildTime is the build timestamp of Outrig
 // This gets set from main-server.go during initialization
@@ -84,7 +84,7 @@ func GetWebServerPort() int {
 func EnsureOutrigId() (string, bool, error) {
 	// Get the path to the outrig.id file
 	idFilePath := filepath.Join(utilfn.ExpandHomeDir(GetOutrigHome()), OutrigIdFile)
-	
+
 	// Try to read the existing file
 	content, err := os.ReadFile(idFilePath)
 	if err == nil {
@@ -97,21 +97,20 @@ func EnsureOutrigId() (string, bool, error) {
 		}
 		// Invalid UUID, will generate a new one
 	}
-	
+
 	// Generate a new UUID (v7)
 	newUuid, err := uuid.NewV7()
 	if err != nil {
 		return "", false, fmt.Errorf("failed to generate outrig ID: %w", err)
 	}
 	newId := newUuid.String()
-	
-	
+
 	// Write the new UUID to the file
 	err = os.WriteFile(idFilePath, []byte(newId), 0644)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to write outrig.id file: %w", err)
 	}
-	
+
 	return newId, true, nil
 }
 

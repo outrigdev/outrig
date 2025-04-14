@@ -53,7 +53,7 @@ func processDevFlag(args []string) ([]string, bool) {
 
 func main() {
 	// Set serverbase version from main version (which gets overridden by build tags)
-	serverbase.OutrigVersion = OutrigVersion
+	serverbase.OutrigServerVersion = OutrigVersion
 	serverbase.OutrigBuildTime = OutrigBuildTime
 	serverbase.OutrigCommit = OutrigCommit
 
@@ -74,15 +74,15 @@ func main() {
 			if noTelemetry {
 				tevent.Disabled.Store(true)
 			}
-			
+
 			// Get the port flag value
 			port, _ := cmd.Flags().GetInt("port")
-			
+
 			// Create CLI config
 			config := boot.CLIConfig{
 				Port: port,
 			}
-			
+
 			return boot.RunServer(config)
 		},
 	}
