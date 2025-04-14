@@ -31,45 +31,16 @@ const (
 const MinClientVersion = "v0.1.10-alpha"
 const MinServerVersion = "v0.1.10-alpha"
 
-const PacketModeVersion = 1
-const LogModeVersion = 1
-
-var ClientModeVersions = map[string]int{
-	ConnectionModePacket: PacketModeVersion,
-	ConnectionModeLog:    LogModeVersion,
-}
-
-var ServerModeDefs = map[string]ProtocolDef{
-	ConnectionModePacket: {
-		Mode:             ConnectionModePacket,
-		Version:          1,
-		VersionsAccepted: []int{1},
-	},
-	ConnectionModeLog: {
-		Mode:             ConnectionModeLog,
-		Version:          1,
-		VersionsAccepted: []int{1},
-	},
-}
-
-type ProtocolDef struct {
-	Mode             string `json:"mode"`
-	Version          int    `json:"version"`
-	VersionsAccepted []int  `json:"versionsaccepted"`
-}
-
 type ServerHandshakePacket struct {
-	OutrigVersion string                 `json:"outrigversion"`
-	Modes         map[string]ProtocolDef `json:"modes"`
+	OutrigVersion string `json:"outrigversion"`
 }
 
 // ClientHandshakePacket represents the JSON structure for client handshake
 type ClientHandshakePacket struct {
-	OutrigSDK   string `json:"outrigsdk"`
-	Mode        string `json:"mode"`
-	ModeVersion int    `json:"modeversion,omitempty"`
-	Submode     string `json:"submode,omitempty"`
-	AppRunID    string `json:"apprunid,omitempty"`
+	OutrigSDK string `json:"outrigsdk"`
+	Mode      string `json:"mode"`
+	Submode   string `json:"submode,omitempty"`
+	AppRunID  string `json:"apprunid,omitempty"`
 }
 
 type ServerHandshakeResponse struct {
@@ -119,11 +90,6 @@ func (cw *ConnWrap) Close() error {
 // It receives a ServerHandshakePacket, validates compatibility,
 // sends a ClientHandshakePacket, and processes the server's response.
 func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId string) error {
-	clientModeVersion, hasModeVersion := ClientModeVersions[modeName]
-	if !hasModeVersion {
-		return fmt.Errorf("client does not support mode: %s", modeName)
-	}
-
 	// Read the server handshake packet
 	packetLine, err := cw.ReadLine()
 	if err != nil {
@@ -150,33 +116,12 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 			serverPacket.OutrigVersion, MinServerVersion)
 	}
 
-	// Check if the requested mode is supported by the server
-	protocolDef, modeSupported := serverPacket.Modes[modeName]
-	if !modeSupported {
-		return fmt.Errorf("server does not support mode: %s", modeName)
-	}
-
-	// Check if the server accepts this mode version
-	versionAccepted := false
-	for _, v := range protocolDef.VersionsAccepted {
-		if v == clientModeVersion {
-			versionAccepted = true
-			break
-		}
-	}
-
-	if !versionAccepted {
-		return fmt.Errorf("server does not accept mode version %d for mode %s. Supported versions: %v",
-			clientModeVersion, modeName, protocolDef.VersionsAccepted)
-	}
-
 	// Create the client handshake packet
 	clientPacket := ClientHandshakePacket{
-		OutrigSDK:   base.OutrigSDKVersion,
-		Mode:        modeName,
-		ModeVersion: clientModeVersion,
-		Submode:     submode,
-		AppRunID:    appRunId,
+		OutrigSDK: base.OutrigSDKVersion,
+		Mode:      modeName,
+		Submode:   submode,
+		AppRunID:  appRunId,
 	}
 
 	// Convert to JSON
@@ -247,7 +192,6 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 	// Create and send the server handshake packet
 	serverPacket := ServerHandshakePacket{
 		OutrigVersion: base.OutrigSDKVersion,
-		Modes:         ServerModeDefs,
 	}
 
 	jsonData, err := json.Marshal(serverPacket)
@@ -302,28 +246,10 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 	}
 
 	// Validate the mode
-	protocolDef, validMode := ServerModeDefs[packet.Mode]
-	if !validMode {
+	if packet.Mode != ConnectionModePacket && packet.Mode != ConnectionModeLog {
 		errMsg := fmt.Sprintf("%s unknown connection mode: %s", ErrorPrefix, packet.Mode)
 		sendErrorResponse(cw, errMsg)
 		return "", "", "", fmt.Errorf("unknown connection mode: %s", packet.Mode)
-	}
-
-	// Validate the mode version
-	validVersion := false
-	for _, v := range protocolDef.VersionsAccepted {
-		if v == packet.ModeVersion {
-			validVersion = true
-			break
-		}
-	}
-
-	if !validVersion {
-		errMsg := fmt.Sprintf("%s unsupported mode version %d for mode %s. Supported versions: %v",
-			ErrorPrefix, packet.ModeVersion, packet.Mode, protocolDef.VersionsAccepted)
-		sendErrorResponse(cw, errMsg)
-		return "", "", "", fmt.Errorf("unsupported mode version %d for mode %s. Supported versions: %v",
-			packet.ModeVersion, packet.Mode, protocolDef.VersionsAccepted)
 	}
 
 	// Validate submode format if present
