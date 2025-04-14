@@ -3,6 +3,8 @@
 
 @import "tailwindcss";
 
+@source not "../Taskfile.yml";
+
 /* Tell Tailwind to generate utilities that reference our theme tokens */
 @theme inline {
     --color-white: var(--themecolor-white);
