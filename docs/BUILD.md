@@ -111,7 +111,16 @@ This will update:
 - TypeScript type definitions in `frontend/types/rpctypes.d.ts`
 - RPC client API in `frontend/rpc/rpcclientapi.ts`
 
-**Important**: Do not manually edit generated files. Instead, modify the source Go types and run the generate task.
+## Versioning
+
+Outrig follows [Semantic Versioning (SemVer)](https://semver.org/) for all releases:
+
+- **Release Versions**: Follow the format `vX.Y.Z` (e.g., `v0.1.10`)
+- **Development Workflow**:
+    - After each release, the internal version is immediately updated to the next patch release with an `-alpha` suffix (e.g., `v0.1.11-alpha`)
+    - Alpha versions are never publicly released and only denote the development branch
+- **Pre-releases**:
+    - Beta versions (if necessary) use sequential numbering: `vX.Y.Z-beta.0`, `vX.Y.Z-beta.1`, etc.
 
 ## Building for Production
 
