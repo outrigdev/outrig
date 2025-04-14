@@ -8,7 +8,7 @@
 // and_expr         = token { WS token } ;
 // token            = not_token | field_token ;
 // not_token        = "-" field_token ;
-// field_token      = "$" WORD | unmodified_token ;
+// field_token      = "$" WORD | "$" WORD unmodified_token | unmodified_token ;
 // unmodified_token = fuzzy_token | regexp_token | tag_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
 // regexp_token     = REGEXP | CREGEXP;
@@ -391,7 +391,7 @@ func (p *Parser) parseNotToken() (*Node, error) {
 }
 
 // parseFieldToken parses a field token according to the grammar:
-// field_token = "$" WORD | unmodified_token
+// field_token = "$" WORD | "$" WORD unmodified_token | unmodified_token
 func (p *Parser) parseFieldToken() (*Node, error) {
 	startPos := p.getCurrentStartPos()
 
@@ -412,18 +412,42 @@ func (p *Parser) parseFieldToken() (*Node, error) {
 			return nil, fmt.Errorf("field name must contain a colon to separate field and value")
 		}
 
-		// Extract field name and search term
+		// Extract field name
 		fieldName := fieldValue[:colonPos]
-		searchTerm := fieldValue[colonPos+1:]
+		
+		// Check if there's exactly one colon and it's the last character in the word
+		if colonPos == len(fieldValue)-1 && strings.Count(fieldValue, ":") == 1 {
+			// The colon is the last character, so we need to parse an unmodified_token
+			// to get the search term
+			unmodifiedNode, err := p.parseUnmodifiedToken()
+			if err != nil {
+				return nil, fmt.Errorf("after field name: %w", err)
+			}
+			if unmodifiedNode == nil {
+				return nil, fmt.Errorf("field name with trailing colon must be followed by a search term")
+			}
 
-		// Create a search node with the field
-		return &Node{
-			Type:       NodeTypeSearch,
-			Position:   Position{Start: startPos, End: wordToken.Position.End},
-			SearchType: SearchTypeExact,
-			SearchTerm: searchTerm,
-			Field:      fieldName,
-		}, nil
+			// Create a search node with the field and the search term from the unmodified token
+			return &Node{
+				Type:       NodeTypeSearch,
+				Position:   Position{Start: startPos, End: unmodifiedNode.Position.End},
+				SearchType: unmodifiedNode.SearchType, // Preserve the search type from the unmodified token
+				SearchTerm: unmodifiedNode.SearchTerm,
+				Field:      fieldName,
+			}, nil
+		} else {
+			// The colon is not the last character, so the search term is part of the word
+			searchTerm := fieldValue[colonPos+1:]
+
+			// Create a search node with the field
+			return &Node{
+				Type:       NodeTypeSearch,
+				Position:   Position{Start: startPos, End: wordToken.Position.End},
+				SearchType: SearchTypeExact,
+				SearchTerm: searchTerm,
+				Field:      fieldName,
+			}, nil
+		}
 	}
 
 	// If not a field token with "$", try to parse an unmodified token

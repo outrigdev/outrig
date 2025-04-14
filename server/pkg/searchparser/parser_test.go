@@ -341,6 +341,50 @@ func TestParseAST(t *testing.T) {
 				SearchTerm: "",
 			},
 		},
+		{
+			name:  "field token with unmodified token (double quoted)",
+			input: `$name:"hello"`,
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 13},
+				SearchType: "exact",
+				SearchTerm: "hello",
+				Field:      "name",
+			},
+		},
+		{
+			name:  "field token with unmodified token (single quoted)",
+			input: `$name:'hello'`,
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 13},
+				SearchType: "exactcase",
+				SearchTerm: "hello",
+				Field:      "name",
+			},
+		},
+		{
+			name:  "field token with multiple colons",
+			input: "$name:hello:world",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 17},
+				SearchType: "exact",
+				SearchTerm: "hello:world",
+				Field:      "name",
+			},
+		},
+		{
+			name:  "field token with multiple colons where one is at the end",
+			input: "$name:hello:",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 12},
+				SearchType: "exact",
+				SearchTerm: "hello:",
+				Field:      "name",
+			},
+		},
 	}
 
 	for _, tt := range tests {
