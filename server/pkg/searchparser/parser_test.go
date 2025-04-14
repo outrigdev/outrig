@@ -385,6 +385,221 @@ func TestParseAST(t *testing.T) {
 				Field:      "name",
 			},
 		},
+		// Tests for grouping
+		{
+			name:  "simple grouped expression",
+			input: "(hello world)",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 13},
+				Children: []*Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 1, End: 6},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 7, End: 12},
+						SearchType: "exact",
+						SearchTerm: "world",
+					},
+				},
+			},
+		},
+		{
+			name:  "grouped expression with OR",
+			input: "(hello | world)",
+			expected: &Node{
+				Type:     "or",
+				Position: Position{Start: 0, End: 15},
+				Children: []*Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 1, End: 6},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 9, End: 14},
+						SearchType: "exact",
+						SearchTerm: "world",
+					},
+				},
+			},
+		},
+		{
+			name:  "complex expression with groups and operators",
+			input: "(hello world) | test",
+			expected: &Node{
+				Type:     "or",
+				Position: Position{Start: 0, End: 20},
+				Children: []*Node{
+					{
+						Type:     "and",
+						Position: Position{Start: 0, End: 13},
+						Children: []*Node{
+							{
+								Type:       "search",
+								Position:   Position{Start: 1, End: 6},
+								SearchType: "exact",
+								SearchTerm: "hello",
+							},
+							{
+								Type:       "search",
+								Position:   Position{Start: 7, End: 12},
+								SearchType: "exact",
+								SearchTerm: "world",
+							},
+						},
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 16, End: 20},
+						SearchType: "exact",
+						SearchTerm: "test",
+					},
+				},
+			},
+		},
+		{
+			name:  "nested groups",
+			input: "(hello (world | test))",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 22},
+				Children: []*Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 1, End: 6},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+					{
+						Type:     "or",
+						Position: Position{Start: 7, End: 21},
+						Children: []*Node{
+							{
+								Type:       "search",
+								Position:   Position{Start: 8, End: 13},
+								SearchType: "exact",
+								SearchTerm: "world",
+							},
+							{
+								Type:       "search",
+								Position:   Position{Start: 16, End: 20},
+								SearchType: "exact",
+								SearchTerm: "test",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "group with not token",
+			input: "(hello -world)",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 14},
+				Children: []*Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 1, End: 6},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 7, End: 13},
+						SearchType: "exact",
+						SearchTerm: "world",
+						IsNot:      true,
+					},
+				},
+			},
+		},
+		{
+			name:  "group with field token",
+			input: "(hello $field:value)",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 20},
+				Children: []*Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 1, End: 6},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 7, End: 19},
+						SearchType: "exact",
+						SearchTerm: "value",
+						Field:      "field",
+					},
+				},
+			},
+		},
+		{
+			name:  "missing closing parenthesis at EOF",
+			input: "(hello world",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 12},
+				Children: []*Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 1, End: 6},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 7, End: 12},
+						SearchType: "exact",
+						SearchTerm: "world",
+					},
+				},
+			},
+		},
+		{
+			name:  "precedence with groups",
+			input: "hello (world | test)",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 20},
+				Children: []*Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 0, End: 5},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+					{
+						Type:     "or",
+						Position: Position{Start: 6, End: 20},
+						Children: []*Node{
+							{
+								Type:       "search",
+								Position:   Position{Start: 7, End: 12},
+								SearchType: "exact",
+								SearchTerm: "world",
+							},
+							{
+								Type:       "search",
+								Position:   Position{Start: 15, End: 19},
+								SearchType: "exact",
+								SearchTerm: "test",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

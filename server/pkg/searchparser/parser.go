@@ -5,10 +5,11 @@
 
 // search           = WS? or_expr WS? EOF ;
 // or_expr          = and_expr { WS? "|" WS? and_expr } ;
-// and_expr         = token { WS token } ;
-// token            = not_token | field_token ;
-// not_token        = "-" field_token ;
-// field_token      = "$" WORD | "$" WORD unmodified_token | unmodified_token ;
+// and_expr         = group { WS group } ;
+// group            = "(" WS? or_expr WS? ")" | token
+// token            = not_token | field_token | unmodified_token ;
+// not_token        = "-" field_token | "-" unmodified_token ;
+// field_token      = "$" WORD | "$" WORD unmodified_token ;
 // unmodified_token = fuzzy_token | regexp_token | tag_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
 // regexp_token     = REGEXP | CREGEXP;
@@ -278,6 +279,17 @@ func (p *Parser) parseOrExpr() *Node {
 			if p.atEOF() {
 				break
 			}
+			
+			// Check for right parenthesis - it will be handled by parseGroup
+			if p.current().Type == TokenRParen {
+				break
+			}
+			
+			// If we find a right parenthesis instead of a pipe, that's not an error
+			if p.current().Type == TokenRParen {
+				break
+			}
+			
 			_, ok := p.consumeToken(TokenPipe)
 			if !ok {
 				errToken := p.createErrorToDelimiter("Expected '|'", p.current().Position)
@@ -295,14 +307,24 @@ func (p *Parser) parseOrExpr() *Node {
 	return makeOrNode(nodes...)
 }
 
-// token { WS token }
+// and_expr = group { WS group } ;
 func (p *Parser) parseAndExpr() *Node {
 	var nodes []*Node
 	for !p.atEOF() {
+		// Stop if we encounter a right parenthesis - it will be handled by parseGroup
+		if p.current().Type == TokenRParen {
+			break
+		}
+		
 		if len(nodes) > 0 {
 			p.consumeToken(TokenWhitespace)
+			// Check again after consuming whitespace
+			if p.current().Type == TokenRParen {
+				break
+			}
 		}
-		node := p.parseTokenWithErrorSync()
+		
+		node := p.parseGroup()
 		if node == nil {
 			break
 		}
@@ -311,8 +333,70 @@ func (p *Parser) parseAndExpr() *Node {
 	return makeAndNode(nodes...)
 }
 
+// group = "(" WS? or_expr WS? ")" | token
+func (p *Parser) parseGroup() *Node {
+	if p.atEOF() {
+		return nil
+	}
+
+	// Check if this is a parenthesized expression
+	if p.current().Type == TokenLParen {
+		startPos := p.getCurrentStartPos()
+		p.advance() // Consume the left parenthesis
+
+		// Skip optional whitespace
+		p.skipOptionalWhitespace()
+
+		// Parse the or_expr inside the parentheses
+		node := p.parseOrExpr()
+
+		// Skip optional whitespace
+		p.skipOptionalWhitespace()
+
+		// Expect a right parenthesis
+		if p.current().Type != TokenRParen {
+			// If we're at EOF, treat it as if the parenthesis was closed (for typeahead search)
+			if p.atEOF() {
+				// Just return the node without an error, as if the parenthesis was closed
+				if node != nil {
+					// Update the position to include the entire expression
+					node.Position.Start = startPos
+					node.Position.End = p.current().Position.Start
+				}
+				return node
+			}
+			
+			// Not at EOF, so this is an error - missing closing parenthesis
+			currentPos := p.current().Position.Start
+			errNode := makeErrorNode(Position{Start: currentPos, End: currentPos}, "Expected closing parenthesis ')'")
+			
+			// Create an AND node with the correct position
+			result := makeAndNode(node, errNode)
+			
+			// Ensure the AND node has the correct position
+			if result != nil && result.Type == NodeTypeAnd {
+				result.Position = Position{Start: startPos, End: currentPos}
+			}
+			
+			return result
+		}
+
+		// Update the position to include the closing parenthesis
+		if node != nil {
+			node.Position.Start = startPos
+			node.Position.End = p.current().Position.End
+		}
+
+		p.advance() // Consume the right parenthesis
+		return node
+	}
+
+	// If not a parenthesized expression, parse a token
+	return p.parseTokenWithErrorSync()
+}
+
 // token is where we're going to implement error sync points
-// token            = not_token | field_token ;
+// token            = not_token | field_token | unmodified_token ;
 func (p *Parser) parseTokenWithErrorSync() *Node {
 	if p.atEOF() || p.isCurrentADelimiter() {
 		return nil
@@ -348,115 +432,125 @@ func (p *Parser) parseTokenWithErrorSync() *Node {
 }
 
 // parseToken parses a token according to the grammar:
-// token = not_token | field_token
+// token = not_token | field_token | unmodified_token
 func (p *Parser) parseToken() (*Node, error) {
-	// Try to parse a not token first
-	node, err := p.parseNotToken()
-	if err != nil {
-		return nil, err
-	}
-	if node != nil {
-		return node, nil
+	// Check for "-" to parse a not token
+	if p.current().Type == TokenMinus {
+		return p.parseNotToken()
 	}
 
-	// If that fails, try to parse a field token
-	return p.parseFieldToken()
+	// Check for "$" to parse a field token
+	if p.current().Type == TokenDollar {
+		return p.parseFieldToken()
+	}
+
+	// Otherwise, parse an unmodified token directly
+	return p.parseUnmodifiedToken()
 }
 
 // parseNotToken parses a not token according to the grammar:
-// not_token = "-" field_token
+// not_token = "-" field_token | "-" unmodified_token
 func (p *Parser) parseNotToken() (*Node, error) {
 	startPos := p.getCurrentStartPos()
 
-	// Check for "-" token
-	_, ok := p.consumeToken(TokenMinus)
-	if !ok {
-		return nil, nil // Not a not_token, no error
+	// Consume the "-" token (we already checked it exists in parseToken)
+	_, hasMinus := p.consumeToken(TokenMinus)
+	if !hasMinus {
+		return nil, fmt.Errorf("expected '-' token")
 	}
 
-	// Parse a field token
-	node, err := p.parseFieldToken()
-	if err != nil {
-		return nil, fmt.Errorf("after '-': %w", err)
-	}
-	if node == nil {
-		return nil, fmt.Errorf("'-' must be followed by a search term")
-	}
+	// Check if the next token is "$" for a field token
+	if p.current().Type == TokenDollar {
+		// Parse a field token
+		node, err := p.parseFieldToken()
+		if err != nil {
+			return nil, fmt.Errorf("after '-': %w", err)
+		}
 
-	// Set the IsNot flag and update position
-	node.IsNot = true
-	node.Position.Start = startPos
+		// Set the IsNot flag and update position
+		node.IsNot = true
+		node.Position.Start = startPos
 
-	return node, nil
+		return node, nil
+	} else {
+		// Parse an unmodified token
+		node, err := p.parseUnmodifiedToken()
+		if err != nil {
+			return nil, fmt.Errorf("after '-': %w", err)
+		}
+		if node == nil {
+			return nil, fmt.Errorf("'-' must be followed by a search term")
+		}
+
+		// Set the IsNot flag and update position
+		node.IsNot = true
+		node.Position.Start = startPos
+
+		return node, nil
+	}
 }
 
 // parseFieldToken parses a field token according to the grammar:
-// field_token = "$" WORD | "$" WORD unmodified_token | unmodified_token
+// field_token = "$" WORD | "$" WORD unmodified_token
 func (p *Parser) parseFieldToken() (*Node, error) {
 	startPos := p.getCurrentStartPos()
 
-	// Check if this is a field token starting with "$"
+	// Consume the "$" token (we already checked it exists in parseToken)
 	_, hasDollar := p.consumeToken(TokenDollar)
-	if hasDollar {
-		// Must be followed by a WORD
-		wordToken, hasWord := p.consumeToken(TokenWord)
-		if !hasWord {
-			return nil, fmt.Errorf("'$' must be followed by a field name")
-		}
-
-		// Check if the word contains a colon
-		fieldValue := wordToken.Value
-		colonPos := strings.Index(fieldValue, ":")
-
-		if colonPos == -1 {
-			return nil, fmt.Errorf("field name must contain a colon to separate field and value")
-		}
-
-		// Extract field name
-		fieldName := fieldValue[:colonPos]
-		
-		// Check if there's exactly one colon and it's the last character in the word
-		if colonPos == len(fieldValue)-1 && strings.Count(fieldValue, ":") == 1 {
-			// The colon is the last character, so we need to parse an unmodified_token
-			// to get the search term
-			unmodifiedNode, err := p.parseUnmodifiedToken()
-			if err != nil {
-				return nil, fmt.Errorf("after field name: %w", err)
-			}
-			if unmodifiedNode == nil {
-				return nil, fmt.Errorf("field name with trailing colon must be followed by a search term")
-			}
-
-			// Create a search node with the field and the search term from the unmodified token
-			return &Node{
-				Type:       NodeTypeSearch,
-				Position:   Position{Start: startPos, End: unmodifiedNode.Position.End},
-				SearchType: unmodifiedNode.SearchType, // Preserve the search type from the unmodified token
-				SearchTerm: unmodifiedNode.SearchTerm,
-				Field:      fieldName,
-			}, nil
-		} else {
-			// The colon is not the last character, so the search term is part of the word
-			searchTerm := fieldValue[colonPos+1:]
-
-			// Create a search node with the field
-			return &Node{
-				Type:       NodeTypeSearch,
-				Position:   Position{Start: startPos, End: wordToken.Position.End},
-				SearchType: SearchTypeExact,
-				SearchTerm: searchTerm,
-				Field:      fieldName,
-			}, nil
-		}
+	if !hasDollar {
+		return nil, fmt.Errorf("expected '$' token")
 	}
 
-	// If not a field token with "$", try to parse an unmodified token
-	node, err := p.parseUnmodifiedToken()
-	if err != nil {
-		return nil, err
+	// Must be followed by a WORD
+	wordToken, hasWord := p.consumeToken(TokenWord)
+	if !hasWord {
+		return nil, fmt.Errorf("'$' must be followed by a field name")
 	}
 
-	return node, nil
+	// Check if the word contains a colon
+	fieldValue := wordToken.Value
+	colonPos := strings.Index(fieldValue, ":")
+
+	if colonPos == -1 {
+		return nil, fmt.Errorf("field name must contain a colon to separate field and value")
+	}
+
+	// Extract field name
+	fieldName := fieldValue[:colonPos]
+
+	// Check if there's exactly one colon and it's the last character in the word
+	if colonPos == len(fieldValue)-1 && strings.Count(fieldValue, ":") == 1 {
+		// The colon is the last character, so we need to parse an unmodified_token
+		// to get the search term
+		unmodifiedNode, err := p.parseUnmodifiedToken()
+		if err != nil {
+			return nil, fmt.Errorf("after field name: %w", err)
+		}
+		if unmodifiedNode == nil {
+			return nil, fmt.Errorf("field name with trailing colon must be followed by a search term")
+		}
+
+		// Create a search node with the field and the search term from the unmodified token
+		return &Node{
+			Type:       NodeTypeSearch,
+			Position:   Position{Start: startPos, End: unmodifiedNode.Position.End},
+			SearchType: unmodifiedNode.SearchType, // Preserve the search type from the unmodified token
+			SearchTerm: unmodifiedNode.SearchTerm,
+			Field:      fieldName,
+		}, nil
+	} else {
+		// The colon is not the last character, so the search term is part of the word
+		searchTerm := fieldValue[colonPos+1:]
+
+		// Create a search node with the field
+		return &Node{
+			Type:       NodeTypeSearch,
+			Position:   Position{Start: startPos, End: wordToken.Position.End},
+			SearchType: SearchTypeExact,
+			SearchTerm: searchTerm,
+			Field:      fieldName,
+		}, nil
+	}
 }
 
 // parseUnmodifiedToken parses an unmodified token according to the grammar:
