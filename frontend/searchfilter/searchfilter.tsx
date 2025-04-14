@@ -214,6 +214,17 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                     return;
                 }
             }
+
+            // Handle closing parenthesis specifically
+            if (key === ")") {
+                const cursorPos = input.selectionStart;
+                if (cursorPos !== null && cursorPos < input.value.length && input.value[cursorPos] === ")") {
+                    // If the next character is already the closing parenthesis, just move the cursor past it
+                    e.preventDefault();
+                    input.setSelectionRange(cursorPos + 1, cursorPos + 1);
+                    return;
+                }
+            }
         }
 
         // If we didn't handle the key, pass to the regular handler

@@ -128,10 +128,10 @@ export const handleSpecialChar = (
 const isAtNewTokenStart = (text: string, cursorPos: number): boolean => {
     // If cursor is at the beginning, it's a new token
     if (cursorPos <= 0) return true;
-    
+
     // Check if the character before cursor is whitespace or a pipe (|)
     const charBeforeCursor = text[cursorPos - 1];
-    return /\s/.test(charBeforeCursor) || charBeforeCursor === '|';
+    return /\s/.test(charBeforeCursor) || charBeforeCursor === "|";
 };
 
 /**
@@ -141,9 +141,9 @@ const isAtNewTokenStart = (text: string, cursorPos: number): boolean => {
 const isInsideUnclosedDelimiter = (text: string, cursorPos: number, openChar: string, closeChar: string): boolean => {
     // If we're at the start of a new token, we're not inside an unclosed delimiter
     if (isAtNewTokenStart(text, cursorPos)) return false;
-    
+
     const textBeforeCursor = text.substring(0, cursorPos);
-    
+
     // Find the start of the current token (last whitespace or pipe before cursor)
     let tokenStartPos = textBeforeCursor.search(/[\s|][^\s|]*$/);
     if (tokenStartPos === -1) {
@@ -151,36 +151,36 @@ const isInsideUnclosedDelimiter = (text: string, cursorPos: number, openChar: st
     } else {
         tokenStartPos += 1; // Skip the whitespace or pipe
     }
-    
+
     // Only consider text in the current token
     const currentToken = textBeforeCursor.substring(tokenStartPos);
-    
+
     // Count unmatched delimiters in the current token
     let openCount = 0;
     let closeCount = 0;
     let escaped = false;
-    
+
     for (let i = 0; i < currentToken.length; i++) {
         const char = currentToken[i];
-        
+
         if (escaped) {
             // Skip escaped characters
             escaped = false;
             continue;
         }
-        
+
         if (char === "\\") {
             escaped = true;
             continue;
         }
-        
+
         if (char === openChar) {
             openCount++;
         } else if (char === closeChar) {
             closeCount++;
         }
     }
-    
+
     // If we have more opening delimiters than closing ones, we're inside an unclosed delimiter
     return openCount > closeCount;
 };
@@ -198,29 +198,27 @@ export const handleSelectionWrapping = (
 ): boolean => {
     const selectionStart = input.selectionStart;
     const selectionEnd = input.selectionEnd;
-    
+
     // Only process if text is selected
     if (selectionStart === null || selectionEnd === null || selectionStart === selectionEnd) {
         return false;
     }
-    
+
     const text = input.value;
     const selectedText = text.substring(selectionStart, selectionEnd);
-    
+
     // Wrap the selected text with delimiters
-    const newValue = 
-        text.substring(0, selectionStart) + 
-        openChar + selectedText + closeChar + 
-        text.substring(selectionEnd);
-    
+    const newValue =
+        text.substring(0, selectionStart) + openChar + selectedText + closeChar + text.substring(selectionEnd);
+
     e.preventDefault();
     onValueChange(newValue);
-    
+
     // Position cursor right before the closing delimiter
     setTimeout(() => {
         input.setSelectionRange(selectionEnd + 1, selectionEnd + 1);
     }, 0);
-    
+
     return true;
 };
 
