@@ -91,11 +91,8 @@ func tryConnect(source string, isDev bool) *comm.ConnWrap {
 	if appRunId == "" {
 		return nil
 	}
-
 	domainSocketPath := base.GetDomainSocketNameForClient(isDev)
-	serverAddr := base.GetTCPAddrForClient(isDev)
-
-	connWrap, err := comm.Connect(base.ConnectionModeLog, source, appRunId, domainSocketPath, serverAddr)
+	connWrap, err := comm.Connect(base.ConnectionModeLog, source, appRunId, domainSocketPath, "")
 	if err != nil {
 		return nil
 	}
@@ -130,7 +127,7 @@ func closeConnections() {
 // processStream processes a stream using TeeCopy in a goroutine
 func processStream(wg *sync.WaitGroup, decl TeeStreamDecl) {
 	ldw := getLogDataWrap(decl.Source)
-	
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
