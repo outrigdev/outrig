@@ -60,9 +60,11 @@ export const runtimeStatsMetadata: Record<string, RuntimeStatMetadata> = {
         desc: "Percentage of CPU time being used by this Go process. High values may indicate CPU-intensive operations or potential bottlenecks.",
     },
     goroutineCount: {
-        statFn: (stat) => stat.goroutinecount,
+        statFn: (stat) => {
+            return stat.numactivegoroutines - stat.numoutriggoroutines;
+        },
         label: "Goroutine Count",
-        desc: "Number of goroutines currently running in the application. Each goroutine is a lightweight thread managed by the Go runtime. Unexpected high counts may indicate goroutine leaks.",
+        desc: "Number of goroutines currently running in the application, excluding Outrig SDK goroutines. Each goroutine is a lightweight thread managed by the Go runtime. Unexpected high counts may indicate goroutine leaks.",
     },
     currentHeapObjects: {
         statFn: (stat) => {
