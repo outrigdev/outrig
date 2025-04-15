@@ -5,12 +5,22 @@ package tevent
 
 import (
 	"fmt"
-	"log"
 	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig"
 )
+
+var (
+	eventsUploaded atomic.Int64
+	uploadAttempts atomic.Int64
+)
+
+func init() {
+	// Register counters with Outrig
+	outrig.WatchAtomicCounter("tevent:eventsUploaded", &eventsUploaded)
+	outrig.WatchAtomicCounter("tevent:uploadAttempts", &uploadAttempts)
+}
 
 // UploadEvents grabs events from the buffer and uploads them to the server
 // It also updates the lastFlushTime at the beginning of the upload
@@ -18,6 +28,10 @@ func UploadEvents() error {
 	if Disabled.Load() {
 		return nil
 	}
+
+	// Increment upload attempts counter
+	uploadAttempts.Add(1)
+
 	// Update the last flush time at the beginning of the upload
 	now := time.Now()
 	atomic.StoreInt64(&lastFlushTime, now.UnixMilli())
@@ -27,18 +41,18 @@ func UploadEvents() error {
 
 	if len(events) == 0 {
 		// Update status even if no events were uploaded
-		updateTelemetryStatus(now, 0)
+		updateTelemetryStatus(now, 0, nil)
 		return nil
 	}
 
 	// TODO upload to the server
-	log.Printf("(pretending to upload telemetry events, no upload implemented yet)")
 	time.Sleep(500 * time.Millisecond)
 
-	// Update telemetry status with upload information
-	updateTelemetryStatus(now, len(events))
+	// Increment uploaded events counter
+	eventsUploaded.Add(int64(len(events)))
 
-	log.Printf("Uploaded %d telemetry events", len(events))
+	// Update telemetry status with upload information
+	updateTelemetryStatus(now, len(events), nil)
 
 	return nil
 }
@@ -47,15 +61,12 @@ func UploadEvents() error {
 func UploadEventsAsync() {
 	go func() {
 		outrig.SetGoRoutineName("TEventUploader")
-		err := UploadEvents()
-		if err != nil {
-			log.Printf("Failed to upload telemetry: %v", err)
-		}
+		_ = UploadEvents() // ignore error, written to status
 	}()
 }
 
 // updateTelemetryStatus updates the telemetry status with upload information
-func updateTelemetryStatus(uploadTime time.Time, eventCount int) {
+func updateTelemetryStatus(uploadTime time.Time, eventCount int, err error) {
 	// Format the last upload time
 	lastUploadStr := uploadTime.Format(time.RFC3339)
 
@@ -65,7 +76,10 @@ func updateTelemetryStatus(uploadTime time.Time, eventCount int) {
 
 	// Format the status string
 	var status string
-	if eventCount > 0 {
+	if err != nil {
+		status = fmt.Sprintf("Telemetry Upload Error at %s: %v\nNext Telemetry Upload at %s",
+			lastUploadStr, err, nextUploadStr)
+	} else if eventCount > 0 {
 		status = fmt.Sprintf("Last Telemetry Uploaded at %s (%d events)\nNext Telemetry Upload at %s",
 			lastUploadStr, eventCount, nextUploadStr)
 	} else {
