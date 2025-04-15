@@ -83,11 +83,12 @@ type TEventProps struct {
 	ServerNumApps    int `json:"server:numapps,omitempty"`
 
 	// counts for app run activity
-	AppRunLogLines    int `json:"apprun:loglines,omitempty"`
-	AppRunGoRoutines  int `json:"apprun:goroutines,omitempty"`
-	AppRunConnTime    int `json:"apprun:conntime,omitempty"`
-	AppRunWatches     int `json:"apprun:watches,omitempty"`
-	AppRunCollections int `json:"apprun:collections,omitempty"`
+	AppRunLogLines    int    `json:"apprun:loglines,omitempty"`
+	AppRunGoRoutines  int    `json:"apprun:goroutines,omitempty"`
+	AppRunConnTime    int    `json:"apprun:conntime,omitempty"`
+	AppRunWatches     int    `json:"apprun:watches,omitempty"`
+	AppRunCollections int    `json:"apprun:collections,omitempty"`
+	AppRunSDKVersion  string `json:"apprun:sdkversion,omitempty"`
 
 	UserSet     *TEventUserProps `json:"$set,omitempty"`
 	UserSetOnce *TEventUserProps `json:"$set_once,omitempty"`
@@ -295,10 +296,13 @@ func SendShutdownEvent() {
 }
 
 // SendAppRunConnectedEvent sends an "apprun:connected" telemetry event
-func SendAppRunConnectedEvent() {
+func SendAppRunConnectedEvent(sdkVersion string) {
 	if Disabled.Load() {
 		return
 	}
-	event := MakeTEvent("apprun:connected", TEventProps{})
+	props := TEventProps{
+		AppRunSDKVersion: sdkVersion,
+	}
+	event := MakeTEvent("apprun:connected", props)
 	WriteTEvent(*event)
 }

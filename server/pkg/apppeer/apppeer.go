@@ -186,7 +186,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		p.AppInfo = &appInfo
 		p.Status = AppStatusRunning
 		log.Printf("Received AppInfo for app run ID: %s, app: %s", p.AppRunId, appInfo.AppName)
-		tevent.SendAppRunConnectedEvent()
+		tevent.SendAppRunConnectedEvent(appInfo.OutrigSDKVersion)
 
 	case ds.PacketTypeLog:
 		var logLine ds.LogLine
