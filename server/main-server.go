@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/google/uuid"
@@ -72,6 +73,7 @@ func main() {
 			// Check if telemetry should be disabled
 			noTelemetry, _ := cmd.Flags().GetBool("no-telemetry")
 			if noTelemetry {
+				log.Printf("Telemetry collection is disabled (via --no-telemetry flag)\n")
 				tevent.Disabled.Store(true)
 			}
 
