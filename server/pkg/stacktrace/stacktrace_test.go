@@ -146,66 +146,38 @@ func TestParseFrame(t *testing.T) {
 
 func TestParseStateComponents(t *testing.T) {
 	tests := []struct {
-		name                string
-		rawState            string
-		expectedPrimary     string
-		expectedDurationMs  int64
-		expectedDuration    string
-		expectedExtraStates []string
+		name               string
+		rawState           string
+		expectedPrimary    string
+		expectedDurationMs int64
+		expectedDuration   string
 	}{
 		{
-			name:                "Simple state",
-			rawState:            "running",
-			expectedPrimary:     "running",
-			expectedDurationMs:  0,
-			expectedDuration:    "",
-			expectedExtraStates: nil,
+			name:               "Simple state",
+			rawState:           "running",
+			expectedPrimary:    "running",
+			expectedDurationMs: 0,
+			expectedDuration:   "",
 		},
 		{
-			name:                "State with duration",
-			rawState:            "chan receive, 101 minutes",
-			expectedPrimary:     "chan receive",
-			expectedDurationMs:  101 * 60 * 1000,
-			expectedDuration:    "101 minutes",
-			expectedExtraStates: nil,
+			name:               "State with duration",
+			rawState:           "chan receive, 101 minutes",
+			expectedPrimary:    "chan receive",
+			expectedDurationMs: 101 * 60 * 1000,
+			expectedDuration:   "101 minutes",
 		},
 		{
-			name:                "State with extra states",
-			rawState:            "chan receive, locked to thread",
-			expectedPrimary:     "chan receive",
-			expectedDurationMs:  0,
-			expectedDuration:    "",
-			expectedExtraStates: []string{"locked to thread"},
-		},
-		{
-			name:                "State with duration and extra states",
-			rawState:            "chan receive, 3 minutes, locked to thread",
-			expectedPrimary:     "chan receive",
-			expectedDurationMs:  3 * 60 * 1000,
-			expectedDuration:    "3 minutes",
-			expectedExtraStates: []string{"locked to thread"},
-		},
-		{
-			name:                "State with multiple extra states",
-			rawState:            "chan receive, locked to thread, syscall",
-			expectedPrimary:     "chan receive",
-			expectedDurationMs:  0,
-			expectedDuration:    "",
-			expectedExtraStates: []string{"locked to thread", "syscall"},
-		},
-		{
-			name:                "State with seconds duration",
-			rawState:            "chan receive, 45 seconds",
-			expectedPrimary:     "chan receive",
-			expectedDurationMs:  45 * 1000,
-			expectedDuration:    "45 seconds",
-			expectedExtraStates: nil,
+			name:               "State with seconds duration",
+			rawState:           "chan receive, 45 seconds",
+			expectedPrimary:    "chan receive",
+			expectedDurationMs: 45 * 1000,
+			expectedDuration:   "45 seconds",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			primaryState, durationMs, duration, extraStates := parseStateComponents(tt.rawState)
+			primaryState, durationMs, duration := parseStateComponents(tt.rawState)
 
 			if primaryState != tt.expectedPrimary {
 				t.Errorf("Expected primary state %q, got %q", tt.expectedPrimary, primaryState)
@@ -217,22 +189,6 @@ func TestParseStateComponents(t *testing.T) {
 
 			if duration != tt.expectedDuration {
 				t.Errorf("Expected duration string %q, got %q", tt.expectedDuration, duration)
-			}
-
-			if tt.expectedExtraStates == nil {
-				if len(extraStates) > 0 {
-					t.Errorf("Expected no extra states, got %v", extraStates)
-				}
-			} else {
-				if len(extraStates) != len(tt.expectedExtraStates) {
-					t.Errorf("Expected %d extra states, got %d", len(tt.expectedExtraStates), len(extraStates))
-				} else {
-					for i, expected := range tt.expectedExtraStates {
-						if extraStates[i] != expected {
-							t.Errorf("Expected extra state %q at index %d, got %q", expected, i, extraStates[i])
-						}
-					}
-				}
 			}
 		})
 	}
@@ -250,7 +206,6 @@ func TestParseGoRoutineStackTrace(t *testing.T) {
 		expectedFrames        int
 		hasCreatedBy          bool
 		expectedDurationMs    int64
-		expectedExtraStates   []string
 		expectedCreatedByGoId int64
 	}{
 		{
@@ -278,7 +233,6 @@ created by github.com/outrigdev/outrig/pkg/collector/logprocess.(*LogCollector).
 			expectedFrames:        7,
 			hasCreatedBy:          true,
 			expectedDurationMs:    0,
-			expectedExtraStates:   nil,
 			expectedCreatedByGoId: 1,
 		},
 		{
@@ -296,7 +250,6 @@ created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in gor
 			expectedFrames:        2,
 			hasCreatedBy:          true,
 			expectedDurationMs:    101 * 60 * 1000,
-			expectedExtraStates:   nil,
 			expectedCreatedByGoId: 327,
 		},
 		{
@@ -310,21 +263,6 @@ created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in gor
 			expectedFrames:        1,
 			hasCreatedBy:          false,
 			expectedDurationMs:    105 * 60 * 1000,
-			expectedExtraStates:   nil,
-			expectedCreatedByGoId: 0,
-		},
-		{
-			name: "goroutine with multiple extra states",
-			input: `main.main()
-	/Users/mike/work/outrig/server/main-server.go:291 +0x714`,
-			goId:                  42,
-			state:                 "chan receive, 3 minutes, locked to thread",
-			expectedGoId:          42,
-			expectedPrimaryState:  "chan receive",
-			expectedFrames:        1,
-			hasCreatedBy:          false,
-			expectedDurationMs:    3 * 60 * 1000,
-			expectedExtraStates:   []string{"locked to thread"},
 			expectedCreatedByGoId: 0,
 		},
 		{
@@ -338,7 +276,6 @@ created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in gor
 			expectedFrames:        1,
 			hasCreatedBy:          false,
 			expectedDurationMs:    2 * 60 * 1000,
-			expectedExtraStates:   nil,
 			expectedCreatedByGoId: 0,
 		},
 	}
@@ -361,20 +298,6 @@ created by github.com/outrigdev/outrig/pkg/rpc.(*WshRouter).RegisterRoute in gor
 
 			if routine.StateDurationMs != tt.expectedDurationMs {
 				t.Errorf("Expected DurationMs %d, got %d", tt.expectedDurationMs, routine.StateDurationMs)
-			}
-
-			if tt.expectedExtraStates != nil {
-				if len(routine.ExtraStates) != len(tt.expectedExtraStates) {
-					t.Errorf("Expected %d extra states, got %d", len(tt.expectedExtraStates), len(routine.ExtraStates))
-				} else {
-					for i, expectedExtra := range tt.expectedExtraStates {
-						if i < len(routine.ExtraStates) && routine.ExtraStates[i] != expectedExtra {
-							t.Errorf("Expected extra state %q at index %d, got %q", expectedExtra, i, routine.ExtraStates[i])
-						}
-					}
-				}
-			} else if len(routine.ExtraStates) > 0 {
-				t.Errorf("Expected no extra states, got %v", routine.ExtraStates)
 			}
 
 			if len(routine.ParsedFrames) != tt.expectedFrames {

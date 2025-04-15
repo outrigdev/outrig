@@ -208,7 +208,6 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const searchResultInfo = useAtomValue(model.searchResultInfo);
     const resultCount = useAtomValue(model.resultCount);
     const primaryStates = useAtomValue(model.primaryStates);
-    const extraStates = useAtomValue(model.extraStates);
     const stateCounts = useAtomValue(model.stateCounts);
     const errorSpans = searchResultInfo.errorSpans || [];
 
@@ -294,24 +293,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                                     onToggle={() => handleToggleState(state)}
                                 />
                             ))}
-                            {/* Extra states next */}
-                            {extraStates.map((state) => (
-                                <Tag
-                                    key={state}
-                                    label={state}
-                                    count={stateCounts.get(state) || 0}
-                                    isSelected={selectedStates.has(state)}
-                                    onToggle={() => handleToggleState(state)}
-                                />
-                            ))}
                         </div>
-
-                        {/* Duration states on second row of the flex column */}
-                        <DurationStateFilters
-                            model={model}
-                            selectedStates={selectedStates}
-                            onToggleState={handleToggleState}
-                        />
                     </div>
 
                     {/* Box 3: #outrig toggle */}

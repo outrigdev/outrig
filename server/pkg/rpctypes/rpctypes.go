@@ -371,7 +371,6 @@ type ParsedGoRoutine struct {
 	PrimaryState    string       `json:"primarystate"`              // The first part of the state (before any commas)
 	StateDurationMs int64        `json:"statedurationms,omitempty"` // Duration of state in milliseconds (if available)
 	StateDuration   string       `json:"stateduration,omitempty"`   // Duration of state as a string (if available)
-	ExtraStates     []string     `json:"extrastates,omitempty"`     // Array of additional state information
 	ParsedFrames    []StackFrame `json:"parsedframes,omitempty"`    // Structured frame information
 	CreatedByGoId   int64        `json:"createdbygoid,omitempty"`   // ID of the goroutine that created this one
 	CreatedByFrame  *StackFrame  `json:"createdbyframe,omitempty"`  // Frame information for the creation point

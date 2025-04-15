@@ -106,23 +106,6 @@ class GoRoutinesModel {
         return Array.from(statesSet).sort();
     });
 
-    // Derived atom for extra states
-    extraStates: Atom<string[]> = atom((get) => {
-        const goroutines = get(this.appRunGoRoutines);
-        const statesSet = new Set<string>();
-
-        goroutines.forEach((goroutine) => {
-            if (goroutine.extrastates) {
-                goroutine.extrastates.forEach((state) => {
-                    if (state) {
-                        statesSet.add(state);
-                    }
-                });
-            }
-        });
-
-        return Array.from(statesSet).sort();
-    });
 
     // Derived atom for duration states, sorted by millisecond value
     durationStates: Atom<string[]> = atom((get) => {
@@ -145,10 +128,9 @@ class GoRoutinesModel {
     // Derived atom for all available states (for backward compatibility)
     availableStates: Atom<string[]> = atom((get) => {
         const primaryStates = get(this.primaryStates);
-        const extraStates = get(this.extraStates);
         const durationStates = get(this.durationStates);
 
-        return [...primaryStates, ...extraStates, ...durationStates];
+        return [...primaryStates, ...durationStates];
     });
 
     // Derived atom for state counts - returns a map of state name to count
@@ -158,10 +140,9 @@ class GoRoutinesModel {
 
         // Initialize counts for all states
         const primaryStates = get(this.primaryStates);
-        const extraStates = get(this.extraStates);
         const durationStates = get(this.durationStates);
 
-        [...primaryStates, ...extraStates, ...durationStates].forEach((state) => {
+        [...primaryStates, ...durationStates].forEach((state) => {
             counts.set(state, 0);
         });
 
@@ -170,15 +151,6 @@ class GoRoutinesModel {
             // Count primary state
             if (goroutine.primarystate) {
                 counts.set(goroutine.primarystate, (counts.get(goroutine.primarystate) || 0) + 1);
-            }
-
-            // Count extra states
-            if (goroutine.extrastates) {
-                goroutine.extrastates.forEach((state) => {
-                    if (state) {
-                        counts.set(state, (counts.get(state) || 0) + 1);
-                    }
-                });
             }
 
             // Count duration state

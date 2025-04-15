@@ -210,7 +210,6 @@ declare global {
         primarystate: string;
         statedurationms?: number;
         stateduration?: string;
-        extrastates?: string[];
         parsedframes?: StackFrame[];
         createdbygoid?: number;
         createdbyframe?: StackFrame;

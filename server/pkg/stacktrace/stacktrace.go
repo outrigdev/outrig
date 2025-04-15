@@ -67,11 +67,10 @@ func ParseGoRoutineStackTrace(stackTrace string, moduleName string, goId int64, 
 	}
 
 	// Parse the state components
-	primaryState, stateDurationMs, stateDuration, extraStates := parseStateComponents(state)
+	primaryState, stateDurationMs, stateDuration := parseStateComponents(state)
 	routine.PrimaryState = primaryState
 	routine.StateDurationMs = stateDurationMs
 	routine.StateDuration = stateDuration
-	routine.ExtraStates = extraStates
 
 	// Preprocess the stack trace
 	preprocessed := preprocessStackTrace(stackTrace)
@@ -255,7 +254,7 @@ func parseCreatedByFrame(funcLine string, fileLine string) (*StackFrame, int, bo
 }
 
 // parseStateComponents parses a raw state string into its components
-func parseStateComponents(rawState string) (string, int64, string, []string) {
+func parseStateComponents(rawState string) (string, int64, string) {
 	// Split the state by commas
 	components := strings.Split(rawState, ",")
 
@@ -265,12 +264,9 @@ func parseStateComponents(rawState string) (string, int64, string, []string) {
 	// Initialize variables for additional components
 	var stateDurationMs int64
 	var stateDuration string
-	var extraStates []string
 
 	// Process additional components
 	if len(components) > 1 {
-		extraStates = make([]string, 0, len(components)-1)
-
 		for _, component := range components[1:] {
 			component = strings.TrimSpace(component)
 
@@ -278,13 +274,12 @@ func parseStateComponents(rawState string) (string, int64, string, []string) {
 			if isDuration, durationMs := parseDuration(component); isDuration {
 				stateDurationMs = durationMs
 				stateDuration = component
-			} else {
-				extraStates = append(extraStates, component)
 			}
+			// We ignore any other components as they're not needed
 		}
 	}
 
-	return primaryState, stateDurationMs, stateDuration, extraStates
+	return primaryState, stateDurationMs, stateDuration
 }
 
 // parseFuncLine parses a function line from a stack trace and extracts the package, function name, and args
