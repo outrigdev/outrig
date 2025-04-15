@@ -228,16 +228,13 @@ func WatchCounterFunc[T Number](name string, getFn func() T) {
 	wc.RegisterWatchFunc(name, getFn, nil, ds.WatchFlag_Func|ds.WatchFlag_Counter)
 }
 
-func WatchFunc[T any](name string, getFn func() T, setFn func(T)) {
+func WatchFunc[T any](name string, getFn func() T) {
 	if getFn == nil {
 		return
 	}
 	wc := watch.GetInstance()
 	flags := ds.WatchFlag_Func
-	if setFn != nil {
-		flags |= ds.WatchFlag_Settable
-	}
-	wc.RegisterWatchFunc(name, getFn, setFn, flags)
+	wc.RegisterWatchFunc(name, getFn, flags)
 }
 
 func TrackValue(name string, val any) {
