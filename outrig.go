@@ -234,7 +234,7 @@ func WatchFunc[T any](name string, getFn func() T) {
 	}
 	wc := watch.GetInstance()
 	flags := ds.WatchFlag_Func
-	wc.RegisterWatchFunc(name, getFn, flags)
+	wc.RegisterWatchFunc(name, getFn, nil, flags)
 }
 
 func TrackValue(name string, val any) {

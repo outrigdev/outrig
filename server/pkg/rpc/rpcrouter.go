@@ -94,7 +94,7 @@ func init() {
 	// Register a watch function that returns a sorted list of RouteMap keys
 	outrig.WatchFunc("rpcroutes", func() []string {
 		return GetDefaultRouter().GetRouteKeys()
-	}, nil)
+	})
 }
 
 // GetRouteKeys returns a sorted list of all route keys in the router

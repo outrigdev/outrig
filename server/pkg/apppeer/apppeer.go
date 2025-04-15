@@ -56,7 +56,7 @@ func init() {
 		keys := appRunPeers.Keys()
 		sort.Strings(keys)
 		return keys
-	}, nil)
+	})
 
 	// Start a goroutine to periodically prune app run peers
 	go func() {

@@ -29,7 +29,7 @@ func init() {
 	// Register a watch function that returns a map of connection ID to WSInfo
 	outrig.WatchFunc("websockets", func() map[string]WSInfo {
 		return GetAllWSInfo()
-	}, nil)
+	})
 }
 
 // GetAllWSInfo returns a map of connection ID to WSInfo for all WebSocket connections
