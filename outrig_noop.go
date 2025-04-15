@@ -60,17 +60,6 @@ func DefaultConfig() *ds.Config {
 		},
 	}
 }
-
-// DefaultDevConfig returns an empty config when no_outrig is set
-func DefaultDevConfig() *ds.Config {
-	return &ds.Config{
-		// Empty but valid config to avoid nil pointer exceptions
-		Dev: true,
-		LogProcessorConfig: &ds.LogProcessorConfig{
-			WrapStdout: false,
-			WrapStderr: false,
-		},
-	}
 }
 
 // Init is a no-op when no_outrig is set

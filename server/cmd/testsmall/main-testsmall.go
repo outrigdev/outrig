@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig"
+	configpkg "github.com/outrigdev/outrig/pkg/config"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	config := outrig.DefaultDevConfig()
+	config := configpkg.DefaultConfigForOutrigDevelopment()
 	config.LogProcessorConfig.OutrigPath = "go"
 	config.LogProcessorConfig.AdditionalArgs = []string{"run", "server/main-server.go"}
 	outrig.Init(config)

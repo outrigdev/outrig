@@ -16,6 +16,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/collector/watch"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/controller"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
@@ -65,45 +66,9 @@ func Enabled() bool {
 	return global.OutrigEnabled.Load()
 }
 
-func getDefaultConfig(isDev bool) *ds.Config {
-	wrapStdout := true
-	wrapStderr := true
-
-	if os.Getenv(base.ExternalLogCaptureEnvName) != "" {
-		wrapStdout = false
-		wrapStderr = false
-	}
-
-	return &ds.Config{
-		DomainSocketPath: base.GetDomainSocketNameForClient(isDev),
-		AppName:          "",
-		ModuleName:       "",
-		Dev:              isDev,
-		ConnectOnInit:    true,
-		LogProcessorConfig: ds.LogProcessorConfig{
-			Enabled:    true,
-			WrapStdout: wrapStdout,
-			WrapStderr: wrapStderr,
-		},
-		WatchConfig: ds.WatchConfig{
-			Enabled: true,
-		},
-		GoRoutineConfig: ds.GoRoutineConfig{
-			Enabled: true,
-		},
-		RuntimeStatsConfig: ds.RuntimeStatsConfig{
-			Enabled: true,
-		},
-	}
-}
-
 // DefaultConfig returns the default configuration
 func DefaultConfig() *ds.Config {
-	return getDefaultConfig(false)
-}
-
-func DefaultDevConfig() *ds.Config {
-	return getDefaultConfig(true)
+	return config.DefaultConfig()
 }
 
 // Init initializes Outrig

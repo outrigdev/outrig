@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig"
+	configpkg "github.com/outrigdev/outrig/pkg/config"
 )
 
 // Command line flags
@@ -152,7 +153,7 @@ func main() {
 
 	fmt.Printf("log before init\n")
 
-	config := outrig.DefaultDevConfig()
+	config := configpkg.DefaultConfigForOutrigDevelopment()
 	config.LogProcessorConfig.OutrigPath = "go"
 	config.LogProcessorConfig.AdditionalArgs = []string{"run", "server/main-server.go"}
 	outrig.Init(config)
