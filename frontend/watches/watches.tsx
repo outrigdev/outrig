@@ -79,21 +79,21 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
     // Format the watch value for display
     const formatValue = (watch: WatchSample) => {
         if (watch.error) {
-            return <span className="text-error">{watch.error}</span>;
+            return <pre className="text-xs whitespace-pre-wrap font-mono text-error">{watch.error}</pre>;
         }
 
         if (watch.value == null) {
-            return <span className="text-muted">null</span>;
+            return <pre className="text-xs whitespace-pre-wrap font-mono text-muted">null</pre>;
         }
 
         // Check if the JSON flag is set
         if (watch.flags && watch.flags & WatchFlag_JSON) {
             try {
                 const parsed = JSON.parse(watch.value);
-                return <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(parsed, null, 2)}</pre>;
+                return <pre className="text-xs whitespace-pre-wrap font-mono">{JSON.stringify(parsed, null, 2)}</pre>;
             } catch {
                 // If parsing fails, fall back to displaying as is
-                return <span>{watch.value}</span>;
+                return <pre className="text-xs whitespace-pre-wrap font-mono">{watch.value}</pre>;
             }
         }
 
@@ -106,13 +106,13 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
         if (watch.value.startsWith("{") || watch.value.startsWith("[")) {
             try {
                 const parsed = JSON.parse(watch.value);
-                return <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(parsed, null, 2)}</pre>;
+                return <pre className="text-xs whitespace-pre-wrap font-mono">{JSON.stringify(parsed, null, 2)}</pre>;
             } catch {
                 // If it's not valid JSON, just display as is
             }
         }
 
-        return <span>{watch.value}</span>;
+        return <pre className="text-xs whitespace-pre-wrap font-mono">{watch.value}</pre>;
     };
 
     // Get flag tags based on the watch flags
@@ -290,8 +290,7 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                             {/* Add divider after each watch except the last one */}
                             {index < filteredWatches.length - 1 && (
                                 <div
-                                    className="h-px bg-border my-2"
-                                    style={{ minWidth: "100%", width: "9999px" }}
+                                    className="h-px bg-border my-2 w-full"
                                 ></div>
                             )}
                         </React.Fragment>
