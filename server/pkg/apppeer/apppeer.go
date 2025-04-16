@@ -332,11 +332,12 @@ func (p *AppRunPeer) sendDisconnectedEvent() {
 	numTotalGoRoutines := int(p.GoRoutines.GetMaxGoId())
 	numTotalWatches := p.Watches.GetTotalWatchCount()
 	numLogs := p.Logs.GetTotalCount()
-
+	numCollections := p.RuntimeStats.GetTotalCollectionCount()
 	currentStats := tevent.AppRunStats{
 		LogLines:    numLogs,
 		GoRoutines:  numTotalGoRoutines,
 		Watches:     numTotalWatches,
+		Collections: numCollections,
 		SDKVersion:  p.AppInfo.OutrigSDKVersion,
 		ConnTimeMs:  connTime,
 		AppRunCount: 1,

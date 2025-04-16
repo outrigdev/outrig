@@ -78,3 +78,12 @@ func (rsp *RuntimeStatsPeer) GetRuntimeStats(sinceTs int64) []rpctypes.RuntimeSt
 
 	return result
 }
+
+// GetTotalCollectionCount returns the total number of runtime stats collected
+func (rsp *RuntimeStatsPeer) GetTotalCollectionCount() int {
+	rsp.lock.RLock()
+	defer rsp.lock.RUnlock()
+	totalCount, _ := rsp.runtimeStats.GetTotalCountAndHeadOffset()
+	return totalCount
+}
+
