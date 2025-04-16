@@ -74,7 +74,6 @@ func makeOutrigApiPostReq(ctx context.Context, url string, input TEventsInputTyp
 func doRequest(req *http.Request, resp interface{}) (*http.Response, error) {
 	// TEMPORARY: Only make actual HTTP requests in development mode
 	if !serverbase.IsDev() {
-		fmt.Printf("TEVENT: Skipping HTTP request in production mode (temporary)\n")
 		return nil, nil
 	}
 
@@ -186,32 +185,24 @@ func inErrorCooldown() (bool, time.Time) {
 // It also updates the lastFlushTime at the beginning of the upload
 func UploadEvents() error {
 	if Disabled.Load() {
-		fmt.Printf("TEVENT: Telemetry is disabled\n")
 		return nil
 	}
-	if inCooldown, cooldownEnd := inErrorCooldown(); inCooldown {
-		fmt.Printf("TEVENT: In error cooldown until %s\n", cooldownEnd.Format(time.RFC3339))
+	if inCooldown, _ := inErrorCooldown(); inCooldown {
 		return nil
 	}
 	uploadAttempts.Add(1)
-	fmt.Printf("TEVENT: Upload attempt incremented\n")
 	now := time.Now()
 	atomic.StoreInt64(&lastFlushTime, now.UnixMilli())
-	fmt.Printf("TEVENT: Calling sendTEvents\n")
 	eventsSent, err := sendTEvents(serverbase.OutrigId)
-	fmt.Printf("TEVENT: sendTEvents returned %d events, err: %v\n", eventsSent, err)
 	if err != nil {
-		fmt.Printf("TEVENT: Calling updateTelemetryStatus with error\n")
 		updateTelemetryStatus(now, eventsSent, err)
 		return err
 	}
 	if eventsSent == 0 {
-		fmt.Printf("TEVENT: No events sent, calling updateTelemetryStatus\n")
 		updateTelemetryStatus(now, 0, nil)
 		return nil
 	}
 	eventsUploaded.Add(int64(eventsSent))
-	fmt.Printf("TEVENT: %d events uploaded, calling updateTelemetryStatus\n", eventsSent)
 	updateTelemetryStatus(now, eventsSent, nil)
 	return nil
 }
