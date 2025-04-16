@@ -23,6 +23,7 @@ const (
 const (
 	DomainSocketEnvName = "OUTRIG_DOMAINSOCKET"
 	DisabledEnvName     = "OUTRIG_DISABLED"
+	NoTelemetryEnvName  = "OUTRIG_NOTELEMETRY"
 )
 
 const (

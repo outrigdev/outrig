@@ -50,7 +50,7 @@ tasks:
         deps:
             - build
         cmds:
-            - ./bin/outrig server
+            - OUTRIG_NOTELEMETRY=1 ./bin/outrig server
 
     generate:
         desc: Generate RPC code (Go/TypeScript)

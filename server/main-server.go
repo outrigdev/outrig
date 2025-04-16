@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/base"
@@ -25,6 +27,10 @@ var (
 )
 
 func runCaptureLogs(cmd *cobra.Command, args []string) error {
+	// Ignore SIGINT, SIGTERM, and SIGHUP signals
+	// This ensures the sidecar process doesn't terminate prematurely before the main process
+	signal.Ignore(syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	
 	stderrIn := os.NewFile(3, "stderr-in")
 	source, _ := cmd.Flags().GetString("source")
 	isDev, _ := cmd.Flags().GetBool("dev")
@@ -75,8 +81,13 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check if telemetry should be disabled
 			noTelemetry, _ := cmd.Flags().GetBool("no-telemetry")
-			if noTelemetry {
-				log.Printf("Telemetry collection is disabled (via --no-telemetry flag)\n")
+			noTelemetryEnv := os.Getenv("OUTRIG_NOTELEMETRY")
+			if noTelemetry || noTelemetryEnv != "" {
+				if noTelemetry {
+					log.Printf("Telemetry collection is disabled (via --no-telemetry flag)\n")
+				} else {
+					log.Printf("Telemetry collection is disabled (via OUTRIG_NOTELEMETRY env var)\n")
+				}
 				tevent.Disabled.Store(true)
 			}
 

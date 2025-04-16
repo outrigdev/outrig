@@ -72,11 +72,6 @@ func makeOutrigApiPostReq(ctx context.Context, url string, input TEventsInputTyp
 }
 
 func doRequest(req *http.Request, resp interface{}) (*http.Response, error) {
-	// TEMPORARY: Only make actual HTTP requests in development mode
-	if !serverbase.IsDev() {
-		return nil, nil
-	}
-
 	// Create an HTTP client with a timeout
 	client := &http.Client{
 		Timeout: CloudDefaultTimeout,

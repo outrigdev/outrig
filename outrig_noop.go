@@ -17,6 +17,7 @@ import (
 const (
 	DomainSocketEnvName = ds.DomainSocketEnvName
 	DisabledEnvName     = ds.DisabledEnvName
+	NoTelemetryEnvName  = ds.NoTelemetryEnvName
 )
 
 // Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:
