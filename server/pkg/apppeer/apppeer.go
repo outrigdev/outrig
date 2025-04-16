@@ -46,6 +46,8 @@ type AppRunPeer struct {
 	GoRoutines   *GoRoutinePeer
 	Watches      *WatchesPeer
 	RuntimeStats *RuntimeStatsPeer
+	
+	lastSentStats *tevent.AppRunStats // Last stats sent in disconnected event
 }
 
 // Global synchronized map to hold all AppRunPeers
@@ -98,6 +100,7 @@ func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 			Status:       AppStatusRunning,
 			LastModTime:  time.Now().UnixMilli(),
 			refCount:     0,
+			lastSentStats: nil,
 		}
 	})
 
@@ -127,6 +130,9 @@ func (p *AppRunPeer) Release() {
 		p.LastModTime = time.Now().UnixMilli()
 		log.Printf("Connection closed for app run ID: %s, marked as disconnected", p.AppRunId)
 	}
+
+	// Send disconnected event
+	p.sendDisconnectedEvent()
 }
 
 // GetRefCount safely returns the current reference count
@@ -307,4 +313,45 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	}
 
 	return appRunInfo
+}
+
+// sendDisconnectedEvent sends an apprun:disconnected telemetry event with stats
+// should be holding the lock
+func (p *AppRunPeer) sendDisconnectedEvent() {
+	if p.AppInfo == nil {
+		return
+	}
+
+	// Calculate connection time in seconds
+	var connTime int64
+	if p.AppInfo.StartTime > 0 {
+		connTime = time.Now().UnixMilli() - p.AppInfo.StartTime
+	}
+
+	// Collect stats
+	numTotalGoRoutines, _, _ := p.GoRoutines.GetGoRoutineCounts()
+	numTotalWatches := p.Watches.GetTotalWatchCount()
+	numLogs := p.Logs.GetTotalCount()
+
+	currentStats := tevent.AppRunStats{
+		LogLines:   numLogs,
+		GoRoutines: numTotalGoRoutines,
+		Watches:    numTotalWatches,
+		SDKVersion: p.AppInfo.OutrigSDKVersion,
+		ConnTimeMs: connTime,
+	}
+
+	// If we have previous stats, send only the delta
+	if p.lastSentStats != nil {
+		// Calculate the difference between current and last stats
+		deltaStats := currentStats.Sub(*p.lastSentStats)
+		tevent.SendAppRunDisconnectedEvent(deltaStats)
+	} else {
+		// First time sending stats, send the full stats
+		tevent.SendAppRunDisconnectedEvent(currentStats)
+	}
+
+	// Store the current stats for next time
+	statsCopy := currentStats
+	p.lastSentStats = &statsCopy
 }

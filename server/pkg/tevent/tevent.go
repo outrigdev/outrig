@@ -51,6 +51,28 @@ var releaseRegex = regexp.MustCompile(`^(\d+\.\d+\.\d+)`)
 var osReleaseOnce = &sync.Once{}
 var osRelease string
 
+// AppRunStats contains statistics about an app run session
+type AppRunStats struct {
+	LogLines    int    `json:"apprun:loglines,omitempty"`
+	GoRoutines  int    `json:"apprun:goroutines,omitempty"`
+	Watches     int    `json:"apprun:watches,omitempty"`
+	Collections int    `json:"apprun:collections,omitempty"`
+	SDKVersion  string `json:"apprun:sdkversion,omitempty"`
+	ConnTimeMs  int64  `json:"apprun:conntimems,omitempty"`
+}
+
+// Sub subtracts another AppRunStats from this one and returns the result
+func (s AppRunStats) Sub(other AppRunStats) AppRunStats {
+	return AppRunStats{
+		LogLines:    s.LogLines - other.LogLines,
+		GoRoutines:  s.GoRoutines - other.GoRoutines,
+		Watches:     s.Watches - other.Watches,
+		Collections: s.Collections - other.Collections,
+		SDKVersion:  s.SDKVersion,
+		ConnTimeMs:  s.ConnTimeMs - other.ConnTimeMs,
+	}
+}
+
 type TEvent struct {
 	Uuid    string      `json:"uuid,omitempty"`
 	Ts      int64       `json:"ts,omitempty"`
@@ -89,13 +111,23 @@ type TEventProps struct {
 	// counts for app run activity
 	AppRunLogLines    int    `json:"apprun:loglines,omitempty"`
 	AppRunGoRoutines  int    `json:"apprun:goroutines,omitempty"`
-	AppRunConnTime    int    `json:"apprun:conntime,omitempty"`
 	AppRunWatches     int    `json:"apprun:watches,omitempty"`
 	AppRunCollections int    `json:"apprun:collections,omitempty"`
 	AppRunSDKVersion  string `json:"apprun:sdkversion,omitempty"`
+	AppRunConnTimeMs  int64  `json:"apprun:conntimems,omitempty"`
 
 	UserSet     *TEventUserProps `json:"$set,omitempty"`
 	UserSetOnce *TEventUserProps `json:"$set_once,omitempty"`
+}
+
+// ApplyAppRunStats applies the fields from an AppRunStats struct to this TEventProps
+func (p *TEventProps) ApplyAppRunStats(stats AppRunStats) {
+	p.AppRunLogLines = stats.LogLines
+	p.AppRunGoRoutines = stats.GoRoutines
+	p.AppRunWatches = stats.Watches
+	p.AppRunCollections = stats.Collections
+	p.AppRunSDKVersion = stats.SDKVersion
+	p.AppRunConnTimeMs = stats.ConnTimeMs
 }
 
 func MakeTEvent(event string, props TEventProps) *TEvent {
@@ -214,7 +246,7 @@ func unameKernelRelease() string {
 	}
 	releaseStr := strings.TrimSpace(string(out))
 	m := releaseRegex.FindStringSubmatch(releaseStr)
-	if m == nil || len(m) < 2 {
+	if len(m) < 2 {
 		log.Printf("invalid uname -r output: [%s]\n", releaseStr)
 		return "-"
 	}
@@ -308,5 +340,16 @@ func SendAppRunConnectedEvent(sdkVersion string) {
 		AppRunSDKVersion: sdkVersion,
 	}
 	event := MakeTEvent("apprun:connected", props)
+	WriteTEvent(*event)
+}
+
+// SendAppRunDisconnectedEvent sends an "apprun:disconnected" telemetry event
+func SendAppRunDisconnectedEvent(stats AppRunStats) {
+	if Disabled.Load() {
+		return
+	}
+	props := TEventProps{}
+	props.ApplyAppRunStats(stats)
+	event := MakeTEvent("apprun:disconnected", props)
 	WriteTEvent(*event)
 }
