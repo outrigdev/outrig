@@ -20,6 +20,9 @@ const (
 
 	// Maximum number of events to buffer before forcing a flush
 	maxBufferSize = 300
+
+	// Hard maximum buffer size - events will be dropped if this is exceeded
+	hardMaxBufferSize = 1000
 )
 
 var (
@@ -69,20 +72,34 @@ func checkAndFlush() {
 	}
 }
 
-// GrabEvents takes the lock, gets the current events, clears the buffer, and returns the events
-func GrabEvents() []TEvent {
+// GrabEvents takes the lock, gets up to maxSize events from the buffer, and returns them
+// If maxSize <= 0, it returns all events
+func GrabEvents(maxSize int) []TEvent {
 	eventBufferLock.Lock()
 	defer eventBufferLock.Unlock()
+
 	if len(eventBuffer) == 0 {
 		return nil
 	}
-	events := eventBuffer
-	eventsInBuffer.Store(0)
-	eventBuffer = make([]TEvent, 0, maxBufferSize)
+
+	var events []TEvent
+	if maxSize <= 0 || maxSize >= len(eventBuffer) {
+		// Take all events
+		events = eventBuffer
+		eventsInBuffer.Store(0)
+		eventBuffer = make([]TEvent, 0, maxBufferSize)
+	} else {
+		// Take only maxSize events
+		events = eventBuffer[:maxSize]
+		eventBuffer = eventBuffer[maxSize:]
+		eventsInBuffer.Store(int64(len(eventBuffer)))
+	}
+
 	return events
 }
 
 // WriteTEvent adds a telemetry event to the in-memory buffer
+// If the buffer exceeds hardMaxBufferSize, the event will be dropped
 func WriteTEvent(event TEvent) {
 	if Disabled.Load() {
 		return
@@ -94,17 +111,18 @@ func WriteTEvent(event TEvent) {
 	// Ensure timestamps are set
 	event.EnsureTimestamps()
 
-	// Add to buffer with lock protection
+	// Lock the buffer and ensure it's unlocked when we're done
 	eventBufferLock.Lock()
-	eventBuffer = append(eventBuffer, event)
-	currentSize := len(eventBuffer)
-	eventBufferLock.Unlock()
+	defer eventBufferLock.Unlock()
 
-	// Increment counters
+	currentSize := len(eventBuffer)
+	if currentSize >= hardMaxBufferSize {
+		return
+	}
+	eventBuffer = append(eventBuffer, event)
+	currentSize++
 	eventsWritten.Add(1)
 	eventsInBuffer.Add(1)
-
-	// Check if we need to flush due to buffer size
 	if currentSize >= maxBufferSize {
 		UploadEventsAsync()
 	}

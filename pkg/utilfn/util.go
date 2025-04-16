@@ -382,3 +382,14 @@ func ConvertToWallClockPT(t time.Time) time.Time {
 	pstTime := time.Date(year, month, day, hour, min, sec, 0, PTLoc)
 	return pstTime
 }
+
+func ConvertMap(val any) map[string]any {
+	if val == nil {
+		return nil
+	}
+	m, ok := val.(map[string]any)
+	if !ok {
+		return nil
+	}
+	return m
+}

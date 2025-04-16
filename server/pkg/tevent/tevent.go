@@ -66,6 +66,8 @@ type TEventUserProps struct {
 	ClientOSRelease      string `json:"client:osrelease,omitempty"`
 	ClientIsDev          bool   `json:"client:isdev,omitempty"`
 	ClientLang           string `json:"client:lang,omitempty"`
+	LocCountryCode       string `json:"loc:countrycode,omitempty"`
+	LocRegionCode        string `json:"loc:regioncode,omitempty"`
 }
 
 type TEventProps struct {
