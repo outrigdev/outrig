@@ -334,11 +334,12 @@ func (p *AppRunPeer) sendDisconnectedEvent() {
 	numLogs := p.Logs.GetTotalCount()
 
 	currentStats := tevent.AppRunStats{
-		LogLines:   numLogs,
-		GoRoutines: numTotalGoRoutines,
-		Watches:    numTotalWatches,
-		SDKVersion: p.AppInfo.OutrigSDKVersion,
-		ConnTimeMs: connTime,
+		LogLines:    numLogs,
+		GoRoutines:  numTotalGoRoutines,
+		Watches:     numTotalWatches,
+		SDKVersion:  p.AppInfo.OutrigSDKVersion,
+		ConnTimeMs:  connTime,
+		AppRunCount: 1,
 	}
 
 	// If we have previous stats, send only the delta

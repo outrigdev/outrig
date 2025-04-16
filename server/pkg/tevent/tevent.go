@@ -59,6 +59,7 @@ type AppRunStats struct {
 	Collections int    `json:"apprun:collections,omitempty"`
 	SDKVersion  string `json:"apprun:sdkversion,omitempty"`
 	ConnTimeMs  int64  `json:"apprun:conntimems,omitempty"`
+	AppRunCount int    `json:"apprun:count,omitempty"`
 }
 
 // Sub subtracts another AppRunStats from this one and returns the result
@@ -70,6 +71,7 @@ func (s AppRunStats) Sub(other AppRunStats) AppRunStats {
 		Collections: s.Collections - other.Collections,
 		SDKVersion:  s.SDKVersion,
 		ConnTimeMs:  s.ConnTimeMs - other.ConnTimeMs,
+		AppRunCount: s.AppRunCount - other.AppRunCount,
 	}
 }
 
@@ -115,6 +117,7 @@ type TEventProps struct {
 	AppRunCollections int    `json:"apprun:collections,omitempty"`
 	AppRunSDKVersion  string `json:"apprun:sdkversion,omitempty"`
 	AppRunConnTimeMs  int64  `json:"apprun:conntimems,omitempty"`
+	AppRunCount       int    `json:"apprun:count,omitempty"`
 
 	UserSet     *TEventUserProps `json:"$set,omitempty"`
 	UserSetOnce *TEventUserProps `json:"$set_once,omitempty"`
@@ -128,6 +131,7 @@ func (p *TEventProps) ApplyAppRunStats(stats AppRunStats) {
 	p.AppRunCollections = stats.Collections
 	p.AppRunSDKVersion = stats.SDKVersion
 	p.AppRunConnTimeMs = stats.ConnTimeMs
+	p.AppRunCount = stats.AppRunCount
 }
 
 func MakeTEvent(event string, props TEventProps) *TEvent {
