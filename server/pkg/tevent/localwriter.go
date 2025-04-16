@@ -65,9 +65,13 @@ func initEventBuffer() {
 // checkAndFlush checks if it's time to flush events based on time elapsed or buffer size
 func checkAndFlush() {
 	now := time.Now().UnixMilli()
+	eventBufferLock.Lock()
+	defer eventBufferLock.Unlock()
+
+	numEvents := len(eventBuffer)
 
 	// Check if an hour has passed since the last flush
-	if now-atomic.LoadInt64(&lastFlushTime) >= flushInterval.Milliseconds() {
+	if now-atomic.LoadInt64(&lastFlushTime) >= flushInterval.Milliseconds() || numEvents >= maxBufferSize {
 		UploadEventsAsync()
 	}
 }
@@ -123,7 +127,4 @@ func WriteTEvent(event TEvent) {
 	currentSize++
 	eventsWritten.Add(1)
 	eventsInBuffer.Add(1)
-	if currentSize >= maxBufferSize {
-		UploadEventsAsync()
-	}
 }

@@ -75,6 +75,19 @@ func (s AppRunStats) Sub(other AppRunStats) AppRunStats {
 	}
 }
 
+// Add adds another AppRunStats to this one and returns the result
+func (s AppRunStats) Add(other AppRunStats) AppRunStats {
+	return AppRunStats{
+		LogLines:    s.LogLines + other.LogLines,
+		GoRoutines:  s.GoRoutines + other.GoRoutines,
+		Watches:     s.Watches + other.Watches,
+		Collections: s.Collections + other.Collections,
+		SDKVersion:  s.SDKVersion,
+		ConnTimeMs:  s.ConnTimeMs + other.ConnTimeMs,
+		AppRunCount: s.AppRunCount + other.AppRunCount,
+	}
+}
+
 type TEvent struct {
 	Uuid    string      `json:"uuid,omitempty"`
 	Ts      int64       `json:"ts,omitempty"`
@@ -355,5 +368,18 @@ func SendAppRunDisconnectedEvent(stats AppRunStats) {
 	props := TEventProps{}
 	props.ApplyAppRunStats(stats)
 	event := MakeTEvent("apprun:disconnected", props)
+	WriteTEvent(*event)
+}
+
+// SendServerActivityEvent sends a "server:activity" telemetry event with stats
+// aggregated across all app runs
+func SendServerActivityEvent(stats AppRunStats, numActiveAppRuns int) {
+	if Disabled.Load() {
+		return
+	}
+	props := TEventProps{}
+	props.ApplyAppRunStats(stats)
+	props.ServerNumAppRuns = numActiveAppRuns
+	event := MakeTEvent("server:activity", props)
 	WriteTEvent(*event)
 }

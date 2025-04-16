@@ -27,6 +27,12 @@ const (
 	PruneInterval  = 15 * time.Second
 )
 
+// For tracking app run stats deltas
+var (
+	lastAppRunStatsMap = make(map[string]tevent.AppRunStats)
+	lastAppRunStatsMu  sync.Mutex
+)
+
 const (
 	AppStatusRunning      = "running"
 	AppStatusDone         = "done"
@@ -46,7 +52,7 @@ type AppRunPeer struct {
 	GoRoutines   *GoRoutinePeer
 	Watches      *WatchesPeer
 	RuntimeStats *RuntimeStatsPeer
-	
+
 	lastSentStats *tevent.AppRunStats // Last stats sent in disconnected event
 }
 
@@ -92,14 +98,14 @@ func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 		}
 
 		return &AppRunPeer{
-			AppRunId:     appRunId,
-			Logs:         MakeLogLinePeer(),
-			GoRoutines:   MakeGoRoutinePeer(),
-			Watches:      MakeWatchesPeer(),
-			RuntimeStats: MakeRuntimeStatsPeer(),
-			Status:       AppStatusRunning,
-			LastModTime:  time.Now().UnixMilli(),
-			refCount:     0,
+			AppRunId:      appRunId,
+			Logs:          MakeLogLinePeer(),
+			GoRoutines:    MakeGoRoutinePeer(),
+			Watches:       MakeWatchesPeer(),
+			RuntimeStats:  MakeRuntimeStatsPeer(),
+			Status:        AppStatusRunning,
+			LastModTime:   time.Now().UnixMilli(),
+			refCount:      0,
 			lastSentStats: nil,
 		}
 	})
@@ -315,14 +321,13 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	return appRunInfo
 }
 
-// sendDisconnectedEvent sends an apprun:disconnected telemetry event with stats
-// should be holding the lock
-func (p *AppRunPeer) sendDisconnectedEvent() {
+// GetPeerStats returns the stats and status for this peer
+func (p *AppRunPeer) GetPeerStats() (tevent.AppRunStats, string) {
 	if p.AppInfo == nil {
-		return
+		return tevent.AppRunStats{}, ""
 	}
 
-	// Calculate connection time in seconds
+	// Calculate connection time in milliseconds
 	var connTime int64
 	if p.AppInfo.StartTime > 0 {
 		connTime = time.Now().UnixMilli() - p.AppInfo.StartTime
@@ -333,7 +338,8 @@ func (p *AppRunPeer) sendDisconnectedEvent() {
 	numTotalWatches := p.Watches.GetTotalWatchCount()
 	numLogs := p.Logs.GetTotalCount()
 	numCollections := p.RuntimeStats.GetTotalCollectionCount()
-	currentStats := tevent.AppRunStats{
+
+	stats := tevent.AppRunStats{
 		LogLines:    numLogs,
 		GoRoutines:  numTotalGoRoutines,
 		Watches:     numTotalWatches,
@@ -342,6 +348,18 @@ func (p *AppRunPeer) sendDisconnectedEvent() {
 		ConnTimeMs:  connTime,
 		AppRunCount: 1,
 	}
+
+	return stats, p.Status
+}
+
+// sendDisconnectedEvent sends an apprun:disconnected telemetry event with stats
+// should be holding the lock
+func (p *AppRunPeer) sendDisconnectedEvent() {
+	if p.AppInfo == nil {
+		return
+	}
+
+	currentStats, _ := p.GetPeerStats()
 
 	// If we have previous stats, send only the delta
 	if p.lastSentStats != nil {
@@ -356,4 +374,44 @@ func (p *AppRunPeer) sendDisconnectedEvent() {
 	// Store the current stats for next time
 	statsCopy := currentStats
 	p.lastSentStats = &statsCopy
+}
+
+// GetAppRunStatsDelta returns the delta of cumulative stats from all app runs
+// since the last time this function was called, and the count of active app runs.
+func GetAppRunStatsDelta() (tevent.AppRunStats, int) {
+	allPeers := GetAllAppRunPeers()
+	activeAppRuns := 0
+
+	lastAppRunStatsMu.Lock()
+	defer lastAppRunStatsMu.Unlock()
+
+	var deltaStats tevent.AppRunStats
+	deltaStats.AppRunCount = len(allPeers)
+	newStatsMap := make(map[string]tevent.AppRunStats)
+
+	for _, peer := range allPeers {
+		if peer.AppInfo == nil {
+			continue
+		}
+
+		peerStats, peerStatus := peer.GetPeerStats()
+		if peerStatus == AppStatusRunning {
+			activeAppRuns++
+		}
+		newStatsMap[peer.AppRunId] = peerStats
+
+		if lastPeerStats, exists := lastAppRunStatsMap[peer.AppRunId]; exists {
+			peerDelta := peerStats.Sub(lastPeerStats)
+			deltaStats = deltaStats.Add(peerDelta)
+		} else {
+			deltaStats = deltaStats.Add(peerStats)
+		}
+	}
+
+	lastAppRunStatsMap = newStatsMap
+
+	// Clear SDK version as it's not relevant in aggregated form
+	deltaStats.SDKVersion = ""
+	
+	return deltaStats, activeAppRuns
 }

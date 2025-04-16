@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig"
+	"github.com/outrigdev/outrig/server/pkg/apppeer"
 	"github.com/outrigdev/outrig/server/pkg/browsertabs"
 	"github.com/outrigdev/outrig/server/pkg/rpc"
 	"github.com/outrigdev/outrig/server/pkg/rpcserver"
@@ -177,6 +178,8 @@ func gracefulShutdown(cancel context.CancelFunc, wg *sync.WaitGroup) {
 	go func() {
 		defer wg.Done()
 
+		statDelta, activeAppRuns := apppeer.GetAppRunStatsDelta()
+		tevent.SendServerActivityEvent(statDelta, activeAppRuns)
 		err := tevent.UploadEvents()
 		if err != nil {
 			log.Printf("Failed to upload telemetry during shutdown: %v", err)
