@@ -329,7 +329,7 @@ func (p *AppRunPeer) sendDisconnectedEvent() {
 	}
 
 	// Collect stats
-	numTotalGoRoutines, _, _ := p.GoRoutines.GetGoRoutineCounts()
+	numTotalGoRoutines := int(p.GoRoutines.GetMaxGoId())
 	numTotalWatches := p.Watches.GetTotalWatchCount()
 	numLogs := p.Logs.GetTotalCount()
 

@@ -133,8 +133,8 @@ func (gp *GoRoutinePeer) getActiveGoRoutinesCopy() map[int64]bool {
 	return gp.activeGoRoutines
 }
 
-// getMaxGoId returns the maximum goroutine ID seen with proper locking
-func (gp *GoRoutinePeer) getMaxGoId() int64 {
+// GetMaxGoId returns the maximum goroutine ID seen with proper locking
+func (gp *GoRoutinePeer) GetMaxGoId() int64 {
 	gp.lock.RLock()
 	defer gp.lock.RUnlock()
 	return gp.maxGoId
@@ -144,7 +144,7 @@ func (gp *GoRoutinePeer) getMaxGoId() int64 {
 func (gp *GoRoutinePeer) GetGoRoutineCounts() (int, int, int) {
 	activeGoRoutinesCopy := gp.getActiveGoRoutinesCopy()
 
-	total := int(gp.getMaxGoId()) // Goroutine IDs start at 1
+	total := int(gp.GetMaxGoId()) // Goroutine IDs start at 1
 	active := len(activeGoRoutinesCopy)
 
 	// Count active Outrig goroutines by checking for the "outrig" tag
