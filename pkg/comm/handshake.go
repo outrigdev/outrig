@@ -18,12 +18,6 @@ import (
 	"github.com/outrigdev/outrig/pkg/base"
 )
 
-// Constants for handshake protocol
-const (
-	OkResponse  = "OK"
-	ErrorPrefix = "ERROR"
-)
-
 // Connection mode constants
 const (
 	ConnectionModePacket = "packet"
@@ -123,11 +117,11 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	}
 
 	minVersion, _ := semver.NewVersion(MinServerVersion)
-	
+
 	// Strip prerelease info before comparing versions
 	cleanServerVersion := stripPrereleaseInfo(serverVersion)
 	cleanMinVersion := stripPrereleaseInfo(minVersion)
-	
+
 	if cleanServerVersion.LessThan(cleanMinVersion) {
 		return fmt.Errorf("server version %s is less than minimum required version %s",
 			serverPacket.OutrigVersion, MinServerVersion)
@@ -163,11 +157,7 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	// Parse the response
 	var response ServerHandshakeResponse
 	if err := json.Unmarshal([]byte(respLine), &response); err != nil {
-		// Try to handle legacy format (just "OK" or "ERROR: message")
-		if respLine == OkResponse {
-			return nil
-		}
-		return fmt.Errorf("received error response from server: %s", respLine)
+		return fmt.Errorf("invalid server handshake response format: %v", err)
 	}
 
 	if !response.Success {
@@ -178,10 +168,10 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 }
 
 // Helper function to send error response
-func sendErrorResponse(cw *ConnWrap, errMsg string) error {
+func sendErrorResponse(cw *ConnWrap, err error) error {
 	response := ServerHandshakeResponse{
 		Success: false,
-		Error:   errMsg,
+		Error:   err.Error(),
 	}
 	jsonData, err := json.Marshal(response)
 	if err != nil {
@@ -205,7 +195,7 @@ func sendSuccessResponse(cw *ConnWrap) error {
 // ServerHandshake performs the server side of the handshake protocol.
 // It sends a ServerHandshakePacket, reads a ClientHandshakePacket,
 // validates it, and sends a response.
-func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
+func (cw *ConnWrap) ServerHandshake() (*ClientHandshakePacket, error) {
 	// Create and send the server handshake packet
 	serverPacket := ServerHandshakePacket{
 		OutrigVersion: base.OutrigSDKVersion,
@@ -213,22 +203,22 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 
 	jsonData, err := json.Marshal(serverPacket)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to marshal server handshake packet: %v", err)
+		return nil, fmt.Errorf("failed to marshal server handshake packet: %v", err)
 	}
 
 	if err := cw.WriteLine(string(jsonData)); err != nil {
-		return "", "", "", fmt.Errorf("failed to send server handshake packet: %v", err)
+		return nil, fmt.Errorf("failed to send server handshake packet: %v", err)
 	}
 
 	// Read the client handshake packet
 	packetLine, err := cw.ReadLine()
 	if errors.Is(err, io.EOF) {
-		return "", "", "", io.EOF
+		return nil, io.EOF
 	}
 	if err != nil {
-		errMsg := fmt.Sprintf("%s failed to read client handshake packet: %v", ErrorPrefix, err)
-		sendErrorResponse(cw, errMsg)
-		return "", "", "", fmt.Errorf("failed to read client handshake packet: %v", err)
+		readErr := fmt.Errorf("failed to read client handshake packet: %v", err)
+		sendErrorResponse(cw, readErr)
+		return nil, readErr
 	}
 
 	packetLine = strings.TrimSpace(packetLine)
@@ -236,68 +226,67 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 	// Parse the JSON packet
 	var packet ClientHandshakePacket
 	if err := json.Unmarshal([]byte(packetLine), &packet); err != nil {
-		errMsg := fmt.Sprintf("%s invalid client handshake packet format: %v", ErrorPrefix, err)
-		sendErrorResponse(cw, errMsg)
-		return "", "", "", fmt.Errorf("invalid client handshake packet format: %v", err)
+		formatErr := fmt.Errorf("invalid client handshake packet format: %v", err)
+		sendErrorResponse(cw, formatErr)
+		return nil, formatErr
 	}
 
 	// Validate the outrigsdk field is present
 	if packet.OutrigSDK == "" {
-		errMsg := fmt.Sprintf("%s missing outrigsdk field", ErrorPrefix)
-		sendErrorResponse(cw, errMsg)
-		return "", "", "", fmt.Errorf("missing outrigsdk field")
+		missingFieldErr := fmt.Errorf("missing outrigsdk field")
+		sendErrorResponse(cw, missingFieldErr)
+		return nil, missingFieldErr
 	}
 
 	// Validate the client SDK version using semver
 	clientVersion, err := semver.NewVersion(packet.OutrigSDK)
 	if err != nil {
-		errMsg := fmt.Sprintf("%s invalid client SDK version format: %s", ErrorPrefix, packet.OutrigSDK)
-		sendErrorResponse(cw, errMsg)
-		return "", "", "", fmt.Errorf("invalid client SDK version format: %s", packet.OutrigSDK)
+		versionFormatErr := fmt.Errorf("invalid client SDK version format: %s", packet.OutrigSDK)
+		sendErrorResponse(cw, versionFormatErr)
+		return nil, versionFormatErr
 	}
 
 	minVersion, _ := semver.NewVersion(MinClientVersion)
-	
+
 	// Strip prerelease info before comparing versions
 	cleanClientVersion := stripPrereleaseInfo(clientVersion)
 	cleanMinVersion := stripPrereleaseInfo(minVersion)
-	
+
 	if cleanClientVersion.LessThan(cleanMinVersion) {
-		errMsg := fmt.Sprintf("%s client SDK version %s is less than minimum required version %s",
-			ErrorPrefix, packet.OutrigSDK, MinClientVersion)
-		sendErrorResponse(cw, errMsg)
-		return "", "", "", fmt.Errorf("client SDK version %s is less than minimum required version %s",
+		versionErr := fmt.Errorf("client SDK version %s is less than minimum required version %s",
 			packet.OutrigSDK, MinClientVersion)
+		sendErrorResponse(cw, versionErr)
+		return nil, versionErr
 	}
 
 	// Validate the mode
 	if packet.Mode != ConnectionModePacket && packet.Mode != ConnectionModeLog {
-		errMsg := fmt.Sprintf("%s unknown connection mode: %s", ErrorPrefix, packet.Mode)
-		sendErrorResponse(cw, errMsg)
-		return "", "", "", fmt.Errorf("unknown connection mode: %s", packet.Mode)
+		modeErr := fmt.Errorf("unknown connection mode: %s", packet.Mode)
+		sendErrorResponse(cw, modeErr)
+		return nil, modeErr
 	}
 
 	// Validate submode format if present
 	if packet.Submode != "" && !logSourceRegexp.MatchString(packet.Submode) {
-		errMsg := fmt.Sprintf("%s invalid submode format: %s", ErrorPrefix, packet.Submode)
-		sendErrorResponse(cw, errMsg)
-		return "", "", "", fmt.Errorf("invalid submode format: %s", packet.Submode)
+		submodeErr := fmt.Errorf("invalid submode format: %s", packet.Submode)
+		sendErrorResponse(cw, submodeErr)
+		return nil, submodeErr
 	}
 
 	// Validate the appRunId as a UUID if provided
 	if packet.AppRunID != "" {
 		_, err := uuid.Parse(packet.AppRunID)
 		if err != nil {
-			errMsg := fmt.Sprintf("%s invalid app run ID (not a valid UUID): %s", ErrorPrefix, packet.AppRunID)
-			sendErrorResponse(cw, errMsg)
-			return "", "", "", fmt.Errorf("invalid app run ID: %s", packet.AppRunID)
+			uuidErr := fmt.Errorf("invalid app run ID (not a valid UUID): %s", packet.AppRunID)
+			sendErrorResponse(cw, uuidErr)
+			return nil, uuidErr
 		}
 	}
 
 	// Send success response
 	if err := sendSuccessResponse(cw); err != nil {
-		return "", "", "", fmt.Errorf("failed to send success response: %v", err)
+		return nil, fmt.Errorf("failed to send success response: %v", err)
 	}
 
-	return packet.Mode, packet.Submode, packet.AppRunID, nil
+	return &packet, nil
 }

@@ -87,8 +87,13 @@ func (c *ControllerImpl) InitialStart() {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 
+	// Check if Outrig is disabled via environment variable
+	if os.Getenv(ds.DisabledEnvName) != "" {
+		c.OutrigForceDisabled = true
+	}
+
 	var connected bool
-	if c.config.ConnectOnInit {
+	if c.config.ConnectOnInit && !c.OutrigForceDisabled {
 		connected, _ = c.connectInternal()
 	}
 	if connected {
@@ -174,8 +179,15 @@ func (c *ControllerImpl) connectInternal() (bool, error) {
 	if c.OutrigForceDisabled {
 		return false, nil
 	}
+
+	// Check for domain socket override from environment variable
+	domainSocketPath := c.config.DomainSocketPath
+	if envPath := os.Getenv(ds.DomainSocketEnvName); envPath != "" {
+		domainSocketPath = envPath
+	}
+
 	// Use the new Connect function to establish a connection
-	connWrap, permErr, transErr := comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, c.config.DomainSocketPath, "")
+	connWrap, permErr, transErr := comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, domainSocketPath, "")
 	if transErr != nil {
 		// Connection failed
 		return false, transErr
@@ -234,6 +246,13 @@ func (c *ControllerImpl) disconnectInternal() {
 func (c *ControllerImpl) Enable() {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
+
+	// Check if Outrig is disabled via environment variable
+	if os.Getenv(ds.DisabledEnvName) != "" {
+		// Don't allow enabling if the environment variable is set
+		return
+	}
+
 	c.OutrigForceDisabled = false
 	isConnected := c.isConnected()
 	if !isConnected {

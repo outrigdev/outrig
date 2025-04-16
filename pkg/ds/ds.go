@@ -19,6 +19,12 @@ const (
 	PacketTypeRuntimeStats = "runtimestats"
 )
 
+// Environment variables
+const (
+	DomainSocketEnvName = "OUTRIG_DOMAINSOCKET"
+	DisabledEnvName     = "OUTRIG_DISABLED"
+)
+
 const (
 	// Preserve lower 5 bits for reflect.Kind (0-31)
 	KindMask = 0x1F // 00000000_00011111

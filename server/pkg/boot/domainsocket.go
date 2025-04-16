@@ -116,7 +116,7 @@ func handleDomainSocketConn(conn net.Conn) {
 	connWrap := comm.MakeConnWrap(conn, "domain-socket-client")
 
 	// Perform the handshake
-	mode, submode, appRunId, err := connWrap.ServerHandshake()
+	packet, err := connWrap.ServerHandshake()
 	if errors.Is(err, io.EOF) {
 		// not a valid connection attempt, just ignore it
 		return
@@ -125,6 +125,11 @@ func handleDomainSocketConn(conn net.Conn) {
 		log.Printf("Handshake failed: %v\n", err)
 		return
 	}
+
+	// Extract values from the packet
+	mode := packet.Mode
+	submode := packet.Submode
+	appRunId := packet.AppRunID
 
 	log.Printf("Connection mode: %s, submode: %s, app run ID: %s\n", mode, submode, appRunId)
 

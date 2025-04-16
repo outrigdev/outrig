@@ -13,6 +13,12 @@ import (
 	"github.com/outrigdev/outrig/pkg/ds"
 )
 
+// Environment variables
+const (
+	DomainSocketEnvName = ds.DomainSocketEnvName
+	DisabledEnvName     = ds.DisabledEnvName
+)
+
 // Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:
 type Config = ds.Config
 
