@@ -60,7 +60,7 @@ func RunServer(config CLIConfig) error {
 	}()
 
 	if serverbase.IsDev() {
-		log.Printf("Starting Outrig server (dev mode)\n")
+		log.Printf("Starting Outrig server %s (dev mode)\n", serverbase.OutrigServerVersion)
 	} else {
 		log.Printf("Starting Outrig server %s (%s)...\n", serverbase.OutrigServerVersion, serverbase.OutrigCommit)
 	}

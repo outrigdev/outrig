@@ -17,11 +17,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var OutrigVersion = "v0.0.0"
-
-var OutrigBuildTime = ""
-
-var OutrigCommit = ""
+var (
+	// these get set via -X during build
+	OutrigVersion   = ""
+	OutrigBuildTime = ""
+	OutrigCommit    = ""
+)
 
 func runCaptureLogs(cmd *cobra.Command, args []string) error {
 	stderrIn := os.NewFile(3, "stderr-in")
