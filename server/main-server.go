@@ -54,7 +54,9 @@ func processDevFlag(args []string) ([]string, bool) {
 
 func main() {
 	// Set serverbase version from main version (which gets overridden by build tags)
-	serverbase.OutrigServerVersion = OutrigVersion
+	if OutrigVersion != "" {
+		serverbase.OutrigServerVersion = OutrigVersion
+	}
 	serverbase.OutrigBuildTime = OutrigBuildTime
 	serverbase.OutrigCommit = OutrigCommit
 

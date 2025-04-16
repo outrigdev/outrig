@@ -25,14 +25,16 @@ import (
 var Disabled atomic.Bool
 
 var ValidEventNames = map[string]bool{
-	"server:install":            true,
-	"server:startup":            true,
-	"server:shutdown":           true,
-	"server:activity":           true,
-	"server:panic":              true,
-	"apprun:connected":          true,
-	"apprun:disconnected":       true,
-	"apprun:activity":           true,
+	"server:install":  true,
+	"server:startup":  true,
+	"server:shutdown": true,
+	"server:activity": true,
+	"server:panic":    true,
+
+	"apprun:connected":    true,
+	"apprun:disconnected": true,
+	"apprun:activity":     true,
+
 	"frontend:tab":              true,
 	"frontend:selectapprun":     true,
 	"frontend:click":            true,
@@ -58,14 +60,14 @@ type TEvent struct {
 }
 
 type TEventUserProps struct {
-	ClientArch           string `json:"client:arch,omitempty"`
-	ClientVersion        string `json:"client:version,omitempty"`
-	ClientInitialVersion string `json:"client:initial_version,omitempty"`
-	ClientBuildTime      string `json:"client:buildtime,omitempty"`
-	ClientCommit         string `json:"client:commit,omitempty"`
-	ClientOSRelease      string `json:"client:osrelease,omitempty"`
-	ClientIsDev          bool   `json:"client:isdev,omitempty"`
-	ClientLang           string `json:"client:lang,omitempty"`
+	ServerArch           string `json:"server:arch,omitempty"`
+	ServerVersion        string `json:"server:version,omitempty"`
+	ServerInitialVersion string `json:"server:initial_version,omitempty"`
+	ServerBuildTime      string `json:"server:buildtime,omitempty"`
+	ServerBuildCommit    string `json:"server:buildcommit,omitempty"`
+	ServerOSRelease      string `json:"server:osrelease,omitempty"`
+	ServerIsDev          bool   `json:"server:isdev,omitempty"`
+	ServerLang           string `json:"server:lang,omitempty"`
 	LocCountryCode       string `json:"loc:countrycode,omitempty"`
 	LocRegionCode        string `json:"loc:regioncode,omitempty"`
 }
@@ -255,13 +257,13 @@ func OsLang() string {
 // createCommonUserProps creates a TEventUserProps with common properties set
 func createCommonUserProps() *TEventUserProps {
 	return &TEventUserProps{
-		ClientArch:      ClientArch(),
-		ClientVersion:   serverbase.OutrigServerVersion,
-		ClientBuildTime: serverbase.OutrigBuildTime,
-		ClientCommit:    serverbase.OutrigCommit,
-		ClientOSRelease: UnameKernelRelease(),
-		ClientIsDev:     serverbase.IsDev(),
-		ClientLang:      OsLang(),
+		ServerArch:        ClientArch(),
+		ServerVersion:     serverbase.OutrigServerVersion,
+		ServerBuildTime:   serverbase.OutrigBuildTime,
+		ServerBuildCommit: serverbase.OutrigCommit,
+		ServerOSRelease:   UnameKernelRelease(),
+		ServerIsDev:       serverbase.IsDev(),
+		ServerLang:        OsLang(),
 	}
 }
 
@@ -273,7 +275,7 @@ func SendInstallEvent() {
 	props := TEventProps{}
 	props.UserSet = createCommonUserProps()
 	event := MakeTEvent("server:install", props)
-	event.UserSetOnceProps().ClientInitialVersion = serverbase.OutrigServerVersion
+	event.UserSetOnceProps().ServerInitialVersion = serverbase.OutrigServerVersion
 	WriteTEvent(*event)
 }
 

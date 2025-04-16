@@ -30,8 +30,8 @@ const (
 	ConnectionModeLog    = "log"
 )
 
-const MinClientVersion = "v0.1.10-alpha"
-const MinServerVersion = "v0.1.10-alpha"
+const MinClientVersion = "v0.2.0-alpha"
+const MinServerVersion = "v0.2.0-alpha"
 
 type ServerHandshakePacket struct {
 	OutrigVersion string `json:"outrigversion"`
