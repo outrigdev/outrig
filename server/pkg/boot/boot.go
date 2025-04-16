@@ -107,7 +107,6 @@ func RunServer(config CLIConfig) error {
 
 	// Initialize browser tabs tracking
 	browsertabs.Initialize()
-	log.Printf("Browser tabs tracking initialized\n")
 
 	// Run domain socket server
 	err = runDomainSocketServer(ctx)

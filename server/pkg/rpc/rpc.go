@@ -365,7 +365,7 @@ outer:
 		var msg RpcMessage
 		err := json.Unmarshal(msgBytes, &msg)
 		if err != nil {
-			log.Printf("rpcclient received bad message: %v\n", err)
+			log.Printf("[%s] rpcclient received bad message: %v\n", w.DebugName, err)
 			continue
 		}
 		if msg.Cancel {
@@ -775,7 +775,7 @@ func (w *RpcClient) sendRespWithBlockMessage(msg RpcMessage) {
 	// log the fact that we're blocking
 	_, noLog := blockingExpMap.Get(msg.ResId)
 	if !noLog {
-		log.Printf("[rpc:%s] blocking on response command:%s route:%s resid:%s\n", w.DebugName, rd.Command, rd.Route, msg.ResId)
+		log.Printf("[%s] blocking on response command:%s route:%s resid:%s\n", w.DebugName, rd.Command, rd.Route, msg.ResId)
 		blockingExpMap.Set(msg.ResId, true, time.Now().Add(time.Second))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -786,6 +786,6 @@ func (w *RpcClient) sendRespWithBlockMessage(msg RpcMessage) {
 		return
 	case <-ctx.Done():
 	}
-	log.Printf("[rpc:%s] failed to clear response channel (waited 1s), will fail RPC command:%s route:%s resid:%s\n", w.DebugName, rd.Command, rd.Route, msg.ResId)
+	log.Printf("[%s] failed to clear response channel (waited 1s), will fail RPC command:%s route:%s resid:%s\n", w.DebugName, rd.Command, rd.Route, msg.ResId)
 	w.unregisterRpc(msg.ResId, nil) // we don't pass an error because the channel is full, it won't work anyway...
 }

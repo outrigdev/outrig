@@ -4,8 +4,8 @@
 package base
 
 // Home directory paths
-const OutrigHome = "~/.outrig"
-const DevOutrigHome = "~/.outrig-dev"
+const OutrigHome = "~/.config/outrig"
+const DevOutrigHome = "~/.config/outrig-dev"
 
 // Domain socket name (just the filename part)
 const DefaultDomainSocketName = "/outrig.sock"

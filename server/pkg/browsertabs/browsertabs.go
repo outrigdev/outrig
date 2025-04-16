@@ -5,7 +5,6 @@ package browsertabs
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/outrigdev/outrig"
@@ -54,14 +53,11 @@ func Initialize() {
 	browserTabsRpcClient.EventListener.On(rpctypes.Event_RouteDown, func(event *rpctypes.EventType) {
 		if len(event.Scopes) > 0 {
 			routeId := event.Scopes[0]
-			log.Printf("[browsertabs] Route down event for %s", routeId)
 			RemoveBrowserTab(routeId)
 		}
 	})
 
 	outrig.WatchSync("browsertabs", &browserTabsMutex, &browserTabs)
-
-	log.Printf("[browsertabs] Subscribed to route down events")
 }
 
 // UpdateBrowserTab updates or adds a browser tab in the tracking map
@@ -122,7 +118,6 @@ func RemoveBrowserTab(routeId string) {
 // HandleRouteDown handles route down events to clean up browser tabs
 func HandleRouteDown(routeId string) {
 	if routeId != "" {
-		log.Printf("[browsertabs] Removing browser tab for route %s", routeId)
 		RemoveBrowserTab(routeId)
 	}
 }
