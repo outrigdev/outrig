@@ -30,8 +30,8 @@ const (
 	ConnectionModeLog    = "log"
 )
 
-const MinClientVersion = "v0.2.0-alpha"
-const MinServerVersion = "v0.2.0-alpha"
+const MinClientVersion = "v0.2.0"
+const MinServerVersion = "v0.2.0"
 
 type ServerHandshakePacket struct {
 	OutrigVersion string `json:"outrigversion"`
@@ -52,6 +52,16 @@ type ServerHandshakeResponse struct {
 
 // Regexp for validating log source paths
 var logSourceRegexp = regexp.MustCompile(`^[a-zA-Z0-9.+_/:-]+$`)
+
+// stripPrereleaseInfo returns a new version without prerelease information
+func stripPrereleaseInfo(v *semver.Version) *semver.Version {
+	if v == nil {
+		return nil
+	}
+	// Create a new version with just the major, minor, and patch components
+	cleanVersion, _ := semver.NewVersion(fmt.Sprintf("%d.%d.%d", v.Major(), v.Minor(), v.Patch()))
+	return cleanVersion
+}
 
 // ConnWrap wraps a net.Conn and a bufio.Reader for convenient line-based communication.
 type ConnWrap struct {
@@ -113,7 +123,12 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	}
 
 	minVersion, _ := semver.NewVersion(MinServerVersion)
-	if serverVersion.LessThan(minVersion) {
+	
+	// Strip prerelease info before comparing versions
+	cleanServerVersion := stripPrereleaseInfo(serverVersion)
+	cleanMinVersion := stripPrereleaseInfo(minVersion)
+	
+	if cleanServerVersion.LessThan(cleanMinVersion) {
 		return fmt.Errorf("server version %s is less than minimum required version %s",
 			serverPacket.OutrigVersion, MinServerVersion)
 	}
@@ -242,7 +257,12 @@ func (cw *ConnWrap) ServerHandshake() (string, string, string, error) {
 	}
 
 	minVersion, _ := semver.NewVersion(MinClientVersion)
-	if clientVersion.LessThan(minVersion) {
+	
+	// Strip prerelease info before comparing versions
+	cleanClientVersion := stripPrereleaseInfo(clientVersion)
+	cleanMinVersion := stripPrereleaseInfo(minVersion)
+	
+	if cleanClientVersion.LessThan(cleanMinVersion) {
 		errMsg := fmt.Sprintf("%s client SDK version %s is less than minimum required version %s",
 			ErrorPrefix, packet.OutrigSDK, MinClientVersion)
 		sendErrorResponse(cw, errMsg)
