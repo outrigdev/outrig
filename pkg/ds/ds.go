@@ -226,6 +226,10 @@ func (w *WatchSample) SetKind(kind uint) {
 	w.Flags |= int(kind) & KindMask
 }
 
+func (w *WatchSample) IsPush() bool {
+	return (w.Flags & WatchFlag_Push) != 0
+}
+
 // IsNumeric checks if the value is numeric based on its Kind
 func (w *WatchSample) IsNumeric() bool {
 	kind := reflect.Kind(w.GetKind())

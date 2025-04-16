@@ -71,8 +71,8 @@ func DefaultConfig() *ds.Config {
 	return config.DefaultConfig()
 }
 
-// Init initializes Outrig
-func Init(cfgParam *ds.Config) error {
+// Init initializes Outrig, returns (enabled, error)
+func Init(cfgParam *ds.Config) (bool, error) {
 	if cfgParam == nil {
 		cfgParam = DefaultConfig()
 	}
@@ -85,16 +85,16 @@ func Init(cfgParam *ds.Config) error {
 	// (collectors are now initialized inside MakeController)
 	ctrlImpl, err := controller.MakeController(finalCfg)
 	if err != nil {
-		return err
+		return Enabled(), err
 	}
 	// Store the controller in global.Controller
 	var cif ds.Controller = ctrlImpl
 	ok := global.Controller.CompareAndSwap(nil, &cif)
 	if !ok {
-		return fmt.Errorf("controller already initialized")
+		return Enabled(), fmt.Errorf("controller already initialized")
 	}
 	ctrlImpl.InitialStart()
-	return nil
+	return Enabled(), nil
 }
 
 func getController() *controller.ControllerImpl {
