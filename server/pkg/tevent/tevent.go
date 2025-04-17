@@ -17,10 +17,25 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
+
+// extractMajorMinorVersion extracts just the major.minor version (e.g., "v0.2") from a full version string
+// It handles formats like "v0.2.0-alpha", "v0.2.0", etc.
+func extractMajorMinorVersion(fullVersion string) string {
+	// Parse the version using semver
+	v, err := semver.NewVersion(fullVersion)
+	if err != nil {
+		// If parsing fails, return empty string
+		return ""
+	}
+
+	// Always format as vMajor.Minor with the v prefix
+	return fmt.Sprintf("v%d.%d", v.Major(), v.Minor())
+}
 
 var Disabled atomic.Bool
 
@@ -99,6 +114,7 @@ type TEvent struct {
 type TEventUserProps struct {
 	ServerArch           string `json:"server:arch,omitempty"`
 	ServerVersion        string `json:"server:version,omitempty"`
+	ServerFullVersion    string `json:"server:fullversion,omitempty"`
 	ServerInitialVersion string `json:"server:initial_version,omitempty"`
 	ServerBuildTime      string `json:"server:buildtime,omitempty"`
 	ServerBuildCommit    string `json:"server:buildcommit,omitempty"`
@@ -124,13 +140,14 @@ type TEventProps struct {
 	ServerNumApps    int `json:"server:numapps,omitempty"`
 
 	// counts for app run activity
-	AppRunLogLines    int    `json:"apprun:loglines,omitempty"`
-	AppRunGoRoutines  int    `json:"apprun:goroutines,omitempty"`
-	AppRunWatches     int    `json:"apprun:watches,omitempty"`
-	AppRunCollections int    `json:"apprun:collections,omitempty"`
-	AppRunSDKVersion  string `json:"apprun:sdkversion,omitempty"`
-	AppRunConnTimeMs  int64  `json:"apprun:conntimems,omitempty"`
-	AppRunCount       int    `json:"apprun:count,omitempty"`
+	AppRunLogLines       int    `json:"apprun:loglines,omitempty"`
+	AppRunGoRoutines     int    `json:"apprun:goroutines,omitempty"`
+	AppRunWatches        int    `json:"apprun:watches,omitempty"`
+	AppRunCollections    int    `json:"apprun:collections,omitempty"`
+	AppRunSDKVersion     string `json:"apprun:sdkversion,omitempty"`
+	AppRunSDKFullVersion string `json:"apprun:sdkfullversion,omitempty"`
+	AppRunConnTimeMs     int64  `json:"apprun:conntimems,omitempty"`
+	AppRunCount          int    `json:"apprun:count,omitempty"`
 
 	UserSet     *TEventUserProps `json:"$set,omitempty"`
 	UserSetOnce *TEventUserProps `json:"$set_once,omitempty"`
@@ -142,7 +159,8 @@ func (p *TEventProps) ApplyAppRunStats(stats AppRunStats) {
 	p.AppRunGoRoutines = stats.GoRoutines
 	p.AppRunWatches = stats.Watches
 	p.AppRunCollections = stats.Collections
-	p.AppRunSDKVersion = stats.SDKVersion
+	p.AppRunSDKFullVersion = stats.SDKVersion
+	p.AppRunSDKVersion = extractMajorMinorVersion(stats.SDKVersion)
 	p.AppRunConnTimeMs = stats.ConnTimeMs
 	p.AppRunCount = stats.AppRunCount
 }
@@ -307,7 +325,8 @@ func OsLang() string {
 func createCommonUserProps() *TEventUserProps {
 	return &TEventUserProps{
 		ServerArch:        ClientArch(),
-		ServerVersion:     serverbase.OutrigServerVersion,
+		ServerFullVersion: serverbase.OutrigServerVersion,
+		ServerVersion:     extractMajorMinorVersion(serverbase.OutrigServerVersion),
 		ServerBuildTime:   serverbase.OutrigBuildTime,
 		ServerBuildCommit: serverbase.OutrigCommit,
 		ServerOSRelease:   UnameKernelRelease(),
@@ -354,7 +373,8 @@ func SendAppRunConnectedEvent(sdkVersion string) {
 		return
 	}
 	props := TEventProps{
-		AppRunSDKVersion: sdkVersion,
+		AppRunSDKFullVersion: sdkVersion,
+		AppRunSDKVersion:     extractMajorMinorVersion(sdkVersion),
 	}
 	event := MakeTEvent("apprun:connected", props)
 	WriteTEvent(*event)
