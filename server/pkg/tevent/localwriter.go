@@ -6,21 +6,11 @@ package tevent
 import (
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/outrigdev/outrig"
 )
 
 const (
-	// Time between automatic flushes (1 hour)
-	flushInterval = time.Hour
-
-	// Time between ticker checks (5 minutes)
-	tickInterval = 5 * time.Minute
-
-	// Maximum number of events to buffer before forcing a flush
-	maxBufferSize = 300
-
 	// Hard maximum buffer size - events will be dropped if this is exceeded
 	hardMaxBufferSize = 1000
 )
@@ -31,8 +21,6 @@ var (
 	writerOnce      sync.Once
 	eventsWritten   atomic.Int64
 	eventsInBuffer  atomic.Int64
-	lastFlushTime   int64
-	ticker          *time.Ticker
 )
 
 func initEventBuffer() {
@@ -42,38 +30,12 @@ func initEventBuffer() {
 
 	// Initialize the buffer
 	eventBufferLock.Lock()
-	eventBuffer = make([]TEvent, 0, maxBufferSize)
+	eventBuffer = make([]TEvent, 0)
 	eventBufferLock.Unlock()
 
 	// Register counters with Outrig
 	outrig.WatchAtomicCounter("tevent:eventsWritten", &eventsWritten)
 	outrig.WatchAtomicCounter("tevent:eventsInBuffer", &eventsInBuffer)
-
-	// Set initial flush time
-	atomic.StoreInt64(&lastFlushTime, time.Now().UnixMilli())
-
-	// Start the ticker for periodic checks
-	ticker = time.NewTicker(tickInterval)
-	go func() {
-		outrig.SetGoRoutineName("TEventTicker")
-		for range ticker.C {
-			checkAndFlush()
-		}
-	}()
-}
-
-// checkAndFlush checks if it's time to flush events based on time elapsed or buffer size
-func checkAndFlush() {
-	now := time.Now().UnixMilli()
-	eventBufferLock.Lock()
-	defer eventBufferLock.Unlock()
-
-	numEvents := len(eventBuffer)
-
-	// Check if an hour has passed since the last flush
-	if now-atomic.LoadInt64(&lastFlushTime) >= flushInterval.Milliseconds() || numEvents >= maxBufferSize {
-		UploadEventsAsync()
-	}
 }
 
 // GrabEvents takes the lock, gets up to maxSize events from the buffer, and returns them
@@ -91,7 +53,7 @@ func GrabEvents(maxSize int) []TEvent {
 		// Take all events
 		events = eventBuffer
 		eventsInBuffer.Store(0)
-		eventBuffer = make([]TEvent, 0, maxBufferSize)
+		eventBuffer = make([]TEvent, 0)
 	} else {
 		// Take only maxSize events
 		events = eventBuffer[:maxSize]
@@ -100,6 +62,14 @@ func GrabEvents(maxSize int) []TEvent {
 	}
 
 	return events
+}
+
+// GetEventBufferLength returns the current number of events in the buffer
+// with proper locking
+func GetEventBufferLength() int {
+	eventBufferLock.Lock()
+	defer eventBufferLock.Unlock()
+	return len(eventBuffer)
 }
 
 // WriteTEvent adds a telemetry event to the in-memory buffer

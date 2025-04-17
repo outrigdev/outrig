@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -21,6 +22,22 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/tevent"
 	"github.com/outrigdev/outrig/server/pkg/web"
+)
+
+const (
+	// TEventFlushInterval is the time between automatic flushes of telemetry events (1 hour)
+	TEventFlushInterval = time.Hour
+
+	// TEventTickInterval is the time between ticker checks for telemetry events (5 minutes)
+	TEventTickInterval = 5 * time.Minute
+
+	// TEventMaxBufferSize is the maximum number of events to buffer before forcing a flush
+	TEventMaxBufferSize = 300
+)
+
+var (
+	tEventTicker  *time.Ticker
+	lastFlushTime int64
 )
 
 // CLIConfig holds configuration options passed from the command line
@@ -109,6 +126,9 @@ func RunServer(config CLIConfig) error {
 	// Initialize browser tabs tracking
 	browsertabs.Initialize()
 
+	// Initialize telemetry event uploader
+	initializeTEventUploader()
+
 	// Run domain socket server
 	err = runDomainSocketServer(ctx)
 	if err != nil {
@@ -178,8 +198,7 @@ func gracefulShutdown(cancel context.CancelFunc, wg *sync.WaitGroup) {
 	go func() {
 		defer wg.Done()
 
-		statDelta, activeAppRuns := apppeer.GetAppRunStatsDelta()
-		tevent.SendServerActivityEvent(statDelta, activeAppRuns)
+		sendServerActivityEvent()
 		err := tevent.UploadEvents()
 		if err != nil {
 			log.Printf("Failed to upload telemetry during shutdown: %v", err)
@@ -196,4 +215,32 @@ func gracefulShutdown(cancel context.CancelFunc, wg *sync.WaitGroup) {
 		log.Printf("Shutdown timeout reached, forcing exit")
 		os.Exit(1)
 	}()
+}
+
+func initializeTEventUploader() {
+	atomic.StoreInt64(&lastFlushTime, time.Now().UnixMilli())
+
+	tEventTicker = time.NewTicker(TEventTickInterval)
+	go func() {
+		outrig.SetGoRoutineName("TEventTicker")
+		for range tEventTicker.C {
+			checkAndFlushTEvents()
+		}
+	}()
+}
+
+func checkAndFlushTEvents() {
+	now := time.Now().UnixMilli()
+	numEvents := tevent.GetEventBufferLength()
+
+	if now-atomic.LoadInt64(&lastFlushTime) >= TEventFlushInterval.Milliseconds() || numEvents >= TEventMaxBufferSize {
+		atomic.StoreInt64(&lastFlushTime, now)
+		sendServerActivityEvent()
+		tevent.UploadEventsAsync()
+	}
+}
+
+func sendServerActivityEvent() {
+	statDelta, activeAppRuns := apppeer.GetAppRunStatsDelta()
+	tevent.SendServerActivityEvent(statDelta, activeAppRuns)
 }

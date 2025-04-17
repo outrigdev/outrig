@@ -177,7 +177,7 @@ func inErrorCooldown() (bool, time.Time) {
 }
 
 // UploadEvents uploads events to the server
-// It also updates the lastFlushTime at the beginning of the upload
+// UploadEvents uploads events to the server
 func UploadEvents() error {
 	if Disabled.Load() {
 		return nil
@@ -187,7 +187,6 @@ func UploadEvents() error {
 	}
 	uploadAttempts.Add(1)
 	now := time.Now()
-	atomic.StoreInt64(&lastFlushTime, now.UnixMilli())
 	eventsSent, err := sendTEvents(serverbase.OutrigId)
 	if err != nil {
 		updateTelemetryStatus(now, eventsSent, err)
@@ -220,7 +219,7 @@ func updateTelemetryStatus(uploadTime time.Time, eventCount int, err error) {
 	lastUploadStr := uploadTime.Format(time.RFC3339)
 
 	// Calculate the next upload time (1 hour from now)
-	nextUploadTime := uploadTime.Add(flushInterval)
+	nextUploadTime := uploadTime.Add(time.Hour)
 	nextUploadStr := nextUploadTime.Format(time.RFC3339)
 
 	// Check if we're in error cooldown
