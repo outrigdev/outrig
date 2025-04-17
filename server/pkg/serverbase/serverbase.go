@@ -16,7 +16,7 @@ import (
 
 // OutrigServerVersion is the current version of Outrig
 // This gets set from main-server.go during initialization
-var OutrigServerVersion = "v0.2.0"
+var OutrigServerVersion = "v0.2.1-alpha"
 
 // OutrigBuildTime is the build timestamp of Outrig
 // This gets set from main-server.go during initialization
