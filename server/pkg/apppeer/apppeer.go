@@ -29,8 +29,8 @@ const (
 
 // For tracking app run stats deltas
 var (
-	lastAppRunStatsMap = make(map[string]tevent.AppRunStats)
-	lastAppRunStatsMu  sync.Mutex
+	lastAppRunStatsMap  = make(map[string]tevent.AppRunStats)
+	lastAppRunStatsLock sync.Mutex
 )
 
 const (
@@ -382,11 +382,10 @@ func GetAppRunStatsDelta() (tevent.AppRunStats, int) {
 	allPeers := GetAllAppRunPeers()
 	activeAppRuns := 0
 
-	lastAppRunStatsMu.Lock()
-	defer lastAppRunStatsMu.Unlock()
+	lastAppRunStatsLock.Lock()
+	defer lastAppRunStatsLock.Unlock()
 
 	var deltaStats tevent.AppRunStats
-	deltaStats.AppRunCount = len(allPeers)
 	newStatsMap := make(map[string]tevent.AppRunStats)
 
 	for _, peer := range allPeers {
@@ -412,6 +411,6 @@ func GetAppRunStatsDelta() (tevent.AppRunStats, int) {
 
 	// Clear SDK version as it's not relevant in aggregated form
 	deltaStats.SDKVersion = ""
-	
+
 	return deltaStats, activeAppRuns
 }
