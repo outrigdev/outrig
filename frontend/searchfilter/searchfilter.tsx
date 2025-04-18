@@ -307,7 +307,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     return (
         <div className={`flex items-center flex-grow ${className}`}>
             <div className="select-none pr-2 text-muted w-10 text-right font-mono flex justify-end items-center">
-                <Filter size={16} className="text-muted" fill="currentColor" stroke="currentColor" strokeWidth={1} />
+                <Filter size={16} className="text-accent" fill="currentColor" stroke="currentColor" strokeWidth={1} />
             </div>
             <div className="relative w-full">
                 <input
@@ -321,7 +321,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                     autoCorrect="off"
                     autoCapitalize="off"
                     autoComplete="off"
-                    className="w-full bg-transparent text-primary translate-y-px placeholder:text-muted text-sm py-1 pl-0 pr-2 
+                    className="w-full bg-transparent text-primary translate-y-px placeholder:text-secondary text-sm py-1 pl-0 pr-2 
                       border-none ring-0 outline-none focus:outline-none focus:ring-0 font-mono"
                 />
                 {errorSpans?.length > 0 && (
