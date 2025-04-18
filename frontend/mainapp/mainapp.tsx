@@ -10,6 +10,7 @@ import { LeftNav } from "@/main/leftnav";
 import { RuntimeStats } from "@/runtimestats/runtimestats";
 import { Watches } from "@/watches/watches";
 import { useAtom, useAtomValue } from "jotai";
+import { ChevronRight } from "lucide-react";
 import { StatusBar } from "./statusbar";
 
 const TAB_DISPLAY_NAMES: Record<string, string> = {
@@ -76,20 +77,32 @@ function AppHeader() {
     };
 
     return (
-        <div className="flex items-center cursor-pointer" onClick={handleHeaderClick}>
-            {!isLeftNavOpen && ( // Only show the logo when left nav is closed
-                <div className="flex items-center space-x-2">
-                    <img src="/outriglogo.svg" alt="Outrig Logo" className="w-[20px] h-[20px]" />
+        <div
+            className="flex items-center cursor-pointer rounded-full ml-1 px-3 py-1 transition 
+						   bg-gray-200 hover:bg-gray-300 
+						   dark:bg-gray-700 hover:dark:bg-gray-600"
+            onClick={handleHeaderClick}
+        >
+            {!isLeftNavOpen && (
+                <div
+                    className="flex items-center justify-center mr-2 rounded-r cursor-pointer"
+                    onClick={() => {
+                        // Navigate to homepage
+                        AppModel.navToHomepage();
+                        AppModel.setLeftNavOpen(false);
+                    }}
+                >
+                    <img src="/outriglogo.svg" alt="Outrig Logo" className="w-4.5 h-4.5" />
                 </div>
             )}
+            {/* App name */}
             {appRunInfo && selectedAppRunId && (
                 <>
-                    <div
-                        className={`items-center ${isLeftNavOpen ? "ml-[-4px]" : "ml-3"} mr-1 text-primary text-sm font-medium max-w-[150px] truncate overflow-hidden whitespace-nowrap`}
-                    >
+                    <span className="text-sm font-medium text-primary truncate max-w-[120px]">
                         {appRunInfo.appname}
-                    </div>
-                    <div className="text-xs text-secondary relative top-[1px]">{getRunLabel()}</div>
+                    </span>
+                    <span className="ml-1 text-xs text-secondary">{getRunLabel()}</span>
+                    {!isLeftNavOpen && <ChevronRight className="ml-1 w-4 h-4 text-secondary" />}
                 </>
             )}
         </div>
@@ -189,11 +202,10 @@ export function MainApp() {
 
             {/* Main Content */}
             <div className="flex flex-col flex-grow overflow-hidden">
-                <nav className="bg-panel pl-4 pr-2 border-b border-border flex justify-between items-center">
+                <nav className="bg-panel pr-2 border-b border-border flex justify-between items-stretch h-10">
                     <div className="flex items-center">
                         <AppHeader />
-                        <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
-                        <div className="flex">
+                        <div className="flex ml-2">
                             {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
                                 <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
                             ))}
