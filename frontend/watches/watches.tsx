@@ -240,6 +240,15 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     );
 };
 
+// NoWatchesMessage component for displaying when there are no watches
+const NoWatchesMessage: React.FC = () => {
+    return (
+        <div className="flex items-center justify-center h-full text-secondary">
+            no watches
+        </div>
+    );
+};
+
 // Content component that displays the watches
 interface WatchesContentProps {
     model: WatchesModel;
@@ -279,9 +288,13 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                     </div>
                 </div>
             ) : filteredWatches.length === 0 && showEmptyMessage ? (
-                <div className="flex items-center justify-center h-full text-secondary">
-                    {search ? "no watches match the filter" : "no watches"}
-                </div>
+                search ? (
+                    <div className="flex items-center justify-center h-full text-secondary">
+                        no watches match the filter
+                    </div>
+                ) : (
+                    <NoWatchesMessage />
+                )
             ) : (
                 <div>
                     {filteredWatches.map((watch, index) => (

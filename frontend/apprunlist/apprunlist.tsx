@@ -85,7 +85,9 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
                 </div>
             </div>
             <div className="mt-1 text-sm text-secondary">
-                Started {appRun.status === "running" ? "Running" : formatRelativeTime(appRun.starttime)}
+                {appRun.status === "running"
+                    ? "Running"
+                    : `${appRun.status === "done" ? "Completed" : "Disconnected"} ${formatRelativeTime(appRun.lastmodtime)}`}
             </div>
             <div className="mt-1 flex items-center space-x-4 text-xs text-muted">
                 <a

@@ -86,7 +86,6 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Notes
 
-- In general when the file changes you fall back to write_to_file. That wastes so much time as writing the whole file is often very slow. If the file is longer than 100 lines, please try to re-read the file and use replace_in_file, just create better diff edits rather than immediately falling back to a full file write.
 - **Keep your Task Completed summaries VERY short**
 - **No lengthy pre-completion summaries** - Do not provide detailed explanations of implementation before using attempt_completion
 - **No recaps of changes** - Skip explaining what was done before completion
@@ -116,3 +115,5 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 ### Tool Use
 
 Do NOT use write_to_file unless it is a new file or very short. Always prefer to use replace_in_file. Often your diffs fail when a file may be out of date in your cache vs the actual on-disk format. You should RE-READ the file and try to create diffs again if your diffs fail rather than fall back to write_to_file. If you feel like your ONLY option is to use write_to_file please ask first.
+
+Also when adding content to the end of files prefer to use the new append_file tool rather than trying to create a diff (as your diffs are often not specific enough and end up inserting code in the middle of existing functions).
