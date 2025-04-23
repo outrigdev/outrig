@@ -36,7 +36,9 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
         <div
             className={cn(
                 "py-1 px-2 rounded text-sm cursor-pointer",
-                isSelected ? "bg-buttonhover text-primary" : "text-secondary hover:bg-buttonhover hover:text-primary"
+                isSelected
+                    ? "bg-primary/10 dark:bg-primary/20 text-primary font-medium ring-1 ring-primary/40"
+                    : "text-secondary hover:bg-buttonhover hover:text-primary"
             )}
             onClick={() => {
                 AppModel.selectAppRun(appRun.apprunid);
