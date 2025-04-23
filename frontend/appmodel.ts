@@ -165,6 +165,8 @@ class AppModel {
         getDefaultStore().set(this.selectedTab, tab);
         // Use replaceState for tab navigation (no history entry)
         this.updateUrl({ tab: tab }, false);
+
+        this.checkAndDisableAutoFollow(appRunId);
     }
 
     // Select an app run without changing the current tab
