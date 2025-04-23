@@ -25,8 +25,8 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/junegunn/fzf v0.61.1 h1:QGnFjx6N5DiURNpyNNcnRQ5mIhLZ4KjnInEEGKXqr1o=
-github.com/junegunn/fzf v0.61.1/go.mod h1:uiEstR1c3Oq4VFh0QvOAmvinYQt8ed9L8lxGHGGqbNk=
+github.com/junegunn/fzf v0.61.3 h1:cC9DbK8fNx1Mhomax+paSbOPdHF5I1U1FGzxbQQ0cH8=
+github.com/junegunn/fzf v0.61.3/go.mod h1:uiEstR1c3Oq4VFh0QvOAmvinYQt8ed9L8lxGHGGqbNk=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 h1:6E+4a0GO5zZEnZ81pIr0yLvtUWk2if982qA3F3QD6H4=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
 github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
