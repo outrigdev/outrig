@@ -24,6 +24,7 @@ export default tseslint.config(
             "prefer-const": "off",
             "@typescript-eslint/no-unused-vars": "off",
             "@typescript-eslint/no-explicit-any": "off",
+            "no-constant-binary-expression": "off",
         },
     }
 );
