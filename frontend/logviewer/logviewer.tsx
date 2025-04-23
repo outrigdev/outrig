@@ -3,12 +3,13 @@
 
 import { AppModel } from "@/appmodel";
 import { CopyButton } from "@/elements/copybutton";
+import { Tooltip } from "@/elements/tooltip";
 import { LogVList } from "@/logvlist/logvlist";
 import { LogSettings, SettingsModel } from "@/settings/settings-model";
 import { EmptyMessageDelayMs } from "@/util/constants";
 import { useOutrigModel } from "@/util/hooks";
-import { useAtomValue } from "jotai";
-import { X } from "lucide-react";
+import { getDefaultStore, useAtom, useAtomValue } from "jotai";
+import { ArrowDown, ArrowDownCircle, Wifi, WifiOff, X } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogViewerFilter } from "./logfilter";
 import { LogLineComponent } from "./logline";
@@ -222,12 +223,87 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
         }
     }, [filteredLinesCount, totalLinesCount, isRefreshing]);
 
+    // Get streaming status, follow status, and app running status
+    const isStreaming = useAtomValue(model.isStreaming);
+    const [followOutput, setFollowOutput] = useAtom(model.followOutput);
+    const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
+    const appRunInfoAtom = AppModel.getAppRunInfoAtom(selectedAppRunId);
+    const appRunInfo = useAtomValue(appRunInfoAtom);
+    const isAppRunning = appRunInfo?.isrunning || false;
+
+    // Toggle streaming handler
+    const handleToggleStreaming = () => {
+        getDefaultStore().set(model.isStreaming, !isStreaming);
+    };
+
+    // Toggle follow output handler
+    const handleToggleFollow = () => {
+        setFollowOutput(!followOutput);
+        if (!followOutput) {
+            model.scrollToBottom();
+        }
+    };
+
     return (
-        <div className="w-full h-full overflow-hidden flex-1 pt-2 px-1 relative">
+        <div className="w-full h-full overflow-hidden flex-1 pt-2 relative flex flex-col">
             <MarkedLinesIndicator model={model} />
 
-            {/* Always render LogList */}
-            <LogList model={model} />
+            {/* Main content area with logs */}
+            <div className="flex-1 overflow-hidden mb-1">
+                <LogList model={model} />
+            </div>
+
+            {/* Streaming status indicator at bottom */}
+            {isAppRunning && (
+                <div className="w-full flex items-center h-6 border-t border-border bg-primary/8">
+                    {/* Left side - Streaming button */}
+                    <div className="flex-grow basis-0 flex justify-end items-center">
+                        <Tooltip
+                            content={
+                                isStreaming
+                                    ? "Streaming New Log Lines (Click to Disable)"
+                                    : "Not Streaming New Log Lines (Click to Enable)"
+                            }
+                        >
+                            <button
+                                onClick={handleToggleStreaming}
+                                className={`flex items-center gap-2 px-2 py-0.5 rounded ${
+                                    isStreaming ? "text-primary" : "text-muted"
+                                } hover:bg-primary/10 cursor-pointer transition-colors`}
+                                aria-pressed={isStreaming}
+                            >
+                                {isStreaming ? <Wifi size={14} /> : <WifiOff size={14} />}
+                                <span className="text-xs">{isStreaming ? "Streaming" : "Not Streaming"}</span>
+                            </button>
+                        </Tooltip>
+                    </div>
+
+                    {/* Center divider */}
+                    <div className="mx-4 text-border">|</div>
+
+                    {/* Right side - Pin button */}
+                    <div className="flex-grow basis-0 flex justify-start items-center">
+                        <Tooltip
+                            content={
+                                followOutput
+                                    ? "Pinned to Bottom (Click to Disable)"
+                                    : "Not Pinned to Bottom (Click to Enable)"
+                            }
+                        >
+                            <button
+                                onClick={handleToggleFollow}
+                                className={`flex items-center gap-2 px-2 py-0.5 rounded ${
+                                    followOutput ? "text-primary" : "text-muted"
+                                } hover:bg-primary/10 cursor-pointer transition-colors`}
+                                aria-pressed={followOutput}
+                            >
+                                {followOutput ? <ArrowDownCircle size={14} /> : <ArrowDown size={14} />}
+                                <span className="text-xs">{followOutput ? "Pinned" : "Not Pinned"}</span>
+                            </button>
+                        </Tooltip>
+                    </div>
+                </div>
+            )}
 
             {/* Small centered refreshing modal with improved styling */}
             {isRefreshing && (

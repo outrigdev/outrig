@@ -73,7 +73,7 @@ export function StatusBar() {
     }, [selectedAppRun]);
 
     return (
-        <div className="h-6 bg-panel border-t border-border flex items-center justify-between px-2 text-xs text-secondary mt-1">
+        <div className="h-6 bg-panel border-t border-border flex items-center justify-between px-2 text-xs text-secondary">
             <div className="flex items-center space-x-4">
                 {AppModel.isDev && (
                     <Tooltip content="Running in Development Mode" placement="bottom">
