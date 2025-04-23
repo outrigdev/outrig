@@ -30,7 +30,7 @@ It is currently available for MacOS and Linux (Windows builds coming soon).
 
 Outrig consists of two main components that work together:
 
-1. **SDK Client**: A lightweight Go library that you import into your application. It collects logs, goroutine information, and other runtime data from your application and sends it to the Outrig server.
+1. **SDK Client**: A lightweight Go library that you import into your application. It collects logs, goroutine information, and other runtime data from your application and sends it to the Outrig server. [API Docs](https://pkg.go.dev/github.com/outrigdev/outrig)
 
 2. **Outrig Server**: A standalone server that receives data from your application, processes it, and provides a web interface for real-time monitoring and debugging.
 
