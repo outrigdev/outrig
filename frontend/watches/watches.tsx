@@ -13,6 +13,7 @@ import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
 import { WatchesModel } from "./watches-model";
+import { NoWatchesMessage } from "./nowatchmessage";
 
 // Constants for watch flags (matching the Go constants)
 const WatchFlag_Push = 1 << 5; // 32
@@ -240,14 +241,6 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     );
 };
 
-// NoWatchesMessage component for displaying when there are no watches
-const NoWatchesMessage: React.FC = () => {
-    return (
-        <div className="flex items-center justify-center h-full text-secondary">
-            no watches
-        </div>
-    );
-};
 
 // Content component that displays the watches
 interface WatchesContentProps {
