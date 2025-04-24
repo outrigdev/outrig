@@ -7,6 +7,7 @@ package loginitex
 
 import (
 	"errors"
+	"os"
 
 	"github.com/outrigdev/outrig/pkg/ds"
 )
@@ -22,4 +23,12 @@ func disableExternalLogWrapImpl() {
 func isExternalLogWrapActiveImpl() bool {
 	// External log wrapping is not supported on Windows
 	return false
+}
+
+func OrigStdout() *os.File {
+	return os.Stdout
+}
+
+func OrigStderr() *os.File {
+	return os.Stderr
 }

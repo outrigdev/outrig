@@ -7,6 +7,7 @@ require (
 	github.com/emirpasic/gods v1.18.1
 	github.com/google/uuid v1.6.0
 	github.com/shirou/gopsutil/v3 v3.24.5
+	golang.org/x/term v0.29.0
 )
 
 require (
@@ -18,5 +19,4 @@ require (
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
 )

@@ -60,9 +60,10 @@ func stripPrereleaseInfo(v *semver.Version) *semver.Version {
 
 // ConnWrap wraps a net.Conn and a bufio.Reader for convenient line-based communication.
 type ConnWrap struct {
-	Conn     net.Conn
-	Reader   *bufio.Reader
-	PeerName string
+	Conn           net.Conn
+	Reader         *bufio.Reader
+	PeerName       string
+	ServerResponse *ServerHandshakeResponse // set on client side connections
 }
 
 // MakeConnWrap creates a new ConnWrap from a net.Conn.

@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -19,6 +21,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
+	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
 	"github.com/outrigdev/outrig/pkg/collector/runtimestats"
 	"github.com/outrigdev/outrig/pkg/collector/watch"
@@ -28,6 +31,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
+	"golang.org/x/term"
 )
 
 const ConnPollTime = 1 * time.Second
@@ -169,6 +173,28 @@ func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
 
 // Connection management methods
 
+func (c *ControllerImpl) WriteInitMessage(connected bool, connWrap *comm.ConnWrap, permErr error, transErr error) {
+	if c.config.Quiet {
+		return
+	}
+	if connected && connWrap != nil {
+		printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
+		if connWrap.ServerResponse != nil && connWrap.ServerResponse.ServerHttpPort > 0 {
+			printf("[outrig] open dashboard @ http://localhost:%d\n", connWrap.ServerResponse.ServerHttpPort)
+		}
+	} else if permErr != nil {
+		printf("[outrig] permanent connection error: %v\n", permErr)
+	} else if transErr != nil {
+		if outrigPath, _ := exec.LookPath("outrig"); outrigPath == "" {
+			printf("[outrig] outrig server not installed, see https://outrig.run\n")
+		} else {
+			printf("[outrig] outrig server not running, start with: outrig server\n")
+		}
+	} else {
+		// shouldn't happen (we should either be connected or have an error)
+	}
+}
+
 // lock should be held
 // returns (connected, transientError)
 func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr error) {
@@ -179,10 +205,13 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 	if c.OutrigForceDisabled {
 		return false, nil
 	}
+	var connWrap *comm.ConnWrap
+	var permErr, transErr error
 	defer func() {
-		if !init {
+		if !init || c.config.Quiet {
 			return
 		}
+		c.WriteInitMessage(rtnConnected, connWrap, permErr, transErr)
 	}()
 
 	// Check for domain socket override from environment variable
@@ -192,7 +221,7 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 	}
 
 	// Use the new Connect function to establish a connection
-	connWrap, permErr, transErr := comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, domainSocketPath, "")
+	connWrap, permErr, transErr = comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, domainSocketPath, "")
 	if transErr != nil {
 		// Connection failed
 		return false, transErr
@@ -205,7 +234,7 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 		return false, nil
 	}
 	// Connection and handshake successful
-	if !c.config.Quiet {
+	if !c.config.Quiet && !init {
 		fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
 	}
 	c.setConn(connWrap)
@@ -474,4 +503,35 @@ func (c *ControllerImpl) ILog(format string, args ...any) {
 		msg += "\n"
 	}
 	c.InternalLogBuf.Write(msg)
+}
+
+var (
+	isStdoutTerminalOnce  sync.Once
+	isStdoutTerminalValue bool
+)
+
+// isStdoutATerminal returns whether stdout is a terminal.
+// The result is cached after the first call.
+func isStdoutATerminal() bool {
+	isStdoutTerminalOnce.Do(func() {
+		// Use loginitex.OrigStdout() to get the original stdout file descriptor
+		// This handles cases where stdout has been redirected by the Outrig log capture
+		isStdoutTerminalValue = term.IsTerminal(int(loginitex.OrigStdout().Fd()))
+	})
+	return isStdoutTerminalValue
+}
+
+var ansiRegex = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+// printf formats and prints a string to stdout, stripping ANSI escape sequences
+// if stdout is not a terminal.
+func printf(format string, args ...any) {
+	formatted := fmt.Sprintf(format, args...)
+	
+	// If stdout is not a terminal, strip ANSI escape sequences
+	if !isStdoutATerminal() {
+		formatted = ansiRegex.ReplaceAllString(formatted, "")
+	}
+	
+	fmt.Print(formatted)
 }
