@@ -134,6 +134,9 @@ func RunServer(config CLIConfig) error {
 	if err != nil {
 		return fmt.Errorf("error starting web servers: %w", err)
 	}
+	if serverbase.IsDev() {
+		webServerPort = 5173 // override to the vite port...
+	}
 	// Run domain socket server
 	err = runDomainSocketServer(ctx, webServerPort)
 	if err != nil {
