@@ -177,10 +177,15 @@ func (c *ControllerImpl) WriteInitMessage(connected bool, connWrap *comm.ConnWra
 	if c.config.Quiet {
 		return
 	}
+
+	brightCyan := "\x1b[96m"
+	brightBlueUnderline := "\x1b[94;4m"
+	reset := "\x1b[0m"
+
 	if connected && connWrap != nil {
-		printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
+		printf("%s[outrig]%s connected via %s, apprunid: %s\n", brightCyan, reset, connWrap.PeerName, c.AppInfo.AppRunId)
 		if connWrap.ServerResponse != nil && connWrap.ServerResponse.ServerHttpPort > 0 {
-			printf("[outrig] open dashboard @ http://localhost:%d\n", connWrap.ServerResponse.ServerHttpPort)
+			printf("%s[outrig]%s open dashboard @ %shttp://localhost:%d%s\n", brightCyan, reset, brightBlueUnderline, connWrap.ServerResponse.ServerHttpPort, reset)
 		}
 	} else if permErr != nil {
 		printf("[outrig] permanent connection error: %v\n", permErr)
@@ -527,11 +532,11 @@ var ansiRegex = regexp.MustCompile("\x1b\\[[0-9;]*m")
 // if stdout is not a terminal.
 func printf(format string, args ...any) {
 	formatted := fmt.Sprintf(format, args...)
-	
+
 	// If stdout is not a terminal, strip ANSI escape sequences
 	if !isStdoutATerminal() {
 		formatted = ansiRegex.ReplaceAllString(formatted, "")
 	}
-	
+
 	fmt.Print(formatted)
 }
