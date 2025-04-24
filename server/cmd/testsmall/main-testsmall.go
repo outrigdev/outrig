@@ -17,7 +17,7 @@ func main() {
 	config := configpkg.DefaultConfigForOutrigDevelopment()
 	config.LogProcessorConfig.OutrigPath = "go"
 	config.LogProcessorConfig.AdditionalArgs = []string{"run", "server/main-server.go"}
-	outrig.Init(config)
+	outrig.Init("test-small", config)
 	defer outrig.AppDone()
 
 	logrus.SetFormatter(&logrus.TextFormatter{

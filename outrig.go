@@ -79,7 +79,7 @@ func DefaultConfig() *ds.Config {
 }
 
 // Init initializes Outrig, returns (enabled, error)
-func Init(cfgParam *ds.Config) (bool, error) {
+func Init(appName string, cfgParam *ds.Config) (bool, error) {
 	if cfgParam == nil {
 		cfgParam = DefaultConfig()
 	}
@@ -90,7 +90,7 @@ func Init(cfgParam *ds.Config) (bool, error) {
 
 	// Create and initialize the controller
 	// (collectors are now initialized inside MakeController)
-	ctrlImpl, err := controller.MakeController(finalCfg)
+	ctrlImpl, err := controller.MakeController(appName, finalCfg)
 	if err != nil {
 		return Enabled(), err
 	}

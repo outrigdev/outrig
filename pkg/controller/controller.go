@@ -52,14 +52,17 @@ type ControllerImpl struct {
 }
 
 // this is idempotent
-func MakeController(config ds.Config) (*ControllerImpl, error) {
+func MakeController(appName string, config ds.Config) (*ControllerImpl, error) {
+	if appName == "" {
+		appName = determineAppName()
+	}
 	c := &ControllerImpl{
 		Collectors:     make(map[string]collector.Collector),
 		InternalLogBuf: utilds.MakeCirBuf[string](MaxInternalLog),
 	}
 
 	// Initialize AppInfo using the dedicated function
-	c.AppInfo = c.createAppInfo(&config)
+	c.AppInfo = c.createAppInfo(appName, &config)
 	c.config = &config
 
 	arCtx := ds.AppRunContext{
@@ -110,7 +113,7 @@ func (c *ControllerImpl) InitialStart() {
 }
 
 // createAppInfo creates and initializes the AppInfo structure
-func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
+func (c *ControllerImpl) createAppInfo(appName string, config *ds.Config) ds.AppInfo {
 	appInfo := ds.AppInfo{}
 
 	// Initialize basic AppInfo
@@ -118,11 +121,8 @@ func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
 	if appInfo.AppRunId == "" {
 		appInfo.AppRunId = uuid.New().String()
 	}
-
-	// Set app name
-	appName := config.AppName
 	if appName == "" {
-		appName = c.determineAppName()
+		appName = determineAppName()
 	}
 	appInfo.AppName = appName
 
@@ -422,7 +422,7 @@ func (c *ControllerImpl) determineModuleName() string {
 	return "" // No go.mod found
 }
 
-func (c *ControllerImpl) determineAppName() string {
+func determineAppName() string {
 	execPath, err := os.Executable()
 	if err != nil {
 		return "unknown"

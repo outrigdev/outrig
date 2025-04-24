@@ -51,7 +51,7 @@ func RunServer(config CLIConfig) error {
 	if serverbase.IsDev() {
 		outrigConfig := outrig.DefaultConfig()
 		outrigConfig.LogProcessorConfig.OutrigPath = "bin/outrig"
-		outrig.Init(outrigConfig)
+		outrig.Init("outrig-server", outrigConfig)
 	}
 
 	// Create a context that we can cancelFn

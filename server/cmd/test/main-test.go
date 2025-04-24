@@ -156,7 +156,7 @@ func main() {
 	config := configpkg.DefaultConfigForOutrigDevelopment()
 	config.LogProcessorConfig.OutrigPath = "go"
 	config.LogProcessorConfig.AdditionalArgs = []string{"run", "server/main-server.go"}
-	outrig.Init(config)
+	outrig.Init("main-test", config)
 	defer outrig.AppDone()
 
 	go testForGoRoutine()

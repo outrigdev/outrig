@@ -22,7 +22,6 @@ func getDefaultConfig(isDev bool) *ds.Config {
 
 	return &ds.Config{
 		DomainSocketPath: base.GetDomainSocketNameForClient(isDev),
-		AppName:          "",
 		ModuleName:       "",
 		Dev:              isDev,
 		ConnectOnInit:    true,
