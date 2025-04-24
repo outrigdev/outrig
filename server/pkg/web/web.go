@@ -184,7 +184,8 @@ func runWebServerInternal(ctx context.Context, listener net.Listener) {
 
 // RunWebServer initializes and runs the HTTP server (which also handles WebSockets)
 // If overridePort is non-zero, it will be used instead of the default port
-func RunWebServer(ctx context.Context, overridePort int) error {
+// Returns the port on which the server is running
+func RunWebServer(ctx context.Context, overridePort int) (int, error) {
 	webServerPort := serverbase.GetWebServerPort()
 	if overridePort > 0 {
 		webServerPort = overridePort
@@ -192,11 +193,9 @@ func RunWebServer(ctx context.Context, overridePort int) error {
 
 	httpListener, err := MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(webServerPort))
 	if err != nil {
-		return fmt.Errorf("failed to create HTTP listener: %w", err)
+		return 0, fmt.Errorf("failed to create HTTP listener: %w", err)
 	}
 	log.Printf("Outrig server running on http://%s\n", httpListener.Addr().String())
-
 	go runWebServerInternal(ctx, httpListener)
-
-	return nil
+	return webServerPort, nil
 }

@@ -94,7 +94,7 @@ func (c *ControllerImpl) InitialStart() {
 
 	var connected bool
 	if c.config.ConnectOnInit && !c.OutrigForceDisabled {
-		connected, _ = c.connectInternal()
+		connected, _ = c.connectInternal(true)
 	}
 	if connected {
 		c.setEnabled(true)
@@ -171,7 +171,7 @@ func (c *ControllerImpl) createAppInfo(config *ds.Config) ds.AppInfo {
 
 // lock should be held
 // returns (connected, transientError)
-func (c *ControllerImpl) connectInternal() (bool, error) {
+func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr error) {
 	// Check if already connected to prevent redundant connections
 	if c.isConnected() {
 		return false, nil
@@ -179,6 +179,11 @@ func (c *ControllerImpl) connectInternal() (bool, error) {
 	if c.OutrigForceDisabled {
 		return false, nil
 	}
+	defer func() {
+		if !init {
+			return
+		}
+	}()
 
 	// Check for domain socket override from environment variable
 	domainSocketPath := c.config.DomainSocketPath
@@ -256,7 +261,7 @@ func (c *ControllerImpl) Enable() {
 	c.OutrigForceDisabled = false
 	isConnected := c.isConnected()
 	if !isConnected {
-		isConnected, _ = c.connectInternal()
+		isConnected, _ = c.connectInternal(false)
 	}
 	if isConnected {
 		c.setEnabled(true)
@@ -417,7 +422,7 @@ func (c *ControllerImpl) pollConn() {
 	if c.isConnected() {
 		return
 	}
-	connected, _ := c.connectInternal()
+	connected, _ := c.connectInternal(false)
 	if connected {
 		c.setEnabled(true)
 	}

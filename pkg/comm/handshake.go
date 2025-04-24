@@ -40,8 +40,9 @@ type ClientHandshakePacket struct {
 }
 
 type ServerHandshakeResponse struct {
-	Success bool   `json:"success"`
-	Error   string `json:"error,omitempty"`
+	Success        bool   `json:"success"`
+	Error          string `json:"error,omitempty"`
+	ServerHttpPort int    `json:"serverhttpport,omitempty"`
 }
 
 // Regexp for validating log source paths
@@ -95,11 +96,11 @@ func (cw *ConnWrap) Close() error {
 // ClientHandshake performs the client side of the handshake protocol with the server.
 // It receives a ServerHandshakePacket, validates compatibility,
 // sends a ClientHandshakePacket, and processes the server's response.
-func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId string) error {
+func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId string) (*ServerHandshakeResponse, error) {
 	// Read the server handshake packet
 	packetLine, err := cw.ReadLine()
 	if err != nil {
-		return fmt.Errorf("failed to read server handshake packet: %v", err)
+		return nil, fmt.Errorf("failed to read server handshake packet: %v", err)
 	}
 
 	packetLine = strings.TrimSpace(packetLine)
@@ -107,13 +108,13 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	// Parse the JSON packet
 	var serverPacket ServerHandshakePacket
 	if err := json.Unmarshal([]byte(packetLine), &serverPacket); err != nil {
-		return fmt.Errorf("invalid server handshake packet format: %v", err)
+		return nil, fmt.Errorf("invalid server handshake packet format: %v", err)
 	}
 
 	// Validate the server version using semver
 	serverVersion, err := semver.NewVersion(serverPacket.OutrigVersion)
 	if err != nil {
-		return fmt.Errorf("invalid server version format: %s", serverPacket.OutrigVersion)
+		return nil, fmt.Errorf("invalid server version format: %s", serverPacket.OutrigVersion)
 	}
 
 	minVersion, _ := semver.NewVersion(MinServerVersion)
@@ -123,7 +124,7 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	cleanMinVersion := stripPrereleaseInfo(minVersion)
 
 	if cleanServerVersion.LessThan(cleanMinVersion) {
-		return fmt.Errorf("server version %s is less than minimum required version %s",
+		return nil, fmt.Errorf("server version %s is less than minimum required version %s",
 			serverPacket.OutrigVersion, MinServerVersion)
 	}
 
@@ -138,18 +139,18 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	// Convert to JSON
 	jsonData, err := json.Marshal(clientPacket)
 	if err != nil {
-		return fmt.Errorf("failed to marshal client handshake packet: %v", err)
+		return nil, fmt.Errorf("failed to marshal client handshake packet: %v", err)
 	}
 
 	// Send the JSON packet
 	if err := cw.WriteLine(string(jsonData)); err != nil {
-		return fmt.Errorf("failed to send client handshake packet: %v", err)
+		return nil, fmt.Errorf("failed to send client handshake packet: %v", err)
 	}
 
 	// Read the response
 	respLine, err := cw.ReadLine()
 	if err != nil {
-		return fmt.Errorf("failed to read server handshake response: %v", err)
+		return nil, fmt.Errorf("failed to read server handshake response: %v", err)
 	}
 
 	respLine = strings.TrimSpace(respLine)
@@ -157,14 +158,14 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 	// Parse the response
 	var response ServerHandshakeResponse
 	if err := json.Unmarshal([]byte(respLine), &response); err != nil {
-		return fmt.Errorf("invalid server handshake response format: %v", err)
+		return nil, fmt.Errorf("invalid server handshake response format: %v", err)
 	}
 
 	if !response.Success {
-		return fmt.Errorf("handshake failed: %s", response.Error)
+		return &response, fmt.Errorf("handshake failed: %s", response.Error)
 	}
 
-	return nil
+	return &response, nil
 }
 
 // Helper function to send error response
@@ -181,9 +182,10 @@ func sendErrorResponse(cw *ConnWrap, err error) error {
 }
 
 // Helper function to send success response
-func sendSuccessResponse(cw *ConnWrap) error {
+func sendSuccessResponse(cw *ConnWrap, webServerPort int) error {
 	response := ServerHandshakeResponse{
-		Success: true,
+		Success:        true,
+		ServerHttpPort: webServerPort,
 	}
 	jsonData, err := json.Marshal(response)
 	if err != nil {
@@ -195,7 +197,7 @@ func sendSuccessResponse(cw *ConnWrap) error {
 // ServerHandshake performs the server side of the handshake protocol.
 // It sends a ServerHandshakePacket, reads a ClientHandshakePacket,
 // validates it, and sends a response.
-func (cw *ConnWrap) ServerHandshake() (*ClientHandshakePacket, error) {
+func (cw *ConnWrap) ServerHandshake(webServerPort int) (*ClientHandshakePacket, error) {
 	// Create and send the server handshake packet
 	serverPacket := ServerHandshakePacket{
 		OutrigVersion: base.OutrigSDKVersion,
@@ -284,7 +286,7 @@ func (cw *ConnWrap) ServerHandshake() (*ClientHandshakePacket, error) {
 	}
 
 	// Send success response
-	if err := sendSuccessResponse(cw); err != nil {
+	if err := sendSuccessResponse(cw, webServerPort); err != nil {
 		return nil, fmt.Errorf("failed to send success response: %v", err)
 	}
 

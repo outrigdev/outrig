@@ -35,7 +35,7 @@ func Connect(mode string, submode string, appRunId string, domainSocketPath stri
 				connWrap := MakeConnWrap(conn, dsPath)
 
 				// Perform the handshake
-				err := connWrap.ClientHandshake(mode, submode, appRunId)
+				_, err := connWrap.ClientHandshake(mode, submode, appRunId)
 				if err != nil {
 					connWrap.Close()
 					return nil, fmt.Errorf("handshake failed with %s: %w", connWrap.PeerName, err), nil
@@ -54,7 +54,7 @@ func Connect(mode string, submode string, appRunId string, domainSocketPath stri
 			connWrap := MakeConnWrap(conn, serverAddr)
 
 			// Perform the handshake
-			err := connWrap.ClientHandshake(mode, submode, appRunId)
+			_, err := connWrap.ClientHandshake(mode, submode, appRunId)
 			if err != nil {
 				connWrap.Close()
 				return nil, fmt.Errorf("handshake failed with %s: %w", connWrap.PeerName, err), nil

@@ -109,14 +109,14 @@ func handlePacketMode(connWrap *comm.ConnWrap, appRunId string) {
 }
 
 // handleDomainSocketConn reads the mode line from the connection and dispatches to the appropriate handler.
-func handleDomainSocketConn(conn net.Conn) {
+func handleDomainSocketConn(conn net.Conn, webServerPort int) {
 	defer conn.Close()
 
 	// Create a ConnWrap for the connection
 	connWrap := comm.MakeConnWrap(conn, "domain-socket-client")
 
 	// Perform the handshake
-	packet, err := connWrap.ServerHandshake()
+	packet, err := connWrap.ServerHandshake(webServerPort)
 	if errors.Is(err, io.EOF) {
 		// not a valid connection attempt, just ignore it
 		return
@@ -144,7 +144,7 @@ func handleDomainSocketConn(conn net.Conn) {
 	}
 }
 
-func runDomainSocketServer(ctx context.Context) error {
+func runDomainSocketServer(ctx context.Context, webServerPort int) error {
 	outrigPath := utilfn.ExpandHomeDir(serverbase.GetOutrigHome())
 	if err := os.MkdirAll(outrigPath, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", outrigPath, err)
@@ -185,7 +185,7 @@ func runDomainSocketServer(ctx context.Context) error {
 					close(acceptDone)
 					return
 				}
-				go handleDomainSocketConn(conn)
+				go handleDomainSocketConn(conn, webServerPort)
 			}
 		}()
 

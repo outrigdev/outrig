@@ -129,16 +129,15 @@ func RunServer(config CLIConfig) error {
 	// Initialize telemetry event uploader
 	initializeTEventUploader()
 
-	// Run domain socket server
-	err = runDomainSocketServer(ctx)
-	if err != nil {
-		return fmt.Errorf("error starting domain socket server: %w", err)
-	}
-
 	// Run web servers (HTTP and WebSocket)
-	err = web.RunWebServer(ctx, config.Port)
+	webServerPort, err := web.RunWebServer(ctx, config.Port)
 	if err != nil {
 		return fmt.Errorf("error starting web servers: %w", err)
+	}
+	// Run domain socket server
+	err = runDomainSocketServer(ctx, webServerPort)
+	if err != nil {
+		return fmt.Errorf("error starting domain socket server: %w", err)
 	}
 
 	log.Printf("All servers started successfully\n")

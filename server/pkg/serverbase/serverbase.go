@@ -114,12 +114,6 @@ func EnsureOutrigId() (string, bool, error) {
 	return newId, true, nil
 }
 
-// GetWebSocketPort returns the same port as the web server port for backward compatibility
-// This function is deprecated and will be removed in a future version
-func GetWebSocketPort() int {
-	return GetWebServerPort()
-}
-
 // GetOutrigDataDir returns the path to the data directory
 func GetOutrigDataDir() string {
 	return filepath.Join(GetOutrigHome(), OutrigDataDir)
