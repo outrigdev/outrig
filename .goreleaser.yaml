@@ -38,6 +38,9 @@ archives:
 checksum:
     name_template: "checksums.txt"
 
+extra_files:
+    - glob: dist/homebrew/Formula/*.rb
+
 changelog:
     sort: asc
     filters:
@@ -57,7 +60,7 @@ brews:
           name: homebrew-outrig
           token: "{{ .Env.HOMEBREW_GITHUB_TOKEN }}"
       homepage: "https://github.com/outrigdev/outrig"
-      description: "Real-time debugging for Go programs, similar to Chrome DevTools"
+      description: "Observability monitor for Go programs during development time"
       license: "Apache-2.0"
       directory: Formula
       install: |
