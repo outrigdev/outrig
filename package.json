@@ -1,7 +1,7 @@
 {
   "name": "outrig",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.2-alpha",
   "type": "module",
   "scripts": {
     "dev": "vite",
