@@ -106,6 +106,11 @@ class RpcApiType {
         return client.rpcCall("message", data, opts);
     }
 
+    // command "sendteventfe" [call]
+    SendTEventFeCommand(client: RpcClient, data: TEventFeData, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("sendteventfe", data, opts);
+    }
+
     // command "updatebrowsertaburl" [call]
     UpdateBrowserTabUrlCommand(client: RpcClient, data: BrowserTabUrlData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("updatebrowsertaburl", data, opts);

@@ -326,6 +326,21 @@ declare global {
         allscopes?: boolean;
     };
 
+    // rpctypes.TEventFeData
+    type TEventFeData = {
+        event: string;
+        props: TEventFeProps;
+    };
+
+    // rpctypes.TEventFeProps
+    type TEventFeProps = {
+        "debug:clicktype"?: string;
+        "frontend:tab"?: string;
+        "frontend:logsearchfeatures"?: string[];
+        "frontend:searchlatency"?: number;
+        "frontend:searchitems"?: number;
+    };
+
     // rpctypes.WatchHistoryData
     type WatchHistoryData = {
         apprunid: string;

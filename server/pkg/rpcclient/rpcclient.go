@@ -130,6 +130,12 @@ func MessageCommand(w *rpc.RpcClient, data rpctypes.CommandMessageData, opts *rp
 	return err
 }
 
+// command "sendteventfe", rpctypes.SendTEventFeCommand
+func SendTEventFeCommand(w *rpc.RpcClient, data rpctypes.TEventFeData, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "sendteventfe", data, opts)
+	return err
+}
+
 // command "updatebrowsertaburl", rpctypes.UpdateBrowserTabUrlCommand
 func UpdateBrowserTabUrlCommand(w *rpc.RpcClient, data rpctypes.BrowserTabUrlData, opts *rpc.RpcOpts) error {
 	_, err := SendRpcRequestCallHelper[any](w, "updatebrowsertaburl", data, opts)

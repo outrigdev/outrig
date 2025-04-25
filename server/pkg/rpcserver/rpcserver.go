@@ -14,6 +14,7 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/gensearch"
 	"github.com/outrigdev/outrig/server/pkg/rpc"
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
+	"github.com/outrigdev/outrig/server/pkg/tevent"
 )
 
 type RpcServerImpl struct{}
@@ -438,4 +439,24 @@ func (*RpcServerImpl) UpdateBrowserTabUrlCommand(ctx context.Context, data rpcty
 	}
 
 	return browsertabs.UpdateBrowserTabUrl(rpcSource, data)
+}
+
+// SendTEventFeCommand sends a telemetry event from the frontend
+func (*RpcServerImpl) SendTEventFeCommand(ctx context.Context, data rpctypes.TEventFeData) error {
+	// Create a TEvent from the frontend data
+	props := tevent.TEventProps{
+		ClickType:              data.Props.ClickType,
+		FrontendTab:            data.Props.FrontendTab,
+		FrontendSearchFeatures: data.Props.FrontendSearchFeatures,
+		FrontendSearchLatency:  data.Props.FrontendSearchLatency,
+		FrontendSearchItems:    data.Props.FrontendSearchItems,
+	}
+
+	// Create the TEvent
+	event := tevent.MakeTEvent(data.Event, props)
+
+	// Write the event
+	tevent.WriteTEvent(*event)
+
+	return nil
 }

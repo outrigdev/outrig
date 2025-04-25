@@ -62,6 +62,9 @@ type FullRpcInterface interface {
 	EventUnsubCommand(ctx context.Context, data string) error
 	EventUnsubAllCommand(ctx context.Context) error
 	EventReadHistoryCommand(ctx context.Context, data EventReadHistoryData) ([]*EventType, error)
+	
+	// tevent commands
+	SendTEventFeCommand(ctx context.Context, data TEventFeData) error
 
 	// browser tab tracking
 	UpdateBrowserTabUrlCommand(ctx context.Context, data BrowserTabUrlData) error
@@ -376,4 +379,20 @@ type ParsedGoRoutine struct {
 	CreatedByFrame  *StackFrame  `json:"createdbyframe,omitempty"`  // Frame information for the creation point
 	Parsed          bool         `json:"parsed"`                    // Whether the stack trace was successfully parsed
 	ParseError      string       `json:"parseerror,omitempty"`      // Error message if parsing failed
+}
+
+// TEventFeProps represents frontend-related properties for a telemetry event
+type TEventFeProps struct {
+	ClickType string `json:"debug:clicktype,omitempty"`
+	
+	FrontendTab            string   `json:"frontend:tab,omitempty"`
+	FrontendSearchFeatures []string `json:"frontend:logsearchfeatures,omitempty"`
+	FrontendSearchLatency  int      `json:"frontend:searchlatency,omitempty"`
+	FrontendSearchItems    int      `json:"frontend:searchitems,omitempty"`
+}
+
+// TEventFeData represents a simplified telemetry event for frontend use
+type TEventFeData struct {
+	Event string       `json:"event"`
+	Props TEventFeProps `json:"props"`
 }
