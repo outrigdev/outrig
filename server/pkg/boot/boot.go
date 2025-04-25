@@ -21,6 +21,7 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/rpcserver"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/tevent"
+	"github.com/outrigdev/outrig/server/pkg/updatecheck"
 	"github.com/outrigdev/outrig/server/pkg/web"
 )
 
@@ -128,6 +129,9 @@ func RunServer(config CLIConfig) error {
 
 	// Initialize telemetry event uploader
 	initializeTEventUploader()
+
+	// Initialize update checker
+	updatecheck.StartUpdateChecker()
 
 	// Run web servers (HTTP and WebSocket)
 	webServerPort, err := web.RunWebServer(ctx, config.Port)

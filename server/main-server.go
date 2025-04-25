@@ -16,6 +16,7 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/tevent"
+	"github.com/outrigdev/outrig/server/pkg/updatecheck"
 	"github.com/spf13/cobra"
 )
 
@@ -122,6 +123,18 @@ func main() {
 				tevent.Disabled.Store(true)
 			}
 
+			// Check if update checking should be disabled
+			noUpdateCheck, _ := cmd.Flags().GetBool("no-updatecheck")
+			noUpdateCheckEnv := os.Getenv("OUTRIG_NOUPDATECHECK")
+			if noUpdateCheck || noUpdateCheckEnv != "" {
+				if noUpdateCheck {
+					log.Printf("Update checking is disabled (via --no-updatecheck flag)\n")
+				} else {
+					log.Printf("Update checking is disabled (via OUTRIG_NOUPDATECHECK env var)\n")
+				}
+				updatecheck.Disabled.Store(true)
+			}
+
 			// Get the port flag value
 			port, _ := cmd.Flags().GetInt("port")
 
@@ -135,6 +148,7 @@ func main() {
 	}
 	// Add flags to server command
 	serverCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
+	serverCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
 	serverCmd.Flags().Int("port", 0, "Override the default web server port (default: 5005 for production, 6005 for development)")
 
 	versionCmd := &cobra.Command{
