@@ -81,7 +81,6 @@ brews:
           bin.install "outrig"
       test: |
           system "#{bin}/outrig", "version"
-      skip_upload: true
       caveats: |
           Outrig has been installed successfully!
 
