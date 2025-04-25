@@ -64,8 +64,19 @@ brews:
           bin.install "outrig"
       test: |
           system "#{bin}/outrig", "version"
-      post_install: |
-          system "#{bin}/outrig", "postinstall"
+      caveats: |
+          Outrig has been installed successfully!
+
+          Quick start and docs:
+            https://outrig.run/docs/quickstart
+
+          To start the Outrig server:
+            outrig server
+
+          ---
+          Outrig is open source and free for individual users.
+          If you find it useful, please star us on GitHub:
+            https://github.com/outrigdev/outrig
 
 nfpms:
     - package_name: outrig
