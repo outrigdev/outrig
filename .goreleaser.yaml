@@ -37,9 +37,8 @@ archives:
 
 checksum:
     name_template: "checksums.txt"
-
-extra_files:
-    - glob: dist/homebrew/Formula/*.rb
+    extra_files:
+        - glob: ./dist/homebrew/Formula/*.rb
 
 changelog:
     sort: asc
@@ -53,6 +52,21 @@ changelog:
 
 release:
     draft: true
+    extra_files:
+        - glob: ./dist/homebrew/Formula/*.rb
+
+notarize:
+    macos:
+        - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+          ids:
+              - outrig
+          sign:
+              certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+              password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+          notarize:
+              key: "{{ .Env.MACOS_NOTARY_KEY }}"
+              key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+              issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
 
 brews:
     - repository:
@@ -67,6 +81,7 @@ brews:
           bin.install "outrig"
       test: |
           system "#{bin}/outrig", "version"
+      skip_upload: true
       caveats: |
           Outrig has been installed successfully!
 
