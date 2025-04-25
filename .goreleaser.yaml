@@ -64,6 +64,8 @@ brews:
           bin.install "outrig"
       test: |
           system "#{bin}/outrig", "version"
+      post_install: |
+          system "#{bin}/outrig", "postinstall"
 
 nfpms:
     - package_name: outrig
