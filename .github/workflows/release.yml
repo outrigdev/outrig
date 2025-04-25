@@ -48,7 +48,7 @@ jobs:
             # Dependencies and frontend build are handled by GoReleaser
 
             - name: Run GoReleaser
-              uses: goreleaser/goreleaser-action@v5
+              uses: goreleaser/goreleaser-action@v6
               with:
                   distribution: goreleaser
                   version: "2.8.2"
@@ -56,3 +56,8 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   HOMEBREW_GITHUB_TOKEN: ${{ secrets.HOMEBREW_SECRET }}
+                  MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+                  MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+                  MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+                  MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+                  MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
