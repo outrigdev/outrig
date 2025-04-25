@@ -5,6 +5,7 @@ The AppRunPeer represents a connection to a running Go application in the Outrig
 ## Overview
 
 Each AppRunPeer instance tracks:
+
 - A unique application run ID
 - Application information (name, PID, start time, etc.)
 - Logs from the application
@@ -29,12 +30,12 @@ In your Go application, after initializing Outrig, defer the AppDone call in you
 
 ```go
 func main() {
-    // Initialize Outrig
-    outrig.Init(nil)
-    
+    // Initialize Outrig (set your application name)
+    outrig.Init("app-name", nil)
+
     // Defer AppDone to signal when the application exits
     defer outrig.AppDone()
-    
+
     // Rest of your application code
     // ...
 }

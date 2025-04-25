@@ -157,8 +157,8 @@ const NoAppRunsFound: React.FC = () => {
 import "github.com/outrigdev/outrig"
 
 func main() {
-    // Step 2: Initialize Outrig
-    outrig.Init(nil)
+    // Step 2: Initialize Outrig (set your application name)
+    outrig.Init("app-name", nil)
     
     // Step 3: Optionally signal graceful shutdown
     defer outrig.AppDone()

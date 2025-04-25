@@ -130,8 +130,8 @@ install_outrig() {
         *) info "Note: $INSTALL_DIR is not in your PATH. You may need to add it to use outrig." ;;
     esac
     
-    info "Outrig has been installed successfully!"
-    info "Run 'outrig server' to start the Outrig server"
+    # Run postinstall to display installation success message
+    "$INSTALL_DIR/outrig" postinstall
     
     # No additional verification needed as we already checked PATH above
 }

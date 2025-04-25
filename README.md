@@ -72,8 +72,8 @@ package main
 import "github.com/outrigdev/outrig"
 
 func main() {
-    // Initialize Outrig with default configuration
-    outrig.Init(nil)
+    // Initialize Outrig with default configuration (set your application name)
+    outrig.Init("app-name", nil)
 
     // Defer AppDone to signal when the application exits
     defer outrig.AppDone()

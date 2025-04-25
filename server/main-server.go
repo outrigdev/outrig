@@ -30,7 +30,7 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 	// Ignore SIGINT, SIGTERM, and SIGHUP signals
 	// This ensures the sidecar process doesn't terminate prematurely before the main process
 	signal.Ignore(syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	
+
 	stderrIn := os.NewFile(3, "stderr-in")
 	source, _ := cmd.Flags().GetString("source")
 	isDev, _ := cmd.Flags().GetBool("dev")
@@ -57,6 +57,37 @@ func processDevFlag(args []string) ([]string, bool) {
 		}
 	}
 	return filteredArgs, isDev
+}
+
+func runPostinstall(cmd *cobra.Command, args []string) {
+	brightCyan := "\x1b[96m"
+	brightBlueUnderline := "\x1b[94;4m"
+	reset := "\x1b[0m"
+
+	// Header
+	fmt.Printf("%s*** Outrig %s installed successfully! ***%s\n\n", brightCyan, getVersion(), reset)
+
+	// Quickstart link
+	fmt.Println("Quick start (and documentation):")
+	fmt.Printf("%shttps://outrig.run/docs/quickstart%s\n\n", brightBlueUnderline, reset)
+
+	// Server start instructions
+	fmt.Printf("To start the Outrig server, run:\n%soutrig server%s\n\n", brightCyan, reset)
+
+	// Separator
+	fmt.Println("---")
+
+	// Open source call to action
+	fmt.Println("Outrig is open source and free for individual users.")
+	fmt.Printf("If you find it useful, please support us with a star at\n  %shttps://github.com/outrigdev/outrig%s\n", brightBlueUnderline, reset)
+}
+
+func getVersion() string {
+	if serverbase.OutrigCommit != "" {
+		return fmt.Sprintf("%s+%s", serverbase.OutrigServerVersion, serverbase.OutrigCommit)
+	} else {
+		return fmt.Sprintf("%s+dev", serverbase.OutrigServerVersion)
+	}
 }
 
 func main() {
@@ -111,13 +142,7 @@ func main() {
 		Short: "Print the version number of Outrig",
 		Long:  `Print the version number of Outrig and exit.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if OutrigCommit != "" {
-				fmt.Printf("%s+%s\n", OutrigVersion, OutrigCommit)
-			} else if OutrigBuildTime != "" {
-				fmt.Printf("%s+%s\n", OutrigVersion, OutrigBuildTime)
-			} else {
-				fmt.Printf("%s+dev\n", OutrigVersion)
-			}
+			fmt.Printf("%s\n", getVersion())
 		},
 	}
 
@@ -176,11 +201,19 @@ Example: outrig --dev exec ls -latrh`,
 		DisableFlagParsing: true,
 	}
 
+	postinstallCmd := &cobra.Command{
+		Use:   "postinstall",
+		Short: "Display post-installation information",
+		Long:  `Display welcome message and helpful information after installation.`,
+		Run:   runPostinstall,
+	}
+
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(captureLogsCmd)
 	rootCmd.AddCommand(execCmd)
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(postinstallCmd)
 
 	// Add dev flag to root command (will be inherited by all subcommands)
 	rootCmd.PersistentFlags().Bool("dev", false, "Run in development mode")
