@@ -7,6 +7,7 @@ import { Toast } from "./elements/toast";
 import { emitter } from "./events";
 import { DefaultRpcClient } from "./init";
 import { RpcApi } from "./rpc/rpcclientapi";
+import { sendTabEvent } from "./tevent";
 
 const AutoFollowStorageKey = "outrig:autoFollow";
 const ThemeLocalStorageKey = "outrig:theme";
@@ -69,6 +70,14 @@ class AppModel {
         // Set the selected tab if it's valid
         if (tabParam && ["logs", "goroutines", "watches", "runtimestats"].includes(tabParam)) {
             getDefaultStore().set(this.selectedTab, tabParam);
+            
+            // Send tab event on initial load/refresh
+            // We use setTimeout to ensure this happens after RPC client is initialized
+            setTimeout(() => {
+                if (DefaultRpcClient) {
+                    sendTabEvent(tabParam);
+                }
+            }, 500);
         }
 
         // Store the appRunId from URL to be set after we verify it exists
@@ -214,6 +223,8 @@ class AppModel {
         getDefaultStore().set(this.selectedTab, "logs");
         // Use replaceState for tab navigation (no history entry)
         this.updateUrl({ tab: "logs" }, false);
+        // Send tab event
+        sendTabEvent("logs");
     }
 
     // This method is kept for backward compatibility
@@ -227,6 +238,8 @@ class AppModel {
         getDefaultStore().set(this.selectedTab, "goroutines");
         // Use replaceState for tab navigation (no history entry)
         this.updateUrl({ tab: "goroutines" }, false);
+        // Send tab event
+        sendTabEvent("goroutines");
     }
 
     selectWatchesTab() {
@@ -234,6 +247,8 @@ class AppModel {
         getDefaultStore().set(this.selectedTab, "watches");
         // Use replaceState for tab navigation (no history entry)
         this.updateUrl({ tab: "watches" }, false);
+        // Send tab event
+        sendTabEvent("watches");
     }
 
     selectRuntimeStatsTab() {
@@ -241,6 +256,8 @@ class AppModel {
         getDefaultStore().set(this.selectedTab, "runtimestats");
         // Use replaceState for tab navigation (no history entry)
         this.updateUrl({ tab: "runtimestats" }, false);
+        // Send tab event
+        sendTabEvent("runtimestats");
     }
 
     applyTheme(): void {
