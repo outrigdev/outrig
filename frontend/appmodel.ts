@@ -92,7 +92,7 @@ class AppModel {
         // Set the selected tab if it's valid
         if (tabParam && ["logs", "goroutines", "watches", "runtimestats"].includes(tabParam)) {
             getDefaultStore().set(this.selectedTab, tabParam);
-            
+
             // Send tab event on initial load/refresh
             // We use setTimeout to ensure this happens after RPC client is initialized
             setTimeout(() => {
@@ -212,7 +212,7 @@ class AppModel {
         if (!isAutoFollowSelection) {
             this.checkAndDisableAutoFollow(appRunId);
         }
-        
+
         // Check for updates when selecting a new app run with a small delay
         setTimeout(() => this.checkForUpdates(), 500);
     }

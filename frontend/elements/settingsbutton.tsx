@@ -14,7 +14,7 @@ export const SettingsButton: React.FC<SettingsButtonProps> = ({ onClick }) => {
         <Tooltip content="Settings">
             <button
                 onClick={onClick}
-                className="flex items-center p-1 pr-2 transition-colors cursor-pointer"
+                className="flex items-center p-1 transition-colors cursor-pointer"
                 aria-label="Settings"
             >
                 <Settings size={16} className="text-muted hover:text-primary" />

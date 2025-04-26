@@ -4,6 +4,7 @@
 import { AppModel } from "@/appmodel";
 import { SettingsButton } from "@/elements/settingsbutton";
 import { Tooltip } from "@/elements/tooltip";
+import { UpdateBadge } from "@/elements/updatebadge";
 import { GoRoutines } from "@/goroutines/goroutines";
 import { LogViewer } from "@/logviewer/logviewer";
 import { LeftNav } from "@/main/leftnav";
@@ -211,10 +212,11 @@ export function MainApp() {
                             ))}
                         </div>
                     </div>
-                    <div className="flex items-center">
+                    <div className="flex items-center pr-1">
                         <AutoFollowButton />
                         <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
                         <SettingsButton onClick={() => AppModel.openSettingsModal()} />
+                        <UpdateBadge />
                     </div>
                 </nav>
 
