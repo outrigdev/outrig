@@ -3,7 +3,7 @@
 
 import { AppModel } from "@/appmodel";
 import { useAtomValue } from "jotai";
-import { Download } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import React from "react";
 import { Tooltip } from "./tooltip";
 
@@ -20,17 +20,15 @@ export const UpdateBadge: React.FC<UpdateBadgeProps> = ({ onClick }) => {
 
     return (
         <>
-            <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
-            <Tooltip content={`A newer version of Outrig is available: ${newerVersion}`}>
+            <div className="mx-1.5 xl:mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
+            <Tooltip content={`A new version of Outrig is available: ${newerVersion}`}>
                 <button
                     onClick={onClick}
-                    className="flex items-center p-1 transition-colors cursor-pointer"
+                    className="flex items-center gap-2 px-3 h-6 bg-green-700/90 hover:bg-green-600/90 text-white dark:text-primary text-xs rounded-md transition-colors cursor-pointer"
                     aria-label="Update Available"
                 >
-                    <div className="relative">
-                        <Download size={16} className="text-accent hover:text-accent-hover" />
-                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full"></div>
-                    </div>
+                    <Sparkles size={16} />
+                    <span className="hidden xl:inline">Update Available</span>
                 </button>
             </Tooltip>
         </>

@@ -129,7 +129,7 @@ function AutoFollowButton() {
         >
             <button
                 onClick={handleToggle}
-                className="flex items-center gap-2 px-3 py-1 transition-colors cursor-pointer border-l-2 border-border"
+                className="flex items-center gap-2 pl-3 pr-0 py-1 transition-colors cursor-pointer border-l-2 border-border"
             >
                 <div className="relative">
                     <div
@@ -144,7 +144,8 @@ function AutoFollowButton() {
                     />
                 </div>
                 <span className={`text-xs ${autoFollow ? "text-accent font-medium" : "text-secondary"}`}>
-                    follow new runs
+                    <span className="hidden xl:inline">follow new runs</span>
+                    <span className="inline xl:hidden">follow</span>
                 </span>
             </button>
         </Tooltip>
@@ -177,18 +178,26 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
         <button
             onClick={handleTabClick}
             data-selected={selectedTab === name || undefined}
-            className="relative px-4 py-2 text-secondary text-sm data-[selected]:text-primary
-                data-[selected]:after:content-[''] data-[selected]:after:absolute 
-                data-[selected]:after:left-0 data-[selected]:after:bottom-[-1px] 
-                data-[selected]:after:w-full data-[selected]:after:h-[1px] 
+            className="relative px-2 lg:px-4 py-2 text-secondary text-[13px] lg:text-sm data-[selected]:text-primary
+                whitespace-nowrap flex-shrink-0
+                data-[selected]:after:content-[''] data-[selected]:after:absolute
+                data-[selected]:after:left-0 data-[selected]:after:bottom-[-1px]
+                data-[selected]:after:w-full data-[selected]:after:h-[1px]
                 data-[selected]:after:bg-primary
-                hover:after:content-[''] hover:after:absolute 
-                hover:after:left-0 hover:after:bottom-[-1px] 
-                hover:after:w-full hover:after:h-[1px] 
+                hover:after:content-[''] hover:after:absolute
+                hover:after:left-0 hover:after:bottom-[-1px]
+                hover:after:w-full hover:after:h-[1px]
                 hover:after:bg-muted
                 hover:text-primary transition-colors cursor-pointer"
         >
-            {displayName}
+            {name === "runtimestats" ? (
+                <>
+                    <span className="hidden lg:inline">Runtime Stats</span>
+                    <span className="inline lg:hidden">Stats</span>
+                </>
+            ) : (
+                displayName
+            )}
         </button>
     );
 }
@@ -202,11 +211,11 @@ export function MainApp() {
             <LeftNav />
 
             {/* Main Content */}
-            <div className="flex flex-col flex-grow overflow-hidden">
+            <div className="flex flex-col flex-grow overflow-hidden min-w-[700px]">
                 <nav className="bg-panel pr-2 border-b border-border flex justify-between items-stretch h-10">
                     <div className="flex items-center">
                         <AppHeader />
-                        <div className="flex ml-2">
+                        <div className="flex ml-2 overflow-x-auto">
                             {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
                                 <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
                             ))}
@@ -214,7 +223,7 @@ export function MainApp() {
                     </div>
                     <div className="flex items-center pr-1">
                         <AutoFollowButton />
-                        <div className="mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
+                        <div className="mx-1.5 xl:mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
                         <SettingsButton onClick={() => AppModel.openSettingsModal()} />
                         <UpdateBadge />
                     </div>
