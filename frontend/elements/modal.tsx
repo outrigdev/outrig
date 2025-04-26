@@ -36,7 +36,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, title, children }) => {
         >
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-[#000000]/50 backdrop-blur-[2px]"
+                className="absolute inset-0 bg-[#000000]/35"
                 aria-hidden="true"
                 onClick={() => AppModel.closeSettingsModal()}
             ></div>
