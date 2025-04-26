@@ -15,6 +15,7 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/rpc"
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/tevent"
+	"github.com/outrigdev/outrig/server/pkg/updatecheck"
 )
 
 type RpcServerImpl struct{}
@@ -459,4 +460,14 @@ func (*RpcServerImpl) SendTEventFeCommand(ctx context.Context, data rpctypes.TEv
 	tevent.WriteTEvent(*event)
 
 	return nil
+}
+
+// UpdateCheckCommand returns information about available updates
+func (*RpcServerImpl) UpdateCheckCommand(ctx context.Context) (rpctypes.UpdateCheckData, error) {
+	// Get the newer version from the updatecheck package
+	newerVersion := updatecheck.GetUpdatedVersion()
+	
+	return rpctypes.UpdateCheckData{
+		NewerVersion: newerVersion,
+	}, nil
 }

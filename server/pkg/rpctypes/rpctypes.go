@@ -68,6 +68,14 @@ type FullRpcInterface interface {
 
 	// browser tab tracking
 	UpdateBrowserTabUrlCommand(ctx context.Context, data BrowserTabUrlData) error
+	
+	// update check commands
+	UpdateCheckCommand(ctx context.Context) (UpdateCheckData, error)
+}
+
+// UpdateCheckData represents the response for update check information
+type UpdateCheckData struct {
+	NewerVersion string `json:"newerversion"`
 }
 
 type RespUnion[T any] struct {

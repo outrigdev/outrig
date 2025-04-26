@@ -142,6 +142,12 @@ func UpdateBrowserTabUrlCommand(w *rpc.RpcClient, data rpctypes.BrowserTabUrlDat
 	return err
 }
 
+// command "updatecheck", rpctypes.UpdateCheckCommand
+func UpdateCheckCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) (rpctypes.UpdateCheckData, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.UpdateCheckData](w, "updatecheck", nil, opts)
+	return resp, err
+}
+
 // command "updatestatus", rpctypes.UpdateStatusCommand
 func UpdateStatusCommand(w *rpc.RpcClient, data rpctypes.StatusUpdateData, opts *rpc.RpcOpts) error {
 	_, err := SendRpcRequestCallHelper[any](w, "updatestatus", data, opts)

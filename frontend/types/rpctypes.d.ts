@@ -341,6 +341,11 @@ declare global {
         "frontend:searchitems"?: number;
     };
 
+    // rpctypes.UpdateCheckData
+    type UpdateCheckData = {
+        newerversion: string;
+    };
+
     // rpctypes.WatchHistoryData
     type WatchHistoryData = {
         apprunid: string;
