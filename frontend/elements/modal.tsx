@@ -9,9 +9,10 @@ interface ModalProps {
     isOpen: boolean;
     title: string;
     children: React.ReactNode;
+    onClose: () => void;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, title, children }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, title, children, onClose }) => {
     const modalRef = useRef<HTMLDivElement>(null);
 
     // Add a class to the body when the modal is open to prevent scrolling
@@ -32,13 +33,13 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, title, children }) => {
     return (
         <div
             className="fixed inset-0 flex items-center justify-center z-50"
-            onClick={() => AppModel.closeSettingsModal()}
+            onClick={onClose}
         >
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-[#000000]/35"
                 aria-hidden="true"
-                onClick={() => AppModel.closeSettingsModal()}
+                onClick={onClose}
             ></div>
 
             {/* Modal content - stop propagation to prevent closing when clicked */}
@@ -54,9 +55,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, title, children }) => {
                 <div className="flex justify-between items-center px-4 py-3 border-b border-border">
                     <h2 className="text-primary font-medium">{title}</h2>
                     <button
-                        onClick={() => {
-                            AppModel.closeSettingsModal();
-                        }}
+                        onClick={onClose}
                         className="text-muted hover:text-primary cursor-pointer"
                         aria-label="Close"
                     >

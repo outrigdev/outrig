@@ -5,6 +5,7 @@ import { AppModel } from "@/appmodel";
 import { SettingsButton } from "@/elements/settingsbutton";
 import { Tooltip } from "@/elements/tooltip";
 import { UpdateBadge } from "@/elements/updatebadge";
+import { UpdateModal } from "@/elements/update-modal";
 import { GoRoutines } from "@/goroutines/goroutines";
 import { LogViewer } from "@/logviewer/logviewer";
 import { LeftNav } from "@/main/leftnav";
@@ -204,6 +205,7 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
 
 export function MainApp() {
     const isLeftNavOpen = useAtomValue(AppModel.leftNavOpen);
+    const isUpdateModalOpen = useAtomValue(AppModel.updateModalOpen);
 
     return (
         <div className="flex h-full w-full">
@@ -225,7 +227,7 @@ export function MainApp() {
                         <AutoFollowButton />
                         <div className="mx-1.5 xl:mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
                         <SettingsButton onClick={() => AppModel.openSettingsModal()} />
-                        <UpdateBadge />
+                        <UpdateBadge onClick={() => AppModel.openUpdateModal()} />
                     </div>
                 </nav>
 
@@ -235,6 +237,12 @@ export function MainApp() {
 
                 <StatusBar />
             </div>
+
+            {/* Update Modal */}
+            <UpdateModal
+                isOpen={isUpdateModalOpen}
+                onClose={() => AppModel.closeUpdateModal()}
+            />
         </div>
     );
 }

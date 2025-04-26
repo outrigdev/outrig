@@ -43,7 +43,7 @@ export const SettingsModal: React.FC = () => {
     const showLineNumbers = useAtomValue(SettingsModel.logsShowLineNumbers);
 
     return (
-        <Modal isOpen={true} title="Outrig Settings">
+        <Modal isOpen={true} title="Outrig Settings" onClose={() => AppModel.closeSettingsModal()}>
             <div className="text-primary">
                 {/* Hidden input to capture focus */}
                 <input

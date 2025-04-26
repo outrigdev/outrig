@@ -30,6 +30,7 @@ class AppModel {
     autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AutoFollowStorageKey) !== "false"); // Default to true if not set
     leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(LeftNavOpenStorageKey) === "true"); // State for left navigation bar
     settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
+    updateModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for update modal
     newerVersion: PrimitiveAtom<string> = atom(null) as PrimitiveAtom<string>; // Newer version available
 
     // Toast notifications
@@ -329,6 +330,20 @@ class AppModel {
 
     closeSettingsModal(): void {
         getDefaultStore().set(this.settingsModalOpen, false);
+        emitter.emit("modalclose");
+    }
+
+    openUpdateModal(): void {
+        getDefaultStore().set(this.updateModalOpen, true);
+
+        // Blur any active element to ensure it doesn't receive input
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+    }
+
+    closeUpdateModal(): void {
+        getDefaultStore().set(this.updateModalOpen, false);
         emitter.emit("modalclose");
     }
 
