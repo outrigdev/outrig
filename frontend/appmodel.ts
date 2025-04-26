@@ -8,6 +8,7 @@ import { emitter } from "./events";
 import { DefaultRpcClient } from "./init";
 import { RpcApi } from "./rpc/rpcclientapi";
 import { sendTabEvent } from "./tevent";
+import { isBlank } from "./util/util";
 
 const AutoFollowStorageKey = "outrig:autoFollow";
 const ThemeLocalStorageKey = "outrig:theme";
@@ -29,6 +30,7 @@ class AppModel {
     autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AutoFollowStorageKey) !== "false"); // Default to true if not set
     leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(LeftNavOpenStorageKey) === "true"); // State for left navigation bar
     settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
+    newerVersion: PrimitiveAtom<string> = atom(null) as PrimitiveAtom<string>; // Newer version available
 
     // Toast notifications
     toasts: PrimitiveAtom<Toast[]> = atom<Toast[]>([]);
@@ -57,8 +59,28 @@ class AppModel {
         this.appRunModel = new AppRunModel();
         this.applyTheme();
         this.initFromUrl();
+        // Check for updates with a small delay to avoid conflicts with other calls
+        setTimeout(() => this.checkForUpdates(), 1000);
         // Mark initialization as complete
         this._isInitializing = false;
+    }
+
+    // Check for newer version
+    async checkForUpdates() {
+        if (!DefaultRpcClient) return;
+
+        try {
+            const updateData = await RpcApi.UpdateCheckCommand(DefaultRpcClient);
+            if (updateData) {
+                if (isBlank(updateData.newerversion)) {
+                    getDefaultStore().set(this.newerVersion, null);
+                } else {
+                    getDefaultStore().set(this.newerVersion, updateData.newerversion);
+                }
+            }
+        } catch (err) {
+            console.error("Failed to check for updates:", err);
+        }
     }
 
     // Initialize state from URL parameters
@@ -176,6 +198,8 @@ class AppModel {
         this.updateUrl({ tab: tab }, false);
 
         this.checkAndDisableAutoFollow(appRunId);
+        // Check for updates when selecting a new app run with a small delay
+        setTimeout(() => this.checkForUpdates(), 500);
     }
 
     // Select an app run without changing the current tab
@@ -188,6 +212,9 @@ class AppModel {
         if (!isAutoFollowSelection) {
             this.checkAndDisableAutoFollow(appRunId);
         }
+        
+        // Check for updates when selecting a new app run with a small delay
+        setTimeout(() => this.checkForUpdates(), 500);
     }
 
     // Check if the selected app run is not the "best" one, and if so, disable auto-follow
