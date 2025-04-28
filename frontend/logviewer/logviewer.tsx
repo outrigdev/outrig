@@ -2,25 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AppModel } from "@/appmodel";
-import { CopyButton } from "@/elements/copybutton";
-import { Tooltip } from "@/elements/tooltip";
 import { LogVList } from "@/logvlist/logvlist";
-import { LogSettings, SettingsModel } from "@/settings/settings-model";
+import { SettingsModel } from "@/settings/settings-model";
 import { EmptyMessageDelayMs } from "@/util/constants";
 import { useOutrigModel } from "@/util/hooks";
-import { getDefaultStore, useAtom, useAtomValue } from "jotai";
-import { ArrowDown, ArrowDownCircle, Wifi, WifiOff, X } from "lucide-react";
+import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogViewerFilter } from "./logfilter";
 import { LogLineComponent } from "./logline";
 import { LogViewerModel } from "./logviewer-model";
-
-// Interface for combined log line settings
-interface LogLineSettings {
-    lineNumWidth: number;
-    logSettings: LogSettings;
-    appRunStartTime: number | null;
-}
+import { EmptyMessageDisplay, MarkedLinesIndicator, RefreshingModal, StreamingStatusBar } from "./logviewer-comps";
 
 // LogList component for rendering the list of logs using LogVList
 interface LogListProps {
@@ -31,7 +22,6 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     const listContainerRef = useRef<HTMLDivElement>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const followOutput = useAtomValue(model.followOutput);
-    const isRefreshing = useAtomValue(model.isRefreshing);
 
     // Subscribe to atoms once at the LogList level
     const lineNumWidth = useAtomValue(model.lineNumberWidth);
@@ -150,52 +140,6 @@ const LogList = React.memo<LogListProps>(({ model }) => {
 });
 LogList.displayName = "LogList";
 
-// Marked Lines Indicator component
-interface MarkedLinesIndicatorProps {
-    model: LogViewerModel;
-}
-
-const MarkedLinesIndicator = React.memo<MarkedLinesIndicatorProps>(({ model }) => {
-    // Subscribe to the version atom to trigger re-renders when marked lines change
-    useAtomValue(model.markedLinesVersion);
-    const markedCount = model.getMarkedLinesCount();
-
-    if (markedCount === 0) {
-        return null;
-    }
-
-    const handleClearMarks = () => {
-        model.clearMarkedLines();
-    };
-
-    const handleCopyMarkedLines = async () => {
-        await model.copyMarkedLinesToClipboard();
-    };
-
-    return (
-        <div className="absolute top-0 right-0 flex items-center bg-accent text-white dark:text-black rounded-bl-md px-2 py-1 text-xs z-10">
-            <span className="font-medium">
-                {markedCount} {markedCount === 1 ? "line" : "lines"} marked
-            </span>
-            <CopyButton
-                className="ml-2 text-white dark:text-black"
-                size={14}
-                tooltipText="Copy marked lines"
-                successTooltipText="Copied!"
-                variant="primary"
-                onCopy={handleCopyMarkedLines}
-            />
-            <button
-                onClick={handleClearMarks}
-                className="ml-2 hover:text-black/70 cursor-pointer"
-                aria-label="Clear marked lines"
-            >
-                <X size={14} />
-            </button>
-        </div>
-    );
-});
-MarkedLinesIndicator.displayName = "MarkedLinesIndicator";
 
 // Log content component
 interface LogViewerContentProps {
@@ -204,7 +148,6 @@ interface LogViewerContentProps {
 
 const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
     const isRefreshing = useAtomValue(model.isRefreshing);
-    const isLoading = useAtomValue(model.isLoading);
     const filteredLinesCount = useAtomValue(model.filteredItemCount);
     const totalLinesCount = useAtomValue(model.totalItemCount);
     const searchTerm = useAtomValue(model.searchTerm);
@@ -223,26 +166,11 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
         }
     }, [filteredLinesCount, totalLinesCount, isRefreshing]);
 
-    // Get streaming status, follow status, and app running status
-    const isStreaming = useAtomValue(model.isStreaming);
-    const [followOutput, setFollowOutput] = useAtom(model.followOutput);
+    // Get app running status
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const appRunInfoAtom = AppModel.getAppRunInfoAtom(selectedAppRunId);
     const appRunInfo = useAtomValue(appRunInfoAtom);
     const isAppRunning = appRunInfo?.isrunning || false;
-
-    // Toggle streaming handler
-    const handleToggleStreaming = () => {
-        getDefaultStore().set(model.isStreaming, !isStreaming);
-    };
-
-    // Toggle follow output handler
-    const handleToggleFollow = () => {
-        setFollowOutput(!followOutput);
-        if (!followOutput) {
-            model.scrollToBottom();
-        }
-    };
 
     return (
         <div className="w-full h-full overflow-hidden flex-1 pt-2 relative flex flex-col">
@@ -253,79 +181,16 @@ const LogViewerContent = React.memo<LogViewerContentProps>(({ model }) => {
                 <LogList model={model} />
             </div>
 
-            {/* Streaming status indicator at bottom */}
-            {isAppRunning && (
-                <div className="w-full flex items-center h-6 border-t border-border bg-primary/8">
-                    {/* Left side - Streaming button */}
-                    <div className="flex-grow basis-0 flex justify-end items-center">
-                        <Tooltip
-                            content={
-                                isStreaming
-                                    ? "Streaming New Log Lines (Click to Disable)"
-                                    : "Not Streaming New Log Lines (Click to Enable)"
-                            }
-                        >
-                            <button
-                                onClick={handleToggleStreaming}
-                                className={`flex items-center gap-2 px-2 py-0.5 rounded ${
-                                    isStreaming ? "text-primary" : "text-muted"
-                                } hover:bg-primary/10 cursor-pointer transition-colors`}
-                                aria-pressed={isStreaming}
-                            >
-                                {isStreaming ? <Wifi size={14} /> : <WifiOff size={14} />}
-                                <span className="text-xs">{isStreaming ? "Streaming" : "Not Streaming"}</span>
-                            </button>
-                        </Tooltip>
-                    </div>
+            {isAppRunning && <StreamingStatusBar model={model} />}
 
-                    {/* Center divider */}
-                    <div className="mx-4 text-border">|</div>
-
-                    {/* Right side - Pin button */}
-                    <div className="flex-grow basis-0 flex justify-start items-center">
-                        <Tooltip
-                            content={
-                                followOutput
-                                    ? "Pinned to Bottom (Click to Disable)"
-                                    : "Not Pinned to Bottom (Click to Enable)"
-                            }
-                        >
-                            <button
-                                onClick={handleToggleFollow}
-                                className={`flex items-center gap-2 px-2 py-0.5 rounded ${
-                                    followOutput ? "text-primary" : "text-muted"
-                                } hover:bg-primary/10 cursor-pointer transition-colors`}
-                                aria-pressed={followOutput}
-                            >
-                                {followOutput ? <ArrowDownCircle size={14} /> : <ArrowDown size={14} />}
-                                <span className="text-xs">{followOutput ? "Pinned" : "Not Pinned"}</span>
-                            </button>
-                        </Tooltip>
-                    </div>
-                </div>
-            )}
-
-            {/* Small centered refreshing modal with improved styling */}
-            {isRefreshing && (
-                <>
-                    {/* Semi-transparent backdrop with minimal blur */}
-                    <div className="absolute inset-0 bg-background/20 backdrop-blur-[1px] z-10"></div>
-
-                    {/* Refreshing modal */}
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[300px] h-[120px] bg-panel border border-border rounded-md shadow-lg flex items-center justify-center z-20">
-                        <div className="text-primary font-medium">Data Refreshed</div>
-                    </div>
-                </>
-            )}
+            {isRefreshing && <RefreshingModal />}
 
             {!isRefreshing && showEmptyMessage && (
-                <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-background/80">
-                    {totalLinesCount === 0 ? (
-                        <span className="text-muted">no log lines</span>
-                    ) : filteredLinesCount === 0 && searchTerm ? (
-                        <span className="text-muted">no matching lines</span>
-                    ) : null}
-                </div>
+                <EmptyMessageDisplay
+                    totalLinesCount={totalLinesCount}
+                    filteredLinesCount={filteredLinesCount}
+                    searchTerm={searchTerm}
+                />
             )}
         </div>
     );

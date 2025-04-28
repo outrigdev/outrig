@@ -3,7 +3,7 @@
 
 import { LogListInterface, LogPageInterface } from "@/logviewer/logviewer-model";
 import { atom, Atom, PrimitiveAtom, useAtomValue } from "jotai";
-import { JSX, useEffect, useLayoutEffect, useRef } from "react";
+import React, { JSX, useEffect, useLayoutEffect, useRef } from "react";
 
 export interface PageProps {
     pageAtom: Atom<LogPageInterface>;
@@ -14,7 +14,7 @@ export interface PageProps {
     vlistRef: React.RefObject<HTMLDivElement>;
 }
 
-function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRequired, vlistRef }: PageProps) {
+const LogPage = React.memo<PageProps>(({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRequired, vlistRef }) => {
     const { lines, totalCount, loaded } = useAtomValue(pageAtom);
     const LineComponent = lineComponent;
     const pageRef = useRef<HTMLDivElement>(null);
@@ -76,7 +76,8 @@ function LogPage({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRe
             {lineElems}
         </div>
     );
-}
+});
+LogPage.displayName = "LogPage";
 
 export interface LogListProps {
     listAtom: Atom<LogListInterface>;
@@ -86,7 +87,7 @@ export interface LogListProps {
     vlistRef: React.RefObject<HTMLDivElement>;
 }
 
-function LogList({ listAtom, defaultItemHeight, lineComponent, onPageRequired, vlistRef }: LogListProps) {
+const LogList = React.memo<LogListProps>(({ listAtom, defaultItemHeight, lineComponent, onPageRequired, vlistRef }) => {
     const { pages, pageSize, trimmedLines } = useAtomValue(listAtom);
 
     // Calculate how many pages have been trimmed
@@ -117,7 +118,8 @@ function LogList({ listAtom, defaultItemHeight, lineComponent, onPageRequired, v
             })}
         </>
     );
-}
+});
+LogList.displayName = "LogList";
 
 export interface LogVListProps {
     listAtom: Atom<LogListInterface>;
@@ -129,7 +131,7 @@ export interface LogVListProps {
     vlistRef: React.RefObject<HTMLDivElement>;
 }
 
-export function LogVList({
+export const LogVList = React.memo<LogVListProps>(({
     listAtom,
     defaultItemHeight,
     lineComponent,
@@ -137,7 +139,7 @@ export function LogVList({
     onPageRequired,
     pinToBottomAtom,
     vlistRef,
-}: LogVListProps) {
+}) => {
     const contentRef = useRef<HTMLDivElement>(null);
     const isPinnedToBottom = useAtomValue(pinToBottomAtom);
     const versionAtom = useRef(atom((get) => get(listAtom).version)).current;
@@ -215,4 +217,5 @@ export function LogVList({
             </div>
         </div>
     );
-}
+});
+LogVList.displayName = "LogVList";

@@ -1,6 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import React from "react";
 import { AppModel } from "@/appmodel";
 import { SettingsButton } from "@/elements/settingsbutton";
 import { Tooltip } from "@/elements/tooltip";
@@ -22,7 +23,7 @@ const TAB_DISPLAY_NAMES: Record<string, string> = {
     runtimestats: "Runtime Stats",
 };
 
-function FeatureTab() {
+const FeatureTab = React.memo(function FeatureTab() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
@@ -39,9 +40,11 @@ function FeatureTab() {
     }
 
     return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;
-}
+});
 
-function AppRunSwitcher() {
+FeatureTab.displayName = "FeatureTab";
+
+const AppRunSwitcher = React.memo(function AppRunSwitcher() {
     const [isLeftNavOpen, setLeftNavOpen] = useAtom(AppModel.leftNavOpen);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const appRunInfoAtom = AppModel.getAppRunInfoAtom(selectedAppRunId || "");
@@ -109,9 +112,11 @@ function AppRunSwitcher() {
             )}
         </div>
     );
-}
+});
 
-function AutoFollowButton() {
+AppRunSwitcher.displayName = "AppRunSwitcher";
+
+const AutoFollowButton = React.memo(function AutoFollowButton() {
     const autoFollow = useAtomValue(AppModel.autoFollow);
 
     const handleToggle = () => {
@@ -151,9 +156,11 @@ function AutoFollowButton() {
             </button>
         </Tooltip>
     );
-}
+});
 
-function Tab({ name, displayName }: { name: string; displayName: string }) {
+AutoFollowButton.displayName = "AutoFollowButton";
+
+const Tab = React.memo(function Tab({ name, displayName }: { name: string; displayName: string }) {
     const [selectedTab, setSelectedTab] = useAtom(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
@@ -201,9 +208,11 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
             )}
         </button>
     );
-}
+});
 
-function AppHeader() {
+Tab.displayName = "Tab";
+
+const AppHeader = React.memo(function AppHeader() {
     return (
         <nav className="bg-panel pr-2 border-b border-border flex justify-between items-stretch h-10">
             <div className="flex items-center">
@@ -222,14 +231,18 @@ function AppHeader() {
             </div>
         </nav>
     );
-}
+});
 
-function UpdateModalWrapper() {
+AppHeader.displayName = "AppHeader";
+
+const UpdateModalWrapper = React.memo(function UpdateModalWrapper() {
     const isUpdateModalOpen = useAtomValue(AppModel.updateModalOpen);
     return <UpdateModal isOpen={isUpdateModalOpen} onClose={() => AppModel.closeUpdateModal()} />;
-}
+});
 
-export function MainApp() {
+UpdateModalWrapper.displayName = "UpdateModalWrapper";
+
+export const MainApp = React.memo(function MainApp() {
     return (
         <div className="flex h-full w-full">
             <LeftNav />
@@ -243,6 +256,8 @@ export function MainApp() {
             <UpdateModalWrapper />
         </div>
     );
-}
+});
+
+MainApp.displayName = "MainApp";
 
 export { AppHeader };
