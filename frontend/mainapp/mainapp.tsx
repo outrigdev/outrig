@@ -4,8 +4,8 @@
 import { AppModel } from "@/appmodel";
 import { SettingsButton } from "@/elements/settingsbutton";
 import { Tooltip } from "@/elements/tooltip";
-import { UpdateBadge } from "@/elements/updatebadge";
 import { UpdateModal } from "@/elements/update-modal";
+import { UpdateBadge } from "@/elements/updatebadge";
 import { GoRoutines } from "@/goroutines/goroutines";
 import { LogViewer } from "@/logviewer/logviewer";
 import { LeftNav } from "@/main/leftnav";
@@ -41,7 +41,7 @@ function FeatureTab() {
     return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;
 }
 
-function AppHeader() {
+function AppRunSwitcher() {
     const [isLeftNavOpen, setLeftNavOpen] = useAtom(AppModel.leftNavOpen);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const appRunInfoAtom = AppModel.getAppRunInfoAtom(selectedAppRunId || "");
@@ -203,48 +203,46 @@ function Tab({ name, displayName }: { name: string; displayName: string }) {
     );
 }
 
-export function MainApp() {
-    const isLeftNavOpen = useAtomValue(AppModel.leftNavOpen);
-    const isUpdateModalOpen = useAtomValue(AppModel.updateModalOpen);
+function AppHeader() {
+    return (
+        <nav className="bg-panel pr-2 border-b border-border flex justify-between items-stretch h-10">
+            <div className="flex items-center">
+                <AppRunSwitcher />
+                <div className="flex ml-2 overflow-x-auto">
+                    {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
+                        <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
+                    ))}
+                </div>
+            </div>
+            <div className="flex items-center pr-1">
+                <AutoFollowButton />
+                <div className="mx-1.5 xl:mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
+                <SettingsButton onClick={() => AppModel.openSettingsModal()} />
+                <UpdateBadge onClick={() => AppModel.openUpdateModal()} />
+            </div>
+        </nav>
+    );
+}
 
+function UpdateModalWrapper() {
+    const isUpdateModalOpen = useAtomValue(AppModel.updateModalOpen);
+    return <UpdateModal isOpen={isUpdateModalOpen} onClose={() => AppModel.closeUpdateModal()} />;
+}
+
+export function MainApp() {
     return (
         <div className="flex h-full w-full">
-            {/* Left Navigation */}
             <LeftNav />
-
-            {/* Main Content */}
             <div className="flex flex-col flex-grow overflow-hidden min-w-[700px]">
-                <nav className="bg-panel pr-2 border-b border-border flex justify-between items-stretch h-10">
-                    <div className="flex items-center">
-                        <AppHeader />
-                        <div className="flex ml-2 overflow-x-auto">
-                            {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
-                                <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
-                            ))}
-                        </div>
-                    </div>
-                    <div className="flex items-center pr-1">
-                        <AutoFollowButton />
-                        <div className="mx-1.5 xl:mx-3 h-5 w-[2px] bg-gray-300 dark:bg-gray-600"></div>
-                        <SettingsButton onClick={() => AppModel.openSettingsModal()} />
-                        <UpdateBadge onClick={() => AppModel.openUpdateModal()} />
-                    </div>
-                </nav>
-
+                <AppHeader />
                 <main className="flex-grow overflow-auto w-full">
                     <FeatureTab />
                 </main>
-
                 <StatusBar />
             </div>
-
-            {/* Update Modal */}
-            <UpdateModal
-                isOpen={isUpdateModalOpen}
-                onClose={() => AppModel.closeUpdateModal()}
-            />
+            <UpdateModalWrapper />
         </div>
     );
 }
 
-export { AppHeader, AutoFollowButton, FeatureTab, Tab };
+export { AppHeader };
