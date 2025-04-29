@@ -10,6 +10,7 @@ import { SearchFilter } from "@/searchfilter/searchfilter";
 import { EmptyMessageDelayMs } from "@/util/constants";
 import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
+import { prettyPrintGoFmt, prettyPrintJson } from "@/util/util";
 import { useAtom, useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
 import { NoWatchesMessage } from "./nowatchmessage";
@@ -78,42 +79,25 @@ interface WatchViewProps {
 
 const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
     // Format the watch value for display
-    const formatValue = (watch: WatchSample) => {
-        if (watch.error) {
-            return <pre className="text-xs whitespace-pre-wrap font-mono text-error">{watch.error}</pre>;
+    const formatValue = ({ error, strval, jsonval, gofmtval }: WatchSample) => {
+        const pre = (txt: string, cls = "text-xs whitespace-pre-wrap font-mono") => <pre className={cls}>{txt}</pre>;
+        if (error) {
+            return pre(error, "text-xs whitespace-pre-wrap font-mono text-error");
         }
-
-        if (watch.value == null) {
-            return <pre className="text-xs whitespace-pre-wrap font-mono text-muted">null</pre>;
+        const out: React.ReactNode[] = [];
+        if (strval) {
+            out.push(pre(strval, "text-xs whitespace-pre-wrap font-mono mb-2"));
         }
-
-        // Check if the JSON flag is set
-        if (watch.flags && watch.flags & WatchFlag_JSON) {
-            try {
-                const parsed = JSON.parse(watch.value);
-                return <pre className="text-xs whitespace-pre-wrap font-mono">{JSON.stringify(parsed, null, 2)}</pre>;
-            } catch {
-                // If parsing fails, fall back to displaying as is
-                return <pre className="text-xs whitespace-pre-wrap font-mono">{watch.value}</pre>;
-            }
+        if (jsonval) {
+            out.push(pre(prettyPrintJson(jsonval)));
+        } else if (gofmtval) {
+            const ppVal = prettyPrintGoFmt(gofmtval);
+            out.push(pre(ppVal));
         }
-
-        // Check if the GoFmt flag is set (formatted by Go's fmt package)
-        if (watch.flags && watch.flags & WatchFlag_GoFmt) {
-            return <pre className="text-xs whitespace-pre-wrap font-mono">{watch.value}</pre>;
+        if (out.length == 0) {
+            return pre("(no value)", "text-xs whitespace-pre-wrap font-mono text-error");
         }
-
-        // Legacy behavior: try to parse JSON if it looks like JSON
-        if (watch.value.startsWith("{") || watch.value.startsWith("[")) {
-            try {
-                const parsed = JSON.parse(watch.value);
-                return <pre className="text-xs whitespace-pre-wrap font-mono">{JSON.stringify(parsed, null, 2)}</pre>;
-            } catch {
-                // If it's not valid JSON, just display as is
-            }
-        }
-
-        return <pre className="text-xs whitespace-pre-wrap font-mono">{watch.value}</pre>;
+        return <>{out}</>;
     };
 
     // Get flag tags based on the watch flags
@@ -165,9 +149,9 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
                         size={14}
                         tooltipText="Copy value"
                         onCopy={() => {
-                            if (watch.value) {
-                                navigator.clipboard.writeText(watch.value);
-                            }
+                            // Determine which value to copy, prioritizing strval
+                            const valueToCopy = watch.strval ?? watch.jsonval ?? watch.gofmtval ?? "";
+                            navigator.clipboard.writeText(valueToCopy);
                         }}
                     />
                 </div>

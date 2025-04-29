@@ -379,7 +379,9 @@ declare global {
         tags?: string[];
         ts: number;
         flags?: number;
-        value?: string;
+        strval?: string;
+        gofmtval?: string;
+        jsonval?: string;
         type: string;
         error?: string;
         addr?: string[];

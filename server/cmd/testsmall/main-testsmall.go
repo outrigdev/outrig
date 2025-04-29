@@ -13,9 +13,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type Point struct {
+	X    int
+	Y    int
+	Desc string
+}
+
 type Foo struct {
-	Val int
-	Ch  chan int
+	Val       int
+	Ch        chan int
+	SubStruct Point
 }
 
 func main() {
@@ -27,7 +34,7 @@ func main() {
 
 	outrig.TrackValue("test #test", nil)
 
-	foo := &Foo{5, make(chan int, 2)}
+	foo := &Foo{5, make(chan int, 2), Point{1, 2, "test{[()]}"}}
 	outrig.TrackValue("foo #test", foo)
 
 	logrus.SetFormatter(&logrus.TextFormatter{

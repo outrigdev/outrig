@@ -173,5 +173,72 @@ export function formatTimeOffset(timestamp: number, startTime: number): string {
  * This prevents potential security issues when using user input in RegExp.
  */
 export function escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function prettyPrintJson(jsonVal: string): string {
+    try {
+        const parsed = JSON.parse(jsonVal);
+        return JSON.stringify(parsed, null, 2);
+    } catch (e) {
+        return jsonVal; // Return the original string if parsing fails
+    }
+}
+
+// “gofmt-lite” v3 — ignores braces/brackets inside Go string literals
+export function prettyPrintGoFmt(raw: string, tab = "  "): string {
+    let out = "";
+    let depth = 0;
+    let inStr = false,
+        delim = "",
+        esc = false;
+
+    const nl = () => {
+        out += "\n" + tab.repeat(depth);
+    };
+
+    for (let i = 0; i < raw.length; i++) {
+        const c = raw[i];
+
+        if (inStr) {
+            out += c;
+            if (delim === '"' && c === "\\" && !esc) {
+                esc = true;
+                continue;
+            }
+            if (c === delim && !esc) inStr = false;
+            esc = false;
+            continue;
+        }
+
+        if (c === '"' || c === "`") {
+            inStr = true;
+            delim = c;
+            out += c;
+            continue;
+        }
+
+        switch (c) {
+            case "{":
+            case "[":
+                out += c;
+                depth++;
+                nl();
+                break;
+            case "}":
+            case "]":
+                depth--;
+                nl();
+                out += c;
+                break;
+            case ",":
+                out += ",";
+                while (raw[i + 1] === " ") i++;
+                nl();
+                break;
+            default:
+                out += c;
+        }
+    }
+    return out.trimEnd();
 }

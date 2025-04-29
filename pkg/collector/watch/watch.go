@@ -354,7 +354,7 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 	watch.Ts = time.Now().UnixMilli()
 	for rval.Kind() == reflect.Ptr {
 		if rval.IsNil() {
-			watch.Value = "nil"
+			watch.StrVal = "nil"
 			wc.recordWatch(watch)
 			return
 		}
@@ -366,20 +366,19 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 
 	switch rval.Kind() {
 	case reflect.String:
-		watch.Value = rval.String()
+		watch.StrVal = rval.String()
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
-		watch.Value = fmt.Sprint(rval.Interface())
+		watch.StrVal = fmt.Sprint(rval.Interface())
 	case reflect.Slice, reflect.Array, reflect.Map, reflect.Struct, reflect.Interface:
+		watch.GoFmtVal = fmt.Sprintf("%#v", rval.Interface())
 		barr, err := json.Marshal(rval.Interface())
-		if err != nil {
-			// Fallback to Go's fmt representation
-			watch.Value = fmt.Sprintf("%+v", rval.Interface())
-			watch.Flags |= ds.WatchFlag_GoFmt
-		} else {
-			watch.Value = string(barr)
-			watch.Flags |= ds.WatchFlag_JSON
+		if err == nil {
+			watch.JsonVal = string(barr)
+		}
+		if strer, ok := rval.Interface().(fmt.Stringer); ok {
+			watch.StrVal = strer.String()
 		}
 		if rval.Kind() == reflect.Slice || rval.Kind() == reflect.Array || rval.Kind() == reflect.Map {
 			watch.Len = rval.Len()
@@ -393,7 +392,7 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 	case reflect.Func:
 		// no value
 	case reflect.UnsafePointer:
-		watch.Value = fmt.Sprintf("%p", rval.Interface())
+		watch.StrVal = fmt.Sprintf("%p", rval.Interface())
 	default:
 		watch.Error = fmt.Sprintf("unsupported kind: %s", rval.Kind())
 	}

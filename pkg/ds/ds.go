@@ -207,7 +207,9 @@ type WatchSample struct {
 	Tags     []string `json:"tags,omitempty"`
 	Ts       int64    `json:"ts"`
 	Flags    int      `json:"flags,omitempty"`
-	Value    string   `json:"value,omitempty"`
+	StrVal   string   `json:"strval,omitempty"`
+	GoFmtVal string   `json:"gofmtval,omitempty"`
+	JsonVal  string   `json:"jsonval,omitempty"`
 	Type     string   `json:"type"`
 	Error    string   `json:"error,omitempty"`
 	Addr     []string `json:"addr,omitempty"`
@@ -261,14 +263,14 @@ func (w *WatchSample) GetNumericVal() float64 {
 	kind := reflect.Kind(w.GetKind())
 	switch kind {
 	case reflect.Bool:
-		if w.Value == "true" {
+		if w.StrVal == "true" {
 			return 1
 		}
 		return 0
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
 		reflect.Float32, reflect.Float64:
-		val, err := strconv.ParseFloat(w.Value, 64)
+		val, err := strconv.ParseFloat(w.StrVal, 64)
 		if err != nil {
 			return 0
 		}
