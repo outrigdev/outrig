@@ -7,12 +7,8 @@ import { Copy, ExternalLink } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Modal } from "./modal";
 
-interface UpdateModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-}
-
-export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => {
+// Internal component that renders the actual modal content
+const UpdateModal = () => {
     const newerVersion = useAtomValue(AppModel.newerVersion);
     const [platform, setPlatform] = useState<"mac" | "linux" | "other">("other");
 
@@ -34,7 +30,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
     };
 
     return (
-        <Modal isOpen={isOpen} title={`Update Available: ${newerVersion}`} onClose={onClose}>
+        <Modal isOpen={true} title={`Update Available: ${newerVersion}`} onClose={() => AppModel.closeUpdateModal()}>
             <div className="flex flex-col gap-6">
                 <p className="text-primary">
                     A new version of Outrig is available. You can update using the instructions below.
@@ -93,3 +89,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ isOpen, onClose }) => 
         </Modal>
     );
 };
+
+// Container component that handles the open/close state
+export const UpdateModalContainer = React.memo(function UpdateModalContainer() {
+    const isUpdateModalOpen = useAtomValue(AppModel.updateModalOpen);
+    if (!isUpdateModalOpen) return null;
+    return <UpdateModal />;
+});
+
+UpdateModalContainer.displayName = "UpdateModalContainer";

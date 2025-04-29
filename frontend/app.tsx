@@ -1,15 +1,16 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { keydownWrapper } from "@/util/keyutil";
-import { useAtom, useAtomValue } from "jotai";
-import { useEffect } from "react";
-import { AppModel } from "./appmodel";
 import { ToastContainer } from "@/elements/toast";
+import { UpdateModalContainer } from "@/elements/update-modal";
 import { HomePage } from "@/homepage/homepage";
-import { appHandleKeyDown } from "./keymodel";
 import { MainApp } from "@/mainapp/mainapp";
 import { SettingsModalContainer } from "@/settings/settings-modal";
+import { keydownWrapper } from "@/util/keyutil";
+import { useAtom, useAtomValue } from "jotai";
+import React, { useEffect } from "react";
+import { AppModel } from "./appmodel";
+import { appHandleKeyDown } from "./keymodel";
 
 interface AppWrapperProps {
     children: React.ReactNode;
@@ -80,24 +81,17 @@ function AppWrapper({ children }: AppWrapperProps) {
                 <ToastContainer toasts={toasts} onClose={handleToastClose} />
             </div>
             <SettingsModalContainer />
+            <UpdateModalContainer />
         </>
     );
 }
 
 function App() {
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
-
-    if (!selectedAppRunId) {
-        return (
-            <AppWrapper>
-                <HomePage />
-            </AppWrapper>
-        );
-    }
-
+    
     return (
         <AppWrapper>
-            <MainApp />
+            {selectedAppRunId ? <MainApp /> : <HomePage />}
         </AppWrapper>
     );
 }

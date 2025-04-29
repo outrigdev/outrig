@@ -3,6 +3,8 @@
 
 import { AppModel } from "@/appmodel";
 import { AppRunList } from "@/apprunlist/apprunlist";
+import { SettingsButton } from "@/elements/settingsbutton";
+import { UpdateBadge } from "@/elements/updatebadge";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import { Activity, BarChart2, List, Search } from "lucide-react";
@@ -33,11 +35,11 @@ export const HomePage: React.FC = () => {
             {/* Header */}
             <header className="bg-panel border-b border-border p-4 flex items-center justify-between">
                 <div className="flex items-center">
-                    <img
-                        src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"}
-                        alt="Outrig Logo"
-                        className="h-8"
-                    />
+                    <img src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"} alt="Outrig Logo" className="h-8" />
+                </div>
+                <div className="flex items-end self-end">
+                    <SettingsButton onClick={() => AppModel.openSettingsModal()} />
+                    <UpdateBadge onClick={() => AppModel.openUpdateModal()} />
                 </div>
             </header>
 

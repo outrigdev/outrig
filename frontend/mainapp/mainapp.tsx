@@ -1,11 +1,9 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import React from "react";
 import { AppModel } from "@/appmodel";
 import { SettingsButton } from "@/elements/settingsbutton";
 import { Tooltip } from "@/elements/tooltip";
-import { UpdateModal } from "@/elements/update-modal";
 import { UpdateBadge } from "@/elements/updatebadge";
 import { GoRoutines } from "@/goroutines/goroutines";
 import { LogViewer } from "@/logviewer/logviewer";
@@ -14,6 +12,7 @@ import { RuntimeStats } from "@/runtimestats/runtimestats";
 import { Watches } from "@/watches/watches";
 import { useAtom, useAtomValue } from "jotai";
 import { ChevronRight } from "lucide-react";
+import React from "react";
 import { StatusBar } from "./statusbar";
 
 const TAB_DISPLAY_NAMES: Record<string, string> = {
@@ -235,14 +234,7 @@ const AppHeader = React.memo(function AppHeader() {
 
 AppHeader.displayName = "AppHeader";
 
-const UpdateModalWrapper = React.memo(function UpdateModalWrapper() {
-    const isUpdateModalOpen = useAtomValue(AppModel.updateModalOpen);
-    return <UpdateModal isOpen={isUpdateModalOpen} onClose={() => AppModel.closeUpdateModal()} />;
-});
-
-UpdateModalWrapper.displayName = "UpdateModalWrapper";
-
-export const MainApp = React.memo(function MainApp() {
+const MainApp = React.memo(function MainApp() {
     return (
         <div className="flex h-full w-full">
             <LeftNav />
@@ -253,11 +245,10 @@ export const MainApp = React.memo(function MainApp() {
                 </main>
                 <StatusBar />
             </div>
-            <UpdateModalWrapper />
         </div>
     );
 });
 
 MainApp.displayName = "MainApp";
 
-export { AppHeader };
+export { MainApp };
