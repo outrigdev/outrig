@@ -374,8 +374,6 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 	case reflect.Slice, reflect.Array, reflect.Map, reflect.Struct, reflect.Interface:
 		barr, err := json.Marshal(rval.Interface())
 		if err != nil {
-			// Store the original error
-			watch.Error = fmt.Sprintf("error marshalling value: %v", err)
 			// Fallback to Go's fmt representation
 			watch.Value = fmt.Sprintf("%+v", rval.Interface())
 			watch.Flags |= ds.WatchFlag_GoFmt

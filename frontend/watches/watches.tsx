@@ -12,8 +12,8 @@ import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
-import { WatchesModel } from "./watches-model";
 import { NoWatchesMessage } from "./nowatchmessage";
+import { WatchesModel } from "./watches-model";
 
 // Constants for watch flags (matching the Go constants)
 const WatchFlag_Push = 1 << 5; // 32
@@ -128,7 +128,7 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
         if (flags & WatchFlag_Sync) tags.push({ label: "Sync", variant: "primary" });
         if (flags & WatchFlag_Func) tags.push({ label: "Func", variant: "secondary" });
         if (flags & WatchFlag_Hook) tags.push({ label: "Hook", variant: "link" });
-        if (flags & WatchFlag_Settable) tags.push({ label: "Settable", variant: "info" });
+        // if (flags & WatchFlag_Settable) tags.push({ label: "Settable", variant: "info" });
         if (flags & WatchFlag_JSON) tags.push({ label: "JSON", variant: "success" });
         if (flags & WatchFlag_GoFmt) tags.push({ label: "GoFmt", variant: "warning" });
 
@@ -241,7 +241,6 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     );
 };
 
-
 // Content component that displays the watches
 interface WatchesContentProps {
     model: WatchesModel;
@@ -265,7 +264,7 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
             const timer = setTimeout(() => {
                 setShowEmptyMessage(true);
             }, EmptyMessageDelayMs);
-            
+
             return () => clearTimeout(timer);
         } else {
             setShowEmptyMessage(false);
@@ -294,11 +293,7 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                         <React.Fragment key={watch.name}>
                             <WatchView watch={watch} />
                             {/* Add divider after each watch except the last one */}
-                            {index < filteredWatches.length - 1 && (
-                                <div
-                                    className="h-px bg-border my-2 w-full"
-                                ></div>
-                            )}
+                            {index < filteredWatches.length - 1 && <div className="h-px bg-border my-2 w-full"></div>}
                         </React.Fragment>
                     ))}
                 </div>

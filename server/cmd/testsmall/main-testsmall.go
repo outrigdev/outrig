@@ -13,12 +13,22 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type Foo struct {
+	Val int
+	Ch  chan int
+}
+
 func main() {
 	config := configpkg.DefaultConfigForOutrigDevelopment()
 	config.LogProcessorConfig.OutrigPath = "go"
 	config.LogProcessorConfig.AdditionalArgs = []string{"run", "server/main-server.go"}
 	outrig.Init("test-small", config)
 	defer outrig.AppDone()
+
+	outrig.TrackValue("test #test", nil)
+
+	foo := &Foo{5, make(chan int, 2)}
+	outrig.TrackValue("foo #test", foo)
 
 	logrus.SetFormatter(&logrus.TextFormatter{
 		ForceColors:   true,

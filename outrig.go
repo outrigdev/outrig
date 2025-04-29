@@ -214,7 +214,12 @@ func TrackValue(name string, val any) {
 		return
 	}
 	wc := watch.GetInstance()
-	rval := reflect.ValueOf(val)
+	var rval reflect.Value
+	if val == nil {
+		rval = reflect.Zero(reflect.TypeOf((*any)(nil)).Elem())
+	} else {
+		rval = reflect.ValueOf(val)
+	}
 	cleanName, tags := utilfn.ParseNameAndTags(name)
 	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), ds.WatchFlag_Push)
 }
