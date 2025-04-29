@@ -48,7 +48,8 @@ const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
                             </div>
                         )}
                         <a
-                            href={codeLink}
+                            href={codeLink?.href}
+                            onClick={codeLink?.onClick}
                             className={cn("cursor-pointer inline-block", createdByGoid != null ? "pl-4" : "")}
                         >
                             <span className="text-primary group-hover:text-blue-600 dark:group-hover:text-blue-300 group-hover:font-bold">
@@ -105,11 +106,14 @@ interface FrameLinkProps {
 }
 
 const FrameFileLink: React.FC<FrameLinkProps> = ({ filepath, linenumber, model, linkType }) => {
+    const codeLink = model.generateCodeLink(filepath, linenumber, linkType);
+
     return (
         <div className="ml-4">
-            {linkType ? (
+            {codeLink ? (
                 <a
-                    href={model.generateCodeLink(filepath, linenumber, linkType)}
+                    href={codeLink?.href}
+                    onClick={codeLink?.onClick}
                     className="cursor-pointer hover:text-blue-500 text-secondary transition-colors duration-150"
                 >
                     {filepath}:{linenumber}
@@ -442,7 +446,8 @@ const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }
                     return (
                         <a
                             key={index}
-                            href={link}
+                            href={link?.href}
+                            onClick={link?.onClick}
                             className="cursor-pointer hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-150"
                         >
                             {part}

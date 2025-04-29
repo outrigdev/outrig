@@ -250,12 +250,13 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                         }}
                     />
 
-                    {/* Search stats */}
-                    <div className="text-xs text-muted mr-2 select-none">
-                        <span>
-                            {resultCount}/{searchResultInfo.totalCount}
-                        </span>
-                    </div>
+                    <Tooltip content="Matched GoRoutines / Total GoRoutine Count">
+                        <div className="text-xs text-muted mr-2 cursor-default">
+                            <span>
+                                {resultCount}/{searchResultInfo.totalCount}
+                            </span>
+                        </div>
+                    </Tooltip>
 
                     <div className="flex items-center gap-2">
                         <StacktraceModeToggle modeAtom={model.simpleStacktraceMode} />

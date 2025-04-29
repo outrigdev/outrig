@@ -56,10 +56,10 @@ export const SettingsModal: React.FC = () => {
                     aria-hidden="true"
                 />
 
-                <div className="p-4 space-y-6">
+                <div className="p-1 space-y-4">
                     {/* Appearance Section */}
-                    <div>
-                        <h2 className="text-lg font-semibold mb-3">Appearance</h2>
+                    <div className="bg-secondary/10 rounded-lg p-4">
+                        <h2 className="text-lg font-semibold mb-4 border-b border-secondary/20 pb-2">Appearance</h2>
                         <div className="space-y-4">
                             <Dropdown
                                 id="theme-mode"
@@ -91,8 +91,8 @@ export const SettingsModal: React.FC = () => {
                     </div>
 
                     {/* Logs Section */}
-                    <div>
-                        <h2 className="text-lg font-semibold mb-3">Logs</h2>
+                    <div className="bg-secondary/10 rounded-lg p-4">
+                        <h2 className="text-lg font-semibold mb-4 border-b border-secondary/20 pb-2">Logs</h2>
                         <div className="space-y-4">
                             <Toggle
                                 id="show-line-numbers"

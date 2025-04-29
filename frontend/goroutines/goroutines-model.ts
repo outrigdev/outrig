@@ -356,13 +356,16 @@ class GoRoutinesModel {
     }
 
     // Generate a VSCode link for a file path and line number
-    generateCodeLink(filePath: string, lineNumber: number, linkType: CodeLinkType): string {
+    generateCodeLink(filePath: string, lineNumber: number, linkType: CodeLinkType): { href: string; onClick: () => null } | null {
         if (linkType == null) {
             return null;
         }
 
         if (linkType === "vscode") {
-            return `vscode://file${filePath}:${lineNumber}`;
+            return {
+                href: `vscode://file${filePath}:${lineNumber}`,
+                onClick: () => null
+            };
         }
 
         return null;
