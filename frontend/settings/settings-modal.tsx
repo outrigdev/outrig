@@ -1,7 +1,8 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
+import { Moon, Sun } from "lucide-react";
 import React, { useEffect, useRef } from "react";
 import { AppModel } from "../appmodel";
 import { Dropdown } from "../elements/dropdown";
@@ -41,6 +42,7 @@ export const SettingsModal: React.FC = () => {
     const showMilliseconds = useAtomValue(SettingsModel.logsShowMilliseconds);
     const timeFormat = useAtomValue(SettingsModel.logsTimeFormat);
     const showLineNumbers = useAtomValue(SettingsModel.logsShowLineNumbers);
+    const [darkMode, setDarkMode] = useAtom(AppModel.darkMode);
 
     return (
         <Modal isOpen={true} title="Outrig Settings" onClose={() => AppModel.closeSettingsModal()}>
@@ -55,6 +57,39 @@ export const SettingsModal: React.FC = () => {
                 />
 
                 <div className="p-4 space-y-6">
+                    {/* Appearance Section */}
+                    <div>
+                        <h2 className="text-lg font-semibold mb-3">Appearance</h2>
+                        <div className="space-y-4">
+                            <Dropdown
+                                id="theme-mode"
+                                value={darkMode ? "dark" : "light"}
+                                onChange={(value) => AppModel.setDarkMode(value === "dark")}
+                                options={[
+                                    {
+                                        value: "light",
+                                        label: (
+                                            <div className="flex items-center space-x-2">
+                                                <Sun size={16} />
+                                                <span>Light Mode</span>
+                                            </div>
+                                        ),
+                                    },
+                                    {
+                                        value: "dark",
+                                        label: (
+                                            <div className="flex items-center space-x-2">
+                                                <Moon size={16} />
+                                                <span>Dark Mode</span>
+                                            </div>
+                                        ),
+                                    },
+                                ]}
+                                label="Theme"
+                            />
+                        </div>
+                    </div>
+
                     {/* Logs Section */}
                     <div>
                         <h2 className="text-lg font-semibold mb-3">Logs</h2>

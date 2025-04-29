@@ -19,7 +19,7 @@ import { cn } from "../util/util";
 
 interface DropdownOption {
     value: string;
-    label: string;
+    label: string | React.ReactNode;
 }
 
 interface DropdownProps {
@@ -70,7 +70,7 @@ export const Dropdown: React.FC<DropdownProps> = ({ id, value, onChange, options
                     aria-expanded={isOpen}
                     {...getReferenceProps()}
                 >
-                    <span>{selectedLabel}</span>
+                    {typeof selectedLabel === 'string' ? <span>{selectedLabel}</span> : selectedLabel}
                     <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen ? "rotate-180" : "")} />
                 </button>
 
