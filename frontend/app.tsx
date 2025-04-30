@@ -82,18 +82,17 @@ function AppWrapper({ children }: AppWrapperProps) {
             </div>
             <SettingsModalContainer />
             <UpdateModalContainer />
+            
+            {/* Portal container for highlight overlays */}
+            <div id="highlight-overlay-root"></div>
         </>
     );
 }
 
 function App() {
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
-    
-    return (
-        <AppWrapper>
-            {selectedAppRunId ? <MainApp /> : <HomePage />}
-        </AppWrapper>
-    );
+
+    return <AppWrapper>{selectedAppRunId ? <MainApp /> : <HomePage />}</AppWrapper>;
 }
 
 export { App };
