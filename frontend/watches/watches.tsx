@@ -5,6 +5,7 @@ import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tag } from "@/elements/tag";
 import { TimestampDot } from "@/elements/timestampdot";
+import { Tooltip } from "@/elements/tooltip";
 import { SearchFilter } from "@/searchfilter/searchfilter";
 import { EmptyMessageDelayMs } from "@/util/constants";
 import { useOutrigModel } from "@/util/hooks";
@@ -75,9 +76,12 @@ function kindToString(kind: Kind): string {
 // Individual watch view component
 interface WatchViewProps {
     watch: WatchSample;
+    model: WatchesModel;
 }
 
-const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
+const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
+    const preferJson = useAtomValue(model.preferJson);
+
     // Format the watch value for display
     const formatValue = ({ error, strval, jsonval, gofmtval }: WatchSample) => {
         if (error) {
@@ -92,20 +96,31 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
             );
         }
 
-        if (jsonval) {
-            out.push(
-                <WatchVal
-                    key="jsonval"
-                    content={prettyPrintJson(jsonval)}
-                    tooltipText="Copy JSON representation"
-                    tag="json:"
-                />
-            );
-        } else if (gofmtval) {
-            const ppVal = prettyPrintGoFmt(gofmtval);
-            out.push(
-                <WatchVal key="gofmtval" content={ppVal} tooltipText="Copy Go formatted representation" tag="gofmt:" />
-            );
+        if (preferJson) {
+            // Prefer JSON format if available, fallback to GoFmt
+            if (jsonval) {
+                out.push(
+                    <WatchVal
+                        key="jsonval"
+                        content={prettyPrintJson(jsonval)}
+                        tooltipText="Copy JSON representation"
+                        tag="json:"
+                    />
+                );
+            } else if (gofmtval) {
+                const ppVal = prettyPrintGoFmt(gofmtval);
+                out.push(
+                    <WatchVal key="gofmtval" content={ppVal} tooltipText="Copy Go formatted representation" tag="gofmt:" />
+                );
+            }
+        } else {
+            // Prefer GoFmt format, don't fallback to JSON
+            if (gofmtval) {
+                const ppVal = prettyPrintGoFmt(gofmtval);
+                out.push(
+                    <WatchVal key="gofmtval" content={ppVal} tooltipText="Copy Go formatted representation" tag="gofmt:" />
+                );
+            }
         }
 
         if (out.length == 0) {
@@ -184,6 +199,7 @@ interface WatchesFiltersProps {
 
 const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
+    const [preferJson, setPreferJson] = useAtom(model.preferJson);
     const searchResultInfo = useAtomValue(model.searchResultInfo);
     const resultCount = useAtomValue(model.resultCount);
     const errorSpans = searchResultInfo.errorSpans || [];
@@ -219,6 +235,15 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                         {resultCount}/{searchResultInfo.totalCount}
                     </span>
                 </div>
+
+                <Tooltip content={preferJson ? "Prefer JSON display if available (click to toggle to GoFmt)" : "Prefer GoFmt (%#v) display (click to toggle to JSON)"}>
+                    <button
+                        onClick={() => setPreferJson(!preferJson)}
+                        className="flex items-center justify-center h-6 px-2 mr-2 text-xs text-primary bg-primary/20 hover:bg-primary/30 rounded-md cursor-pointer"
+                    >
+                        {preferJson ? "json" : "gofmt"}
+                    </button>
+                </Tooltip>
 
                 <AutoRefreshButton autoRefreshAtom={model.autoRefresh} onToggle={() => model.toggleAutoRefresh()} />
                 <RefreshButton
@@ -282,7 +307,7 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                 <div>
                     {filteredWatches.map((watch, index) => (
                         <React.Fragment key={watch.name}>
-                            <WatchView watch={watch} />
+                            <WatchView watch={watch} model={model} />
                             {/* Add divider after each watch except the last one */}
                             {index < filteredWatches.length - 1 && <div className="h-px bg-border my-2 w-full"></div>}
                         </React.Fragment>
