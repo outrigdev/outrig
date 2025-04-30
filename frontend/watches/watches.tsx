@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AutoRefreshButton } from "@/elements/autorefreshbutton";
-import { CopyButton } from "@/elements/copybutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tag } from "@/elements/tag";
 import { TimestampDot } from "@/elements/timestampdot";
@@ -14,6 +13,7 @@ import { prettyPrintGoFmt, prettyPrintJson } from "@/util/util";
 import { useAtom, useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
 import { NoWatchesMessage } from "./nowatchmessage";
+import { WatchVal } from "./watch-val";
 import { WatchesModel } from "./watches-model";
 
 // Constants for watch flags (matching the Go constants)
@@ -80,23 +80,38 @@ interface WatchViewProps {
 const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
     // Format the watch value for display
     const formatValue = ({ error, strval, jsonval, gofmtval }: WatchSample) => {
-        const pre = (txt: string, cls = "text-xs whitespace-pre-wrap font-mono") => <pre className={cls}>{txt}</pre>;
         if (error) {
-            return pre(error, "text-xs whitespace-pre-wrap font-mono text-error");
+            return <WatchVal content={error} className="text-error" tooltipText="Copy error message" />;
         }
+
         const out: React.ReactNode[] = [];
+
         if (strval) {
-            out.push(pre(strval, "text-xs whitespace-pre-wrap font-mono mb-2"));
+            out.push(
+                <WatchVal key="strval" content={strval} className="mb-2" tooltipText="Copy string representation" />
+            );
         }
+
         if (jsonval) {
-            out.push(pre(prettyPrintJson(jsonval)));
+            out.push(
+                <WatchVal
+                    key="jsonval"
+                    content={prettyPrintJson(jsonval)}
+                    tooltipText="Copy JSON representation"
+                    tag="json:"
+                />
+            );
         } else if (gofmtval) {
             const ppVal = prettyPrintGoFmt(gofmtval);
-            out.push(pre(ppVal));
+            out.push(
+                <WatchVal key="gofmtval" content={ppVal} tooltipText="Copy Go formatted representation" tag="gofmt:" />
+            );
         }
+
         if (out.length == 0) {
-            return pre("(no value)", "text-xs whitespace-pre-wrap font-mono text-error");
+            return <WatchVal content="(no value)" className="text-error" />;
         }
+
         return <>{out}</>;
     };
 
@@ -145,15 +160,7 @@ const WatchView: React.FC<WatchViewProps> = ({ watch }) => {
                             <Tag label={tag.label} isSelected={false} variant="secondary" />
                         </span>
                     ))}
-                    <CopyButton
-                        size={14}
-                        tooltipText="Copy value"
-                        onCopy={() => {
-                            // Determine which value to copy, prioritizing strval
-                            const valueToCopy = watch.strval ?? watch.jsonval ?? watch.gofmtval ?? "";
-                            navigator.clipboard.writeText(valueToCopy);
-                        }}
-                    />
+                    {/* Copy button removed - now each value representation has its own copy button */}
                 </div>
             </div>
             <div className="text-sm text-primary pb-2">{formatValue(watch)}</div>

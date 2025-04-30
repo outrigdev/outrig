@@ -19,10 +19,18 @@ type Point struct {
 	Desc string
 }
 
+func (p Point) String() string {
+	return fmt.Sprintf("[%d,%d]", p.X, p.Y)
+}
+
 type Foo struct {
 	Val       int
 	Ch        chan int
 	SubStruct Point
+}
+
+func (f Foo) String() string {
+	return fmt.Sprintf("Foo=%d, Ch=%v, SubStruct=%s", f.Val, f.Ch, f.SubStruct)
 }
 
 func main() {
@@ -36,6 +44,14 @@ func main() {
 
 	foo := &Foo{5, make(chan int, 2), Point{1, 2, "test{[()]}"}}
 	outrig.TrackValue("foo #test", foo)
+
+	m := make(map[string]any)
+	m["test"] = 1
+	m["foo"] = 55
+	m["struct"] = Point{1, 2, "point-struct"}
+	m["arr"] = []int{1, 2, 3}
+
+	outrig.TrackValue("map #test", m)
 
 	logrus.SetFormatter(&logrus.TextFormatter{
 		ForceColors:   true,
