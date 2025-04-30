@@ -117,9 +117,15 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
     return (
         <div
             data-linenum={line.linenum}
-            className={cn("flex text-muted select-none", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}
+            className={cn("flex text-muted select-none pl-1", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}
         >
-            {formatMarkedLineNumber(line.linenum, isMarked, lineNumWidth, handleLineNumberClick, logSettings.showLineNumbers)}
+            {formatMarkedLineNumber(
+                line.linenum,
+                isMarked,
+                lineNumWidth,
+                handleLineNumberClick,
+                logSettings.showLineNumbers
+            )}
             {logSettings.showTimestamp && (
                 <div className="text-secondary flex-shrink-0 pl-2">
                     {formatTimestamp(line.ts, logSettings.showMilliseconds, logSettings.timeFormat, appRunStartTime)}

@@ -10,8 +10,8 @@ import { useAtomValue } from "jotai";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogViewerFilter } from "./logfilter";
 import { LogLineComponent } from "./logline";
-import { LogViewerModel } from "./logviewer-model";
 import { EmptyMessageDisplay, MarkedLinesIndicator, RefreshingModal, StreamingStatusBar } from "./logviewer-comps";
+import { LogViewerModel } from "./logviewer-model";
 
 // LogList component for rendering the list of logs using LogVList
 interface LogListProps {
@@ -139,7 +139,6 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     );
 });
 LogList.displayName = "LogList";
-
 
 // Log content component
 interface LogViewerContentProps {

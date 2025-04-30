@@ -1,12 +1,11 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { CopyButton } from "@/elements/copybutton";
+import { Tooltip } from "@/elements/tooltip";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
 import { ArrowDown, ArrowDownCircle, Wifi, WifiOff, X } from "lucide-react";
 import React from "react";
-import { CopyButton } from "@/elements/copybutton";
-import { Tooltip } from "@/elements/tooltip";
-import { EmptyMessageDelayMs } from "@/util/constants";
 import { LogViewerModel } from "./logviewer-model";
 
 // Streaming status bar component
@@ -62,9 +61,7 @@ export const StreamingStatusBar = React.memo<StreamingStatusBarProps>(({ model }
             <div className="flex-grow basis-0 flex justify-start items-center">
                 <Tooltip
                     content={
-                        followOutput
-                            ? "Pinned to Bottom (Click to Disable)"
-                            : "Not Pinned to Bottom (Click to Enable)"
+                        followOutput ? "Pinned to Bottom (Click to Disable)" : "Not Pinned to Bottom (Click to Enable)"
                     }
                 >
                     <button
@@ -145,12 +142,12 @@ export const MarkedLinesIndicator = React.memo<MarkedLinesIndicatorProps>(({ mod
     };
 
     return (
-        <div className="absolute top-0 right-0 flex items-center bg-accent text-white dark:text-black rounded-bl-md px-2 py-1 text-xs z-10">
+        <div className="absolute bottom-0 right-0 flex items-center bg-accentbg text-primary dark:text-black rounded-tl-md px-2 py-1 text-xs z-10">
             <span className="font-medium">
                 {markedCount} {markedCount === 1 ? "line" : "lines"} marked
             </span>
             <CopyButton
-                className="ml-2 text-white dark:text-black"
+                className="ml-2 text-primary dark:text-black"
                 size={14}
                 tooltipText="Copy marked lines"
                 successTooltipText="Copied!"
