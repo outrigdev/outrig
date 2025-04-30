@@ -175,10 +175,19 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1">
-                    {/* Display states */}
-                    {goroutine.rawstate.split(",").map((state, index) => (
-                        <Tag key={`state-${index}`} label={state.trim()} isSelected={false} variant="secondary" />
-                    ))}
+                    {/* Display state */}
+                    {goroutine.primarystate && (
+                        <Tag
+                            key="primary-state"
+                            label={
+                                goroutine.stateduration
+                                    ? `${goroutine.primarystate} (${goroutine.stateduration})`
+                                    : goroutine.primarystate
+                            }
+                            isSelected={false}
+                            variant="secondary"
+                        />
+                    )}
 
                     {/* Display tags with # prefix if they exist */}
                     {goroutine.tags &&

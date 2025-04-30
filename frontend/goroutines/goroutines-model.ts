@@ -106,7 +106,6 @@ class GoRoutinesModel {
         return Array.from(statesSet).sort();
     });
 
-
     // Derived atom for duration states, sorted by millisecond value
     durationStates: Atom<string[]> = atom((get) => {
         const goroutines = get(this.appRunGoRoutines);
@@ -183,7 +182,7 @@ class GoRoutinesModel {
         }
 
         store.set(this.selectedStates, newSelectedStates);
-        
+
         // Trigger a new search with the current search term to apply the filter
         this.searchGoroutines(store.get(this.searchTerm));
     }
@@ -200,7 +199,7 @@ class GoRoutinesModel {
         }
 
         store.set(this.showAll, !showAll);
-        
+
         // Trigger a new search with the current search term to apply the filter
         this.searchGoroutines(store.get(this.searchTerm));
     }
@@ -226,26 +225,26 @@ class GoRoutinesModel {
         try {
             // Build the systemQuery based on selected states and showOutrig setting
             let systemQuery: string | undefined;
-            
+
             // Start with the base query parts
             const outrigPart = !showOutrig ? "-#outrig" : "";
             const userQueryPart = "#userquery";
-            
+
             // Handle state filters
             let statesPart = "";
             if (selectedStates.size > 0) {
                 const statesArray = Array.from(selectedStates);
-                
+
                 if (statesArray.length === 1) {
                     // Single state filter
                     statesPart = `"${statesArray[0]}"`;
                 } else if (statesArray.length > 1) {
                     // Multiple state filters with OR logic
-                    const statesString = statesArray.map(state => `"${state}"`).join(" ");
+                    const statesString = statesArray.map((state) => `"${state}"`).join(" ");
                     statesPart = `(${statesString})`;
                 }
             }
-            
+
             // Combine the parts to form the final query
             if (outrigPart || statesPart || userQueryPart) {
                 const parts = [outrigPart, statesPart, userQueryPart].filter(Boolean);
@@ -356,7 +355,11 @@ class GoRoutinesModel {
     }
 
     // Generate a VSCode link for a file path and line number
-    generateCodeLink(filePath: string, lineNumber: number, linkType: CodeLinkType): { href: string; onClick: () => null } | null {
+    generateCodeLink(
+        filePath: string,
+        lineNumber: number,
+        linkType: CodeLinkType
+    ): { href: string; onClick: () => null } | null {
         if (linkType == null) {
             return null;
         }
@@ -364,7 +367,7 @@ class GoRoutinesModel {
         if (linkType === "vscode") {
             return {
                 href: `vscode://file${filePath}:${lineNumber}`,
-                onClick: () => null
+                onClick: () => null,
             };
         }
 

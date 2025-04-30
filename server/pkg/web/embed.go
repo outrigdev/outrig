@@ -14,7 +14,7 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
 
-//go:embed dist
+//go:embed all:dist
 var distFS embed.FS
 
 // GetFileSystem returns the appropriate filesystem to use based on environment
