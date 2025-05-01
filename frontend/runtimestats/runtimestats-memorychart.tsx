@@ -1,8 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import React, { useRef, useState, useEffect } from "react";
-import { cn } from "@/util/util";
+import React, { useRef, useState } from "react";
 import {
     FloatingPortal,
     autoUpdate,
@@ -13,7 +12,16 @@ import {
     useHover,
     useInteractions,
 } from "@floating-ui/react";
-import { memoryChartMetadata, getDetailedOtherMemoryBreakdown } from "./runtimestats-metadata";
+import { RuntimeStatsTooltip } from "./tooltip";
+import { memoryChartMetadata } from "./runtimestats-metadata";
+
+// Helper function to get detailed memory breakdown for the "other" category
+function getDetailedOtherMemoryBreakdown(memStats: MemoryStatsInfo): string {
+    return `Memory spans: ${(memStats.mspaninuse / (1024 * 1024)).toFixed(2)} MB
+MCache: ${(memStats.mcacheinuse / (1024 * 1024)).toFixed(2)} MB
+GC: ${(memStats.gcsys / (1024 * 1024)).toFixed(2)} MB
+Other: ${(memStats.othersys / (1024 * 1024)).toFixed(2)} MB`;
+}
 
 // Memory usage chart component
 interface MemoryUsageChartProps {
@@ -142,95 +150,5 @@ export const MemoryUsageChart: React.FC<MemoryUsageChartProps> = ({ memStats }) 
                 Total Process Memory: {(memStats.sys / (1024 * 1024)).toFixed(2)} MB
             </div>
         </div>
-    );
-};
-
-// Custom tooltip component for runtime stats
-export interface RuntimeStatsTooltipProps {
-    content: React.ReactNode;
-    children: React.ReactNode;
-    placement?: "top" | "bottom" | "left" | "right";
-    className?: string;
-}
-
-export const RuntimeStatsTooltip: React.FC<RuntimeStatsTooltipProps> = ({
-    children,
-    content,
-    placement = "top",
-    className = "",
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [isVisible, setIsVisible] = useState(false);
-    const timeoutRef = useRef<number | null>(null);
-
-    const { refs, floatingStyles, context } = useFloating({
-        open: isOpen,
-        onOpenChange: (open) => {
-            if (open) {
-                // When opening, set isOpen immediately but delay visibility
-                setIsOpen(true);
-                // Clear any existing timeout
-                if (timeoutRef.current !== null) {
-                    window.clearTimeout(timeoutRef.current);
-                }
-                // Set a timeout to make it visible after delay
-                timeoutRef.current = window.setTimeout(() => {
-                    setIsVisible(true);
-                }, 100); // 100ms delay before showing
-            } else {
-                // When closing, keep isOpen true but set visibility to false
-                setIsVisible(false);
-                // Clear any existing timeout
-                if (timeoutRef.current !== null) {
-                    window.clearTimeout(timeoutRef.current);
-                }
-                // Set a timeout to actually close after transition
-                timeoutRef.current = window.setTimeout(() => {
-                    setIsOpen(false);
-                }, 100); // 100ms for fade out transition
-            }
-        },
-        placement,
-        middleware: [offset(5), flip(), shift()],
-        whileElementsMounted: autoUpdate,
-    });
-
-    // Clean up timeouts on unmount
-    useEffect(() => {
-        return () => {
-            if (timeoutRef.current !== null) {
-                window.clearTimeout(timeoutRef.current);
-            }
-        };
-    }, []);
-
-    const hover = useHover(context);
-    const { getReferenceProps, getFloatingProps } = useInteractions([hover]);
-
-    return (
-        <>
-            <div ref={refs.setReference} {...getReferenceProps()}>
-                {children}
-            </div>
-            {isOpen && (
-                <FloatingPortal>
-                    <div
-                        ref={refs.setFloating}
-                        style={{
-                            ...floatingStyles,
-                            opacity: isVisible ? 1 : 0,
-                            transition: "opacity 100ms ease",
-                        }}
-                        {...getFloatingProps()}
-                        className={cn(
-                            "bg-panel border border-border rounded-md px-3 py-2 text-sm text-primary shadow-md z-50 max-w-xs",
-                            className
-                        )}
-                    >
-                        {content}
-                    </div>
-                </FloatingPortal>
-            )}
-        </>
     );
 };

@@ -8,7 +8,8 @@ import { TimestampDot } from "@/elements/timestampdot";
 import { useOutrigModel } from "@/util/hooks";
 import { useAtomValue } from "jotai";
 import React from "react";
-import { MemoryUsageChart, RuntimeStatsTooltip } from "./runtimestats-memorychart";
+import { MemoryUsageChart } from "./runtimestats-memorychart";
+import { RuntimeStatsTooltip } from "./tooltip";
 import { formatUptime } from "./runtimestats-metadata";
 import { CombinedStatsData, RuntimeStatsModel } from "./runtimestats-model";
 

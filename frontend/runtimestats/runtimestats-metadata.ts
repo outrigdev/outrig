@@ -70,10 +70,3 @@ export const memoryChartMetadata: MemoryChartSegmentMetadata[] = [
     },
 ];
 
-// Helper function to get detailed memory breakdown for the "other" category
-export function getDetailedOtherMemoryBreakdown(memStats: MemoryStatsInfo): string {
-    return `Memory spans: ${(memStats.mspaninuse / (1024 * 1024)).toFixed(2)} MB
-MCache: ${(memStats.mcacheinuse / (1024 * 1024)).toFixed(2)} MB
-GC: ${(memStats.gcsys / (1024 * 1024)).toFixed(2)} MB
-Other: ${(memStats.othersys / (1024 * 1024)).toFixed(2)} MB`;
-}
