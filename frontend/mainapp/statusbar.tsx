@@ -7,6 +7,8 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { Box, CircleDot, Eye, List, PauseCircle, Wifi, WifiOff } from "lucide-react";
 import { useMemo } from "react";
 
+const OutrigVersion = "v" + import.meta.env.PACKAGE_VERSION;
+
 function ConnectionStatus({ status }: { status: string }) {
     let icon;
     let displayName;
@@ -73,18 +75,16 @@ export function StatusBar() {
     }, [selectedAppRun]);
 
     return (
-        <div className="h-6 bg-panel border-t border-border flex items-center justify-between px-2 text-xs text-secondary">
+        <div className="h-6 bg-panel border-t border-border flex items-center justify-between px-2 text-xs text-secondary shrink-0">
             <div className="flex items-center space-x-4">
-                {AppModel.isDev && (
-                    <Tooltip content="Running in Development Mode" placement="bottom">
-                        <div className="flex items-center">
-                            {/* Custom styling for the DEV badge in the status bar */}
-                            <span className="px-1.5 py-0 text-[10px] font-bold rounded-md bg-green-500/30 text-green-500/80 mr-2 leading-[16px]">
-                                DEV
-                            </span>
-                        </div>
-                    </Tooltip>
-                )}
+                <Tooltip content="Running in Development Mode" placement="bottom">
+                    <div className="flex items-center">
+                        {/* Custom styling for the DEV badge in the status bar */}
+                        <span className="px-1.5 py-0 text-[10px] font-bold rounded-md bg-accentbg text-secondary mr-2 leading-[16px]">
+                            {AppModel.isDev ? "DEV" : ""} {OutrigVersion}
+                        </span>
+                    </div>
+                </Tooltip>
                 {selectedAppRun ? (
                     <>
                         <div className="flex items-center space-x-1">

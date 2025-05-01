@@ -15,6 +15,7 @@
     --color-muted: var(--themecolor-muted);
     --color-panel: var(--themecolor-panel);
     --color-border: var(--themecolor-border);
+    --color-strongborder: var(--themecolor-strongborder);
     --color-buttonhover: var(--themecolor-buttonhover);
     --color-button: var(--themecolor-button);
     --color-success: var(--themecolor-success);

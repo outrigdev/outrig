@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
 import { defineConfig } from "vite";
+import pkg from "./package.json";
 
 export default defineConfig({
     plugins: [react(), tailwindcss()],
@@ -27,5 +28,8 @@ export default defineConfig({
     },
     build: {
         outDir: "dist-fe", // Changed from default "dist" to "dist-fe"
+    },
+    define: {
+        "import.meta.env.PACKAGE_VERSION": JSON.stringify(pkg.version),
     },
 });
