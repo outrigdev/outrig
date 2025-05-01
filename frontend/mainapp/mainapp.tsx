@@ -224,7 +224,7 @@ const AppHeader = React.memo(function AppHeader() {
         <nav className="bg-panel pr-2 border-b border-border flex justify-between items-stretch h-10 shrink-0">
             <div className="flex items-center">
                 <AppRunSwitcher />
-                <div className="flex ml-2 overflow-x-auto">
+                <div className="flex ml-2 overflow-x-auto overflow-y-hidden">
                     {Object.keys(TAB_DISPLAY_NAMES).map((tabName) => (
                         <Tab key={tabName} name={tabName} displayName={TAB_DISPLAY_NAMES[tabName]} />
                     ))}
