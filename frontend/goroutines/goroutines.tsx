@@ -147,8 +147,8 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
         <div className="pl-4 pr-2">
             <div className="py-2">
                 <div className="flex justify-between items-center">
-                    <div className="font-semibold text-primary whitespace-nowrap overflow-hidden text-ellipsis pr-4 flex items-center">
-                        <span>
+                    <div className="text-primary whitespace-nowrap overflow-hidden text-ellipsis pr-4 flex items-center">
+                        <span className="font-semibold">
                             {goroutine.name ? (
                                 <>
                                     {goroutine.name} <span className="text-secondary">({goroutine.goid})</span>
@@ -159,10 +159,24 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                         </span>
                         {goroutine.firstseen && appRunStartTime && (
                             <Tooltip content={`Goroutine started at ${new Date(goroutine.firstseen).toLocaleString()}`}>
-                                <span className="ml-2 text-xs text-muted bg-muted/10 px-1 py-0.5 rounded hover:bg-muted/20 transition-colors">
+                                <span className="ml-2 text-xs text-muted bg-muted/10 px-1 py-0.5 rounded hover:bg-muted/20 transition-colors font-semibold">
                                     +{formatTimeOffset(goroutine.firstseen, appRunStartTime)}
                                 </span>
                             </Tooltip>
+                        )}
+                        {/* Display state */}
+                        {goroutine.primarystate && (
+                            <Tag
+                                key="primary-state"
+                                label={
+                                    goroutine.stateduration
+                                        ? `${goroutine.primarystate} (${goroutine.stateduration})`
+                                        : goroutine.primarystate
+                                }
+                                isSelected={false}
+                                variant="secondary"
+                                className="ml-2"
+                            />
                         )}
                     </div>
                     <div>
@@ -174,28 +188,15 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                         />
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-1 mt-1">
-                    {/* Display state */}
-                    {goroutine.primarystate && (
-                        <Tag
-                            key="primary-state"
-                            label={
-                                goroutine.stateduration
-                                    ? `${goroutine.primarystate} (${goroutine.stateduration})`
-                                    : goroutine.primarystate
-                            }
-                            isSelected={false}
-                            variant="secondary"
-                        />
-                    )}
-
-                    {/* Display tags with # prefix if they exist */}
-                    {goroutine.tags &&
-                        goroutine.tags.length > 0 &&
-                        goroutine.tags.map((tag, index) => (
+                {/* Only show tags row if there are tags */}
+                {goroutine.tags && goroutine.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                        {/* Display tags with # prefix */}
+                        {goroutine.tags.map((tag, index) => (
                             <Tag key={`tag-${index}`} label={`#${tag}`} isSelected={false} variant="accent" />
                         ))}
-                </div>
+                    </div>
+                )}
             </div>
             <div ref={stackTraceRef} className="pb-2">
                 <StackTrace goroutine={goroutine} model={model} linkType={linkType} simpleMode={simpleMode} />
@@ -286,28 +287,25 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
             <div className="px-4 py-2 border-b border-border">
                 <div className="flex items-start gap-x-2">
                     {/* Box 1: Show All */}
-                    <div className="shrink-0">
+                    <div className="flex items-start shrink-0">
                         <Tag label="Show All" isSelected={showAll} onToggle={handleToggleShowAll} />
                     </div>
 
-                    {/* Box 2: Primary and Extra states in a flex column with flex-grow */}
-                    <div className="flex-grow flex flex-col gap-y-1">
-                        <div className="flex flex-wrap items-start gap-1.5">
-                            {/* Primary states first */}
-                            {primaryStates.map((state) => (
-                                <Tag
-                                    key={state}
-                                    label={state}
-                                    count={stateCounts.get(state) || 0}
-                                    isSelected={selectedStates.has(state)}
-                                    onToggle={() => handleToggleState(state)}
-                                />
-                            ))}
-                        </div>
+                    {/* Box 2: Primary States */}
+                    <div className="flex-grow flex flex-wrap items-start gap-1.5">
+                        {primaryStates.map((state) => (
+                            <Tag
+                                key={state}
+                                label={state}
+                                count={stateCounts.get(state) || 0}
+                                isSelected={selectedStates.has(state)}
+                                onToggle={() => handleToggleState(state)}
+                            />
+                        ))}
                     </div>
 
                     {/* Box 3: #outrig toggle */}
-                    <div className="shrink-0">
+                    <div className="flex items-start shrink-0">
                         <Tooltip
                             content={
                                 showOutrig
