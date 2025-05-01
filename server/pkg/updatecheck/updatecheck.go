@@ -64,6 +64,7 @@ func StartUpdateChecker() {
 
 	// Start the update checker goroutine
 	go func() {
+		outrig.SetGoRoutineName("UpdateChecker")
 		// Wait for the initial delay before the first check
 		time.Sleep(InitialDelay)
 
@@ -106,7 +107,7 @@ func checkForUpdates() {
 		outrig.TrackValue("updatecheck.latestreleasecheck", fmt.Sprintf("error: %v", err))
 		return
 	}
-	
+
 	// Track the successful result
 	outrig.TrackValue("updatecheck.latestreleasecheck", latestVersion)
 

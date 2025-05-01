@@ -68,6 +68,7 @@ func init() {
 
 	// Start a goroutine to periodically prune app run peers
 	go func() {
+		outrig.SetGoRoutineName("apppeer.prune")
 		for {
 			time.Sleep(PruneInterval)
 			numPruned := PruneAppRunPeers()

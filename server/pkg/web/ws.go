@@ -147,7 +147,10 @@ func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any,
 			outputCh <- pongMessage
 			continue
 		}
-		go processMessage(event, rpcCh)
+		go func() {
+			outrig.SetGoRoutineName("websocket:ReadLoop:processMessage")
+			processMessage(event, rpcCh)
+		}()
 	}
 }
 
@@ -246,6 +249,7 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	wg.Add(2)
 
 	go func() {
+		outrig.SetGoRoutineName("websocket:HandleWsInternal:proxyToRemote")
 		for msg := range proxy.ToRemoteCh {
 			rawMsg := json.RawMessage(msg)
 			outputCh <- WSEventType{Type: EventType_Rpc, Ts: time.Now().UnixMilli(), Data: rawMsg}
@@ -253,12 +257,14 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	}()
 
 	go func() {
+		outrig.SetGoRoutineName("websocket:HandleWsInternal:ReadLoop")
 		// read loop
 		defer wg.Done()
 		ReadLoop(conn, outputCh, closeCh, connId, proxy.FromRemoteCh)
 	}()
 
 	go func() {
+		outrig.SetGoRoutineName("websocket:HandleWsInternal:WriteLoop")
 		// write loop
 		defer wg.Done()
 		WriteLoop(conn, outputCh, closeCh, connId)

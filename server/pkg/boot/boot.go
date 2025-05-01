@@ -68,6 +68,7 @@ func RunServer(config CLIConfig) error {
 
 	// Handle signals in a goroutine
 	go func() {
+		outrig.SetGoRoutineName("boot.SignalHandler")
 		sig := <-signalChan
 		log.Printf("Received signal: %v - Graceful shutdown initiated\n", sig)
 
@@ -161,6 +162,7 @@ func RunServer(config CLIConfig) error {
 
 		// Wait for the Vite server to exit when the context is canceled
 		go func() {
+			outrig.SetGoRoutineName("boot.ViteServerWaiter")
 			defer wg.Done() // Mark this goroutine as done when it completes
 
 			<-ctx.Done()
@@ -202,6 +204,7 @@ func gracefulShutdown(cancel context.CancelFunc, wg *sync.WaitGroup) {
 
 	// Upload telemetry events in a goroutine
 	go func() {
+		outrig.SetGoRoutineName("gracefulShutdown.UploadTelemetry")
 		defer wg.Done()
 
 		sendServerActivityEvent()
@@ -216,6 +219,7 @@ func gracefulShutdown(cancel context.CancelFunc, wg *sync.WaitGroup) {
 
 	// Set a timeout for shutdown
 	go func() {
+		outrig.SetGoRoutineName("gracefulShutdown.Timeout")
 		// Wait for 5 seconds then force exit if we haven't already
 		time.Sleep(5 * time.Second)
 		log.Printf("Shutdown timeout reached, forcing exit")
@@ -228,6 +232,7 @@ func initializeTEventUploader() {
 
 	tEventTicker = time.NewTicker(TEventTickInterval)
 	go func() {
+		outrig.SetGoRoutineName("TEventUploader")
 		outrig.SetGoRoutineName("TEventTicker")
 		for range tEventTicker.C {
 			checkAndFlushTEvents()

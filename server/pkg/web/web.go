@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
 
@@ -157,6 +158,7 @@ func runWebServerInternal(ctx context.Context, listener net.Listener) {
 
 	// Start the server in a goroutine
 	go func() {
+		outrig.SetGoRoutineName("WebServer")
 		err := server.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
 			log.Printf("HTTP server error: %v\n", err)
@@ -196,6 +198,9 @@ func RunWebServer(ctx context.Context, overridePort int) (int, error) {
 		return 0, fmt.Errorf("failed to create HTTP listener: %w", err)
 	}
 	log.Printf("Outrig server running on http://%s\n", httpListener.Addr().String())
-	go runWebServerInternal(ctx, httpListener)
+	go func() {
+		outrig.SetGoRoutineName("WebServer.Waiter")
+		runWebServerInternal(ctx, httpListener)
+	}()
 	return webServerPort, nil
 }

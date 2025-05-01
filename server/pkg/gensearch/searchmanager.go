@@ -168,7 +168,10 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 		Offset:        len(m.CachedResult) - 1 + m.TrimmedCount,
 		Lines:         []ds.LogLine{line},
 	}
-	go rpcclient.LogStreamUpdateCommand(rpcclient.GetBareClient(), streamUpdate, &rpc.RpcOpts{Route: m.RpcSource, NoResponse: true})
+	go func() {
+		outrig.SetGoRoutineName("searchmanager.StreamUpdate")
+		rpcclient.LogStreamUpdateCommand(rpcclient.GetBareClient(), streamUpdate, &rpc.RpcOpts{Route: m.RpcSource, NoResponse: true})
+	}()
 }
 
 // MakeSearchManager creates a new SearchManager for a specific widget
@@ -195,7 +198,10 @@ var widgetManagers = utilds.MakeSyncMap[string, *SearchManager]()
 
 // init starts the background cleanup routine and registers watches
 func init() {
-	go cleanupRoutine()
+	go func() {
+		outrig.SetGoRoutineName("searchmanager.cleanup")
+		cleanupRoutine()
+	}()
 
 	// Register a watch function that returns a map of widget ID to SearchManagerInfo
 	outrig.WatchFunc("searchmanagers", func() map[string]SearchManagerInfo {

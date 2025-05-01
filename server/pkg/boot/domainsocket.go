@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -163,6 +164,7 @@ func runDomainSocketServer(ctx context.Context, webServerPort int) error {
 
 	// Accept connections in a loop.
 	go func() {
+		outrig.SetGoRoutineName("boot.DomainSocketServer.Waiter")
 		defer func() {
 			listener.Close()
 			log.Printf("Domain socket server shutdown complete\n")
@@ -175,6 +177,7 @@ func runDomainSocketServer(ctx context.Context, webServerPort int) error {
 
 		// Start a goroutine to accept connections
 		go func() {
+			outrig.SetGoRoutineName("DomainSocketServer")
 			for {
 				conn, err := listener.Accept()
 				if err != nil {
@@ -185,7 +188,10 @@ func runDomainSocketServer(ctx context.Context, webServerPort int) error {
 					close(acceptDone)
 					return
 				}
-				go handleDomainSocketConn(conn, webServerPort)
+				go func() {
+					outrig.SetGoRoutineName("DomainSocketServer.HandleConn")
+					handleDomainSocketConn(conn, webServerPort)
+				}()
 			}
 		}()
 
