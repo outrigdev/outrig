@@ -243,3 +243,65 @@ export function prettyPrintGoFmt(raw: string, tab = "  "): string {
     }
     return out.trimEnd();
 }
+
+/**
+ * Formats a memory size in bytes to a human-readable format with appropriate units
+ * @param bytes The memory size in bytes
+ * @param sigFigs Number of significant figures to show (default: 3)
+ * @returns An object with the formatted value and both full and short unit names
+ */
+export interface FormattedMemory {
+    memval: number; // Numeric value (for calculations)
+    memstr: string; // Formatted string with significant figures (for display)
+    memunit: string; // Full unit name (kB, MB, GB, TB)
+    memshortunit: string; // Short unit name (k, M, G, T)
+    membytes: number; // Original bytes value
+}
+
+export function formatMemorySize(bytes: number, sigFigs = 3): FormattedMemory {
+    // Store the original bytes value
+    const originalBytes = bytes;
+    
+    if (bytes === 0) {
+        // For zero, use toPrecision to get the right number of significant figures
+        return {
+            memval: 0,
+            memstr: (0).toPrecision(sigFigs),
+            memunit: "kB",
+            memshortunit: "k",
+            membytes: 0,
+        };
+    }
+
+    // Units in ascending order of size, starting with kilobytes
+    const shortUnits = ["k", "M", "G", "T"];
+    const fullUnits = ["kB", "MB", "GB", "TB"];
+
+    // Always convert to at least kilobytes
+    bytes = bytes / 1024;
+
+    // Determine the appropriate unit (starting from kilobytes)
+    // We use 1024 as the base for memory units
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+
+    // Don't go beyond the available units
+    const unitIndex = Math.min(Math.max(0, i), shortUnits.length - 1);
+
+    // Convert to the selected unit
+    const value = bytes / Math.pow(1024, unitIndex);
+
+    // Format to the specified number of significant figures
+    // Keep as string to preserve trailing zeros
+    const formattedValue = value.toPrecision(sigFigs);
+
+    // Also keep a numeric version for calculations
+    const numericValue = parseFloat(value.toPrecision(sigFigs));
+
+    return {
+        memval: numericValue,
+        memstr: formattedValue,
+        memunit: fullUnits[unitIndex],
+        memshortunit: shortUnits[unitIndex],
+        membytes: originalBytes, // Use the original bytes value
+    };
+}

@@ -6,7 +6,7 @@ import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { TimestampDot } from "@/elements/timestampdot";
 import { useOutrigModel } from "@/util/hooks";
-import { formatTimeOffset } from "@/util/util";
+import { formatMemorySize, formatTimeOffset } from "@/util/util";
 import { useAtomValue } from "jotai";
 import React from "react";
 import { MemoryUsageChart } from "./runtimestats-memorychart";
@@ -104,6 +104,11 @@ interface MetricsGridProps {
 }
 
 const MetricsGrid: React.FC<MetricsGridProps> = ({ stats, appRunInfo }) => {
+    // Format memory values once and reuse
+    const heapMemory = formatMemorySize(stats.memstats.heapalloc);
+    const totalMemory = formatMemorySize(stats.memstats.totalalloc);
+    const sysMemory = formatMemorySize(stats.memstats.sys);
+    
     return (
         <div className="grid grid-cols-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Uptime stat with status indicator */}
@@ -111,9 +116,9 @@ const MetricsGrid: React.FC<MetricsGridProps> = ({ stats, appRunInfo }) => {
 
             {/* Manually create StatItem components for each metric */}
             <StatItem
-                value={(stats.memstats.heapalloc / (1024 * 1024)).toFixed(2)}
+                value={heapMemory.memstr}
                 label="Memory Usage (Heap)"
-                unit="MB"
+                unit={heapMemory.memunit}
                 desc="Current memory allocated by the heap for storing application data. This represents active memory being used by your application's data structures."
             />
 
@@ -143,16 +148,16 @@ const MetricsGrid: React.FC<MetricsGridProps> = ({ stats, appRunInfo }) => {
             />
 
             <StatItem
-                value={(stats.memstats.totalalloc / (1024 * 1024)).toFixed(2)}
+                value={totalMemory.memstr}
                 label="Total Memory Allocated"
-                unit="MB"
+                unit={totalMemory.memunit}
                 desc="Cumulative bytes allocated for heap objects since the process started. This counter only increases and includes memory that has been freed."
             />
 
             <StatItem
-                value={(stats.memstats.sys / (1024 * 1024)).toFixed(2)}
+                value={sysMemory.memstr}
                 label="Total Process Memory"
-                unit="MB"
+                unit={sysMemory.memunit}
                 desc="Total memory obtained from the OS. This includes all memory used by the Go runtime, not just the heap."
             />
 

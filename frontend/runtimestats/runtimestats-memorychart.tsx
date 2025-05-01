@@ -1,7 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import React, { useRef, useState } from "react";
+import { formatMemorySize, FormattedMemory } from "@/util/util";
 import {
     FloatingPortal,
     autoUpdate,
@@ -12,97 +12,116 @@ import {
     useHover,
     useInteractions,
 } from "@floating-ui/react";
+import React, { useRef, useState } from "react";
 import { RuntimeStatsTooltip } from "./tooltip";
-
-// Memory chart metadata
-interface MemoryChartSegmentMetadata {
-    id: string;
-    label: string;
-    color: string;
-    valueFn: (memStats: MemoryStatsInfo) => number;
-    percentFn: (memStats: MemoryStatsInfo) => number;
-    desc: string;
-}
-
-const memoryChartMetadata: MemoryChartSegmentMetadata[] = [
-    {
-        id: "heap",
-        label: "Heap In Use",
-        color: "bg-blue-600",
-        valueFn: (memStats) => memStats.heapinuse / (1024 * 1024),
-        percentFn: (memStats) => (memStats.heapinuse / memStats.sys) * 100,
-        desc: "Memory currently allocated and in use by the Go heap for storing application data.",
-    },
-    {
-        id: "stack",
-        label: "Stack",
-        color: "bg-green-600",
-        valueFn: (memStats) => memStats.stackinuse / (1024 * 1024),
-        percentFn: (memStats) => (memStats.stackinuse / memStats.sys) * 100,
-        desc: "Memory used by goroutine stacks. Each goroutine has its own stack that grows and shrinks as needed.",
-    },
-    {
-        id: "other",
-        label: "Other",
-        color: "bg-yellow-600",
-        valueFn: (memStats) =>
-            (memStats.mspaninuse + memStats.mcacheinuse + memStats.gcsys + memStats.othersys) / (1024 * 1024),
-        percentFn: (memStats) =>
-            ((memStats.mspaninuse + memStats.mcacheinuse + memStats.gcsys + memStats.othersys) / memStats.sys) * 100,
-        desc: "Other memory used by the Go runtime, including memory spans, mcache, garbage collector, and other system memory.",
-    },
-    {
-        id: "idle",
-        label: "Idle",
-        color: "bg-gray-400",
-        valueFn: (memStats) => memStats.heapidle / (1024 * 1024),
-        percentFn: (memStats) => (memStats.heapidle / memStats.sys) * 100,
-        desc: "Memory in the heap that is not currently in use but has been allocated from the OS. This memory can be reused by the application without requesting more from the OS.",
-    },
-];
-
-// Helper function to get detailed memory breakdown for the "other" category
-function getDetailedOtherMemoryBreakdown(memStats: MemoryStatsInfo): string {
-    return `Memory spans: ${(memStats.mspaninuse / (1024 * 1024)).toFixed(2)} MB
-MCache: ${(memStats.mcacheinuse / (1024 * 1024)).toFixed(2)} MB
-GC: ${(memStats.gcsys / (1024 * 1024)).toFixed(2)} MB
-Other: ${(memStats.othersys / (1024 * 1024)).toFixed(2)} MB`;
-}
 
 // Memory usage chart component
 interface MemoryUsageChartProps {
     memStats: MemoryStatsInfo;
 }
 
+// Segment type definition
+interface MemorySegment {
+    id: string;
+    label: string;
+    color: string;
+    mem: FormattedMemory;  // The formatted memory object
+    percent: number;
+    desc: string;
+}
+
+// Helper function to get detailed memory breakdown for the runtime category
+function getDetailedRuntimeMemoryBreakdown(memStats: MemoryStatsInfo): React.ReactNode {
+    const spans = formatMemorySize(memStats.mspaninuse);
+    const mcache = formatMemorySize(memStats.mcacheinuse);
+    const gc = formatMemorySize(memStats.gcsys);
+    const other = formatMemorySize(memStats.othersys);
+    
+    return (
+        <div className="mt-1">
+            <div>
+                Memory spans: {spans.memstr} {spans.memunit}
+            </div>
+            <div>
+                MCache: {mcache.memstr} {mcache.memunit}
+            </div>
+            <div>
+                GC: {gc.memstr} {gc.memunit}
+            </div>
+            <div>
+                Other: {other.memstr} {other.memunit}
+            </div>
+        </div>
+    );
+}
+
 export const MemoryUsageChart: React.FC<MemoryUsageChartProps> = ({ memStats }) => {
-    // Calculate values and percentages using metadata
-    const segments = memoryChartMetadata.map((segment) => ({
-        id: segment.id,
-        label: segment.label,
-        color: segment.color,
-        valueMB: segment.valueFn(memStats).toFixed(2),
-        percent: segment.percentFn(memStats),
-        desc: segment.desc,
-    }));
+    // Define segments directly
+    const runtimeMem = memStats.mspaninuse + memStats.mcacheinuse + memStats.gcsys + memStats.othersys;
+    const stackMem = memStats.stackinuse;
+    const heapMem = memStats.heapinuse;
+    const idleMem = memStats.heapidle;
+    const totalMem = memStats.sys;
+
+    // Calculate percentages
+    const runtimePercent = (runtimeMem / totalMem) * 100;
+    const stackPercent = (stackMem / totalMem) * 100;
+    const heapPercent = (heapMem / totalMem) * 100;
+    const idlePercent = (idleMem / totalMem) * 100;
+
+    // Format memory values
+    const runtimeMemFormatted = formatMemorySize(runtimeMem);
+    const stackMemFormatted = formatMemorySize(stackMem);
+    const heapMemFormatted = formatMemorySize(heapMem);
+    const idleMemFormatted = formatMemorySize(idleMem);
+    const totalMemFormatted = formatMemorySize(totalMem);
+
+    // Define segments with all needed data
+    const segments: MemorySegment[] = [
+        {
+            id: "other",
+            label: "Runtime",
+            color: "bg-yellow-600",
+            mem: runtimeMemFormatted,
+            percent: runtimePercent,
+            desc: "Memory used by the Go runtime, including memory spans, mcache, garbage collector, and other system memory.",
+        },
+        {
+            id: "stack",
+            label: "Stack",
+            color: "bg-green-600",
+            mem: stackMemFormatted,
+            percent: stackPercent,
+            desc: "Memory used by goroutine stacks. Each goroutine has its own stack that grows and shrinks as needed.",
+        },
+        {
+            id: "heap",
+            label: "Heap",
+            color: "bg-blue-600",
+            mem: heapMemFormatted,
+            percent: heapPercent,
+            desc: "Memory currently allocated and in use by the Go heap for storing application data.",
+        },
+        {
+            id: "idle",
+            label: "Idle",
+            color: "bg-gray-400",
+            mem: idleMemFormatted,
+            percent: idlePercent,
+            desc: "Memory in the heap that is not currently in use but has been allocated from the OS. This memory can be reused by the application without requesting more from the OS.",
+        },
+    ];
 
     // Create tooltip content for each segment
-    const createTooltipContent = (segment: (typeof segments)[0]) => (
+    const createTooltipContent = (segment: MemorySegment) => (
         <div>
             <div className="font-medium mb-1">{segment.label}</div>
             <div className="text-secondary mb-2">
-                {segment.valueMB} MB ({segment.percent.toFixed(1)}% of total)
+                {segment.mem.memstr} {segment.mem.memunit} ({segment.percent.toFixed(1)}% of total)
             </div>
             <div className="text-xs">
                 {segment.desc}
-                {segment.id === "other" && (
-                    <div className="mt-1">
-                        {getDetailedOtherMemoryBreakdown(memStats)
-                            .split("\n")
-                            .map((line, i) => (
-                                <div key={i}>{line}</div>
-                            ))}
-                    </div>
-                )}
+                {segment.id === "other" && getDetailedRuntimeMemoryBreakdown(memStats)}
             </div>
         </div>
     );
@@ -186,14 +205,14 @@ export const MemoryUsageChart: React.FC<MemoryUsageChartProps> = ({ memStats }) 
                         <div className="flex items-center">
                             <div className={`w-3 h-3 ${segment.color} mr-1 rounded-sm`}></div>
                             <span className="text-primary">
-                                {segment.label}: {segment.valueMB} MB
+                                {segment.label}: {segment.mem.memstr} {segment.mem.memunit}
                             </span>
                         </div>
                     </RuntimeStatsTooltip>
                 ))}
             </div>
             <div className="text-xs text-secondary mt-2">
-                Total Process Memory: {(memStats.sys / (1024 * 1024)).toFixed(2)} MB
+                Total Process Memory: {totalMemFormatted.memstr} {totalMemFormatted.memunit}
             </div>
         </div>
     );
