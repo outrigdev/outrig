@@ -11,7 +11,7 @@ const MAX_RUNTIME_STATS_ENTRIES = 600;
 
 // Create a type that combines the AppRunRuntimeStatsData with a single RuntimeStatData
 // This is for backward compatibility with the existing UI
-export type LegacyRuntimeStatsData = {
+export type CombinedStatsData = {
     apprunid: string;
     appname: string;
     ts: number;
@@ -37,9 +37,9 @@ class RuntimeStatsModel {
     // Store the latest timestamp we've seen
     latestTimestamp: PrimitiveAtom<number> = atom<number>(0) as PrimitiveAtom<number>;
     // For backward compatibility with the UI, we'll keep a single stats object
-    runtimeStats: PrimitiveAtom<LegacyRuntimeStatsData | null> = atom<LegacyRuntimeStatsData | null>(
+    runtimeStats: PrimitiveAtom<CombinedStatsData | null> = atom<CombinedStatsData | null>(
         null
-    ) as PrimitiveAtom<LegacyRuntimeStatsData | null>;
+    ) as PrimitiveAtom<CombinedStatsData | null>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     autoRefreshIntervalId: number | null = null;
@@ -140,7 +140,7 @@ class RuntimeStatsModel {
         const latestStat = result.stats[result.stats.length - 1];
 
         // Create a legacy-format object from the latest stat
-        const legacyStats: LegacyRuntimeStatsData = {
+        const legacyStats: CombinedStatsData = {
             apprunid: result.apprunid,
             appname: result.appname,
             ts: latestStat.ts,
