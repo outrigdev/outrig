@@ -110,7 +110,12 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
             } else if (gofmtval) {
                 const ppVal = prettyPrintGoFmt(gofmtval);
                 out.push(
-                    <WatchVal key="gofmtval" content={ppVal} tooltipText="Copy Go formatted representation" tag="gofmt:" />
+                    <WatchVal
+                        key="gofmtval"
+                        content={ppVal}
+                        tooltipText="Copy Go formatted representation"
+                        tag="gofmt:"
+                    />
                 );
             }
         } else {
@@ -118,7 +123,12 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
             if (gofmtval) {
                 const ppVal = prettyPrintGoFmt(gofmtval);
                 out.push(
-                    <WatchVal key="gofmtval" content={ppVal} tooltipText="Copy Go formatted representation" tag="gofmt:" />
+                    <WatchVal
+                        key="gofmtval"
+                        content={ppVal}
+                        tooltipText="Copy Go formatted representation"
+                        tag="gofmt:"
+                    />
                 );
             }
         }
@@ -171,11 +181,8 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
                             <Tag key={`tag-${index}`} label={`#${tag}`} isSelected={false} variant="accent" />
                         ))}
                     {flagTags.map((tag, index) => (
-                        <span key={index} className="-translate-y-0.5">
-                            <Tag label={tag.label} isSelected={false} variant="secondary" />
-                        </span>
+                        <Tag label={tag.label} isSelected={false} variant="secondary" />
                     ))}
-                    {/* Copy button removed - now each value representation has its own copy button */}
                 </div>
             </div>
             <div className="text-sm text-primary pb-2">{formatValue(watch)}</div>
@@ -236,7 +243,13 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                     </span>
                 </div>
 
-                <Tooltip content={preferJson ? "Prefer JSON display if available (click to toggle to GoFmt)" : "Prefer GoFmt (%#v) display (click to toggle to JSON)"}>
+                <Tooltip
+                    content={
+                        preferJson
+                            ? "Prefer JSON display if available (click to toggle to GoFmt)"
+                            : "Prefer GoFmt (%#v) display (click to toggle to JSON)"
+                    }
+                >
                     <button
                         onClick={() => setPreferJson(!preferJson)}
                         className="flex items-center justify-center h-6 px-2 mr-2 text-xs text-primary bg-primary/20 hover:bg-primary/30 rounded-md cursor-pointer"
