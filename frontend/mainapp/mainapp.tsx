@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AppModel } from "@/appmodel";
+import { ErrorBoundary } from "@/elements/errorboundary";
 import { SettingsButton } from "@/elements/settingsbutton";
 import { Tooltip } from "@/elements/tooltip";
 import { UpdateBadge } from "@/elements/updatebadge";
@@ -26,19 +27,26 @@ const FeatureTab = React.memo(function FeatureTab() {
     const selectedTab = useAtomValue(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
+    // Create a unique key for the ErrorBoundary based on tab and app run
+    const errorBoundaryKey = `${selectedTab}-${selectedAppRunId}`;
+
+    let tabComponent;
     // We should always have an app run ID here since the parent component
     // conditionally renders the HomePage when no app run is selected
     if (selectedTab === "logs") {
-        return <LogViewer key={selectedAppRunId} appRunId={selectedAppRunId} />;
+        tabComponent = <LogViewer key={selectedAppRunId} appRunId={selectedAppRunId} />;
     } else if (selectedTab === "goroutines") {
-        return <GoRoutines key={selectedAppRunId} appRunId={selectedAppRunId} />;
+        tabComponent = <GoRoutines key={selectedAppRunId} appRunId={selectedAppRunId} />;
     } else if (selectedTab === "watches") {
-        return <Watches key={selectedAppRunId} appRunId={selectedAppRunId} />;
+        tabComponent = <Watches key={selectedAppRunId} appRunId={selectedAppRunId} />;
     } else if (selectedTab === "runtimestats") {
-        return <RuntimeStats key={selectedAppRunId} appRunId={selectedAppRunId} />;
+        tabComponent = <RuntimeStats key={selectedAppRunId} appRunId={selectedAppRunId} />;
+    } else {
+        tabComponent = (
+            <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>
+        );
     }
-
-    return <div className="w-full h-full flex items-center justify-center text-secondary">Not Implemented</div>;
+    return <ErrorBoundary key={errorBoundaryKey}>{tabComponent}</ErrorBoundary>;
 });
 
 FeatureTab.displayName = "FeatureTab";
@@ -241,7 +249,9 @@ const MainApp = React.memo(function MainApp() {
             <div className="flex flex-col flex-grow overflow-hidden min-w-[700px]">
                 <AppHeader />
                 <main className="flex-grow overflow-auto w-full">
-                    <FeatureTab />
+                    <ErrorBoundary>
+                        <FeatureTab />
+                    </ErrorBoundary>
                 </main>
                 <StatusBar />
             </div>

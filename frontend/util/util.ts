@@ -146,25 +146,26 @@ export function formatTimeOffset(timestamp: number, startTime: number): string {
     if (!timestamp || !startTime) {
         return "";
     }
-
-    // Calculate difference in seconds, flooring to the nearest second
-    const diffInSeconds = Math.floor((timestamp - startTime) / 1000);
-
-    // If the difference is negative or zero, return "+0s"
-    if (diffInSeconds <= 0) {
-        return "+0s";
+    const milliseconds = timestamp - startTime;
+    if (milliseconds <= 0) {
+        return "0s";
     }
-
-    if (diffInSeconds < 60) {
-        return `+${diffInSeconds}s`;
-    } else if (diffInSeconds < 3600) {
-        const minutes = Math.floor(diffInSeconds / 60);
-        const seconds = diffInSeconds % 60;
-        return seconds > 0 ? `+${minutes}m${seconds}s` : `+${minutes}m`;
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    if (seconds < 60) {
+        // Less than a minute: show seconds
+        return `${seconds}s`;
+    } else if (minutes < 60) {
+        // Less than an hour: show minutes and seconds
+        return `${minutes}m${seconds % 60}s`;
+    } else if (hours < 24) {
+        // Less than a day: show hours, minutes, and seconds
+        return `${hours}h${minutes % 60}m${seconds % 60}s`;
     } else {
-        const hours = Math.floor(diffInSeconds / 3600);
-        const minutes = Math.floor((diffInSeconds % 3600) / 60);
-        return minutes > 0 ? `+${hours}h${minutes}m` : `+${hours}h`;
+        // More than a day: show days, hours, minutes, and seconds
+        return `${days}d${hours % 24}h${minutes % 60}m${seconds % 60}s`;
     }
 }
 

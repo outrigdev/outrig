@@ -13,7 +13,53 @@ import {
     useInteractions,
 } from "@floating-ui/react";
 import { RuntimeStatsTooltip } from "./tooltip";
-import { memoryChartMetadata } from "./runtimestats-metadata";
+
+// Memory chart metadata
+interface MemoryChartSegmentMetadata {
+    id: string;
+    label: string;
+    color: string;
+    valueFn: (memStats: MemoryStatsInfo) => number;
+    percentFn: (memStats: MemoryStatsInfo) => number;
+    desc: string;
+}
+
+const memoryChartMetadata: MemoryChartSegmentMetadata[] = [
+    {
+        id: "heap",
+        label: "Heap In Use",
+        color: "bg-blue-600",
+        valueFn: (memStats) => memStats.heapinuse / (1024 * 1024),
+        percentFn: (memStats) => (memStats.heapinuse / memStats.sys) * 100,
+        desc: "Memory currently allocated and in use by the Go heap for storing application data.",
+    },
+    {
+        id: "stack",
+        label: "Stack",
+        color: "bg-green-600",
+        valueFn: (memStats) => memStats.stackinuse / (1024 * 1024),
+        percentFn: (memStats) => (memStats.stackinuse / memStats.sys) * 100,
+        desc: "Memory used by goroutine stacks. Each goroutine has its own stack that grows and shrinks as needed.",
+    },
+    {
+        id: "other",
+        label: "Other",
+        color: "bg-yellow-600",
+        valueFn: (memStats) =>
+            (memStats.mspaninuse + memStats.mcacheinuse + memStats.gcsys + memStats.othersys) / (1024 * 1024),
+        percentFn: (memStats) =>
+            ((memStats.mspaninuse + memStats.mcacheinuse + memStats.gcsys + memStats.othersys) / memStats.sys) * 100,
+        desc: "Other memory used by the Go runtime, including memory spans, mcache, garbage collector, and other system memory.",
+    },
+    {
+        id: "idle",
+        label: "Idle",
+        color: "bg-gray-400",
+        valueFn: (memStats) => memStats.heapidle / (1024 * 1024),
+        percentFn: (memStats) => (memStats.heapidle / memStats.sys) * 100,
+        desc: "Memory in the heap that is not currently in use but has been allocated from the OS. This memory can be reused by the application without requesting more from the OS.",
+    },
+];
 
 // Helper function to get detailed memory breakdown for the "other" category
 function getDetailedOtherMemoryBreakdown(memStats: MemoryStatsInfo): string {

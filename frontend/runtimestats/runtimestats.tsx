@@ -6,12 +6,12 @@ import { AutoRefreshButton } from "@/elements/autorefreshbutton";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { TimestampDot } from "@/elements/timestampdot";
 import { useOutrigModel } from "@/util/hooks";
+import { formatTimeOffset } from "@/util/util";
 import { useAtomValue } from "jotai";
 import React from "react";
 import { MemoryUsageChart } from "./runtimestats-memorychart";
-import { RuntimeStatsTooltip } from "./tooltip";
-import { formatUptime } from "./runtimestats-metadata";
 import { CombinedStatsData, RuntimeStatsModel } from "./runtimestats-model";
+import { RuntimeStatsTooltip } from "./tooltip";
 
 // Component for displaying a single stat
 interface StatItemProps {
@@ -30,8 +30,7 @@ const UptimeStatItem: React.FC<UptimeStatItemProps> = ({ appRunInfo }) => {
     // Calculate uptime
     const startTime = appRunInfo.starttime;
     const endTime = appRunInfo.isrunning && appRunInfo.status === "running" ? Date.now() : appRunInfo.lastmodtime;
-    const uptimeDuration = endTime - startTime;
-    const uptimeText = formatUptime(uptimeDuration);
+    const uptimeText = formatTimeOffset(endTime, startTime);
 
     const isRunning = appRunInfo.isrunning && appRunInfo.status === "running";
 

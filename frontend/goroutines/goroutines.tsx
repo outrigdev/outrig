@@ -160,7 +160,7 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                         {goroutine.firstseen && appRunStartTime && (
                             <Tooltip content={`Goroutine started at ${new Date(goroutine.firstseen).toLocaleString()}`}>
                                 <span className="ml-2 text-xs text-muted bg-muted/10 px-1 py-0.5 rounded hover:bg-muted/20 transition-colors">
-                                    {formatTimeOffset(goroutine.firstseen, appRunStartTime)}
+                                    +{formatTimeOffset(goroutine.firstseen, appRunStartTime)}
                                 </span>
                             </Tooltip>
                         )}
