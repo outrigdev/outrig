@@ -250,6 +250,14 @@ func (i *internalOutrig) SetGoRoutineName(name string) {
 	SetGoRoutineName(name)
 }
 
+func (i *internalOutrig) Log(str string) {
+	Log(str)
+}
+
+func (i *internalOutrig) Logf(format string, args ...any) {
+	Logf(format, args...)
+}
+
 // OrigStdout returns the original stdout stream that was captured during initialization
 func OrigStdout() *os.File {
 	return loginitex.OrigStdout()
@@ -263,4 +271,38 @@ func OrigStderr() *os.File {
 // semver
 func OutrigVersion() string {
 	return base.OutrigSDKVersion
+}
+
+func logInternal(str string) {
+	ctrlPtr := getController()
+	if ctrlPtr == nil {
+		return
+	}
+	logLine := &ds.LogLine{
+		Ts:     time.Now().UnixMilli(),
+		Msg:    str,
+		Source: "outrig",
+	}
+	packet := &ds.PacketType{
+		Type: ds.PacketTypeLog,
+		Data: logLine,
+	}
+	ctrlPtr.SendPacket(packet)
+}
+
+// Log sends a simple string message to the Outrig logger
+func Log(str string) {
+	if !global.OutrigEnabled.Load() {
+		return
+	}
+	logInternal(str)
+}
+
+// Logf sends a formatted message to the Outrig logger
+func Logf(format string, args ...any) {
+	if !global.OutrigEnabled.Load() {
+		return
+	}
+	msg := fmt.Sprintf(format, args...)
+	logInternal(msg)
 }

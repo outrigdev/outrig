@@ -53,6 +53,8 @@ func main() {
 
 	outrig.TrackValue("map #test", m)
 
+	outrig.Logf("#test: this is a log line from outrig logger")
+
 	logrus.SetFormatter(&logrus.TextFormatter{
 		ForceColors:   true,
 		FullTimestamp: true,

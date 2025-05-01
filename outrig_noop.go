@@ -133,3 +133,9 @@ func (i *internalOutrig) SetGoRoutineName(name string) {}
 func OutrigVersion() string {
 	return base.OutrigSDKVersion
 }
+
+// Log is a no-op when no_outrig is set
+func Log(str string) {}
+
+// Logf is a no-op when no_outrig is set
+func Logf(format string, args ...any) {}

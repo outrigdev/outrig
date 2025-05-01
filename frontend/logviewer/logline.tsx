@@ -94,7 +94,13 @@ function formatSource(source: string): React.ReactNode {
         srcStr = srcStr.slice(5);
     }
     const padded = srcStr.padStart(6, " ");
-    return <span className={srcStr === "stderr" ? "text-error" : "text-muted"}>[{padded}]</span>;
+    let className = "text-muted";
+    if (srcStr === "stderr") {
+        className = "text-error";
+    } else if (srcStr === "outrig") {
+        className = "text-accent";
+    }
+    return <span className={className}>[{padded}]</span>;
 }
 
 // LogLineComponent for rendering individual log lines in LogVList

@@ -180,22 +180,27 @@ func inErrorCooldown() (bool, time.Time) {
 // UploadEvents uploads events to the server
 func UploadEvents() error {
 	if Disabled.Load() {
+		outrig.Logf("#tevent: UploadEvents called but telemetry is disabled")
 		return nil
 	}
 	if inCooldown, _ := inErrorCooldown(); inCooldown {
+		outrig.Logf("#tevent: UploadEvents called but in error cooldown")
 		return nil
 	}
 	uploadAttempts.Add(1)
 	now := time.Now()
 	eventsSent, err := sendTEvents(serverbase.OutrigId)
 	if err != nil {
+		outrig.Logf("#tevent: UploadEvents failed: %v", err)
 		updateTelemetryStatus(now, eventsSent, err)
 		return err
 	}
 	if eventsSent == 0 {
+		outrig.Logf("#tevent: UploadEvents called but no events sent")
 		updateTelemetryStatus(now, 0, nil)
 		return nil
 	}
+	outrig.Logf("#tevent: UploadEvents sent %d events", eventsSent)
 	eventsUploaded.Add(int64(eventsSent))
 	updateTelemetryStatus(now, eventsSent, nil)
 	return nil
