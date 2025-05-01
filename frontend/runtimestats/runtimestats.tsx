@@ -19,13 +19,7 @@ import {
 } from "@floating-ui/react";
 import { useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
-import {
-    RuntimeStatMetadata,
-    formatUptime,
-    getDetailedOtherMemoryBreakdown,
-    memoryChartMetadata,
-    runtimeStatsMetadata,
-} from "./runtimestats-metadata";
+import { formatUptime, getDetailedOtherMemoryBreakdown, memoryChartMetadata } from "./runtimestats-metadata";
 import { LegacyRuntimeStatsData, RuntimeStatsModel } from "./runtimestats-model";
 
 // Custom tooltip component for runtime stats
@@ -250,8 +244,10 @@ const MemoryUsageChart: React.FC<MemoryUsageChartProps> = ({ memStats }) => {
 
 // Component for displaying a single stat
 interface StatItemProps {
-    metadata: RuntimeStatMetadata;
-    stats: LegacyRuntimeStatsData;
+    value: string | number;
+    label: string;
+    unit?: string;
+    desc: string;
 }
 
 // Component for displaying uptime
@@ -262,55 +258,46 @@ interface UptimeStatItemProps {
 const UptimeStatItem: React.FC<UptimeStatItemProps> = ({ appRunInfo }) => {
     // Calculate uptime
     const startTime = appRunInfo.starttime;
-    const endTime = appRunInfo.isrunning && appRunInfo.status === "running" 
-        ? Date.now() 
-        : appRunInfo.lastmodtime;
+    const endTime = appRunInfo.isrunning && appRunInfo.status === "running" ? Date.now() : appRunInfo.lastmodtime;
     const uptimeDuration = endTime - startTime;
     const uptimeText = formatUptime(uptimeDuration);
-    
+
     const isRunning = appRunInfo.isrunning && appRunInfo.status === "running";
-    
+
     const tooltipContent = (
         <div>
             <div className="font-medium mb-1">Uptime</div>
             <div className="text-xs">How long the application has been running since it started.</div>
         </div>
     );
-    
+
     const content = (
         <div className="mb-4 p-4 border border-border rounded-md bg-panel">
             <div className="text-sm text-secondary mb-1">Uptime</div>
             <div className="text-2xl font-semibold text-primary flex items-center">
                 {uptimeText}
-                {isRunning && (
-                    <span 
-                        className="ml-2 inline-block w-2 h-2 rounded-full bg-green-500" 
-                        title="Running"
-                    />
-                )}
+                {isRunning && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-green-500" title="Running" />}
             </div>
         </div>
     );
-    
+
     return <RuntimeStatsTooltip content={tooltipContent}>{content}</RuntimeStatsTooltip>;
 };
 
-const StatItem: React.FC<StatItemProps> = ({ metadata, stats }) => {
-    const value = metadata.statFn(stats);
-
+const StatItem: React.FC<StatItemProps> = ({ value, label, unit, desc }) => {
     const tooltipContent = (
         <div>
-            <div className="font-medium mb-1">{metadata.label}</div>
-            <div className="text-xs">{metadata.desc}</div>
+            <div className="font-medium mb-1">{label}</div>
+            <div className="text-xs">{desc}</div>
         </div>
     );
 
     const content = (
         <div className="mb-4 p-4 border border-border rounded-md bg-panel">
-            <div className="text-sm text-secondary mb-1">{metadata.label}</div>
+            <div className="text-sm text-secondary mb-1">{label}</div>
             <div className="text-2xl font-semibold text-primary">
                 {value}
-                {metadata.unit && <span className="text-sm text-secondary ml-1">{metadata.unit}</span>}
+                {unit && <span className="text-sm text-secondary ml-1">{unit}</span>}
             </div>
         </div>
     );
@@ -340,6 +327,74 @@ const RuntimeStatsHeader: React.FC<RuntimeStatsHeaderProps> = ({ model }) => {
     );
 };
 
+// MetricsGrid component that displays all the stat items
+interface MetricsGridProps {
+    stats: LegacyRuntimeStatsData;
+    appRunInfo: AppRunInfo;
+}
+
+const MetricsGrid: React.FC<MetricsGridProps> = ({ stats, appRunInfo }) => {
+    return (
+        <div className="grid grid-cols-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Uptime stat with status indicator */}
+            <UptimeStatItem appRunInfo={appRunInfo} />
+
+            {/* Manually create StatItem components for each metric */}
+            <StatItem
+                value={(stats.memstats.heapalloc / (1024 * 1024)).toFixed(2)}
+                label="Memory Usage (Heap)"
+                unit="MB"
+                desc="Current memory allocated by the heap for storing application data. This represents active memory being used by your application's data structures."
+            />
+
+            <StatItem
+                value={stats.cpuusage.toFixed(2)}
+                label="CPU Usage"
+                unit="%"
+                desc="Percentage of CPU time being used by this Go process. High values may indicate CPU-intensive operations or potential bottlenecks."
+            />
+
+            <StatItem
+                value={stats.numactivegoroutines - stats.numoutriggoroutines}
+                label="Goroutine Count"
+                desc="Number of goroutines currently running in the application, excluding Outrig SDK goroutines. Each goroutine is a lightweight thread managed by the Go runtime. Unexpected high counts may indicate goroutine leaks."
+            />
+
+            <StatItem
+                value={(stats.memstats.totalheapobj - (stats.memstats.totalheapobjfree || 0)).toLocaleString()}
+                label="Current Heap Objects"
+                desc="Number of live heap objects currently in memory (calculated as total allocated minus freed objects)."
+            />
+
+            <StatItem
+                value={stats.memstats.totalheapobj.toLocaleString()}
+                label="Total Heap Objects"
+                desc="Total number of heap objects allocated over the entire lifetime of the application. This counter only increases and includes objects that have been freed."
+            />
+
+            <StatItem
+                value={(stats.memstats.totalalloc / (1024 * 1024)).toFixed(2)}
+                label="Total Memory Allocated"
+                unit="MB"
+                desc="Cumulative bytes allocated for heap objects since the process started. This counter only increases and includes memory that has been freed."
+            />
+
+            <StatItem
+                value={(stats.memstats.sys / (1024 * 1024)).toFixed(2)}
+                label="Total Process Memory"
+                unit="MB"
+                desc="Total memory obtained from the OS. This includes all memory used by the Go runtime, not just the heap."
+            />
+
+            <StatItem
+                value={stats.memstats.numgc}
+                label="GC Cycles"
+                desc="Number of completed GC cycles since the program started. Frequent GC cycles may indicate memory pressure or allocation patterns that could be optimized."
+            />
+        </div>
+    );
+};
+
 // Content component that displays the runtime stats
 interface RuntimeStatsContentProps {
     model: RuntimeStatsModel;
@@ -348,7 +403,6 @@ interface RuntimeStatsContentProps {
 const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
     const stats = useAtomValue(model.runtimeStats);
     const isRefreshing = useAtomValue(model.isRefreshing);
-    // Get the app run info from the model
     const appRunInfoAtom = React.useMemo(() => AppModel.getAppRunInfoAtom(model.appRunId), [model.appRunId]);
     const appRunInfo = useAtomValue(appRunInfoAtom);
 
@@ -362,17 +416,11 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
         );
     }
 
-    if (!stats) {
+    if (!stats || !stats.memstats || !appRunInfo) {
         return <div className="flex items-center justify-center h-full text-secondary">No runtime stats available</div>;
     }
 
-    // Format the timestamp
     const formattedTime = new Date(stats.ts).toLocaleTimeString();
-
-    // Calculate memory usage in MB for display
-    const heapAllocMB = stats.memstats ? (stats.memstats.heapalloc / (1024 * 1024)).toFixed(2) : "0";
-    const totalAllocMB = stats.memstats ? (stats.memstats.totalalloc / (1024 * 1024)).toFixed(2) : "0";
-    const sysMB = stats.memstats ? (stats.memstats.sys / (1024 * 1024)).toFixed(2) : "0";
 
     // Information items that should be displayed in a more informational way
     const infoItems = [
@@ -382,31 +430,9 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
         { key: "cpuCores", label: "CPU Cores", value: stats.numcpu },
         { key: "platform", label: "Platform", value: `${stats.goos}/${stats.goarch}` },
         { key: "goVersion", label: "Go Version", value: stats.goversion },
-    ];
-
-    // Add Module, Executable, and SDK Version from appRunInfo if available
-    if (appRunInfo) {
-        if (appRunInfo.modulename) {
-            infoItems.push({ key: "moduleName", label: "Module", value: appRunInfo.modulename });
-        }
-        if (appRunInfo.executable) {
-            infoItems.push({ key: "executable", label: "Executable", value: appRunInfo.executable });
-        }
-        if (appRunInfo.outrigsdkversion) {
-            infoItems.push({ key: "sdkVersion", label: "Outrig SDK Version", value: appRunInfo.outrigsdkversion });
-        }
-    }
-
-    // Metric items that should be displayed as StatItems
-    const metricKeys = [
-        "heapMemory",
-        "cpuUsage",
-        "goroutineCount",
-        "currentHeapObjects",
-        "totalHeapObjects",
-        "totalMemoryAllocated",
-        "totalProcessMemory",
-        "gcCycles",
+        { key: "moduleName", label: "Module", value: appRunInfo.modulename },
+        { key: "executable", label: "Executable", value: appRunInfo.executable },
+        { key: "sdkVersion", label: "Outrig SDK Version", value: appRunInfo.outrigsdkversion },
     ];
 
     return (
@@ -417,12 +443,10 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
             </div>
 
             {/* Memory usage visualization */}
-            {stats.memstats && (
-                <div className="mb-6 p-4 border border-border rounded-md bg-panel">
-                    <div className="text-sm text-secondary font-medium mb-2">Memory Usage Breakdown</div>
-                    <MemoryUsageChart memStats={stats.memstats} />
-                </div>
-            )}
+            <div className="mb-6 p-4 border border-border rounded-md bg-panel">
+                <div className="text-sm text-secondary font-medium mb-2">Memory Usage Breakdown</div>
+                <MemoryUsageChart memStats={stats.memstats} />
+            </div>
 
             {/* Information panel */}
             <div className="mb-6 p-4 border border-border rounded-md bg-panel">
@@ -440,15 +464,7 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
             </div>
 
             {/* Metrics grid */}
-            <div className="grid grid-cols-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Uptime stat with status indicator */}
-                {appRunInfo && <UptimeStatItem appRunInfo={appRunInfo} />}
-                
-                {/* Render other metric stats as StatItems */}
-                {metricKeys.map((key) => (
-                    <StatItem key={key} metadata={runtimeStatsMetadata[key]} stats={stats} />
-                ))}
-            </div>
+            <MetricsGrid stats={stats} appRunInfo={appRunInfo} />
         </div>
     );
 };
