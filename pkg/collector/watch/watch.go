@@ -352,7 +352,8 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 		defer lock.Unlock()
 	}
 	watch.Ts = time.Now().UnixMilli()
-	for rval.Kind() == reflect.Ptr {
+	const maxPtrDepth = 10
+	for depth := 0; rval.Kind() == reflect.Ptr && depth < maxPtrDepth; depth++ {
 		if rval.IsNil() {
 			watch.StrVal = "nil"
 			wc.recordWatch(watch)
@@ -363,7 +364,6 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 	}
 	// Store the kind in the lower 5 bits of the flags
 	watch.SetKind(uint(rval.Kind()))
-
 	switch rval.Kind() {
 	case reflect.String:
 		watch.StrVal = rval.String()
@@ -372,6 +372,11 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
 		watch.StrVal = fmt.Sprint(rval.Interface())
 	case reflect.Slice, reflect.Array, reflect.Map, reflect.Struct, reflect.Interface:
+		if (rval.Kind() == reflect.Interface || rval.Kind() == reflect.Slice || rval.Kind() == reflect.Map) && rval.IsNil() {
+			watch.StrVal = "nil"
+			wc.recordWatch(watch)
+			return
+		}
 		watch.GoFmtVal = fmt.Sprintf("%#v", rval.Interface())
 		barr, err := json.Marshal(rval.Interface())
 		if err == nil {
@@ -387,11 +392,20 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 			watch.Cap = rval.Cap()
 		}
 	case reflect.Chan:
+		if rval.IsNil() {
+			watch.StrVal = "nil"
+		} else {
+			watch.StrVal = fmt.Sprintf("(chan:%p)", rval.Interface())
+		}
 		watch.Len = rval.Len()
 		watch.Cap = rval.Cap()
 	case reflect.Func:
-		// no value
-	case reflect.UnsafePointer:
+		if rval.IsNil() {
+			watch.StrVal = "nil"
+		} else {
+			watch.StrVal = fmt.Sprintf("(func:%p)", rval.Interface())
+		}
+	case reflect.UnsafePointer, reflect.Ptr:
 		watch.StrVal = fmt.Sprintf("%p", rval.Interface())
 	default:
 		watch.Error = fmt.Sprintf("unsupported kind: %s", rval.Kind())
