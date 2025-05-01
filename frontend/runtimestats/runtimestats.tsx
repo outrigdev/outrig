@@ -13,6 +13,34 @@ import { MemoryUsageChart } from "./runtimestats-memorychart";
 import { CombinedStatsData, RuntimeStatsModel } from "./runtimestats-model";
 import { RuntimeStatsTooltip } from "./tooltip";
 
+// Base component for stat items to ensure consistent styling
+interface BaseStatItemProps {
+    label: string;
+    description: string;
+    children: React.ReactNode;
+    className?: string;
+}
+
+const BaseStatItem: React.FC<BaseStatItemProps> = ({ label, description, children, className = "" }) => {
+    const tooltipContent = (
+        <div>
+            <div className="font-medium mb-1">{label}</div>
+            <div className="text-xs">{description}</div>
+        </div>
+    );
+
+    return (
+        <RuntimeStatsTooltip content={tooltipContent}>
+            <div className="p-4 border border-border rounded-md bg-panel">
+                <div className="text-sm text-secondary mb-1">{label}</div>
+                <div className={`text-2xl font-semibold text-primary ${className}`}>
+                    {children}
+                </div>
+            </div>
+        </RuntimeStatsTooltip>
+    );
+};
+
 // Component for displaying a single stat
 interface StatItemProps {
     value: string | number;
@@ -34,45 +62,25 @@ const UptimeStatItem: React.FC<UptimeStatItemProps> = ({ appRunInfo }) => {
 
     const isRunning = appRunInfo.isrunning && appRunInfo.status === "running";
 
-    const tooltipContent = (
-        <div>
-            <div className="font-medium mb-1">Uptime</div>
-            <div className="text-xs">How long the application has been running since it started.</div>
-        </div>
+    return (
+        <BaseStatItem
+            label="Uptime"
+            description="How long the application has been running since it started."
+            className="flex items-center"
+        >
+            {uptimeText}
+            {isRunning && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-green-500" title="Running" />}
+        </BaseStatItem>
     );
-
-    const content = (
-        <div className="mb-4 p-4 border border-border rounded-md bg-panel">
-            <div className="text-sm text-secondary mb-1">Uptime</div>
-            <div className="text-2xl font-semibold text-primary flex items-center">
-                {uptimeText}
-                {isRunning && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-green-500" title="Running" />}
-            </div>
-        </div>
-    );
-
-    return <RuntimeStatsTooltip content={tooltipContent}>{content}</RuntimeStatsTooltip>;
 };
 
 const StatItem: React.FC<StatItemProps> = ({ value, label, unit, desc }) => {
-    const tooltipContent = (
-        <div>
-            <div className="font-medium mb-1">{label}</div>
-            <div className="text-xs">{desc}</div>
-        </div>
+    return (
+        <BaseStatItem label={label} description={desc}>
+            {value}
+            {unit && <span className="text-sm text-secondary ml-1">{unit}</span>}
+        </BaseStatItem>
     );
-
-    const content = (
-        <div className="mb-4 p-4 border border-border rounded-md bg-panel">
-            <div className="text-sm text-secondary mb-1">{label}</div>
-            <div className="text-2xl font-semibold text-primary">
-                {value}
-                {unit && <span className="text-sm text-secondary ml-1">{unit}</span>}
-            </div>
-        </div>
-    );
-
-    return <RuntimeStatsTooltip content={tooltipContent}>{content}</RuntimeStatsTooltip>;
 };
 
 // Header component with refresh button
@@ -97,6 +105,19 @@ const RuntimeStatsHeader: React.FC<RuntimeStatsHeaderProps> = ({ model }) => {
     );
 };
 
+// Section header component
+interface SectionHeaderProps {
+    title: string;
+}
+
+const SectionHeader: React.FC<SectionHeaderProps> = ({ title }) => {
+    return (
+        <div className="col-span-full mt-1">
+            <h3 className="text-xs font-medium text-secondary uppercase tracking-wider">{title}</h3>
+        </div>
+    );
+};
+
 // MetricsGrid component that displays all the stat items
 interface MetricsGridProps {
     stats: CombinedStatsData;
@@ -108,18 +129,19 @@ const MetricsGrid: React.FC<MetricsGridProps> = ({ stats, appRunInfo }) => {
     const heapMemory = formatMemorySize(stats.memstats.heapalloc);
     const totalMemory = formatMemorySize(stats.memstats.totalalloc);
     const sysMemory = formatMemorySize(stats.memstats.sys);
-    
+
     return (
-        <div className="grid grid-cols-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Uptime stat with status indicator */}
+        <div className="grid grid-cols-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Current section */}
+            <SectionHeader title="Current" />
+
+            {/* First row: Uptime, Goroutine Count, CPU Usage */}
             <UptimeStatItem appRunInfo={appRunInfo} />
 
-            {/* Manually create StatItem components for each metric */}
             <StatItem
-                value={heapMemory.memstr}
-                label="Memory Usage (Heap)"
-                unit={heapMemory.memunit}
-                desc="Current memory allocated by the heap for storing application data. This represents active memory being used by your application's data structures."
+                value={stats.numactivegoroutines - stats.numoutriggoroutines}
+                label="Goroutine Count"
+                desc="Number of goroutines currently running in the application, excluding Outrig SDK goroutines. Each goroutine is a lightweight thread managed by the Go runtime. Unexpected high counts may indicate goroutine leaks."
             />
 
             <StatItem
@@ -129,31 +151,7 @@ const MetricsGrid: React.FC<MetricsGridProps> = ({ stats, appRunInfo }) => {
                 desc="Percentage of CPU time being used by this Go process. High values may indicate CPU-intensive operations or potential bottlenecks."
             />
 
-            <StatItem
-                value={stats.numactivegoroutines - stats.numoutriggoroutines}
-                label="Goroutine Count"
-                desc="Number of goroutines currently running in the application, excluding Outrig SDK goroutines. Each goroutine is a lightweight thread managed by the Go runtime. Unexpected high counts may indicate goroutine leaks."
-            />
-
-            <StatItem
-                value={(stats.memstats.totalheapobj - (stats.memstats.totalheapobjfree || 0)).toLocaleString()}
-                label="Current Heap Objects"
-                desc="Number of live heap objects currently in memory (calculated as total allocated minus freed objects)."
-            />
-
-            <StatItem
-                value={stats.memstats.totalheapobj.toLocaleString()}
-                label="Total Heap Objects"
-                desc="Total number of heap objects allocated over the entire lifetime of the application. This counter only increases and includes objects that have been freed."
-            />
-
-            <StatItem
-                value={totalMemory.memstr}
-                label="Total Memory Allocated"
-                unit={totalMemory.memunit}
-                desc="Cumulative bytes allocated for heap objects since the process started. This counter only increases and includes memory that has been freed."
-            />
-
+            {/* Second row: Total Process Memory, Heap Memory, Heap Objects */}
             <StatItem
                 value={sysMemory.memstr}
                 label="Total Process Memory"
@@ -162,7 +160,36 @@ const MetricsGrid: React.FC<MetricsGridProps> = ({ stats, appRunInfo }) => {
             />
 
             <StatItem
-                value={stats.memstats.numgc}
+                value={heapMemory.memstr}
+                label="Heap Memory"
+                unit={heapMemory.memunit}
+                desc="Current memory allocated by the heap for storing application data. This represents active memory being used by your application's data structures."
+            />
+
+            <StatItem
+                value={(stats.memstats.totalheapobj - (stats.memstats.totalheapobjfree || 0)).toLocaleString()}
+                label="Heap Objects"
+                desc="Number of live heap objects currently in memory (calculated as total allocated minus freed objects)."
+            />
+
+            {/* Lifetime section */}
+            <SectionHeader title="Lifetime" />
+
+            <StatItem
+                value={stats.memstats.totalheapobj.toLocaleString()}
+                label="Lifetime Heap Objects"
+                desc="Total number of heap objects allocated over the entire lifetime of the application. This counter only increases and includes objects that have been freed."
+            />
+
+            <StatItem
+                value={totalMemory.memstr}
+                label="Lifetime Allocation"
+                unit={totalMemory.memunit}
+                desc="Cumulative bytes allocated for heap objects since the process started. This counter only increases and includes memory that has been freed."
+            />
+
+            <StatItem
+                value={stats.memstats.numgc.toLocaleString()}
                 label="GC Cycles"
                 desc="Number of completed GC cycles since the program started. Frequent GC cycles may indicate memory pressure or allocation patterns that could be optimized."
             />
