@@ -126,6 +126,22 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                             }
                             return false;
                         }}
+                        onEscape={() => {
+                            // If search tips are open, close them and return true
+                            if (isSearchTipsOpen) {
+                                setIsSearchTipsOpen(false);
+                                
+                                // Focus the search input after closing the popup
+                                setTimeout(() => {
+                                    emitter.emit("focussearch");
+                                }, 50);
+                                
+                                return true;
+                            }
+                            
+                            // If search tips are not open, return false to let SearchFilter clear the search
+                            return false;
+                        }}
                     />
                 </div>
 

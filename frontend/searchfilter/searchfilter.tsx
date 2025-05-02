@@ -16,6 +16,7 @@ interface SearchFilterProps {
     placeholder?: string;
     autoFocus?: boolean;
     onOutrigKeyDown?: (keyEvent: OutrigKeyboardEvent) => boolean;
+    onEscape?: () => boolean;
     className?: string;
     errorSpans?: SearchErrorSpan[];
 }
@@ -155,6 +156,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     placeholder = "Filter...",
     autoFocus = false,
     onOutrigKeyDown,
+    onEscape,
     className = "",
     errorSpans = [],
 }) => {
@@ -229,8 +231,15 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
 
         // If we didn't handle the key, pass to the regular handler
         keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
-            // Handle Escape key internally
+            // Handle Escape key
             if (checkKeyPressed(keyEvent, "Escape")) {
+                // First check if parent wants to handle Escape
+                if (onEscape && onEscape()) {
+                    // Parent handled it, don't clear search
+                    return true;
+                }
+                
+                // Parent didn't handle it or no handler provided, clear search
                 onValueChange("");
                 return true;
             }
