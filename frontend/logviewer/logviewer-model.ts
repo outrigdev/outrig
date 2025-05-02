@@ -46,6 +46,7 @@ class LogViewerModel {
     isLoading: PrimitiveAtom<boolean> = atom(false);
     followOutput: PrimitiveAtom<boolean> = atom(true);
     isStreaming: PrimitiveAtom<boolean> = atom(true);
+    isSearchTipsOpen: PrimitiveAtom<boolean> = atom(false);
     vlistRef: React.RefObject<HTMLDivElement> = { current: null };
 
     // Batching for stream updates
