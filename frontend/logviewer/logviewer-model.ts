@@ -46,7 +46,7 @@ class LogViewerModel {
     isLoading: PrimitiveAtom<boolean> = atom(false);
     followOutput: PrimitiveAtom<boolean> = atom(true);
     isStreaming: PrimitiveAtom<boolean> = atom(true);
-    isSearchTipsOpen: PrimitiveAtom<boolean> = atom(false);
+    isSearchTipsOpen: PrimitiveAtom<boolean> = atom(false); // Will be set properly in constructor
     vlistRef: React.RefObject<HTMLDivElement> = { current: null };
 
     // Batching for stream updates
@@ -91,6 +91,11 @@ class LogViewerModel {
         this.widgetId = crypto.randomUUID();
         this.appRunId = appRunId;
 
+        // Check if search tips have been viewed before
+        const tipsViewed = localStorage.getItem("outrig:searchtipsviewed");
+        // If tips haven't been viewed before, set isSearchTipsOpen to true
+        getDefaultStore().set(this.isSearchTipsOpen, tipsViewed == null);
+
         // Initialize the list atom with empty state
         this.listAtom = atom<LogListInterface>({
             pageSize: PAGESIZE,
@@ -133,6 +138,14 @@ class LogViewerModel {
 
         // Clean up event listeners
         emitter.off("logstreamupdate", this.handleLogStreamUpdate);
+    }
+
+    // Method to close search tips and mark them as viewed
+    closeSearchTips() {
+        // Set the atom to false
+        getDefaultStore().set(this.isSearchTipsOpen, false);
+        // Store in localStorage that tips have been viewed
+        localStorage.setItem("outrig:searchtipsviewed", "true");
     }
 
     async onSearchTermUpdate(searchTerm: string) {

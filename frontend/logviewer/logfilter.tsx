@@ -129,7 +129,7 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                         onEscape={() => {
                             // If search tips are open, close them and return true
                             if (isSearchTipsOpen) {
-                                setIsSearchTipsOpen(false);
+                                model.closeSearchTips();
                                 
                                 // Focus the search input after closing the popup
                                 setTimeout(() => {
@@ -171,13 +171,15 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                         ref={searchTipsButtonRef}
                         onClick={() => {
                             const newState = !isSearchTipsOpen;
-                            setIsSearchTipsOpen(newState);
-
-                            // If opening the search tips, focus the search input after a short delay
                             if (newState) {
+                                setIsSearchTipsOpen(true);
+                                
+                                // If opening the search tips, focus the search input after a short delay
                                 setTimeout(() => {
                                     emitter.emit("focussearch");
                                 }, 50);
+                            } else {
+                                model.closeSearchTips();
                             }
                         }}
                         className={`p-1 mr-1 rounded cursor-pointer transition-colors ${
@@ -205,7 +207,7 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                 referenceElement={searchTipsButtonRef.current}
                 isOpen={isSearchTipsOpen}
                 onClose={() => {
-                    setIsSearchTipsOpen(false);
+                    model.closeSearchTips();
                     
                     // Focus the search input after closing the popup
                     setTimeout(() => {
