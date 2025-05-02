@@ -101,7 +101,6 @@ function registerGlobalKeys() {
 
     // Add Escape key handler to close settings modal
     globalKeyMap.set("Escape", () => {
-        console.log("Escape key pressed");
         const settingsModalOpen = getDefaultStore().get(AppModel.settingsModalOpen);
         if (settingsModalOpen) {
             AppModel.closeSettingsModal();
