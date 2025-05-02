@@ -296,22 +296,23 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 	}
 }
 
-// should match tag regexp in searchparser/parser.go
-var tagRegex = regexp.MustCompile(`(?:^|\s)(#[a-zA-Z][a-zA-Z0-9:_.-]+)`)
-var tagSeqRegex = regexp.MustCompile(`(?:^|\s)(?:#[a-zA-Z][a-zA-Z0-9:_.-]+)(?:\s+#[a-zA-Z][a-zA-Z0-9:_.-]+)*`)
+// one-off tag, must be followed by whitespace or EOL
+var TagRegex = regexp.MustCompile(`(?:^|\s)(#[a-zA-Z][a-zA-Z0-9/_.-]+)(?:\s|$)`)
+
+// sequence of one-or-more tags (same trailing-ws/EOL rule)
+var tagSeqRegex = regexp.MustCompile(`(?:^|\s)(?:#[a-zA-Z][a-zA-Z0-9/_.-]+(?:\s|$))+`)
 
 func ParseTags(input string) []string {
 	if !strings.Contains(input, "#") {
 		return nil
 	}
-	matches := tagRegex.FindAllStringSubmatch(input, -1)
+	matches := TagRegex.FindAllStringSubmatch(input, -1)
 	if len(matches) == 0 {
 		return nil
 	}
-
 	tags := make([]string, len(matches))
-	for i, match := range matches {
-		tags[i] = strings.ToLower(match[2][1:])
+	for i, m := range matches {
+		tags[i] = strings.ToLower(m[1][1:]) // m[1] is “#tag”; drop the ‘#’
 	}
 	return tags
 }
@@ -320,19 +321,19 @@ func ParseNameAndTags(input string) (string, []string) {
 	if !strings.Contains(input, "#") {
 		return strings.TrimSpace(input), nil
 	}
-	matches := tagRegex.FindAllStringSubmatch(input, -1)
+
+	matches := TagRegex.FindAllStringSubmatch(input, -1)
 	if len(matches) == 0 {
 		return strings.TrimSpace(input), nil
 	}
 	tags := make([]string, len(matches))
-	for i, match := range matches {
-		// match[1] is the tag (including '#' which we then drop)
-		tags[i] = strings.ToLower(match[1][1:])
+	for i, m := range matches {
+		tags[i] = strings.ToLower(m[1][1:])
 	}
-	// Replace any valid sequence of tags with a single space.
-	cleaned := tagSeqRegex.ReplaceAllString(input, " ")
-	cleaned = strings.TrimSpace(cleaned)
-	return cleaned, tags
+
+	// strip *entire* tag-run (incl. leading & trailing ws) and collapse to one space
+	clean := tagSeqRegex.ReplaceAllString(input, " ")
+	return strings.TrimSpace(clean), tags
 }
 
 var goroutineIDRegexp = regexp.MustCompile(`goroutine (\d+)`)

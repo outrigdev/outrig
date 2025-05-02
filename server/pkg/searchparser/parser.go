@@ -32,11 +32,13 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 // TagRegexp is the regular expression pattern for valid tag names
 // should match tag parsing in utilfn/util.go
-var TagRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9:_.-]*$`)
+var TagRegexp = utilfn.TagRegex
 
 // --- Node Types & Constants ---
 
@@ -279,17 +281,17 @@ func (p *Parser) parseOrExpr() *Node {
 			if p.atEOF() {
 				break
 			}
-			
+
 			// Check for right parenthesis - it will be handled by parseGroup
 			if p.current().Type == TokenRParen {
 				break
 			}
-			
+
 			// If we find a right parenthesis instead of a pipe, that's not an error
 			if p.current().Type == TokenRParen {
 				break
 			}
-			
+
 			_, ok := p.consumeToken(TokenPipe)
 			if !ok {
 				errToken := p.createErrorToDelimiter("Expected '|'", p.current().Position)
@@ -315,7 +317,7 @@ func (p *Parser) parseAndExpr() *Node {
 		if p.current().Type == TokenRParen {
 			break
 		}
-		
+
 		if len(nodes) > 0 {
 			p.consumeToken(TokenWhitespace)
 			// Check again after consuming whitespace
@@ -323,7 +325,7 @@ func (p *Parser) parseAndExpr() *Node {
 				break
 			}
 		}
-		
+
 		node := p.parseGroup()
 		if node == nil {
 			break
@@ -365,19 +367,19 @@ func (p *Parser) parseGroup() *Node {
 				}
 				return node
 			}
-			
+
 			// Not at EOF, so this is an error - missing closing parenthesis
 			currentPos := p.current().Position.Start
 			errNode := makeErrorNode(Position{Start: currentPos, End: currentPos}, "Expected closing parenthesis ')'")
-			
+
 			// Create an AND node with the correct position
 			result := makeAndNode(node, errNode)
-			
+
 			// Ensure the AND node has the correct position
 			if result != nil && result.Type == NodeTypeAnd {
 				result.Position = Position{Start: startPos, End: currentPos}
 			}
-			
+
 			return result
 		}
 

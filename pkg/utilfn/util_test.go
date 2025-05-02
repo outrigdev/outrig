@@ -41,9 +41,9 @@ func TestParseNameAndTags(t *testing.T) {
 		},
 		{
 			name:     "complex tag",
-			input:    "mike #hello-world:123_test.abc",
+			input:    "mike #hello-world/123_test.abc",
 			wantName: "mike",
-			wantTags: []string{"hello-world:123_test.abc"},
+			wantTags: []string{"hello-world/123_test.abc"},
 		},
 		{
 			name:     "no tags",
@@ -63,16 +63,30 @@ func TestParseNameAndTags(t *testing.T) {
 			wantName: "mike",
 			wantTags: []string{"hello", "world"},
 		},
+		{
+			name:     "non-terminated tag",
+			input:    "mike #hello-world:123_test.abc #foo(hello)",
+			wantName: "mike #hello-world:123_test.abc #foo(hello)",
+			wantTags: []string{},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotName, gotTags := ParseNameAndTags(tt.input)
 			if gotName != tt.wantName {
-				t.Errorf("ParseNameAndTags() name = %v, want %v", gotName, tt.wantName)
+				t.Errorf("ParseNameAndTags() name = %q, want %q", gotName, tt.wantName)
 			}
-			if !reflect.DeepEqual(gotTags, tt.wantTags) {
-				t.Errorf("ParseNameAndTags() tags = %v, want %v", gotTags, tt.wantTags)
+			if len(gotTags) != 0 || len(tt.wantTags) != 0 {
+				if !reflect.DeepEqual(gotTags, tt.wantTags) {
+					t.Errorf("ParseNameAndTags() tags = %+v, want %+v", gotTags, tt.wantTags)
+				}
+			}
+			justTags := ParseTags(tt.input)
+			if len(justTags) != 0 || len(tt.wantTags) != 0 {
+				if !reflect.DeepEqual(justTags, tt.wantTags) {
+					t.Errorf("ParseTags() tags = %+v, want %+v", justTags, tt.wantTags)
+				}
 			}
 		})
 	}
