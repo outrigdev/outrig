@@ -148,12 +148,14 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
 
 const NoAppRunsFound: React.FC = () => {
     return (
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-            <h3 className="text-primary text-lg font-medium mb-4">Getting Started with Outrig</h3>
-            <p className="text-secondary mb-6">Add Outrig to your Go application with just a few lines of code:</p>
-            <pre className="whitespace-pre bg-panel border border-border rounded-lg p-4 text-left text-sm text-primary overflow-auto w-full max-w-lg">
-                <code>
-                    {`// Step 1: Import the package
+        <div className="flex flex-col items-center h-full p-6 text-center">
+            <div className="grow" />
+            <div className="flex flex-col items-center">
+                <h3 className="text-primary text-lg font-medium mb-4">Getting Started with Outrig</h3>
+                <p className="text-secondary mb-6">Add Outrig to your Go application with just a few lines of code:</p>
+                <pre className="whitespace-pre bg-panel border border-border rounded-lg p-4 text-left text-sm text-primary overflow-auto w-full max-w-lg">
+                    <code>
+                        {`// Step 1: Import the package
 import "github.com/outrigdev/outrig"
 
 func main() {
@@ -165,9 +167,11 @@ func main() {
     
     // Your application code here...
 }`}
-                </code>
-            </pre>
-            <p className="text-secondary mt-6">Once you run your application, it will appear here automatically.</p>
+                    </code>
+                </pre>
+                <p className="text-secondary mt-6">Once you run your application, it will appear here automatically.</p>
+            </div>
+            <div className="grow-2" />
         </div>
     );
 };
