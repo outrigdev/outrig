@@ -5,6 +5,7 @@ import { AppModel } from "@/appmodel";
 import { AppRunList } from "@/apprunlist/apprunlist";
 import { SettingsButton } from "@/elements/settingsbutton";
 import { UpdateBadge } from "@/elements/updatebadge";
+import { StatusBar } from "@/mainapp/statusbar";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import { Activity, BarChart2, List, Search } from "lucide-react";
@@ -116,10 +117,8 @@ export const HomePage: React.FC = () => {
                 </div>
             </main>
 
-            {/* Footer */}
-            <footer className="bg-panel border-t border-border p-4 text-center text-secondary text-sm">
-                <p>Outrig - Powerful debugging for Go applications</p>
-            </footer>
+            {/* Status Bar */}
+            <StatusBar />
         </>
     );
 };
