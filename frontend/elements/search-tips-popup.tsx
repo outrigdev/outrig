@@ -64,13 +64,13 @@ export const SearchTipsPopup: React.FC<SearchTipsPopupProps> = ({ referenceEleme
                         {/* Left column */}
                         <div className="space-y-0.5">
                             <div className="rounded-md p-1">
-                                <div className="font-medium text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                                    <span className="inline-block w-2 h-2 bg-purple-500 rounded-full"></span> Case
+                                <div className="font-medium text-primary flex items-center gap-1">
+                                    <span className="inline-block w-2 h-2 bg-primary rounded-full"></span> Case
                                     Sensitive
                                 </div>
                                 <div className="space-y-0.5">
                                     <div className="flex justify-between items-end">
-                                        <code className="font-mono px-1 rounded text-purple-700 dark:text-purple-300">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             'Error:'
                                         </code>
                                         <span className="text-[10px]">Match Case</span>
@@ -79,18 +79,18 @@ export const SearchTipsPopup: React.FC<SearchTipsPopupProps> = ({ referenceEleme
                             </div>
 
                             <div className="rounded-md p-1">
-                                <div className="font-medium text-green-600 dark:text-green-400 flex items-center gap-1">
-                                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span> Regex
+                                <div className="font-medium text-primary flex items-center gap-1">
+                                    <span className="inline-block w-2 h-2 bg-primary rounded-full"></span> Regex
                                 </div>
                                 <div className="space-y-0.5">
                                     <div className="flex justify-between gap-1 items-end">
-                                        <code className="font-mono px-1 rounded text-green-700 dark:text-green-200">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             /^error:.*db/
                                         </code>
                                         <span className="text-[10px]">Ignore Case</span>
                                     </div>
                                     <div className="flex justify-between items-end">
-                                        <code className="font-mono px-1 rounded text-green-700 dark:text-green-200">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             c/^Error:/
                                         </code>
                                         <span className="text-[10px]">Match Case</span>
@@ -99,12 +99,12 @@ export const SearchTipsPopup: React.FC<SearchTipsPopupProps> = ({ referenceEleme
                             </div>
 
                             <div className="rounded-md p-1">
-                                <div className="font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                                    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span> Fuzzy
+                                <div className="font-medium text-primary flex items-center gap-1">
+                                    <span className="inline-block w-2 h-2 bg-primary rounded-full"></span> Fuzzy
                                 </div>
                                 <div className="space-y-0.5">
                                     <div className="flex justify-between items-end">
-                                        <code className="font-mono px-1 rounded text-blue-700 dark:text-blue-200">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             ~dbconnerr
                                         </code>
                                         <span className="text-[10px]">Fuzzy Search</span>
@@ -117,30 +117,30 @@ export const SearchTipsPopup: React.FC<SearchTipsPopupProps> = ({ referenceEleme
                         <div className="space-y-0.5">
                             {/* Combining */}
                             <div className="rounded-md p-1">
-                                <div className="font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                                    <span className="inline-block w-2 h-2 bg-amber-500 rounded-full"></span> Combining
+                                <div className="font-medium text-primary flex items-center gap-1">
+                                    <span className="inline-block w-2 h-2 bg-primary rounded-full"></span> Combining
                                 </div>
                                 <div className="space-y-0.5">
                                     <div className="flex justify-between items-end">
-                                        <code className="font-mono px-1 rounded text-amber-700 dark:text-amber-100">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             timeout db
                                         </code>
                                         <span className="text-[10px]">AND</span>
                                     </div>
                                     <div className="flex justify-between items-end">
-                                        <code className="font-mono px-1 rounded text-amber-700 dark:text-amber-100">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             timeout | retry
                                         </code>
                                         <span className="text-[10px]">OR</span>
                                     </div>
                                     <div className="flex justify-between items-end">
-                                        <code className="font-mono px-1 rounded text-amber-700 dark:text-amber-100">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             -timeout
                                         </code>
                                         <span className="text-[10px]">NOT</span>
                                     </div>
                                     <div className="flex justify-between items-end">
-                                        <code className="font-mono px-1 rounded text-amber-700 dark:text-amber-100">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             db (t1 | t2)
                                         </code>
                                         <span className="text-[10px]">Group</span>
@@ -150,18 +150,18 @@ export const SearchTipsPopup: React.FC<SearchTipsPopupProps> = ({ referenceEleme
 
                             {/* Advanced */}
                             <div className="rounded-md p-1">
-                                <div className="font-medium text-red-600 dark:text-red-400 flex items-center gap-1">
-                                    <span className="inline-block w-2 h-2 bg-red-500 rounded-full"></span> Advanced
+                                <div className="font-medium text-primary flex items-center gap-1">
+                                    <span className="inline-block w-2 h-2 bg-primary rounded-full"></span> Advanced
                                 </div>
                                 <div className="space-y-0.5">
                                     <div className="flex justify-between items-end">
-                                        <code className="font-mono px-1 rounded dark:text-red-100 text-red-900">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             $state:"io wait"
                                         </code>
                                         <span className="text-[10px]">Fields</span>
                                     </div>
                                     <div className="flex justify-between items-end">
-                                        <code className="font-mono px-1 rounded dark:text-red-100 text-red-900">
+                                        <code className="font-mono px-1 rounded text-blue-800 dark:text-blue-200">
                                             #backend
                                         </code>
                                         <span className="text-[10px]">Tags</span>
@@ -176,10 +176,14 @@ export const SearchTipsPopup: React.FC<SearchTipsPopupProps> = ({ referenceEleme
                                     <span className="inline-block w-2 h-2 bg-primary rounded-full"></span> Examples
                                 </div>
                                 <div className="px-2 py-1 bg-panel rounded-md font-mono text-[12px] overflow-x-auto">
-                                    <div className="text-emerald-500"># HTTP errors excluding 404s</div>
-                                    <div>(http | https) error -/404\s+Not\s+Found/</div>
-                                    <div className="mt-1 text-emerald-500"># Database errors in backend</div>
-                                    <div>(db | database) #backend (error | failure)</div>
+                                    <div className="text-primary"># HTTP errors excluding 404s</div>
+                                    <div className="text-blue-800 dark:text-blue-200">
+                                        (http | https) error -/404\s+Not\s+Found/
+                                    </div>
+                                    <div className="mt-1 text-primary"># Database errors in backend</div>
+                                    <div className="text-blue-800 dark:text-blue-200">
+                                        (db | database) #backend (error | failure)
+                                    </div>
                                 </div>
                             </div>
                         </div>
