@@ -41,7 +41,7 @@ export const SearchTipsPopup: React.FC<SearchTipsPopupProps> = ({ referenceEleme
             <div
                 ref={refs.setFloating}
                 style={floatingStyles}
-                className="bg-white text-primary rounded-lg shadow-xl border-2 border-secondary z-50"
+                className="bg-panel text-primary rounded-lg shadow-xl border-1 border-secondary z-50"
             >
                 {/* Close button */}
                 <button
@@ -207,9 +207,9 @@ export const SearchTipsPopup: React.FC<SearchTipsPopupProps> = ({ referenceEleme
                 <FloatingArrow
                     ref={arrowRef}
                     context={context}
-                    fill="var(--color-white)"
+                    fill="var(--color-panel)"
                     stroke="var(--color-secondary)"
-                    strokeWidth={2}
+                    strokeWidth={1}
                     height={8}
                     width={16}
                     tipRadius={0}

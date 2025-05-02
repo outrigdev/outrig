@@ -188,7 +188,14 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
             <SearchTipsPopup
                 referenceElement={searchTipsButtonRef.current}
                 isOpen={isSearchTipsOpen}
-                onClose={() => setIsSearchTipsOpen(false)}
+                onClose={() => {
+                    setIsSearchTipsOpen(false);
+                    
+                    // Focus the search input after closing the popup
+                    setTimeout(() => {
+                        emitter.emit("focussearch");
+                    }, 50);
+                }}
             />
         </div>
     );
