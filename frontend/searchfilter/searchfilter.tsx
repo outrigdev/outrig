@@ -287,7 +287,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
         };
     }, [autoFocus, inputRef, settingsModalOpen]);
 
-    // Listen for modalclose event to focus the input
+    // Listen for modalclose and focussearch events to focus the input
     useEffect(() => {
         const handleModalClose = () => {
             if (autoFocus) {
@@ -295,12 +295,18 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
             }
         };
 
-        // Add event listener
+        const handleFocusSearch = () => {
+            inputRef.current?.focus();
+        };
+
+        // Add event listeners
         emitter.on("modalclose", handleModalClose);
+        emitter.on("focussearch", handleFocusSearch);
 
         // Clean up
         return () => {
             emitter.off("modalclose", handleModalClose);
+            emitter.off("focussearch", handleFocusSearch);
         };
     }, [autoFocus, inputRef]);
 

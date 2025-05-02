@@ -4,6 +4,7 @@
 import { RefreshButton } from "@/elements/refreshbutton";
 import { SearchTipsPopup } from "@/elements/search-tips-popup";
 import { Tooltip } from "@/elements/tooltip";
+import { emitter } from "@/events";
 import { SearchFilter } from "@/searchfilter/searchfilter";
 import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
@@ -147,12 +148,22 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                         {totalCount > searchedCount ? "+" : ""}
                     </div>
                 </Tooltip>
-                
+
                 {/* Search tips button */}
                 <div>
                     <button
                         ref={searchTipsButtonRef}
-                        onClick={() => setIsSearchTipsOpen(!isSearchTipsOpen)}
+                        onClick={() => {
+                            const newState = !isSearchTipsOpen;
+                            setIsSearchTipsOpen(newState);
+
+                            // If opening the search tips, focus the search input after a short delay
+                            if (newState) {
+                                setTimeout(() => {
+                                    emitter.emit("focussearch");
+                                }, 50);
+                            }
+                        }}
                         className={`p-1 mr-1 rounded cursor-pointer transition-colors ${
                             isSearchTipsOpen
                                 ? "bg-primary/20 text-primary hover:bg-primary/30"
@@ -163,7 +174,7 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                         <Lightbulb size={16} />
                     </button>
                 </div>
-                
+
                 <FollowButton model={model} />
                 <StreamingButton model={model} />
                 <RefreshButton
@@ -172,7 +183,7 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                     tooltipContent="Refresh logs"
                 />
             </div>
-            
+
             {/* Search tips popup */}
             <SearchTipsPopup
                 referenceElement={searchTipsButtonRef.current}

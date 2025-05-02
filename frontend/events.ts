@@ -7,6 +7,7 @@ import mitt from "mitt";
 export type Events = {
     logstreamupdate: StreamUpdateData;
     modalclose: void; // Event emitted when a modal is closed
+    focussearch: void; // Event emitted when search input should be focused
     // Add more events here as needed
 };
 
