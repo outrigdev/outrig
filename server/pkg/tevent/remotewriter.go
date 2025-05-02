@@ -177,7 +177,6 @@ func inErrorCooldown() (bool, time.Time) {
 }
 
 // UploadEvents uploads events to the server
-// UploadEvents uploads events to the server
 func UploadEvents() error {
 	if Disabled.Load() {
 		outrig.Logf("#tevent UploadEvents called but telemetry is disabled")
