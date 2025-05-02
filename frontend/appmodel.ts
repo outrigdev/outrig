@@ -13,6 +13,7 @@ import { isBlank } from "./util/util";
 const AutoFollowStorageKey = "outrig:autoFollow";
 const ThemeLocalStorageKey = "outrig:theme";
 const LeftNavOpenStorageKey = "outrig:leftNavOpen";
+const SearchTipsViewedStorageKey = "outrig:searchtipsviewed";
 
 // Define URL state type
 interface UrlState {
@@ -32,6 +33,7 @@ class AppModel {
     settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
     updateModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for update modal
     newerVersion: PrimitiveAtom<string> = atom(null) as PrimitiveAtom<string>; // Newer version available
+    isSearchTipsOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for search tips popup
 
     // Toast notifications
     toasts: PrimitiveAtom<Toast[]> = atom<Toast[]>([]);
@@ -60,6 +62,12 @@ class AppModel {
         this.appRunModel = new AppRunModel();
         this.applyTheme();
         this.initFromUrl();
+        
+        // Initialize search tips state based on localStorage
+        const tipsViewed = localStorage.getItem(SearchTipsViewedStorageKey);
+        // If tips haven't been viewed before, set isSearchTipsOpen to true
+        getDefaultStore().set(this.isSearchTipsOpen, tipsViewed == null);
+        
         // Check for updates with a small delay to avoid conflicts with other calls
         setTimeout(() => this.checkForUpdates(), 1000);
         // Mark initialization as complete
@@ -345,6 +353,26 @@ class AppModel {
     closeUpdateModal(): void {
         getDefaultStore().set(this.updateModalOpen, false);
         emitter.emit("modalclose");
+    }
+
+    // Search tips management
+    openSearchTips(): void {
+        getDefaultStore().set(this.isSearchTipsOpen, true);
+    }
+
+    closeSearchTips(): void {
+        getDefaultStore().set(this.isSearchTipsOpen, false);
+        // Store in localStorage that tips have been viewed
+        localStorage.setItem(SearchTipsViewedStorageKey, "true");
+    }
+
+    toggleSearchTips(): void {
+        const isOpen = getDefaultStore().get(this.isSearchTipsOpen);
+        if (isOpen) {
+            this.closeSearchTips();
+        } else {
+            this.openSearchTips();
+        }
     }
 
     getAppRunInfoAtom(appRunId: string): Atom<AppRunInfo> {

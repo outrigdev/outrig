@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RefreshButton } from "@/elements/refreshbutton";
-import { SearchTipsPopup } from "@/elements/search-tips-popup";
+import { SearchTipsButton } from "@/elements/searchtipsbutton";
 import { Tooltip } from "@/elements/tooltip";
-import { emitter } from "@/events";
 import { SearchFilter } from "@/searchfilter/searchfilter";
 import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
-import { ArrowDown, ArrowDownCircle, Lightbulb, Wifi, WifiOff } from "lucide-react";
-import React, { useCallback, useRef } from "react";
+import { ArrowDown, ArrowDownCircle, Wifi, WifiOff } from "lucide-react";
+import React, { useCallback } from "react";
 import { LogViewerModel } from "./logviewer-model";
 
 // Follow Button component
@@ -92,8 +91,6 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
     const totalCount = useAtomValue(model.totalItemCount);
     const searchState = useAtomValue(model.searchStateAtom);
     const errorSpans = searchState.errorSpans;
-    const [isSearchTipsOpen, setIsSearchTipsOpen] = useAtom(model.isSearchTipsOpen);
-    const searchTipsButtonRef = useRef<HTMLButtonElement>(null);
 
     return (
         <div className={`py-1 px-1 border-b border-border ${className || ""}`}>
@@ -126,22 +123,6 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                             }
                             return false;
                         }}
-                        onEscape={() => {
-                            // If search tips are open, close them and return true
-                            if (isSearchTipsOpen) {
-                                model.closeSearchTips();
-                                
-                                // Focus the search input after closing the popup
-                                setTimeout(() => {
-                                    emitter.emit("focussearch");
-                                }, 50);
-                                
-                                return true;
-                            }
-                            
-                            // If search tips are not open, return false to let SearchFilter clear the search
-                            return false;
-                        }}
                     />
                 </div>
 
@@ -165,34 +146,7 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                     </div>
                 </Tooltip>
 
-                {/* Search tips button */}
-                <div>
-                    <button
-                        ref={searchTipsButtonRef}
-                        onClick={() => {
-                            const newState = !isSearchTipsOpen;
-                            if (newState) {
-                                setIsSearchTipsOpen(true);
-                                
-                                // If opening the search tips, focus the search input after a short delay
-                                setTimeout(() => {
-                                    emitter.emit("focussearch");
-                                }, 50);
-                            } else {
-                                model.closeSearchTips();
-                            }
-                        }}
-                        className={`p-1 mr-1 rounded cursor-pointer transition-colors ${
-                            isSearchTipsOpen
-                                ? "bg-primary/20 text-primary hover:bg-primary/30"
-                                : "text-muted hover:bg-buttonhover hover:text-primary"
-                        }`}
-                        aria-pressed={isSearchTipsOpen}
-                    >
-                        <Lightbulb size={16} />
-                    </button>
-                </div>
-
+                <SearchTipsButton className="mr-1" />
                 <FollowButton model={model} />
                 <StreamingButton model={model} />
                 <RefreshButton
@@ -201,20 +155,6 @@ export const LogViewerFilter = React.memo<LogViewerFilterProps>(({ model, classN
                     tooltipContent="Refresh logs"
                 />
             </div>
-
-            {/* Search tips popup */}
-            <SearchTipsPopup
-                referenceElement={searchTipsButtonRef.current}
-                isOpen={isSearchTipsOpen}
-                onClose={() => {
-                    model.closeSearchTips();
-                    
-                    // Focus the search input after closing the popup
-                    setTimeout(() => {
-                        emitter.emit("focussearch");
-                    }, 50);
-                }}
-            />
         </div>
     );
 });

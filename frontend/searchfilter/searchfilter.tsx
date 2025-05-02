@@ -5,7 +5,7 @@ import { AppModel } from "@/appmodel";
 import { Tooltip } from "@/elements/tooltip";
 import { emitter } from "@/events";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
-import { useAtomValue } from "jotai";
+import { getDefaultStore, useAtomValue } from "jotai";
 import { Filter } from "lucide-react";
 import React, { useEffect, useRef } from "react";
 import { DELIMITER_PAIRS, handleDelimiter, handleSelectionWrapping, handleSpecialChar } from "./searchfilter-helpers";
@@ -16,7 +16,6 @@ interface SearchFilterProps {
     placeholder?: string;
     autoFocus?: boolean;
     onOutrigKeyDown?: (keyEvent: OutrigKeyboardEvent) => boolean;
-    onEscape?: () => boolean;
     className?: string;
     errorSpans?: SearchErrorSpan[];
 }
@@ -156,12 +155,14 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     placeholder = "Filter...",
     autoFocus = false,
     onOutrigKeyDown,
-    onEscape,
     className = "",
     errorSpans = [],
 }) => {
     // Track cursor position and selection
     const [cursorInfo, setCursorInfo] = React.useState<CursorInfo>({ start: 0, end: 0 });
+
+    // Create internal ref for the input element
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Get the settings modal state
     const settingsModalOpen = useAtomValue(AppModel.settingsModalOpen);
@@ -233,13 +234,20 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
         keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
             // Handle Escape key
             if (checkKeyPressed(keyEvent, "Escape")) {
-                // First check if parent wants to handle Escape
-                if (onEscape && onEscape()) {
-                    // Parent handled it, don't clear search
+                // First check if search tips are open
+                const isSearchTipsOpen = getDefaultStore().get(AppModel.isSearchTipsOpen);
+                if (isSearchTipsOpen) {
+                    // Close search tips
+                    AppModel.closeSearchTips();
+                    
+                    // Focus the input directly using the ref
+                    setTimeout(() => {
+                        inputRef.current?.focus();
+                    }, 50);
+                    
                     return true;
                 }
-                
-                // Parent didn't handle it or no handler provided, clear search
+
                 onValueChange("");
                 return true;
             }
@@ -252,8 +260,6 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
             return false;
         })(e);
     };
-    // Create internal ref if no external ref is provided
-    const inputRef = useRef<HTMLInputElement>(null);
 
     // Also update cursor position when input value changes
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
