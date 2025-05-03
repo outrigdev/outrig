@@ -9,6 +9,7 @@ import { useOutrigModel } from "@/util/hooks";
 import { formatMemorySize, formatTimeOffset } from "@/util/util";
 import { useAtomValue } from "jotai";
 import React from "react";
+import { MemoryAreaChart } from "./runtimestats-memoryareachart";
 import { MemoryUsageChart } from "./runtimestats-memorychart";
 import { CombinedStatsData, RuntimeStatsModel } from "./runtimestats-model";
 import { RuntimeStatsTooltip } from "./tooltip";
@@ -33,9 +34,7 @@ const BaseStatItem: React.FC<BaseStatItemProps> = ({ label, description, childre
         <RuntimeStatsTooltip content={tooltipContent}>
             <div className="p-4 border border-border rounded-md bg-panel">
                 <div className="text-sm text-secondary mb-1">{label}</div>
-                <div className={`text-2xl font-semibold text-primary ${className}`}>
-                    {children}
-                </div>
+                <div className={`text-2xl font-semibold text-primary ${className}`}>{children}</div>
             </div>
         </RuntimeStatsTooltip>
     );
@@ -246,7 +245,11 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
 
             {/* Memory usage visualization */}
             <div className="mb-6 p-4 border border-border rounded-md bg-panel">
-                <div className="text-sm text-secondary font-medium mb-2">Memory Usage Breakdown</div>
+                <div className="text-sm text-secondary font-medium mb-2">Memory Usage</div>
+                <div className="mb-4">
+                    <MemoryAreaChart model={model} height={300} />
+                </div>
+                <div className="text-sm text-secondary font-medium mb-2">Memory Breakdown</div>
                 <MemoryUsageChart memStats={stats.memstats} />
             </div>
 
