@@ -87,12 +87,15 @@ const transformDataForChart = (stats: RuntimeStatData[], isRunning: boolean) => 
             const firstPoint = result[0];
             const interval = 1000; // 1 second in milliseconds
 
+            // Calculate the last timestamp in our actual data
+            const lastPoint = result[result.length - 1];
+            
             // Add empty data points after the actual data with null values
             // This prevents the lines from connecting to these points
             const padding = [];
-            for (let i = 0; i < targetSize - result.length; i++) {
+            for (let i = 1; i <= targetSize - result.length; i++) {
                 padding.push({
-                    timestamp: firstPoint.timestamp + result.length * interval + i * interval,
+                    timestamp: lastPoint.timestamp + i * interval,
                     Runtime: null,
                     Stack: null,
                     Heap: null,
@@ -263,7 +266,7 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
                     <Tooltip content={<CustomTooltip />} />
                     {/* Order matters for stacking - first one is at the bottom */}
                     <Area
-                        type="monotone"
+                        type="linear"
                         dataKey="Runtime"
                         stackId="1"
                         stroke="transparent"
@@ -271,7 +274,7 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
                         isAnimationActive={false}
                     />
                     <Area
-                        type="monotone"
+                        type="linear"
                         dataKey="Stack"
                         stackId="1"
                         stroke="transparent"
@@ -279,7 +282,7 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
                         isAnimationActive={false}
                     />
                     <Area
-                        type="monotone"
+                        type="linear"
                         dataKey="Heap"
                         stackId="1"
                         stroke="transparent"
@@ -287,7 +290,7 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
                         isAnimationActive={false}
                     />
                     <Area
-                        type="monotone"
+                        type="linear"
                         dataKey="Idle"
                         stackId="1"
                         stroke="transparent"
