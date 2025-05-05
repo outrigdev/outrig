@@ -146,6 +146,7 @@ type TEventProps struct {
 	AppRunCollections    int    `json:"apprun:collections,omitempty"`
 	AppRunSDKVersion     string `json:"apprun:sdkversion,omitempty"`
 	AppRunSDKFullVersion string `json:"apprun:sdkfullversion,omitempty"`
+	AppRunGoVersion      string `json:"apprun:goversion,omitempty"`
 	AppRunConnTimeMs     int64  `json:"apprun:conntimems,omitempty"`
 	AppRunCount          int    `json:"apprun:count,omitempty"`
 
@@ -368,13 +369,14 @@ func SendShutdownEvent() {
 }
 
 // SendAppRunConnectedEvent sends an "apprun:connected" telemetry event
-func SendAppRunConnectedEvent(sdkVersion string) {
+func SendAppRunConnectedEvent(sdkVersion string, goVersion string) {
 	if Disabled.Load() {
 		return
 	}
 	props := TEventProps{
 		AppRunSDKFullVersion: sdkVersion,
 		AppRunSDKVersion:     extractMajorMinorVersion(sdkVersion),
+		AppRunGoVersion:      goVersion,
 	}
 	event := MakeTEvent("apprun:connected", props)
 	WriteTEvent(*event)
