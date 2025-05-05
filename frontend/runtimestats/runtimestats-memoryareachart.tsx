@@ -1,6 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
 import { formatMemorySize } from "@/util/util";
 import { useAtomValue } from "jotai";
 import React from "react";
@@ -44,9 +45,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 // Helper function to transform runtime stats data for the chart
-const transformDataForChart = (stats: RuntimeStatData[]) => {
-    // Ensure we have at least 60 data points (1 minute at 1s intervals)
-    const minDataPoints = 60;
+const transformDataForChart = (stats: RuntimeStatData[], isRunning: boolean) => {
     let result = stats.map((stat) => {
         const runtimeMem =
             stat.memstats.mspaninuse + stat.memstats.mcacheinuse + stat.memstats.gcsys + stat.memstats.othersys;
@@ -63,17 +62,35 @@ const transformDataForChart = (stats: RuntimeStatData[]) => {
         };
     });
 
-    // If we have fewer than minDataPoints, pad with empty data points
-    if (result.length < minDataPoints) {
-        // Use the first data point as a template
-        if (result.length > 0) {
+    // Only pad with empty data points if the program is still running
+    if (isRunning && result.length > 0) {
+        // Determine target size based on current data length using math
+        // This creates fixed size increments (15, 30, 60, 90, 120, etc.)
+        let targetSize = 15; // Start with minimum of 15 points
+        
+        if (result.length > 15) {
+            if (result.length <= 30) {
+                targetSize = 30;
+            } else {
+                // For values > 30, we use multiples of 30
+                // Calculate how many complete 30s we need
+                const thirtyMultiple = Math.ceil(result.length / 30);
+                targetSize = thirtyMultiple * 30;
+                
+                // Cap at 600 (10 minutes at 1s intervals)
+                targetSize = Math.min(targetSize, 600);
+            }
+        }
+        
+        // Only pad if we need to
+        if (result.length < targetSize) {
             const firstPoint = result[0];
             const interval = 1000; // 1 second in milliseconds
 
             // Add empty data points after the actual data with null values
             // This prevents the lines from connecting to these points
             const padding = [];
-            for (let i = 0; i < minDataPoints - result.length; i++) {
+            for (let i = 0; i < targetSize - result.length; i++) {
                 padding.push({
                     timestamp: firstPoint.timestamp + result.length * interval + i * interval,
                     Runtime: null,
@@ -94,15 +111,34 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
     // Get runtime stats from the model's atom
     const runtimeStats = useAtomValue(model.allRuntimeStats);
 
+    // Get app run info to check if the program is running
+    const appRunInfoAtom = AppModel.getAppRunInfoAtom(model.appRunId);
+    const appRunInfo = useAtomValue(appRunInfoAtom);
+
     // Skip rendering if no data
     if (!runtimeStats || runtimeStats.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-32 text-secondary">No memory usage data available</div>
-        );
+        return null;
+    }
+
+    // Check if we should hide the chart:
+    // 1. Program is not running, AND
+    // 2. There is less than 5s of data
+    if (appRunInfo && appRunInfo.status !== "running" && runtimeStats.length > 0) {
+        // Calculate time span of the data
+        const timestamps = runtimeStats.map((stat) => stat.ts);
+        const minTime = Math.min(...timestamps);
+        const maxTime = Math.max(...timestamps);
+        const timeSpanMs = maxTime - minTime;
+
+        // Hide chart if time span is less than 5 seconds (5000ms)
+        if (timeSpanMs < 5000) {
+            return null;
+        }
     }
 
     // Transform data for the chart
-    const chartData = transformDataForChart(runtimeStats);
+    const isRunning = appRunInfo && appRunInfo.status === "running";
+    const chartData = transformDataForChart(runtimeStats, isRunning);
 
     // Define colors for each area (matching the existing chart colors)
     const areaColors = {
@@ -136,7 +172,7 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
         return timeString.replace(/\s*(AM|PM)\b/g, (match) => match.toLowerCase().trim());
     };
 
-    // Generate ticks at 30-second intervals
+    // Generate ticks at 30-second intervals, always including the start and end time
     const generateXAxisTicks = () => {
         if (chartData.length === 0) return [];
 
@@ -146,17 +182,25 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
 
         // Create ticks at 30-second intervals
         const interval = 30 * 1000; // 30 seconds in milliseconds
-        const ticks = [];
+        const ticks = [minTime]; // Always include the start time
 
         // Round down to the nearest 30-second mark
         let currentTick = Math.floor(minTime / interval) * interval;
-
-        while (currentTick <= maxTime) {
-            if (currentTick >= minTime) {
-                ticks.push(currentTick);
-            }
+        
+        // If the rounded tick is the same as minTime, skip to the next interval
+        if (currentTick === minTime) {
+            currentTick += interval;
+        } else if (currentTick < minTime) {
             currentTick += interval;
         }
+
+        while (currentTick < maxTime) {
+            ticks.push(currentTick);
+            currentTick += interval;
+        }
+        
+        // Always include the end time
+        ticks.push(maxTime);
 
         return ticks;
     };
@@ -194,7 +238,7 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
         <div className="w-full" style={{ height }}>
             <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <CartesianGrid strokeWidth={1} stroke="#444" />
                     <XAxis
                         dataKey="timestamp"
                         type="number"

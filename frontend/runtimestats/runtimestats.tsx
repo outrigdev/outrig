@@ -245,11 +245,8 @@ const RuntimeStatsContent: React.FC<RuntimeStatsContentProps> = ({ model }) => {
 
             {/* Memory usage visualization */}
             <div className="mb-6 p-4 border border-border rounded-md bg-panel">
-                <div className="text-sm text-secondary font-medium mb-2">Memory Usage</div>
-                <div className="mb-4">
-                    <MemoryAreaChart model={model} height={300} />
-                </div>
                 <div className="text-sm text-secondary font-medium mb-2">Memory Breakdown</div>
+                <MemoryAreaChart model={model} height={300} />
                 <MemoryUsageChart memStats={stats.memstats} />
             </div>
 
