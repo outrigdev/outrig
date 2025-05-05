@@ -41,7 +41,7 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
                     : "text-secondary hover:bg-buttonhover hover:text-primary"
             )}
             onClick={() => {
-                AppModel.selectAppRun(appRun.apprunid);
+                AppModel.selectAppRunKeepTab(appRun.apprunid);
             }}
         >
             <div className="flex items-center justify-between">
