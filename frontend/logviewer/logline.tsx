@@ -4,9 +4,40 @@
 import { AnsiLine } from "@/elements/ansiline";
 import { LogSettings } from "@/settings/settings-model";
 import { cn } from "@/util/util";
-import { useAtomValue } from "jotai";
-import React, { useCallback } from "react";
+import EmojiJS from "emoji-js";
+import { getDefaultStore, useAtomValue } from "jotai";
+import React, { useCallback, useMemo } from "react";
 import { LogViewerModel } from "./logviewer-model";
+
+// Initialize emoji parser
+const emoji = new EmojiJS();
+emoji.replace_mode = 'unified';
+emoji.allow_native = true;
+
+// Global variable for emoji replacement setting
+let emojiReplacementMode: "never" | "outrig" | "always" = "outrig";
+
+// Initialize from settings
+import { SettingsModel } from "@/settings/settings-model";
+
+// Map of sources that should have emoji replacement when in "outrig" mode
+const outrigEmojiReplacementSources: Record<string, boolean> = {
+    "outrig": true
+};
+
+// Update the global variable when settings change
+const updateEmojiReplacementMode = () => {
+    const store = getDefaultStore();
+    emojiReplacementMode = store.get(SettingsModel.logsEmojiReplacement);
+};
+
+// Initialize the emoji replacement mode
+updateEmojiReplacementMode();
+
+// Subscribe to settings changes
+getDefaultStore().sub(SettingsModel.logsEmojiReplacement, () => {
+    updateEmojiReplacementMode();
+});
 
 // Interface for combined log line settings
 interface LogLineSettings {
@@ -103,6 +134,21 @@ function formatSource(source: string): React.ReactNode {
     return <span className={className}>[{padded}]</span>;
 }
 
+// Process message text with emoji replacement if needed
+function processMessageText(message: string, source: string): string {
+    // Check emoji replacement mode
+    if (emojiReplacementMode === "always") {
+        // Always replace emojis regardless of source
+        return emoji.replace_colons(message);
+    } else if (emojiReplacementMode === "outrig" && outrigEmojiReplacementSources[source]) {
+        // Replace emojis only for specified sources in "outrig" mode
+        return emoji.replace_colons(message);
+    }
+    
+    // Return original message if no replacement needed
+    return message;
+}
+
 // LogLineComponent for rendering individual log lines in LogVList
 interface LogLineComponentProps {
     line: LogLine;
@@ -119,6 +165,11 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
     }, [model, line.linenum]);
 
     const isMarked = model.isLineMarked(line.linenum);
+
+    // Process message with emoji replacement if needed
+    const processedMessage = useMemo(() => {
+        return processMessageText(line.msg, line.source);
+    }, [line.msg, line.source]);
 
     return (
         <div
@@ -140,7 +191,7 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
             {logSettings.showSource && <div className="pl-2">{formatSource(line.source)}</div>}
             <AnsiLine
                 className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre"
-                line={line.msg}
+                line={processedMessage}
             />
         </div>
     );

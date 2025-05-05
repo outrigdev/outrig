@@ -42,6 +42,7 @@ export const SettingsModal: React.FC = () => {
     const showMilliseconds = useAtomValue(SettingsModel.logsShowMilliseconds);
     const timeFormat = useAtomValue(SettingsModel.logsTimeFormat);
     const showLineNumbers = useAtomValue(SettingsModel.logsShowLineNumbers);
+    const emojiReplacement = useAtomValue(SettingsModel.logsEmojiReplacement);
     const [darkMode, setDarkMode] = useAtom(AppModel.darkMode);
 
     return (
@@ -131,6 +132,18 @@ export const SettingsModal: React.FC = () => {
                                     { value: "relative", label: "Relative Time" },
                                 ]}
                                 label="Time Format"
+                            />
+
+                            <Dropdown
+                                id="emoji-replacement"
+                                value={emojiReplacement}
+                                onChange={(value) => SettingsModel.setLogsEmojiReplacement(value as "never" | "outrig" | "always")}
+                                options={[
+                                    { value: "never", label: "Never Replace Emojis" },
+                                    { value: "outrig", label: "Replace Emojis in Outrig Loggers" },
+                                    { value: "always", label: "Always Replace Emojis" },
+                                ]}
+                                label="Emoji Replacement"
                             />
                         </div>
                     </div>

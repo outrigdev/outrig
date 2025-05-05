@@ -9,6 +9,7 @@ export interface LogSettings {
     showMilliseconds: boolean;
     timeFormat: "absolute" | "relative";
     showLineNumbers: boolean;
+    emojiReplacement: "never" | "outrig" | "always";
 }
 
 const SETTINGS_STORAGE_KEY = "outrig:settings";
@@ -22,6 +23,7 @@ export interface Settings {
 const DEFAULT_SHOW_MILLISECONDS = true;
 const DEFAULT_TIME_FORMAT = "absolute";
 const DEFAULT_SHOW_TIMESTAMP = true;
+const DEFAULT_EMOJI_REPLACEMENT = "outrig";
 
 const DEFAULT_SETTINGS: Settings = {
     logs: {
@@ -30,6 +32,7 @@ const DEFAULT_SETTINGS: Settings = {
         showMilliseconds: DEFAULT_SHOW_MILLISECONDS,
         timeFormat: DEFAULT_TIME_FORMAT,
         showLineNumbers: DEFAULT_SHOW_LINE_NUMBERS,
+        emojiReplacement: DEFAULT_EMOJI_REPLACEMENT,
     },
 };
 
@@ -147,6 +150,24 @@ class SettingsModel {
         saveSettings(newSettings);
     }
 
+    logsEmojiReplacement = atom((get) => {
+        const settings = get(this.settings);
+        return settings?.logs?.emojiReplacement ?? DEFAULT_EMOJI_REPLACEMENT;
+    });
+
+    setLogsEmojiReplacement(value: "never" | "outrig" | "always"): void {
+        const currentSettings = getDefaultStore().get(this.settings) || {};
+        const newSettings = {
+            ...currentSettings,
+            logs: {
+                ...(currentSettings.logs || {}),
+                emojiReplacement: value,
+            },
+        };
+        getDefaultStore().set(this.settings, newSettings);
+        saveSettings(newSettings);
+    }
+
     // Combined atom for all log settings
     logsSettings = atom<LogSettings>((get) => {
         return {
@@ -155,6 +176,7 @@ class SettingsModel {
             showMilliseconds: get(this.logsShowMilliseconds),
             timeFormat: get(this.logsTimeFormat),
             showLineNumbers: get(this.logsShowLineNumbers),
+            emojiReplacement: get(this.logsEmojiReplacement),
         };
     });
 }
