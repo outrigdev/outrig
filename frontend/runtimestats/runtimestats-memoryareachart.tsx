@@ -121,14 +121,19 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
         return `${mem.memstr}${mem.memunit}`;
     };
 
-    // Format the X-axis tick values (timestamps)
+    // Format the X-axis tick values using locale-aware time formatting
     const formatXAxis = (timestamp: number) => {
-        return new Date(timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
+        const date = new Date(timestamp);
+        // Use locale-aware time formatting with consistent precision
+        // Include seconds since we have 30-second ticks
+        const timeString = date.toLocaleTimeString(undefined, {
+            hour: "numeric",
             minute: "2-digit",
             second: "2-digit",
-            hour12: false,
         });
+
+        // Convert AM/PM to lowercase and remove space before it
+        return timeString.replace(/\s*(AM|PM)\b/g, (match) => match.toLowerCase().trim());
     };
 
     // Generate ticks at 30-second intervals
@@ -188,16 +193,29 @@ export const MemoryAreaChart: React.FC<MemoryAreaChartProps> = ({ model, height 
     return (
         <div className="w-full" style={{ height }}>
             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                     <XAxis
                         dataKey="timestamp"
+                        type="number"
+                        scale="time"
+                        domain={["dataMin", "dataMax"]}
                         tickFormatter={formatXAxis}
                         ticks={generateXAxisTicks()}
-                        tick={{ fontSize: 10 }}
-                        className="text-secondary"
+                        tick={{ fontSize: 10, fill: "#9ca3af" }}
+                        height={30}
+                        tickMargin={8}
+                        axisLine={{ stroke: "#666" }}
+                        tickLine={{ stroke: "#666" }}
+                        minTickGap={30}
                     />
-                    <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 10 }} className="text-secondary" />
+                    <YAxis
+                        tickFormatter={formatYAxis}
+                        tick={{ fontSize: 10, fill: "#9ca3af" }}
+                        width={60}
+                        axisLine={{ stroke: "#666" }}
+                        tickLine={{ stroke: "#666" }}
+                    />
                     <Tooltip content={<CustomTooltip />} />
                     {/* Order matters for stacking - first one is at the bottom */}
                     <Area
