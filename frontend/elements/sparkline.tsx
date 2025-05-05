@@ -14,22 +14,25 @@ export class SparklineModel {
     lineColor = "#3b82f6"; // default blue
     lineWidth = 1.5;
     fillColor: string | null = null;
+    padData = true; // Whether to pad data to fixed increments
     
     // Cached min/max values
     cachedMin: number | null = null;
     cachedMax: number | null = null;
     
-    constructor(options?: { 
-        lineColor?: string; 
-        lineWidth?: number; 
+    constructor(options?: {
+        lineColor?: string;
+        lineWidth?: number;
         fillColor?: string | null;
         data?: number[];
+        padData?: boolean;
     }) {
         if (options) {
             this.configure({
                 lineColor: options.lineColor,
                 lineWidth: options.lineWidth,
                 fillColor: options.fillColor,
+                padData: options.padData,
             });
             
             if (options.data) {
@@ -44,10 +47,11 @@ export class SparklineModel {
     }
 
     // Configure multiple options at once
-    configure(options: { lineColor?: string; lineWidth?: number; fillColor?: string | null }): void {
+    configure(options: { lineColor?: string; lineWidth?: number; fillColor?: string | null; padData?: boolean }): void {
         if (options.lineColor !== undefined) this.lineColor = options.lineColor;
         if (options.lineWidth !== undefined) this.lineWidth = options.lineWidth;
         if (options.fillColor !== undefined) this.fillColor = options.fillColor;
+        if (options.padData !== undefined) this.padData = options.padData;
         this.redraw();
     }
 
@@ -100,16 +104,23 @@ export class SparklineModel {
             }
         }
         
-        // Use incremental redraw if possible and scale isn't changing, otherwise do a full redraw
-        if (!scaleWillChange && this.canvas && this.ctx && this.data.length > 1) {
-            this.incrementalRedraw(sample);
-        } else {
+        // If we're using data padding or scale is changing, do a full redraw
+        if (this.padData || scaleWillChange || !this.canvas || !this.ctx || this.data.length <= 1) {
             this.redraw();
+        } else {
+            // Otherwise use incremental redraw
+            this.incrementalRedraw(sample);
         }
     }
 
     incrementalRedraw(newSample: number): void {
         if (!this.canvas || !this.ctx || this.data.length <= 1) return;
+        
+        // If we're using data padding, we should do a full redraw instead
+        if (this.padData) {
+            this.redraw();
+            return;
+        }
         
         const dpr = window.devicePixelRatio || 1;
         const width = this.canvas.width / dpr;
@@ -181,6 +192,38 @@ export class SparklineModel {
         this.ctx.restore();
     }
     
+    // Pad data to fixed increments to prevent visual illusions
+    padDataToFixedIncrements(): number[] {
+        if (!this.padData || this.data.length === 0) {
+            return this.data;
+        }
+        
+        // Determine target size based on current data length
+        let targetSize = 15; // Start with minimum of 15 points
+        
+        if (this.data.length > 15) {
+            if (this.data.length <= 30) {
+                targetSize = 30;
+            } else {
+                // For values > 30, we use multiples of 30
+                const thirtyMultiple = Math.ceil(this.data.length / 30);
+                targetSize = thirtyMultiple * 30;
+                
+                // Cap at maxPoints
+                targetSize = Math.min(targetSize, this.maxPoints);
+            }
+        }
+        
+        // Only pad if we need to
+        if (this.data.length < targetSize) {
+            const lastValue = this.data[this.data.length - 1];
+            const padding = Array(targetSize - this.data.length).fill(lastValue);
+            return [...this.data, ...padding];
+        }
+        
+        return this.data;
+    }
+    
     redraw(data?: number[]): void {
         if (data) {
             // If data is provided, replace the current data
@@ -193,7 +236,9 @@ export class SparklineModel {
         this.clear();
         if (this.data.length === 0) return;
 
-        this.drawPath();
+        // Use padded data for drawing
+        const paddedData = this.padDataToFixedIncrements();
+        this.drawPath(paddedData);
     }
 
     // Clear the canvas
@@ -212,8 +257,9 @@ export class SparklineModel {
         this.clear();
     }
 
-    drawPath(): void {
-        if (!this.canvas || !this.ctx || this.data.length === 0) return;
+    drawPath(dataToUse?: number[]): void {
+        const data = dataToUse || this.data;
+        if (!this.canvas || !this.ctx || data.length === 0) return;
 
         const dpr = window.devicePixelRatio || 1;
         const width = this.canvas.width / dpr;
@@ -235,7 +281,7 @@ export class SparklineModel {
         }
 
         // Calculate point spacing
-        const pointSpacing = width / (this.data.length > 1 ? this.data.length - 1 : 1);
+        const pointSpacing = width / (data.length > 1 ? data.length - 1 : 1);
 
         // Start drawing
         this.ctx.save();
@@ -248,13 +294,13 @@ export class SparklineModel {
         this.ctx.lineJoin = "round";
 
         // Move to the first point
-        const initialY = height - ((this.data[0] - min) / range) * height;
+        const initialY = height - ((data[0] - min) / range) * height;
         this.ctx.moveTo(0, initialY);
 
         // Draw lines to each point
-        for (let i = 1; i < this.data.length; i++) {
+        for (let i = 1; i < data.length; i++) {
             const x = i * pointSpacing;
-            const y = height - ((this.data[i] - min) / range) * height;
+            const y = height - ((data[i] - min) / range) * height;
             this.ctx.lineTo(x, y);
         }
 
@@ -271,12 +317,12 @@ export class SparklineModel {
         }
 
         // Draw breakpoint indicators (minute markers)
-        if (this.data.length > 60) {
+        if (data.length > 60) {
             this.ctx.strokeStyle = "rgba(128, 128, 128, 0.2)";
             this.ctx.lineWidth = 0.5;
 
             // Draw vertical lines at minute intervals (every 60 points)
-            for (let i = 60; i < this.data.length; i += 60) {
+            for (let i = 60; i < data.length; i += 60) {
                 const x = i * pointSpacing;
                 this.ctx.beginPath();
                 this.ctx.moveTo(x, 0);
