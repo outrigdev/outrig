@@ -18,6 +18,10 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/updatecheck"
 )
 
+const (
+	MaxGoRoutineSearchResults = 1000 // Maximum number of goroutines to return from a search
+)
+
 type RpcServerImpl struct{}
 
 func (*RpcServerImpl) RpcServerImpl() {}
@@ -286,6 +290,11 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	sort.Slice(results, func(i, j int) bool {
 		return results[i] < results[j]
 	})
+
+	// Limit the number of results to MaxGoRoutineSearchResults
+	if len(results) > MaxGoRoutineSearchResults {
+		results = results[:MaxGoRoutineSearchResults]
+	}
 
 	return rpctypes.GoRoutineSearchResultData{
 		SearchedCount: stats.SearchedCount,
