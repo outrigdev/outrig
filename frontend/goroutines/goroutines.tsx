@@ -11,7 +11,7 @@ import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
 import { cn, formatTimeOffset } from "@/util/util";
 import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
-import { Layers, Layers2 } from "lucide-react";
+import { Layers, Layers2, Search } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
@@ -50,12 +50,18 @@ const DurationStateFilters: React.FC<DurationStateFiltersProps> = ({ model, sele
 // StacktraceModeToggle component for toggling between raw and simplified stacktrace modes
 interface StacktraceModeToggleProps {
     modeAtom: PrimitiveAtom<string>;
+    model: GoRoutinesModel;
 }
 
-const StacktraceModeToggle: React.FC<StacktraceModeToggleProps> = ({ modeAtom }) => {
+const StacktraceModeToggle: React.FC<StacktraceModeToggleProps> = ({ modeAtom, model }) => {
     const [mode, setMode] = useAtom(modeAtom);
+    const searchTerm = useAtomValue(model.searchTerm);
+    const isSearchActive = searchTerm && searchTerm.trim() !== "";
 
     const handleToggleMode = useCallback(() => {
+        // If search is active, don't allow toggling
+        if (isSearchActive) return;
+
         // Cycle through the three modes: "raw" -> "simplified" -> "simplified:files" -> "raw"
         if (mode === "raw") {
             setMode("simplified");
@@ -64,10 +70,14 @@ const StacktraceModeToggle: React.FC<StacktraceModeToggleProps> = ({ modeAtom })
         } else {
             setMode("raw");
         }
-    }, [mode, setMode]);
+    }, [mode, setMode, isSearchActive]);
 
-    // Determine tooltip content based on current mode
+    // Determine tooltip content based on current mode and search state
     const tooltipContent = useCallback(() => {
+        if (isSearchActive) {
+            return "Raw Stacktrace Mode Locked (to reveal search matches)";
+        }
+
         switch (mode) {
             case "raw":
                 return "Raw Stacktrace Mode (Click to Toggle)";
@@ -78,7 +88,7 @@ const StacktraceModeToggle: React.FC<StacktraceModeToggleProps> = ({ modeAtom })
             default:
                 return "Toggle Stacktrace Mode";
         }
-    }, [mode]);
+    }, [mode, isSearchActive]);
 
     // Render the appropriate icon based on the current mode
     const renderIcon = useCallback(() => {
@@ -98,7 +108,8 @@ const StacktraceModeToggle: React.FC<StacktraceModeToggleProps> = ({ modeAtom })
             <button
                 onClick={handleToggleMode}
                 className={cn(
-                    "p-1 mr-1 rounded cursor-pointer transition-colors",
+                    "p-1 mr-1 rounded transition-colors relative",
+                    isSearchActive ? "cursor-default" : "cursor-pointer",
                     mode !== "raw"
                         ? "bg-primary/20 text-primary hover:bg-primary/30"
                         : "text-muted hover:bg-buttonhover hover:text-primary"
@@ -106,6 +117,13 @@ const StacktraceModeToggle: React.FC<StacktraceModeToggleProps> = ({ modeAtom })
                 aria-pressed={mode !== "raw" ? "true" : "false"}
             >
                 {renderIcon()}
+
+                {/* Show search indicator when search is active */}
+                {isSearchActive && (
+                    <div className="absolute -top-1 -right-1 bg-accent rounded-full p-0.5">
+                        <Search size={10} className="text-white" />
+                    </div>
+                )}
             </button>
         </Tooltip>
     );
@@ -120,7 +138,8 @@ interface GoroutineViewProps {
 const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     const linkType = useAtomValue(model.showCodeLinks);
     const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
-    const simpleMode = useAtomValue(model.simpleStacktraceMode);
+    // Use the effective mode which automatically switches to "raw" when search is active
+    const simpleMode = useAtomValue(model.effectiveSimpleStacktraceMode);
     const stackTraceRef = useRef<HTMLDivElement>(null);
 
     if (!goroutine) {
@@ -269,7 +288,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                     </Tooltip>
 
                     <div className="flex items-center gap-2">
-                        <StacktraceModeToggle modeAtom={model.simpleStacktraceMode} />
+                        <StacktraceModeToggle modeAtom={model.simpleStacktraceMode} model={model} />
                         <RefreshButton
                             isRefreshingAtom={model.isRefreshing}
                             onRefresh={() => model.refresh()}

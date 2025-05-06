@@ -43,6 +43,21 @@ class GoRoutinesModel {
     // Stacktrace display settings - can be "raw", "simplified", or "simplified:files"
     simpleStacktraceMode: PrimitiveAtom<string> = atom("simplified");
 
+    // Effective stacktrace mode that considers search term
+    // Returns "raw" when search is active, otherwise returns the user-selected mode
+    effectiveSimpleStacktraceMode: Atom<string> = atom((get) => {
+        const searchTerm = get(this.searchTerm);
+        const userSelectedMode = get(this.simpleStacktraceMode);
+        
+        // If there's a search term, use raw mode to make matches visible
+        if (searchTerm && searchTerm.trim() !== "") {
+            return "raw";
+        }
+        
+        // Otherwise use the user-selected mode
+        return userSelectedMode;
+    });
+
     // Total count of goroutines (derived from appRunGoRoutines)
     totalCount: Atom<number> = atom((get) => {
         const goroutines = get(this.appRunGoRoutines);
