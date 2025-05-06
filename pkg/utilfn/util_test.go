@@ -91,3 +91,31 @@ func TestParseNameAndTags(t *testing.T) {
 		})
 	}
 }
+
+func TestSemVer(t *testing.T) {
+	cmp, err := CompareSemVerCore("v0.4.0-dev", "0.4.0")
+	if err != nil {
+		t.Errorf("Error comparing versions: %v", err)
+		return
+	}
+	if cmp != 0 {
+		t.Errorf("Expected 0, got %d", cmp)
+		return
+	}
+
+	cmp, err = CompareSemVerCore("v0.4.0+76xcsd", "0.4.1")
+	if err != nil {
+		t.Errorf("Error comparing versions: %v", err)
+		return
+	}
+	if cmp != -1 {
+		t.Errorf("Expected -1, got %d", cmp)
+		return
+	}
+
+	_, err = CompareSemVerCore("", "v0.4.1")
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+		return
+	}
+}

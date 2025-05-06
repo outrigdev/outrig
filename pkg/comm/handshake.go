@@ -13,9 +13,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 // Connection mode constants
@@ -48,15 +48,6 @@ type ServerHandshakeResponse struct {
 // Regexp for validating log source paths
 var logSourceRegexp = regexp.MustCompile(`^[a-zA-Z0-9.+_/:-]+$`)
 
-// stripPrereleaseInfo returns a new version without prerelease information
-func stripPrereleaseInfo(v *semver.Version) *semver.Version {
-	if v == nil {
-		return nil
-	}
-	// Create a new version with just the major, minor, and patch components
-	cleanVersion, _ := semver.NewVersion(fmt.Sprintf("%d.%d.%d", v.Major(), v.Minor(), v.Patch()))
-	return cleanVersion
-}
 
 // ConnWrap wraps a net.Conn and a bufio.Reader for convenient line-based communication.
 type ConnWrap struct {
@@ -112,19 +103,13 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 		return nil, fmt.Errorf("invalid server handshake packet format: %v", err)
 	}
 
-	// Validate the server version using semver
-	serverVersion, err := semver.NewVersion(serverPacket.OutrigVersion)
+	// Validate the server version using semver core comparison
+	comparison, err := utilfn.CompareSemVerCore(serverPacket.OutrigVersion, MinServerVersion)
 	if err != nil {
 		return nil, fmt.Errorf("invalid server version format: %s", serverPacket.OutrigVersion)
 	}
 
-	minVersion, _ := semver.NewVersion(MinServerVersion)
-
-	// Strip prerelease info before comparing versions
-	cleanServerVersion := stripPrereleaseInfo(serverVersion)
-	cleanMinVersion := stripPrereleaseInfo(minVersion)
-
-	if cleanServerVersion.LessThan(cleanMinVersion) {
+	if comparison < 0 {
 		return nil, fmt.Errorf("server version %s is less than minimum required version %s",
 			serverPacket.OutrigVersion, MinServerVersion)
 	}
@@ -241,21 +226,15 @@ func (cw *ConnWrap) ServerHandshake(webServerPort int) (*ClientHandshakePacket, 
 		return nil, missingFieldErr
 	}
 
-	// Validate the client SDK version using semver
-	clientVersion, err := semver.NewVersion(packet.OutrigSDK)
+	// Validate the client SDK version using semver core comparison
+	comparison, err := utilfn.CompareSemVerCore(packet.OutrigSDK, MinClientVersion)
 	if err != nil {
 		versionFormatErr := fmt.Errorf("invalid client SDK version format: %s", packet.OutrigSDK)
 		sendErrorResponse(cw, versionFormatErr)
 		return nil, versionFormatErr
 	}
 
-	minVersion, _ := semver.NewVersion(MinClientVersion)
-
-	// Strip prerelease info before comparing versions
-	cleanClientVersion := stripPrereleaseInfo(clientVersion)
-	cleanMinVersion := stripPrereleaseInfo(minVersion)
-
-	if cleanClientVersion.LessThan(cleanMinVersion) {
+	if comparison < 0 {
 		versionErr := fmt.Errorf("client SDK version %s is less than minimum required version %s",
 			packet.OutrigSDK, MinClientVersion)
 		sendErrorResponse(cw, versionErr)

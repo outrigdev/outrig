@@ -6,6 +6,7 @@ package utilfn
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -409,4 +410,41 @@ func SafeSubstring(s string, start, end int) string {
 		return ""
 	}
 	return s[start:end]
+}
+
+var versionCoreRegex = regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)`)
+
+// StripPreReleaseInfo extracts just the version core (major.minor.patch) from a semver string
+// Preserves the "v" prefix if present in the original version
+func StripPreReleaseInfo(ver string) string {
+	return versionCoreRegex.FindString(ver)
+}
+
+// IsSemVerCore validates that the whole string *is exactly* a core semver
+func IsSemVerCore(ver string) bool {
+	return versionCoreRegex.MatchString(ver) && len(ver) == len(versionCoreRegex.FindString(ver))
+}
+
+// CompareSemVerCore compares two semver strings and returns -1, 0, or 1 based on just the *core* versions
+// It ignores pre-release and build metadata
+// Works with "v" prefixed or unprefixed versions
+func CompareSemVerCore(ver1, ver2 string) (int, error) {
+	ver1 = StripPreReleaseInfo(ver1)
+	ver2 = StripPreReleaseInfo(ver2)
+	if !IsSemVerCore(ver1) || !IsSemVerCore(ver2) {
+		return 0, fmt.Errorf("invalid semver core: %q or %q", ver1, ver2)
+	}
+	m1 := versionCoreRegex.FindStringSubmatch(ver1)
+	m2 := versionCoreRegex.FindStringSubmatch(ver2)
+	for i := 1; i <= 3; i++ {
+		a, _ := strconv.Atoi(m1[i])
+		b, _ := strconv.Atoi(m2[i])
+		if a != b {
+			if a < b {
+				return -1, nil
+			}
+			return 1, nil
+		}
+	}
+	return 0, nil
 }
