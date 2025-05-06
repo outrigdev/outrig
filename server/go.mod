@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/junegunn/fzf v0.61.3
+	github.com/junegunn/fzf v0.62.0
 	github.com/outrigdev/outrig v0.0.0-00010101000000-000000000000
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
