@@ -1,9 +1,9 @@
 module github.com/outrigdev/outrig
 
-go 1.19
+go 1.22
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.0
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/google/uuid v1.6.0
 	golang.org/x/term v0.29.0
 )
