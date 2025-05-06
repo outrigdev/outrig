@@ -175,7 +175,7 @@ func (router *WshRouter) handleNoRoute(msg RpcMessage) {
 		Error: nrErr.Error(),
 	}
 	respBytes, _ := json.Marshal(response)
-	router.sendRoutedMessage(respBytes, msg.Source)
+	router.sendRoutedMessage(respBytes, msg.Source, msg.Command)
 }
 
 func (router *WshRouter) registerRouteInfo(rpcId string, sourceRouteId string, destRouteId string) {
@@ -229,7 +229,7 @@ func (router *WshRouter) getAnnouncedRoute(routeId string) string {
 }
 
 // returns true if message was sent, false if failed
-func (router *WshRouter) sendRoutedMessage(msgBytes []byte, routeId string) bool {
+func (router *WshRouter) sendRoutedMessage(msgBytes []byte, routeId string, command string) bool {
 	rpc := router.GetRpc(routeId)
 	if rpc != nil {
 		rpc.SendRpcMessage(msgBytes)
@@ -244,7 +244,11 @@ func (router *WshRouter) sendRoutedMessage(msgBytes []byte, routeId string) bool
 		localRouteId := router.getAnnouncedRoute(routeId)
 		rpc := router.GetRpc(localRouteId)
 		if rpc == nil {
-			log.Printf("[router] no rpc for route id %q\n", routeId)
+			if command != "" {
+				log.Printf("[router] no rpc for route id %q (command:%s)\n", routeId, command)
+			} else {
+				log.Printf("[router] no rpc for route id %q\n", routeId)
+			}
 			return false
 		}
 		rpc.SendRpcMessage(msgBytes)
@@ -272,7 +276,7 @@ func (router *WshRouter) runServer() {
 		}
 		if msg.Command != "" {
 			// new comand, setup new rpc
-			ok := router.sendRoutedMessage(msgBytes, routeId)
+			ok := router.sendRoutedMessage(msgBytes, routeId, msg.Command)
 			if !ok {
 				router.handleNoRoute(msg)
 				continue
@@ -288,7 +292,7 @@ func (router *WshRouter) runServer() {
 				continue
 			}
 			// no need to check the return value here (noop if failed)
-			router.sendRoutedMessage(msgBytes, routeInfo.DestRouteId)
+			router.sendRoutedMessage(msgBytes, routeInfo.DestRouteId, msg.Command)
 			continue
 		} else if msg.ResId != "" {
 			ok := router.trySimpleResponse(&msg)
@@ -300,7 +304,7 @@ func (router *WshRouter) runServer() {
 				// no route info, nothing to do
 				continue
 			}
-			router.sendRoutedMessage(msgBytes, routeInfo.SourceRouteId)
+			router.sendRoutedMessage(msgBytes, routeInfo.SourceRouteId, msg.Command)
 			if !msg.Cont {
 				router.unregisterRouteInfo(msg.ResId)
 			}
