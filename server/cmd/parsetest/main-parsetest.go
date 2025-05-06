@@ -12,61 +12,6 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
-// safeSubstring safely extracts a substring from the original string based on position
-func safeSubstring(s string, start, end int) string {
-	if start < 0 {
-		start = 0
-	}
-	if end > len(s) {
-		end = len(s)
-	}
-	if start >= len(s) || end <= 0 || start >= end {
-		return ""
-	}
-	return s[start:end]
-}
-
-// prettyPrintNode formats a Node structure in a concise way
-func prettyPrintNode(node *searchparser.Node, indent string, originalQuery string) string {
-	if node == nil {
-		return indent + "nil"
-	}
-
-	var sb strings.Builder
-
-	// Format node type and position consistently with token format
-	sb.WriteString(fmt.Sprintf("%s%-8s [%2d:%2d]", indent, node.Type, node.Position.Start, node.Position.End))
-
-	// Add node-specific attributes on the same line when possible
-	if node.Type == "search" {
-		sb.WriteString(fmt.Sprintf(" %s %q", node.SearchType, node.SearchTerm))
-		if node.Field != "" {
-			sb.WriteString(fmt.Sprintf(" field:%q", node.Field))
-		}
-		if node.IsNot {
-			sb.WriteString(" not:true")
-		}
-	} else if node.Type == "error" {
-		sb.WriteString(fmt.Sprintf(" %q", node.ErrorMessage))
-	}
-
-	// Add substring visualization at the end
-	substring := safeSubstring(originalQuery, node.Position.Start, node.Position.End)
-	sb.WriteString(fmt.Sprintf(" | [%s]", substring))
-
-	sb.WriteString("\n")
-
-	// Handle children with increased indentation
-	if len(node.Children) > 0 {
-		for _, child := range node.Children {
-			childNode := child // Create a copy to get address
-			sb.WriteString(prettyPrintNode(childNode, indent+"  ", originalQuery))
-		}
-	}
-
-	return sb.String()
-}
-
 // prettyPrintTokens formats tokens in a concise one-line format
 func prettyPrintTokens(tokens []searchparser.Token) string {
 	var sb strings.Builder
@@ -96,6 +41,7 @@ func nodeToJSON(node *searchparser.Node) string {
 		SearchType   string     `json:"searchType,omitempty"`
 		SearchTerm   string     `json:"searchTerm,omitempty"`
 		Field        string     `json:"field,omitempty"`
+		Op           string     `json:"op,omitempty"`
 		IsNot        bool       `json:"isNot,omitempty"`
 		ErrorMessage string     `json:"errorMessage,omitempty"`
 		Children     []jsonNode `json:"children,omitempty"`
@@ -116,6 +62,7 @@ func nodeToJSON(node *searchparser.Node) string {
 			jn.SearchType = n.SearchType
 			jn.SearchTerm = n.SearchTerm
 			jn.Field = n.Field
+			jn.Op = n.Op
 			jn.IsNot = n.IsNot
 		} else if n.Type == "error" {
 			jn.ErrorMessage = n.ErrorMessage
@@ -158,6 +105,10 @@ func main() {
 			// `$ name: hello`,
 			`(hello world`,
 			`(line 1 | line 2 | line 3) (line (3 | 2)) ((3))`,
+			`$goid:'823'`,
+			`:>500`,
+			`$goid:>=500`,
+			`#m`,
 			// `"abc"def"hello"/foo/"bar"`,
 			// `"hello" mike`,
 			// `$name:hello`,
@@ -182,7 +133,7 @@ func main() {
 		ast := parser.Parse()
 
 		fmt.Println("parse tree:")
-		fmt.Println(prettyPrintNode(ast, "  ", query))
+		fmt.Println(ast.PrettyPrint("  ", query))
 		fmt.Println()
 
 		// Only show JSON output if --json flag is provided

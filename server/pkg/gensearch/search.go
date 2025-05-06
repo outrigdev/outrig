@@ -20,6 +20,7 @@ const (
 	SearchTypeTag        = searchparser.SearchTypeTag
 	SearchTypeUserQuery  = searchparser.SearchTypeUserQuery
 	SearchTypeMarked     = searchparser.SearchTypeMarked
+	SearchTypeNumeric    = searchparser.SearchTypeNumeric
 
 	// Additional constants not in searchparser
 	SearchTypeAnd = "and"

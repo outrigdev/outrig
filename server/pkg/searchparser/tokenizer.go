@@ -26,7 +26,6 @@ const (
 	TokenPipe   TokenType = "|" // Pipe character
 	TokenMinus  TokenType = "-" // Minus sign
 	TokenDollar TokenType = "$" // Dollar sign
-	TokenColon  TokenType = ":" // Colon
 	TokenTilde  TokenType = "~" // Tilde
 	TokenHash   TokenType = "#" // Hash
 )

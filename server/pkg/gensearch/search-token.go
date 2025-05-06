@@ -133,6 +133,8 @@ func createSearcherFromSearchNode(node *searchparser.Node) (Searcher, error) {
 		return MakeFzfSearcher(node.Field, node.SearchTerm, true)
 	case SearchTypeTag:
 		return MakeTagSearcher(node.Field, node.SearchTerm), nil
+	case SearchTypeNumeric:
+		return MakeNumericSearcher(node.Field, node.SearchTerm, node.Op)
 	default:
 		// Default to case-insensitive exact search
 		return MakeExactSearcher(node.Field, node.SearchTerm, false), nil

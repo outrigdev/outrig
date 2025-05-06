@@ -24,6 +24,7 @@
 // - Special case: #marked or #m uses the marked searcher to find marked lines
 // - Not token (-) negates the search result of the token that follows it
 // - A literal "-" at the start of a token must be quoted: "-hello" searches for "-hello" literally
+// - Numeric field search supports operators: >, <, >=, <= (e.g., $goid:>500, $goid:<=200)
 // Once parsing a WORD the only characters that break a WORD are whitespace, "|", "(", ")", "\"", "'", and EOF
 
 package searchparser
@@ -36,9 +37,15 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
+// numericSearchRegex matches numeric comparison operators (>, <, >=, <=) followed by digits
+var numericSearchRegex = regexp.MustCompile(`^([><]=?)(\d+)$`)
+
+// numericOperatorRegex matches just the numeric comparison operators (>, <, >=, <=)
+var numericOperatorRegex = regexp.MustCompile(`^([><]=?)(.*)$`)
+
 // TagRegexp is the regular expression pattern for valid tag names
-// should match tag parsing in utilfn/util.go
-var TagRegexp = utilfn.TagRegex
+// Uses SimpleTagRegexStr from utilfn/util.go for consistency
+var TagRegexp = regexp.MustCompile(`^` + utilfn.SimpleTagRegexStr + `$`)
 
 // --- Node Types & Constants ---
 
@@ -60,6 +67,7 @@ const (
 	SearchTypeTag        = "tag"
 	SearchTypeUserQuery  = "userquery"
 	SearchTypeMarked     = "marked"
+	SearchTypeNumeric    = "numeric"
 )
 
 // --- AST Node Definition ---
@@ -76,8 +84,52 @@ type Node struct {
 	SearchType   string   // e.g., "exact", "regexp", "fzf", etc. (only for search nodes)
 	SearchTerm   string   // The actual search text (only for search nodes)
 	Field        string   // Optional field specifier (only for search nodes)
+	Op           string   // Optional operator for numeric searches (>, <, >=, <=)
 	IsNot        bool     // Set to true if preceded by '-' (for not tokens)
 	ErrorMessage string   // For error nodes, a simple error message
+}
+
+// PrettyPrint formats a Node structure in a concise way
+func (n *Node) PrettyPrint(indent string, originalQuery string) string {
+	if n == nil {
+		return indent + "nil"
+	}
+
+	var sb strings.Builder
+
+	// Format node type and position consistently with token format
+	sb.WriteString(fmt.Sprintf("%s%-8s [%2d:%2d]", indent, n.Type, n.Position.Start, n.Position.End))
+
+	// Add node-specific attributes on the same line when possible
+	if n.Type == NodeTypeSearch {
+		sb.WriteString(fmt.Sprintf(" %s %q", n.SearchType, n.SearchTerm))
+		if n.Field != "" {
+			sb.WriteString(fmt.Sprintf(" field:%q", n.Field))
+		}
+		if n.Op != "" {
+			sb.WriteString(fmt.Sprintf(" op:%q", n.Op))
+		}
+		if n.IsNot {
+			sb.WriteString(" not:true")
+		}
+	} else if n.Type == NodeTypeError {
+		sb.WriteString(fmt.Sprintf(" %q", n.ErrorMessage))
+	}
+
+	// Add substring visualization at the end
+	substring := utilfn.SafeSubstring(originalQuery, n.Position.Start, n.Position.End)
+	sb.WriteString(fmt.Sprintf(" | [%s]", substring))
+
+	sb.WriteString("\n")
+
+	// Handle children with increased indentation
+	if len(n.Children) > 0 {
+		for _, child := range n.Children {
+			sb.WriteString(child.PrettyPrint(indent+"  ", originalQuery))
+		}
+	}
+
+	return sb.String()
 }
 
 // --- Parser Definition ---
@@ -544,7 +596,23 @@ func (p *Parser) parseFieldToken() (*Node, error) {
 		// The colon is not the last character, so the search term is part of the word
 		searchTerm := fieldValue[colonPos+1:]
 
-		// Create a search node with the field
+		// Check if this is a numeric search term
+		isNumeric, operator, numericValue, err := parseNumericSearchTerm(searchTerm)
+		if err != nil {
+			return nil, err
+		}
+		if isNumeric {
+			return &Node{
+				Type:       NodeTypeSearch,
+				Position:   Position{Start: startPos, End: wordToken.Position.End},
+				SearchType: SearchTypeNumeric,
+				SearchTerm: numericValue,
+				Field:      fieldName,
+				Op:         operator,
+			}, nil
+		}
+
+		// Not a numeric search, create a regular search node with the field
 		return &Node{
 			Type:       NodeTypeSearch,
 			Position:   Position{Start: startPos, End: wordToken.Position.End},
@@ -553,6 +621,29 @@ func (p *Parser) parseFieldToken() (*Node, error) {
 			Field:      fieldName,
 		}, nil
 	}
+}
+
+// parseNumericSearchTerm checks if a search term is a numeric comparison
+// Returns:
+// - ok: true if the search term is a valid numeric comparison
+// - operator: the comparison operator (>, <, >=, <=)
+// - value: the numeric value as a string
+// - err: error if there's an operator but no valid numeric value
+func parseNumericSearchTerm(searchTerm string) (ok bool, operator string, value string, err error) {
+	// First check if it starts with a numeric operator
+	if numericOperatorRegex.MatchString(searchTerm) {
+		// We have an operator, now check if the rest is a valid number
+		matches := numericSearchRegex.FindStringSubmatch(searchTerm)
+		if matches == nil || len(matches) != 3 {
+			// We have an operator but not a valid number
+			opMatches := numericOperatorRegex.FindStringSubmatch(searchTerm)
+			return false, opMatches[1], "", fmt.Errorf("numeric operator '%s' must be followed by a number", opMatches[1])
+		}
+		return true, matches[1], matches[2], nil
+	}
+
+	// No operator found
+	return false, "", "", nil
 }
 
 // parseUnmodifiedToken parses an unmodified token according to the grammar:
@@ -673,7 +764,7 @@ func (p *Parser) parseTagToken() (*Node, error) {
 
 	// Validate the tag name against the regex pattern
 	if !TagRegexp.MatchString(wordToken.Value) {
-		return nil, fmt.Errorf("invalid tag name: must match pattern [a-zA-Z][a-zA-Z0-9:_.-]+")
+		return nil, fmt.Errorf("invalid tag name: must match pattern %s", utilfn.SimpleTagRegexStr)
 	}
 
 	// Create the tag node

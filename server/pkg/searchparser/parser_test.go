@@ -287,12 +287,12 @@ func TestParseAST(t *testing.T) {
 		},
 		{
 			name:  "valid tag with special characters",
-			input: "#valid-tag:1.2_3",
+			input: "#valid-tag/1.2_3",
 			expected: &Node{
 				Type:       "search",
 				Position:   Position{Start: 0, End: 16},
 				SearchType: "tag",
-				SearchTerm: "valid-tag:1.2_3",
+				SearchTerm: "valid-tag/1.2_3",
 			},
 		},
 		{

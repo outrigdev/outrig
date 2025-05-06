@@ -296,11 +296,13 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 	}
 }
 
-// one-off tag, must be followed by whitespace or EOL
-var TagRegex = regexp.MustCompile(`(?:^|\s)(#[a-zA-Z][a-zA-Z0-9/_.-]+)(?:\s|$)`)
+const SimpleTagRegexStr = `[a-zA-Z][a-zA-Z0-9/_.-]*`
+
+// must have whitespace or EOL on either side
+var TagRegex = regexp.MustCompile(`(?:^|\s)(#` + SimpleTagRegexStr + `)(?:\s|$)`)
 
 // sequence of one-or-more tags (same trailing-ws/EOL rule)
-var tagSeqRegex = regexp.MustCompile(`(?:^|\s)(?:#[a-zA-Z][a-zA-Z0-9/_.-]+(?:\s|$))+`)
+var tagSeqRegex = regexp.MustCompile(`(?:^|\s)(?:#` + SimpleTagRegexStr + `(?:\s|$))+`)
 
 func ParseTags(input string) []string {
 	if !strings.Contains(input, "#") {
@@ -393,4 +395,18 @@ func ConvertMap(val any) map[string]any {
 		return nil
 	}
 	return m
+}
+
+// SafeSubstring safely extracts a substring from the original string based on position
+func SafeSubstring(s string, start, end int) string {
+	if start < 0 {
+		start = 0
+	}
+	if end > len(s) {
+		end = len(s)
+	}
+	if start >= len(s) || end <= 0 || start >= end {
+		return ""
+	}
+	return s[start:end]
 }
