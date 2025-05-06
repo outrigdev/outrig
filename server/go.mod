@@ -3,7 +3,7 @@ module github.com/outrigdev/outrig/server
 go 1.24.2
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.0
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/alexflint/go-filemutex v1.3.0
 	github.com/emirpasic/gods v1.18.1
 	github.com/google/uuid v1.6.0
