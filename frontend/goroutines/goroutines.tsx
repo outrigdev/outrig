@@ -17,36 +17,6 @@ import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
 import { StackTrace } from "./stacktrace";
 
-// Duration state filters component
-interface DurationStateFiltersProps {
-    model: GoRoutinesModel;
-    selectedStates: Set<string>;
-    onToggleState: (state: string) => void;
-}
-
-const DurationStateFilters: React.FC<DurationStateFiltersProps> = ({ model, selectedStates, onToggleState }) => {
-    const durationStates = useAtomValue(model.durationStates);
-    const stateCounts = useAtomValue(model.stateCounts);
-
-    if (durationStates.length === 0) {
-        return null;
-    }
-
-    return (
-        <div className="flex flex-wrap items-start gap-1.5">
-            {durationStates.map((state) => (
-                <Tag
-                    key={state}
-                    label={state}
-                    count={stateCounts.get(state) || 0}
-                    isSelected={selectedStates.has(state)}
-                    onToggle={() => onToggleState(state)}
-                />
-            ))}
-        </div>
-    );
-};
-
 // StacktraceModeToggle component for toggling between raw and simplified stacktrace modes
 interface StacktraceModeToggleProps {
     modeAtom: PrimitiveAtom<string>;
