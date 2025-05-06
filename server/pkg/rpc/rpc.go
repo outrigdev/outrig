@@ -17,7 +17,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/panichandler"
-	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
@@ -29,7 +28,7 @@ const CtxDoneChSize = 10
 const DefaultInputChSize = 32
 const DefaultOutputChSize = 32
 
-var blockingExpMap = utilds.MakeExpMap[bool]()
+var blockingExpMap = MakeExpMap[bool]()
 
 const (
 	RpcType_Call             = "call"             // single response (regular rpc)

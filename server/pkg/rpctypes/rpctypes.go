@@ -62,13 +62,13 @@ type FullRpcInterface interface {
 	EventUnsubCommand(ctx context.Context, data string) error
 	EventUnsubAllCommand(ctx context.Context) error
 	EventReadHistoryCommand(ctx context.Context, data EventReadHistoryData) ([]*EventType, error)
-	
+
 	// tevent commands
 	SendTEventFeCommand(ctx context.Context, data TEventFeData) error
 
 	// browser tab tracking
 	UpdateBrowserTabUrlCommand(ctx context.Context, data BrowserTabUrlData) error
-	
+
 	// update check commands
 	UpdateCheckCommand(ctx context.Context) (UpdateCheckData, error)
 }
@@ -240,7 +240,6 @@ type AppRunWatchesData struct {
 
 type RuntimeStatData struct {
 	Ts             int64              `json:"ts"`
-	CPUUsage       float64            `json:"cpuusage"`
 	GoRoutineCount int                `json:"goroutinecount"`
 	GoMaxProcs     int                `json:"gomaxprocs"`
 	NumCPU         int                `json:"numcpu"`
@@ -392,7 +391,7 @@ type ParsedGoRoutine struct {
 // TEventFeProps represents frontend-related properties for a telemetry event
 type TEventFeProps struct {
 	ClickType string `json:"debug:clicktype,omitempty"`
-	
+
 	FrontendTab            string   `json:"frontend:tab,omitempty"`
 	FrontendSearchFeatures []string `json:"frontend:logsearchfeatures,omitempty"`
 	FrontendSearchLatency  int      `json:"frontend:searchlatency,omitempty"`
@@ -401,6 +400,6 @@ type TEventFeProps struct {
 
 // TEventFeData represents a simplified telemetry event for frontend use
 type TEventFeData struct {
-	Event string       `json:"event"`
+	Event string        `json:"event"`
 	Props TEventFeProps `json:"props"`
 }

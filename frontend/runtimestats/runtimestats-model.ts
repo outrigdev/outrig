@@ -15,7 +15,6 @@ export type CombinedStatsData = {
     apprunid: string;
     appname: string;
     ts: number;
-    cpuusage: number;
     goroutinecount: number;
     numactivegoroutines: number;
     numoutriggoroutines: number;
@@ -144,7 +143,6 @@ class RuntimeStatsModel {
             apprunid: result.apprunid,
             appname: result.appname,
             ts: latestStat.ts,
-            cpuusage: latestStat.cpuusage,
             goroutinecount: latestStat.goroutinecount,
             numactivegoroutines: result.numactivegoroutines,
             numoutriggoroutines: result.numoutriggoroutines,

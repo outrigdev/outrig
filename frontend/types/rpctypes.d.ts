@@ -243,7 +243,6 @@ declare global {
     // rpctypes.RuntimeStatData
     type RuntimeStatData = {
         ts: number;
-        cpuusage: number;
         goroutinecount: number;
         gomaxprocs: number;
         numcpu: number;

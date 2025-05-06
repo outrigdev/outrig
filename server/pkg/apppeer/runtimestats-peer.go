@@ -55,7 +55,6 @@ func (rsp *RuntimeStatsPeer) GetFilteredStats(sinceTs int64) []ds.RuntimeStatsIn
 func ConvertToRuntimeStatData(stat ds.RuntimeStatsInfo) rpctypes.RuntimeStatData {
 	return rpctypes.RuntimeStatData{
 		Ts:             stat.Ts,
-		CPUUsage:       stat.CPUUsage,
 		GoRoutineCount: stat.GoRoutineCount,
 		GoMaxProcs:     stat.GoMaxProcs,
 		NumCPU:         stat.NumCPU,
@@ -86,4 +85,3 @@ func (rsp *RuntimeStatsPeer) GetTotalCollectionCount() int {
 	totalCount, _ := rsp.runtimeStats.GetTotalCountAndHeadOffset()
 	return totalCount
 }
-

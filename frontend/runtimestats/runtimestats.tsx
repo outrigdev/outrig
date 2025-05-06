@@ -143,13 +143,6 @@ const MetricsGrid: React.FC<MetricsGridProps> = ({ stats, appRunInfo }) => {
                 desc="Number of goroutines currently running in the application, excluding Outrig SDK goroutines. Each goroutine is a lightweight thread managed by the Go runtime. Unexpected high counts may indicate goroutine leaks."
             />
 
-            <StatItem
-                value={stats.cpuusage.toFixed(2)}
-                label="CPU Usage"
-                unit="%"
-                desc="Percentage of CPU time being used by this Go process. High values may indicate CPU-intensive operations or potential bottlenecks."
-            />
-
             {/* Second row: Total Process Memory, Heap Memory, Heap Objects */}
             <StatItem
                 value={sysMemory.memstr}

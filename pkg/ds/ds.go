@@ -189,7 +189,6 @@ type MemoryStatsInfo struct {
 
 type RuntimeStatsInfo struct {
 	Ts             int64           `json:"ts"`
-	CPUUsage       float64         `json:"cpuusage"`
 	GoRoutineCount int             `json:"goroutinecount"`
 	GoMaxProcs     int             `json:"gomaxprocs"`
 	NumCPU         int             `json:"numcpu"`
