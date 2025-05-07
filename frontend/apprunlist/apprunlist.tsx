@@ -152,8 +152,8 @@ const NoAppRunsFound: React.FC = () => {
             <div className="grow" />
             <div className="flex flex-col items-center">
                 <h3 className="text-primary text-lg font-medium mb-4">Getting Started with Outrig</h3>
-                <p className="text-secondary mb-6">Add Outrig to your Go application with just a few lines of code:</p>
-                <pre className="whitespace-pre bg-panel border border-border rounded-lg p-4 text-left text-sm text-primary overflow-auto w-full max-w-lg">
+                <p className="text-secondary mb-6">To connect your Go server or application, follow these steps:</p>
+                <pre className="whitespace-pre bg-panel border border-border rounded-lg p-4 text-left text-sm text-primary overflow-auto w-full max-w-xl">
                     <code>
                         {`// Step 1: Import the package
 import "github.com/outrigdev/outrig"
