@@ -9,7 +9,6 @@
 @theme inline {
     --color-white: var(--themecolor-white);
     --color-black: var(--themecolor-black);
-    --color-appbg: var(--themecolor-appbg);
     --color-primary: var(--themecolor-primary);
     --color-secondary: var(--themecolor-secondary);
     --color-muted: var(--themecolor-muted);
@@ -58,7 +57,6 @@
 [data-theme="light"] {
     --themecolor-white: white;
     --themecolor-black: black;
-    --themecolor-appbg: #f9fafb;
     --themecolor-primary: #111827;
     --themecolor-secondary: rgba(17, 24, 39, 0.65);
     --themecolor-muted: rgba(17, 24, 39, 0.5);
@@ -89,7 +87,7 @@
         --themecolor-buttonhover: rgba(0, 0, 0, 0.08);
     }
 
-    /* ANSI Colors (Light Palette) */
+    /* ANSI Colors for Log Lines (Light Palette) */
     --themecolor-ansi-black: #c1c1c1; /* swapped: original ansi-white */
     --themecolor-ansi-red: #b3544a; /* darkened from #cc685c */
     --themecolor-ansi-green: #689e5a; /* darkened from #76c266 */
@@ -114,16 +112,13 @@
 [data-theme="dark"] {
     --themecolor-white: black;
     --themecolor-black: white;
-    --themecolor-appbg: #282c34;
     --themecolor-primary: #e6e6e6;
     --themecolor-secondary: rgba(215, 218, 224, 0.7);
     --themecolor-muted: rgba(215, 218, 224, 0.5);
-    --themecolor-panel: #282c34;
+    --themecolor-panel: #0f172a;
 
     --themecolor-accent: #61afef;
     --themecolor-accentbg: #1f6ca6;
-    /* --themecolor-accent: #0095e8; */
-    /* --themecolor-accentbg: #0077b6; */
 
     --themecolor-border: rgba(255, 255, 255, 0.08);
     --themecolor-strongborder: rgba(255, 255, 255, 0.15);
@@ -145,7 +140,7 @@
         --themecolor-buttonhover: rgba(255, 255, 255, 0.08);
     }
 
-    /* ANSI Colors (Dark Palette) */
+    /* ANSI Colors for Log Lines (Dark Palette) */
     --themecolor-ansi-black: #757575;
     --themecolor-ansi-red: #cc685c;
     --themecolor-ansi-green: #76c266;
@@ -169,7 +164,7 @@
 
 html,
 body {
-    background-color: var(--color-appbg);
+    background-color: var(--color-panel);
     margin: 0;
     padding: 0;
     height: 100vh;
