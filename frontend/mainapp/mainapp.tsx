@@ -193,16 +193,9 @@ const Tab = React.memo(function Tab({ name, displayName }: { name: string; displ
         <button
             onClick={handleTabClick}
             data-selected={selectedTab === name || undefined}
-            className="relative px-2 lg:px-4 py-2 text-secondary text-[13px] lg:text-sm data-[selected]:text-primary
+            className="relative px-2 lg:px-4 py-2 text-secondary text-[13px] lg:text-sm 
+				data-[selected]:text-primary data-[selected]:font-medium
                 whitespace-nowrap flex-shrink-0
-                data-[selected]:after:content-[''] data-[selected]:after:absolute
-                data-[selected]:after:left-0 data-[selected]:after:bottom-[-1px]
-                data-[selected]:after:w-full data-[selected]:after:h-[1px]
-                data-[selected]:after:bg-primary
-                hover:after:content-[''] hover:after:absolute
-                hover:after:left-0 hover:after:bottom-[-1px]
-                hover:after:w-full hover:after:h-[1px]
-                hover:after:bg-muted
                 hover:text-primary transition-colors cursor-pointer"
         >
             {name === "runtimestats" ? (
