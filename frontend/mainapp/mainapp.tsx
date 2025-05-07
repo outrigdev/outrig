@@ -195,6 +195,7 @@ const Tab = React.memo(function Tab({ name, displayName }: { name: string; displ
             data-selected={selectedTab === name || undefined}
             className="relative px-2 lg:px-4 py-2 text-secondary text-[13px] lg:text-sm 
 				data-[selected]:text-primary data-[selected]:font-medium
+				border-b border-transparent data-[selected]:border-primary
                 whitespace-nowrap flex-shrink-0
                 hover:text-primary transition-colors cursor-pointer"
         >
