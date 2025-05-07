@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useAtomValue } from "jotai";
-import { CircleDot, Clock, ExternalLink, Eye, List } from "lucide-react";
+import { Box, CircleDot, Clock, ExternalLink, Eye, List } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AppModel } from "../appmodel";
 import { Tag } from "../elements/tag";
@@ -67,7 +67,8 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
         >
             <div className="flex justify-between items-center">
                 <div className="font-medium text-primary flex items-center">
-                    {appRun.appname}
+                    <Box size={14} className="text-accent mr-1" />
+                    <span className="ml-1">{appRun.appname}</span>
                     {appRun.status === "running" && <div className="ml-2 w-2 h-2 rounded-full bg-green-500"></div>}
                     <a
                         href={appRunUrl}
