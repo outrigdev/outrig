@@ -41,7 +41,7 @@ export const HomePage: React.FC = () => {
                         <div className="bg-panel border border-border rounded-lg p-6 mb-6">
                             <div className="flex items-start">
                                 <div className="text-accent mr-4">
-                                    <Github size={24} className="cursor-pointer" />
+                                    <Github size={24} />
                                 </div>
                                 <div>
                                     <h3 className="text-primary text-lg font-medium mb-2">Support us on GitHub</h3>
@@ -53,7 +53,7 @@ export const HomePage: React.FC = () => {
                                         href="https://github.com/outrigdev/outrig"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-accent hover:text-accent-hover text-sm flex items-center cursor-pointer"
+                                        className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer"
                                     >
                                         github.com/outrigdev/outrig
                                         <ExternalLink size={14} className="ml-1" />
@@ -66,7 +66,7 @@ export const HomePage: React.FC = () => {
                         <div className="bg-panel border border-border rounded-lg p-6">
                             <div className="flex items-start">
                                 <div className="text-accent mr-4">
-                                    <ExternalLink size={24} className="cursor-pointer" />
+                                    <ExternalLink size={24} />
                                 </div>
                                 <div>
                                     <h3 className="text-primary text-lg font-medium mb-2">Documentation</h3>
@@ -77,7 +77,7 @@ export const HomePage: React.FC = () => {
                                         href="https://outrig.run/docs/"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-accent hover:text-accent-hover text-sm flex items-center cursor-pointer"
+                                        className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer"
                                     >
                                         outrig.run/docs/
                                         <ExternalLink size={14} className="ml-1" />
