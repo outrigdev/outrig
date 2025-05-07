@@ -68,6 +68,11 @@ tasks:
         cmds:
             - go run server/cmd/testsmall/main-testsmall.go
 
+    test:noop:
+        desc: build main-testsmall.go with +no_outrig
+        cmds:
+            - go run -tags no_outrig server/cmd/testsmall/main-testsmall.go
+
     release:check:
         desc: Check if the GoReleaser configuration is valid
         cmds:
