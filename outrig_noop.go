@@ -61,17 +61,16 @@ func Enabled() bool {
 func DefaultConfig() *ds.Config {
 	return &ds.Config{
 		// Empty but valid config to avoid nil pointer exceptions
-		LogProcessorConfig: &ds.LogProcessorConfig{
+		LogProcessorConfig: ds.LogProcessorConfig{
 			WrapStdout: false,
 			WrapStderr: false,
 		},
 	}
 }
-}
 
 // Init is a no-op when no_outrig is set
-func Init(cfgParam *ds.Config) error {
-	return nil
+func Init(appName string, cfgParam *ds.Config) (bool, error) {
+	return false, nil
 }
 
 // Shutdown is a no-op when no_outrig is set
