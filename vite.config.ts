@@ -16,7 +16,18 @@ export default defineConfig({
     },
     server: {
         watch: {
-            ignored: ["**/*.go", "go.mod", "go.sum", "**/*.md"],
+            ignored: [
+                "**/*.go",
+                "go.mod",
+                "go.sum",
+                "**/*.md",
+                "**/*.yml",
+                "pkg/**",
+                "server/**",
+                ".vscode/**",
+                ".github/**",
+                "bin/**",
+            ],
         },
         proxy: {
             "/api": "http://localhost:6005",

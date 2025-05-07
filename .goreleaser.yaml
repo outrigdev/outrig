@@ -81,14 +81,24 @@ brews:
           bin.install "outrig"
       test: |
           system "#{bin}/outrig", "version"
+      service: |
+          sockets "tcp://127.0.0.1:5005"
+          run [opt_bin/"outrig", "server"]
+          keep_alive false
+          log_path var/"log/outrig.log"
+          error_log_path var/"log/outrig.log"
+          working_dir var
       caveats: |
           Outrig has been installed successfully!
 
           Quick start and docs:
-            https://outrig.run/docs/quickstart
+          https://outrig.run/docs/quickstart
 
-          To start the Outrig server:
+          To start the Outrig server manually (foreground):
             outrig server
+
+          To load and start Outrig as a background service (recommended):
+            brew services start outrig
 
           ---
           Outrig is open source and free for individual users.
