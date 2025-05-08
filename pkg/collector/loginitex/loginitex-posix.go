@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -21,15 +22,22 @@ import (
 
 var (
 	origStdoutFD, origStderrFD int
-	stdoutPipeW, stderrPipeW   *os.File
 	origStdout, origStderr     *os.File // Store original file structures
 	externalCaptureLock        sync.Mutex
 	externalCaptureActive      bool
-	externalCaptureContext     context.Context
-	externalCaptureCancel      context.CancelFunc
-	externalCaptureExitChan    chan struct{} // Reference to the exit channel
-	wrapStdout, wrapStderr     bool          // Track which streams are being wrapped
+	wrapStdout, wrapStderr     bool // Track which streams are being wrapped
+
+	activeExtProc *extCaptureProc // Store the external process reference
 )
+
+type extCaptureProc struct {
+	stdoutPipeW, stderrPipeW *os.File
+	externalCaptureContext   context.Context
+	externalCaptureCancel    context.CancelFunc
+	externalCaptureExitChan  chan struct{} // Reference to the exit channel
+	cmd                      *exec.Cmd     // Reference to the command
+	closing                  atomic.Bool   // Flag to indicate that disableExternalLogWrapImpl is running
+}
 
 func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, isDev bool) error {
 	externalCaptureLock.Lock()
@@ -76,8 +84,15 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 	origStdout = os.NewFile(uintptr(origStdoutFD), "stdout")
 	origStderr = os.NewFile(uintptr(origStderrFD), "stderr")
 
+	// Initialize a local extCaptureProc struct
+	localProc := &extCaptureProc{
+		externalCaptureExitChan: make(chan struct{}),
+	}
+	localProc.externalCaptureContext, localProc.externalCaptureCancel = context.WithCancel(context.Background())
+
+	// Create pipes for stdout and stderr
 	var stdoutPipeR *os.File
-	stdoutPipeR, stdoutPipeW, err = os.Pipe()
+	stdoutPipeR, localProc.stdoutPipeW, err = os.Pipe()
 	if err != nil {
 		syscall.Close(origStdoutFD)
 		syscall.Close(origStderrFD)
@@ -85,21 +100,18 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 	}
 
 	var stderrPipeR *os.File
-	stderrPipeR, stderrPipeW, err = os.Pipe()
+	stderrPipeR, localProc.stderrPipeW, err = os.Pipe()
 	if err != nil {
 		syscall.Close(origStdoutFD)
 		syscall.Close(origStderrFD)
 		stdoutPipeR.Close()
-		stdoutPipeW.Close()
+		localProc.stdoutPipeW.Close()
 		return fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 
-	// Create context with cancellation for the external process and store in local variable
-	ctx, cancelFn := context.WithCancel(context.Background())
-	externalCaptureContext, externalCaptureCancel = ctx, cancelFn
-
 	// Launch the external process BEFORE redirecting stdout/stderr
-	cmd := exec.CommandContext(externalCaptureContext, outrigPath)
+	cmd := exec.CommandContext(localProc.externalCaptureContext, outrigPath)
+	localProc.cmd = cmd // Store command in the struct
 
 	// Set the AppRunId environment variable
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", base.AppRunIdEnvName, appRunId))
@@ -123,8 +135,8 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 
 	err = cmd.Start()
 	if err != nil {
-		cleanupPipesAndFDs()
-		externalCaptureCancel()
+		cleanupPipesAndFDs(localProc)
+		localProc.externalCaptureCancel()
 		return fmt.Errorf("failed to start external log capture process: %w", err)
 	}
 
@@ -134,18 +146,18 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 
 	// Now that the process is started, redirect stdout and stderr to pipe write ends if enabled
 	if wrapStdout {
-		err = dup2Wrap(int(stdoutPipeW.Fd()), int(os.Stdout.Fd()))
+		err = dup2Wrap(int(localProc.stdoutPipeW.Fd()), int(os.Stdout.Fd()))
 		if err != nil {
 			// Kill the process we just started
 			cmd.Process.Kill()
-			cleanupPipesAndFDs()
-			externalCaptureCancel()
+			cleanupPipesAndFDs(localProc)
+			localProc.externalCaptureCancel()
 			return fmt.Errorf("failed to redirect stdout: %w", err)
 		}
 	}
 
 	if wrapStderr {
-		err = dup2Wrap(int(stderrPipeW.Fd()), int(os.Stderr.Fd()))
+		err = dup2Wrap(int(localProc.stderrPipeW.Fd()), int(os.Stderr.Fd()))
 		if err != nil {
 			// Restore stdout before returning if it was wrapped
 			if wrapStdout {
@@ -153,22 +165,20 @@ func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, is
 			}
 			// Kill the process we just started
 			cmd.Process.Kill()
-			cleanupPipesAndFDs()
-			externalCaptureCancel()
+			cleanupPipesAndFDs(localProc)
+			localProc.externalCaptureCancel()
 			return fmt.Errorf("failed to redirect stderr: %w", err)
 		}
 	}
 
+	// Set the global variables
 	externalCaptureActive = true
+	activeExtProc = localProc
 
-	// Create channel for process exit notification
-	exitChan := make(chan struct{})
-	externalCaptureExitChan = exitChan
-
-	// Start monitoring goroutine and pass all necessary parameters to avoid race conditions
+	// Start monitoring goroutine and pass the local struct to avoid race conditions
 	go func() {
 		ioutrig.I.SetGoRoutineName("#outrig ExternalLogCapture:monitor")
-		monitorExternalProcess(cmd, ctx, exitChan)
+		monitorExternalProcess(localProc)
 	}()
 
 	return nil
@@ -178,66 +188,74 @@ func disableExternalLogWrapImpl() {
 	externalCaptureLock.Lock()
 	defer externalCaptureLock.Unlock()
 
-	if !externalCaptureActive {
+	if !externalCaptureActive || activeExtProc == nil {
 		return
 	}
+
+	// Set the closing flag to prevent redundant calls from the monitor goroutine
+	activeExtProc.closing.Store(true)
 
 	// First, restore original file descriptors (atomic)
 	restoreOriginalFDs()
 
-	// no wait is necessar because Dup2 is atomic
+	// Give the process a moment to settle (even though Dup2 should be atomic)
+	time.Sleep(10 * time.Millisecond)
 
 	// Close write ends of pipes to signal EOF to the process
 	// This should cause it to exit gracefully
-	stdoutPipeW.Close()
-	stdoutPipeW = nil
-	stderrPipeW.Close()
-	stderrPipeW = nil
+	if activeExtProc.stdoutPipeW != nil {
+		activeExtProc.stdoutPipeW.Close()
+		activeExtProc.stdoutPipeW = nil
+	}
+	if activeExtProc.stderrPipeW != nil {
+		activeExtProc.stderrPipeW.Close()
+		activeExtProc.stderrPipeW = nil
+	}
 
 	// Try to wait for the process to exit naturally after receiving EOF
 	select {
-	case <-externalCaptureExitChan:
+	case <-activeExtProc.externalCaptureExitChan:
 		// Process has already exited
 	case <-time.After(100 * time.Millisecond):
 		// Process didn't exit after receiving EOF, use context cancellation as fallback
-		externalCaptureCancel()
+		activeExtProc.externalCaptureCancel()
 	}
 
-	// Reset the exit channel reference
-	externalCaptureExitChan = nil
-
 	// Clean up remaining resources
-	cleanupPipesAndFDs()
+	cleanupPipesAndFDs(activeExtProc)
 
 	externalCaptureActive = false
-	externalCaptureCancel = nil
+	activeExtProc = nil
 }
 
 // monitorExternalProcess monitors the external process and calls DisableExternalLogWrap if it exits unexpectedly
-// we pass these variables as parameters as this is not synchronized with the lock
-func monitorExternalProcess(cmd *exec.Cmd, ctx context.Context, exitChan chan struct{}) {
-	if cmd == nil {
+// we pass the proc struct as a parameter as this is not synchronized with the lock
+func monitorExternalProcess(proc *extCaptureProc) {
+	if proc == nil || proc.cmd == nil {
 		return
 	}
 
 	// Wait for the process to exit - this should be the ONLY place that calls Wait()
-	err := cmd.Wait()
+	err := proc.cmd.Wait()
 
 	// Signal that the process has exited
-	close(exitChan)
+	close(proc.externalCaptureExitChan)
 
 	// Check if this was an expected termination (context cancelled)
 	select {
-	case <-ctx.Done():
+	case <-proc.externalCaptureContext.Done():
 		// This was an expected termination, no need to do anything
 		return
 	default:
-		// This was an unexpected termination
-		fmt.Fprintf(os.NewFile(uintptr(origStderrFD), "stderr"),
-			"[outrig] External log capture process exited unexpectedly: %v\n", err)
+		// Check if disableExternalLogWrapImpl is already running
+		if !proc.closing.Load() {
+			// This was a truly unexpected termination
+			fmt.Fprintf(os.NewFile(uintptr(origStderrFD), "stderr"),
+				"[outrig] External log capture process exited unexpectedly: %v\n", err)
 
-		// Call DisableExternalLogWrap to restore original file descriptors
-		DisableExternalLogWrap()
+			// Call DisableExternalLogWrap to restore original file descriptors
+			DisableExternalLogWrap()
+		}
 	}
 }
 
@@ -253,6 +271,7 @@ func restoreOriginalFDs() {
 	if wrapStderr && origStderrFD != 0 {
 		dup2Wrap(origStderrFD, int(os.Stderr.Fd()))
 	}
+
 }
 
 // isExternalLogWrapActiveImpl returns whether external log wrapping is currently active
@@ -264,15 +283,17 @@ func isExternalLogWrapActiveImpl() bool {
 
 // cleanupPipesAndFDs closes all pipes and duplicated file descriptors
 // must be called while holding the lock
-func cleanupPipesAndFDs() {
+func cleanupPipesAndFDs(proc *extCaptureProc) {
 	// Close pipes
-	if stdoutPipeW != nil {
-		stdoutPipeW.Close()
-		stdoutPipeW = nil
-	}
-	if stderrPipeW != nil {
-		stderrPipeW.Close()
-		stderrPipeW = nil
+	if proc != nil {
+		if proc.stdoutPipeW != nil {
+			proc.stdoutPipeW.Close()
+			proc.stdoutPipeW = nil
+		}
+		if proc.stderrPipeW != nil {
+			proc.stderrPipeW.Close()
+			proc.stderrPipeW = nil
+		}
 	}
 
 	// Close duplicated file descriptors

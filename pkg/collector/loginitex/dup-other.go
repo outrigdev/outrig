@@ -5,9 +5,16 @@
 
 package loginitex
 
-import "syscall"
+import (
+	"syscall"
+)
 
 // dup2Wrap on non-Linux systems uses dup2
 func dup2Wrap(oldfd, newfd int) error {
-	return syscall.Dup2(oldfd, newfd)
+	err := syscall.Dup2(oldfd, newfd)
+	if err != nil {
+		return err
+	}
+	syscall.CloseOnExec(newfd)
+	return nil
 }
