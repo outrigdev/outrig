@@ -51,7 +51,10 @@ type CLIConfig struct {
 func RunServer(config CLIConfig) error {
 	if serverbase.IsDev() {
 		outrigConfig := outrig.DefaultConfig()
-		outrigConfig.LogProcessorConfig.OutrigPath = "bin/outrig"
+		if stat, err := os.Stat("bin/outrig"); err == nil && !stat.IsDir() {
+			outrigConfig.LogProcessorConfig.OutrigPath = "bin/outrig"
+			log.Printf("Using override external OutrigPath: %s\n", outrigConfig.LogProcessorConfig.OutrigPath)
+		}
 		outrig.Init("outrig-server", outrigConfig)
 	}
 
