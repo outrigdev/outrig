@@ -8,14 +8,15 @@ import { UpdateBadge } from "@/elements/updatebadge";
 import { StatusBar } from "@/mainapp/statusbar";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
-import { ExternalLink, Github } from "lucide-react";
+import { BookText, ExternalLink, Github } from "lucide-react";
 
 const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }) => {
     return (
         <div
             className={cn(
-                "w-full md:w-1/2 border-t md:border-t-0 border-border",
-                "flex flex-col h-full overflow-hidden"
+                "border-t md:border-t-0 border-border",
+                "flex flex-col h-full overflow-hidden",
+                hasAppRuns ? "md:w-[500px]" : "md:flex-grow"
             )}
         >
             <div className="p-6 bg-panel border-b border-border">
@@ -23,14 +24,14 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
                     <>
                         <h2 className="text-primary text-xl font-medium">Select a Run</h2>
                         <p className="text-secondary text-sm mt-1">
-                            Choose an active or completed session to start debugging.
+                            Choose run from the list to explore details and insights.
                         </p>
                     </>
                 ) : (
                     <>
                         <h2 className="text-primary text-xl font-medium">Waiting for Connection...</h2>
                         <p className="text-secondary text-sm mt-3">
-                            Once connected, your server or application run will appear here automatically.
+                            Your connected server or application runs will appear here automatically.
                         </p>
                     </>
                 )}
@@ -44,59 +45,62 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
 
 const WelcomeColumn: React.FC = () => {
     return (
-        <div className="w-full md:w-1/2 flex flex-col md:border-l border-border">
+        <div className="md:flex-grow flex flex-col md:border-l border-border">
             <div className="grow"></div>
-            <div className="max-w-md mx-auto p-8">
+            <div className="max-w-xl mx-auto p-8 flex flex-col items-center">
+                {/* Logo */}
+                <div className="mb-6">
+                    <img src="/outriglogo.svg" alt="Outrig Logo" className="w-16 h-16" />
+                </div>
+
                 <div className="text-center mb-8">
                     <h1 className="text-primary text-3xl font-medium mb-4">Welcome to Outrig!</h1>
+                    <p className="text-secondary text-sm">
+                        Outrig gives you visibility into your running Go servers and applications, helping you quickly
+                        identify issues and optimize performance.
+                    </p>
                 </div>
 
-                {/* GitHub section */}
-                <div className="bg-panel border border-border rounded-lg p-6 mb-6">
-                    <div className="flex items-start">
-                        <div className="text-accent mr-4">
-                            <Github size={24} />
+                {/* Cards container - stacked layout */}
+                <div className="w-full flex flex-col gap-6">
+                    {/* GitHub section */}
+                    <div className="bg-panel border border-border rounded-lg p-5 w-full">
+                        <div className="flex items-center mb-2">
+                            <div className="text-accent mr-2">
+                                <Github size={20} />
+                            </div>
+                            <h3 className="text-primary font-medium">GitHub</h3>
                         </div>
-                        <div>
-                            <h3 className="text-primary text-lg font-medium mb-2">Support us on GitHub</h3>
-                            <p className="text-secondary text-sm mb-3">
-                                Outrig is open-source, runs 100% locally, and no application data ever leaves
-                                your machine. Please show your support by giving us a star!
-                            </p>
-                            <a
-                                href="https://github.com/outrigdev/outrig"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer"
-                            >
-                                github.com/outrigdev/outrig
-                                <ExternalLink size={14} className="ml-1" />
-                            </a>
-                        </div>
+                        <p className="text-secondary text-sm mb-2">Like Outrig? Give us a star on GitHub!</p>
+                        <a
+                            href="https://github.com/outrigdev/outrig"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer truncate"
+                        >
+                            github.com/outrigdev/outrig
+                            <ExternalLink size={14} className="ml-1 flex-shrink-0" />
+                        </a>
                     </div>
-                </div>
 
-                {/* Documentation section */}
-                <div className="bg-panel border border-border rounded-lg p-6">
-                    <div className="flex items-start">
-                        <div className="text-accent mr-4">
-                            <ExternalLink size={24} />
+                    {/* Documentation section */}
+                    <div className="bg-panel border border-border rounded-lg p-5 w-full">
+                        <div className="flex items-center mb-2">
+                            <div className="text-accent mr-2">
+                                <BookText size={20} />
+                            </div>
+                            <h3 className="text-primary font-medium">Documentation</h3>
                         </div>
-                        <div>
-                            <h3 className="text-primary text-lg font-medium mb-2">Documentation</h3>
-                            <p className="text-secondary text-sm mb-3">
-                                Check out our documentation to learn how to get the most out of Outrig.
-                            </p>
-                            <a
-                                href="https://outrig.run/docs/"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer"
-                            >
-                                outrig.run/docs/
-                                <ExternalLink size={14} className="ml-1" />
-                            </a>
-                        </div>
+                        <p className="text-secondary text-sm mb-2">Learn how to get the most out of Outrig</p>
+                        <a
+                            href="https://outrig.run/docs/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer truncate"
+                        >
+                            outrig.run/docs/
+                            <ExternalLink size={14} className="ml-1 flex-shrink-0" />
+                        </a>
                     </div>
                 </div>
             </div>
@@ -123,7 +127,7 @@ export const HomePage: React.FC = () => {
             </header>
 
             {/* Main content */}
-            <main className="flex-grow flex flex-col md:flex-row overflow-hidden">
+            <main className="flex-grow flex flex-col md:flex-row overflow-hidden w-full">
                 <AppRunSelectionColumn hasAppRuns={hasAppRuns} />
                 <WelcomeColumn />
             </main>
