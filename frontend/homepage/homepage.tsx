@@ -46,11 +46,15 @@ const GettingStartedWithOutrig: React.FC = () => {
         <div className="flex flex-col items-center h-full p-6 text-center">
             <div className="grow" />
             <div className="flex flex-col items-center">
-                <h3 className="text-primary text-lg font-medium mb-4">Getting Started with Outrig</h3>
+                <h3 className="text-primary text-lg font-medium mb-4">Getting Started</h3>
                 <p className="text-secondary mb-6">To connect your Go server or application, follow these steps:</p>
-                <pre className="whitespace-pre bg-panel border border-border rounded-lg p-4 text-left text-sm text-primary overflow-auto w-full max-w-xl">
-                    <code>{codeWithColorizedComments}</code>
-                </pre>
+                <div className="bg-black/4 py-5 w-full max-w-xl border-l-2 border-accentbg">
+                    <div className="px-5">
+                        <pre className="whitespace-pre text-left text-sm text-primary overflow-auto w-full">
+                            <code>{codeWithColorizedComments}</code>
+                        </pre>
+                    </div>
+                </div>
                 <p className="text-secondary mt-6">Once you run your application, it will appear here automatically.</p>
             </div>
             <div className="grow-2" />
