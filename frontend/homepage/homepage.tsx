@@ -19,7 +19,7 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
                 hasAppRuns ? "md:w-[500px]" : "md:flex-grow"
             )}
         >
-            <div className="p-6 bg-panel border-b border-border">
+            <div className="p-4 bg-panel border-b border-border">
                 {hasAppRuns ? (
                     <>
                         <h2 className="text-primary text-xl font-medium">Select a Run</h2>
@@ -109,31 +109,47 @@ const WelcomeColumn: React.FC = () => {
     );
 };
 
+const LeftColumn: React.FC = () => {
+    return (
+        <div className="hidden md:block w-[50px] h-full bg-gradient-to-b from-accent/20 to-accent/5">
+            {/* This column is intentionally left empty for visual design purposes */}
+        </div>
+    );
+};
+
 export const HomePage: React.FC = () => {
     const appRunCount = useAtomValue(AppModel.appRunModel.appRunCount);
     const hasAppRuns = appRunCount > 0;
     const isDarkMode = useAtomValue(AppModel.darkMode);
     return (
-        <>
-            {/* Header */}
-            <header className="bg-panel border-b border-border p-4 flex items-center justify-between">
-                <div className="flex items-center">
-                    <img src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"} alt="Outrig Logo" className="h-8" />
-                </div>
-                <div className="flex items-end self-end">
-                    <SettingsButton onClick={() => AppModel.openSettingsModal()} />
-                    <UpdateBadge onClick={() => AppModel.openUpdateModal()} />
-                </div>
-            </header>
+        <div className="flex h-screen w-full">
+            {/* Left accent column - only shown when there are app runs */}
+            {hasAppRuns && (
+                <div className="hidden md:block w-[50px] h-full bg-gradient-to-b from-accent/20 to-accent/5" />
+            )}
+            
+            {/* Main content container */}
+            <div className="flex flex-col flex-grow h-full overflow-hidden">
+                {/* Header */}
+                <header className="bg-panel border-b border-border p-4 flex items-center justify-between">
+                    <div className="flex items-center">
+                        <img src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"} alt="Outrig Logo" className="h-8" />
+                    </div>
+                    <div className="flex items-end self-end">
+                        <SettingsButton onClick={() => AppModel.openSettingsModal()} />
+                        <UpdateBadge onClick={() => AppModel.openUpdateModal()} />
+                    </div>
+                </header>
 
-            {/* Main content */}
-            <main className="flex-grow flex flex-col md:flex-row overflow-hidden w-full">
-                <AppRunSelectionColumn hasAppRuns={hasAppRuns} />
-                <WelcomeColumn />
-            </main>
+                {/* Main content */}
+                <main className="flex-grow flex flex-col md:flex-row overflow-hidden w-full">
+                    <AppRunSelectionColumn hasAppRuns={hasAppRuns} />
+                    <WelcomeColumn />
+                </main>
 
-            {/* Status Bar */}
-            <StatusBar />
-        </>
+                {/* Status Bar */}
+                <StatusBar />
+            </div>
+        </div>
     );
 };

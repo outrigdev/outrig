@@ -151,26 +151,26 @@ const NoAppRunsFound: React.FC = () => {
     // Split the code into parts to apply different styling to comments
     const codeWithColorizedComments = (
         <>
-            <span className="text-ansi-green">// Step 1: Import the package</span>
+            <span className="text-accent">// Step 1: Import the package</span>
             <br />
             import "github.com/outrigdev/outrig"
             <br />
             <br />
             func main() {'{'}
             <br />
-            {'    '}<span className="text-ansi-green">// Step 2: Initialize Outrig (set your application name)</span>
+            {'    '}<span className="text-accent">// Step 2: Initialize Outrig (set your application name)</span>
             <br />
             {'    '}outrig.Init("app-name", nil)
             <br />
             {'    '}
             <br />
-            {'    '}<span className="text-ansi-green">// Step 3: Optionally signal graceful shutdown</span>
+            {'    '}<span className="text-accent">// Step 3: Optionally signal graceful shutdown</span>
             <br />
             {'    '}defer outrig.AppDone()
             <br />
             {'    '}
             <br />
-            {'    '}<span className="text-ansi-green">// Your application code here...</span>
+            {'    '}<span className="text-accent">// Your application code here...</span>
             <br />
             {'}'}
         </>
@@ -220,16 +220,20 @@ export const AppRunList: React.FC = () => {
                 {appRuns.length === 0 ? (
                     <NoAppRunsFound />
                 ) : (
-                    <div className="divide-y divide-border">
-                        {appRuns.map((appRun) => (
-                            <AppRunItem
-                                key={appRun.apprunid}
-                                appRun={appRun}
-                                onClick={handleAppRunClick}
-                                isSelected={appRun.apprunid === selectedAppRunId}
-                            />
-                        ))}
-                    </div>
+                    <>
+                        <div className="divide-y divide-border">
+                            {appRuns.map((appRun) => (
+                                <AppRunItem
+                                    key={appRun.apprunid}
+                                    appRun={appRun}
+                                    onClick={handleAppRunClick}
+                                    isSelected={appRun.apprunid === selectedAppRunId}
+                                />
+                            ))}
+                        </div>
+                        {/* Final divider at the bottom of the list */}
+                        <div className="border-t border-border"></div>
+                    </>
                 )}
             </div>
         </div>
