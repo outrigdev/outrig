@@ -148,6 +148,34 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
 };
 
 const NoAppRunsFound: React.FC = () => {
+    // Split the code into parts to apply different styling to comments
+    const codeWithColorizedComments = (
+        <>
+            <span className="text-ansi-green">// Step 1: Import the package</span>
+            <br />
+            import "github.com/outrigdev/outrig"
+            <br />
+            <br />
+            func main() {'{'}
+            <br />
+            {'    '}<span className="text-ansi-green">// Step 2: Initialize Outrig (set your application name)</span>
+            <br />
+            {'    '}outrig.Init("app-name", nil)
+            <br />
+            {'    '}
+            <br />
+            {'    '}<span className="text-ansi-green">// Step 3: Optionally signal graceful shutdown</span>
+            <br />
+            {'    '}defer outrig.AppDone()
+            <br />
+            {'    '}
+            <br />
+            {'    '}<span className="text-ansi-green">// Your application code here...</span>
+            <br />
+            {'}'}
+        </>
+    );
+
     return (
         <div className="flex flex-col items-center h-full p-6 text-center">
             <div className="grow" />
@@ -156,18 +184,7 @@ const NoAppRunsFound: React.FC = () => {
                 <p className="text-secondary mb-6">To connect your Go server or application, follow these steps:</p>
                 <pre className="whitespace-pre bg-panel border border-border rounded-lg p-4 text-left text-sm text-primary overflow-auto w-full max-w-xl">
                     <code>
-                        {`// Step 1: Import the package
-import "github.com/outrigdev/outrig"
-
-func main() {
-    // Step 2: Initialize Outrig (set your application name)
-    outrig.Init("app-name", nil)
-    
-    // Step 3: Optionally signal graceful shutdown
-    defer outrig.AppDone()
-    
-    // Your application code here...
-}`}
+                        {codeWithColorizedComments}
                     </code>
                 </pre>
                 <p className="text-secondary mt-6">Once you run your application, it will appear here automatically.</p>
