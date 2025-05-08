@@ -147,54 +147,11 @@ const AppRunItem: React.FC<AppRunItemProps> = ({ appRun, onClick, isSelected }) 
     );
 };
 
-const NoAppRunsFound: React.FC = () => {
-    // Split the code into parts to apply different styling to comments
-    const codeWithColorizedComments = (
-        <>
-            <span className="text-accent">// Step 1: Import the package</span>
-            <br />
-            import "github.com/outrigdev/outrig"
-            <br />
-            <br />
-            func main() {'{'}
-            <br />
-            {'    '}<span className="text-accent">// Step 2: Initialize Outrig (set your application name)</span>
-            <br />
-            {'    '}outrig.Init("app-name", nil)
-            <br />
-            {'    '}
-            <br />
-            {'    '}<span className="text-accent">// Step 3: Optionally signal graceful shutdown</span>
-            <br />
-            {'    '}defer outrig.AppDone()
-            <br />
-            {'    '}
-            <br />
-            {'    '}<span className="text-accent">// Your application code here...</span>
-            <br />
-            {'}'}
-        </>
-    );
+interface AppRunListProps {
+    emptyStateComponent: React.ReactNode;
+}
 
-    return (
-        <div className="flex flex-col items-center h-full p-6 text-center">
-            <div className="grow" />
-            <div className="flex flex-col items-center">
-                <h3 className="text-primary text-lg font-medium mb-4">Getting Started with Outrig</h3>
-                <p className="text-secondary mb-6">To connect your Go server or application, follow these steps:</p>
-                <pre className="whitespace-pre bg-panel border border-border rounded-lg p-4 text-left text-sm text-primary overflow-auto w-full max-w-xl">
-                    <code>
-                        {codeWithColorizedComments}
-                    </code>
-                </pre>
-                <p className="text-secondary mt-6">Once you run your application, it will appear here automatically.</p>
-            </div>
-            <div className="grow-2" />
-        </div>
-    );
-};
-
-export const AppRunList: React.FC = () => {
+export const AppRunList: React.FC<AppRunListProps> = ({ emptyStateComponent }) => {
     const unsortedAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
@@ -218,7 +175,7 @@ export const AppRunList: React.FC = () => {
         <div className="w-full h-full flex flex-col">
             <div className="flex-1 overflow-auto">
                 {appRuns.length === 0 ? (
-                    <NoAppRunsFound />
+                    emptyStateComponent
                 ) : (
                     <>
                         <div className="divide-y divide-border">

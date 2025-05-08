@@ -10,6 +10,54 @@ import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import { BookText, ExternalLink, Github } from "lucide-react";
 
+const GettingStartedWithOutrig: React.FC = () => {
+    // Split the code into parts to apply different styling to comments
+    const codeWithColorizedComments = (
+        <>
+            <span className="text-accent">// Step 1: Import the package</span>
+            <br />
+            import "github.com/outrigdev/outrig"
+            <br />
+            <br />
+            func main() {"{"}
+            <br />
+            {"    "}
+            <span className="text-accent">// Step 2: Initialize Outrig (set your application name)</span>
+            <br />
+            {"    "}outrig.Init("app-name", nil)
+            <br />
+            {"    "}
+            <br />
+            {"    "}
+            <span className="text-accent">// Step 3: Optionally signal graceful shutdown</span>
+            <br />
+            {"    "}defer outrig.AppDone()
+            <br />
+            {"    "}
+            <br />
+            {"    "}
+            <span className="text-accent">// Your application code here...</span>
+            <br />
+            {"}"}
+        </>
+    );
+
+    return (
+        <div className="flex flex-col items-center h-full p-6 text-center">
+            <div className="grow" />
+            <div className="flex flex-col items-center">
+                <h3 className="text-primary text-lg font-medium mb-4">Getting Started with Outrig</h3>
+                <p className="text-secondary mb-6">To connect your Go server or application, follow these steps:</p>
+                <pre className="whitespace-pre bg-panel border border-border rounded-lg p-4 text-left text-sm text-primary overflow-auto w-full max-w-xl">
+                    <code>{codeWithColorizedComments}</code>
+                </pre>
+                <p className="text-secondary mt-6">Once you run your application, it will appear here automatically.</p>
+            </div>
+            <div className="grow-2" />
+        </div>
+    );
+};
+
 const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }) => {
     return (
         <div
@@ -19,7 +67,7 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
                 hasAppRuns ? "md:w-[500px]" : "md:flex-grow"
             )}
         >
-            <div className="p-4 bg-panel border-b border-border">
+            <div className={cn("p-4 bg-panel border-b border-border", !hasAppRuns ? "pl-6" : null)}>
                 {hasAppRuns ? (
                     <>
                         <h2 className="text-primary text-xl font-medium">Select a Run</h2>
@@ -37,7 +85,7 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
                 )}
             </div>
             <div className="flex-grow overflow-auto">
-                <AppRunList />
+                <AppRunList emptyStateComponent={<GettingStartedWithOutrig />} />
             </div>
         </div>
     );
@@ -64,43 +112,47 @@ const WelcomeColumn: React.FC = () => {
                 {/* Cards container - stacked layout */}
                 <div className="w-full flex flex-col gap-6">
                     {/* GitHub section */}
-                    <div className="bg-panel border border-border rounded-lg p-5 w-full">
-                        <div className="flex items-center mb-2">
-                            <div className="text-accent mr-2">
-                                <Github size={20} />
+                    <div className="bg-panel py-5 w-full">
+                        <div className="border-l-2 border-accentbg px-5">
+                            <div className="flex items-center mb-2">
+                                <div className="text-accent mr-2">
+                                    <Github size={20} />
+                                </div>
+                                <h3 className="text-primary font-medium">GitHub</h3>
                             </div>
-                            <h3 className="text-primary font-medium">GitHub</h3>
+                            <p className="text-secondary text-sm mb-2">Like Outrig? Give us a star on GitHub!</p>
+                            <a
+                                href="https://github.com/outrigdev/outrig"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer truncate"
+                            >
+                                github.com/outrigdev/outrig
+                                <ExternalLink size={14} className="ml-1 flex-shrink-0" />
+                            </a>
                         </div>
-                        <p className="text-secondary text-sm mb-2">Like Outrig? Give us a star on GitHub!</p>
-                        <a
-                            href="https://github.com/outrigdev/outrig"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer truncate"
-                        >
-                            github.com/outrigdev/outrig
-                            <ExternalLink size={14} className="ml-1 flex-shrink-0" />
-                        </a>
                     </div>
 
                     {/* Documentation section */}
-                    <div className="bg-panel border border-border rounded-lg p-5 w-full">
-                        <div className="flex items-center mb-2">
-                            <div className="text-accent mr-2">
-                                <BookText size={20} />
+                    <div className="bg-panel py-5 w-full">
+                        <div className="border-l-2 border-accentbg px-5">
+                            <div className="flex items-center mb-2">
+                                <div className="text-accent mr-2">
+                                    <BookText size={20} />
+                                </div>
+                                <h3 className="text-primary font-medium">Documentation</h3>
                             </div>
-                            <h3 className="text-primary font-medium">Documentation</h3>
+                            <p className="text-secondary text-sm mb-2">Learn how to get the most out of Outrig</p>
+                            <a
+                                href="https://outrig.run/docs/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer truncate"
+                            >
+                                outrig.run/docs/
+                                <ExternalLink size={14} className="ml-1 flex-shrink-0" />
+                            </a>
                         </div>
-                        <p className="text-secondary text-sm mb-2">Learn how to get the most out of Outrig</p>
-                        <a
-                            href="https://outrig.run/docs/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer truncate"
-                        >
-                            outrig.run/docs/
-                            <ExternalLink size={14} className="ml-1 flex-shrink-0" />
-                        </a>
                     </div>
                 </div>
             </div>
@@ -127,13 +179,17 @@ export const HomePage: React.FC = () => {
             {hasAppRuns && (
                 <div className="hidden md:block w-[50px] h-full bg-gradient-to-b from-accent/20 to-accent/5" />
             )}
-            
+
             {/* Main content container */}
             <div className="flex flex-col flex-grow h-full overflow-hidden">
                 {/* Header */}
                 <header className="bg-panel border-b border-border p-4 flex items-center justify-between">
                     <div className="flex items-center">
-                        <img src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"} alt="Outrig Logo" className="h-8" />
+                        <img
+                            src={isDarkMode ? "/logo-dark.png" : "/logo-light.png"}
+                            alt="Outrig Logo"
+                            className="h-8"
+                        />
                     </div>
                     <div className="flex items-end self-end">
                         <SettingsButton onClick={() => AppModel.openSettingsModal()} />
