@@ -60,6 +60,10 @@ func (lc *LogCollector) Enable() {
 }
 
 func (lc *LogCollector) Disable() {
+	// TODO - don't disable log wrapping once enabled
+	// It is risky to disable because there can be a race condition which causes SIGPIPE errors
+	//   as we try to swap the file descriptors back and coordinate killing the external process
+
 	// Disable external log wrapping
-	loginitex.DisableExternalLogWrap()
+	// loginitex.DisableExternalLogWrap()
 }
