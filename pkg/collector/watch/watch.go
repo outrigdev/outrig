@@ -298,6 +298,7 @@ func (wc *WatchCollector) collectWatch(decl *WatchDecl) {
 }
 
 // CollectWatches collects watch information and sends it to the controller
+// note we do not hold the lock for the duration of this function
 func (wc *WatchCollector) CollectWatches() {
 	if !global.OutrigEnabled.Load() || wc.controller == nil {
 		return
@@ -312,7 +313,6 @@ func (wc *WatchCollector) CollectWatches() {
 		wc.collectWatch(watchDecl)
 	}
 
-	// For now, we're just stubbing this out
 	watchInfo := &ds.WatchInfo{
 		Ts:      time.Now().UnixMilli(),
 		Watches: wc.getAndClearWatchVals(),
