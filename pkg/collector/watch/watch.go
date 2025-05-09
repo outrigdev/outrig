@@ -12,9 +12,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
-	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -31,11 +31,9 @@ type AtomicStorer[T any] interface {
 // WatchCollector implements the collector.Collector interface for watch collection
 type WatchCollector struct {
 	lock       sync.Mutex
+	executor   *collector.PeriodicExecutor
 	controller ds.Controller
 	config     ds.WatchConfig
-	ticker     *time.Ticker
-	done       chan struct{}
-
 	watchDecls map[string]*WatchDecl
 	watchVals  []ds.WatchSample
 }
@@ -102,6 +100,7 @@ func GetInstance() *WatchCollector {
 		instance = &WatchCollector{
 			watchDecls: make(map[string]*WatchDecl),
 		}
+		instance.executor = collector.MakePeriodicExecutor("WatchCollector", 1*time.Second, instance.CollectWatches)
 	})
 	return instance
 }
@@ -174,53 +173,12 @@ func (wc *WatchCollector) InitCollector(controller ds.Controller, config any, ar
 
 // Enable is called when the collector should start collecting data
 func (wc *WatchCollector) Enable() {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
-	if wc.ticker != nil {
-		return
-	}
-
-	wc.done = make(chan struct{})
-	doneCh := wc.done // Local copy to ensure goroutines use the right channel
-
-	// First immediate collection
-	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig WatchCollector:first")
-		wc.CollectWatches()
-	}()
-
-	wc.ticker = time.NewTicker(1 * time.Second)
-	localTicker := wc.ticker // Local copy of ticker
-
-	// Periodic collection
-	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig WatchCollector")
-		for {
-			select {
-			case <-doneCh:
-				return
-			case <-localTicker.C:
-				wc.CollectWatches()
-			}
-		}
-	}()
+	wc.executor.Enable()
 }
 
 // Disable stops the collector
 func (wc *WatchCollector) Disable() {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
-	if wc.ticker == nil {
-		return
-	}
-
-	// Signal goroutines to exit
-	close(wc.done)
-	wc.done = nil
-
-	// Stop the ticker
-	wc.ticker.Stop()
-	wc.ticker = nil
+	wc.executor.Disable()
 }
 
 func (wc *WatchCollector) GetWatchNames() []string {

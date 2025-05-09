@@ -11,19 +11,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
-	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
 type GoroutineCollector struct {
 	lock           sync.Mutex
+	executor       *collector.PeriodicExecutor
 	controller     ds.Controller
 	config         ds.GoRoutineConfig
-	ticker         *time.Ticker
-	done           chan struct{}
 	goroutineNames map[int64]string // map from goroutine ID to name
 }
 
@@ -42,6 +41,7 @@ func GetInstance() *GoroutineCollector {
 		instance = &GoroutineCollector{
 			goroutineNames: make(map[int64]string),
 		}
+		instance.executor = collector.MakePeriodicExecutor("GoroutineCollector", 1*time.Second, instance.DumpGoroutines)
 	})
 	return instance
 }
@@ -57,52 +57,11 @@ func (gc *GoroutineCollector) InitCollector(controller ds.Controller, config any
 
 // Enable is called when the collector should start collecting data
 func (gc *GoroutineCollector) Enable() {
-	gc.lock.Lock()
-	defer gc.lock.Unlock()
-	if gc.ticker != nil {
-		return
-	}
-
-	gc.done = make(chan struct{})
-	doneCh := gc.done // Local copy to ensure goroutines use the right channel
-
-	// First immediate collection
-	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig GoRoutineCollector:first")
-		gc.DumpGoroutines()
-	}()
-
-	gc.ticker = time.NewTicker(1 * time.Second)
-	localTicker := gc.ticker // Local copy of ticker
-
-	// Periodic collection
-	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig GoRoutineCollector")
-		for {
-			select {
-			case <-doneCh:
-				return
-			case <-localTicker.C:
-				gc.DumpGoroutines()
-			}
-		}
-	}()
+	gc.executor.Enable()
 }
 
 func (gc *GoroutineCollector) Disable() {
-	gc.lock.Lock()
-	defer gc.lock.Unlock()
-	if gc.ticker == nil {
-		return
-	}
-
-	// Signal goroutines to exit
-	close(gc.done)
-	gc.done = nil
-
-	// Stop the ticker
-	gc.ticker.Stop()
-	gc.ticker = nil
+	gc.executor.Disable()
 }
 
 // DumpGoroutines dumps all goroutines and sends the information

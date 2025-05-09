@@ -9,18 +9,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
-	"github.com/outrigdev/outrig/pkg/ioutrig"
 )
 
 // RuntimeStatsCollector implements the collector.Collector interface for runtime stats collection
 type RuntimeStatsCollector struct {
 	lock       sync.Mutex
+	executor   *collector.PeriodicExecutor
 	controller ds.Controller
 	config     ds.RuntimeStatsConfig
-	ticker     *time.Ticker
-	done       chan struct{}
 }
 
 // CollectorName returns the unique name of the collector
@@ -36,6 +35,7 @@ var instanceOnce sync.Once
 func GetInstance() *RuntimeStatsCollector {
 	instanceOnce.Do(func() {
 		instance = &RuntimeStatsCollector{}
+		instance.executor = collector.MakePeriodicExecutor("RuntimeStatsCollector", 1*time.Second, instance.CollectRuntimeStats)
 	})
 	return instance
 }
@@ -51,53 +51,12 @@ func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, config 
 
 // Enable is called when the collector should start collecting data
 func (rc *RuntimeStatsCollector) Enable() {
-	rc.lock.Lock()
-	defer rc.lock.Unlock()
-	if rc.ticker != nil {
-		return
-	}
-
-	rc.done = make(chan struct{})
-	doneCh := rc.done // Local copy to ensure goroutines use the right channel
-
-	// First immediate collection
-	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig RuntimeStatsCollector:first")
-		rc.CollectRuntimeStats()
-	}()
-
-	rc.ticker = time.NewTicker(1 * time.Second)
-	localTicker := rc.ticker // Local copy of ticker
-
-	// Periodic collection
-	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig RuntimeStatsCollector")
-		for {
-			select {
-			case <-doneCh:
-				return
-			case <-localTicker.C:
-				rc.CollectRuntimeStats()
-			}
-		}
-	}()
+	rc.executor.Enable()
 }
 
 // Disable stops the collector
 func (rc *RuntimeStatsCollector) Disable() {
-	rc.lock.Lock()
-	defer rc.lock.Unlock()
-	if rc.ticker == nil {
-		return
-	}
-
-	// Signal goroutines to exit
-	close(rc.done)
-	rc.done = nil
-
-	// Stop the ticker
-	rc.ticker.Stop()
-	rc.ticker = nil
+	rc.executor.Disable()
 }
 
 // CollectRuntimeStats collects runtime statistics and sends them to the controller

@@ -50,7 +50,8 @@ func (p *PeriodicExecutor) Enable() {
 	}
 	doneCh := make(chan struct{})
 	p.done = doneCh
-	p.ticker = time.NewTicker(p.duration)
+	ticker := time.NewTicker(p.duration)
+	p.ticker = ticker
 	go func() {
 		ioutrig.I.SetGoRoutineName(p.name + " #outrig")
 		p.runFunc()
@@ -58,7 +59,7 @@ func (p *PeriodicExecutor) Enable() {
 			select {
 			case <-doneCh:
 				return
-			case <-p.ticker.C:
+			case <-ticker.C:
 				p.runFunc()
 			}
 		}
