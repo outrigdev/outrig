@@ -4,7 +4,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,7 +13,6 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,17 +36,14 @@ const ConnPollTime = 1 * time.Second
 const MaxInternalLog = 100
 
 type ControllerImpl struct {
-	Lock                 sync.Mutex // lock for this struct
-	config               *ds.Config
-	pollerOnce           sync.Once                      // ensures poller is started only once
-	AppInfo              ds.AppInfo                     // combined application information
-	TransportPacketsSent int64                          // count of packets sent
-	OutrigForceDisabled  bool                           // whether outrig is force disabled
-	Collectors           map[string]collector.Collector // map of collectors by name
-	InternalLogBuf       *utilds.CirBuf[string]         // internal log for debugging
-
-	connLock sync.Mutex
-	conn     *comm.ConnWrap // connection to server
+	Lock                sync.Mutex // lock for this struct
+	config              *ds.Config
+	pollerOnce          sync.Once                      // ensures poller is started only once
+	AppInfo             ds.AppInfo                     // combined application information
+	OutrigForceDisabled bool                           // whether outrig is force disabled
+	Collectors          map[string]collector.Collector // map of collectors by name
+	InternalLogBuf      *utilds.CirBuf[string]         // internal log for debugging
+	transport           *Transport                     // handles connection management and packet sending
 }
 
 // this is idempotent
@@ -60,6 +55,9 @@ func MakeController(appName string, config ds.Config) (*ControllerImpl, error) {
 		Collectors:     make(map[string]collector.Collector),
 		InternalLogBuf: utilds.MakeCirBuf[string](MaxInternalLog),
 	}
+
+	// Initialize transport
+	c.transport = MakeTransport(&config)
 
 	// Initialize AppInfo using the dedicated function
 	c.AppInfo = c.createAppInfo(appName, &config)
@@ -204,7 +202,7 @@ func (c *ControllerImpl) WriteInitMessage(connected bool, connWrap *comm.ConnWra
 // returns (connected, transientError)
 func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr error) {
 	// Check if already connected to prevent redundant connections
-	if c.isConnected() {
+	if c.transport.HasConnections() {
 		return false, nil
 	}
 	if c.OutrigForceDisabled {
@@ -242,43 +240,14 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 	if !c.config.Quiet && !init {
 		fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
 	}
-	c.setConn(connWrap)
+	c.transport.AddConn(connWrap)
 	c.sendAppInfo()
 	return true, nil
 }
 
-func (c *ControllerImpl) isConnected() bool {
-	c.connLock.Lock()
-	defer c.connLock.Unlock()
-	return c.conn != nil
-}
-
-func (c *ControllerImpl) setConn(conn *comm.ConnWrap) {
-	c.connLock.Lock()
-	defer c.connLock.Unlock()
-	c.conn = conn
-}
-
-func (c *ControllerImpl) closeConn_nolock() {
-	if c.conn == nil {
-		return
-	}
-	if !c.config.Quiet {
-		fmt.Printf("[outrig] disconnecting from %s\n", c.conn.PeerName)
-	}
-	c.conn.Close()
-	c.conn = nil
-}
-
-func (c *ControllerImpl) closeConn() {
-	c.connLock.Lock()
-	defer c.connLock.Unlock()
-	c.closeConn_nolock()
-}
-
 // lock should be held
-func (c *ControllerImpl) disconnectInternal() {
-	c.closeConn()
+func (c *ControllerImpl) disconnectInternal_nolock() {
+	c.transport.CloseAllConns()
 	c.setEnabled(false)
 }
 
@@ -293,7 +262,7 @@ func (c *ControllerImpl) Enable() {
 	}
 
 	c.OutrigForceDisabled = false
-	isConnected := c.isConnected()
+	isConnected := c.transport.HasConnections()
 	if !isConnected {
 		isConnected, _ = c.connectInternal(false)
 	}
@@ -308,7 +277,7 @@ func (c *ControllerImpl) Disable(disconnect bool) {
 	c.OutrigForceDisabled = true
 	c.setEnabled(false)
 	if disconnect {
-		c.disconnectInternal()
+		c.disconnectInternal_nolock()
 	}
 }
 
@@ -332,50 +301,16 @@ func (c *ControllerImpl) GetAppRunId() string {
 	return c.AppInfo.AppRunId
 }
 
-// Transport methods
-
-func (c *ControllerImpl) sendPacketInternal(pk *ds.PacketType) (bool, error) {
-	barr, err := json.Marshal(pk)
-	if err != nil {
-		return false, err
-	}
-	jsonStr := string(barr)
-	c.connLock.Lock()
-	defer c.connLock.Unlock()
-	if c.conn == nil {
-		return false, nil
-	}
-	err = c.conn.WriteLine(jsonStr)
-	if err != nil {
-		c.ILog("[error] writing to %s: %v\n", c.conn.PeerName, err)
-		c.closeConn_nolock()
-		go func() {
-			ioutrig.I.SetGoRoutineName("#outrig sendPacket:error")
-			c.Lock.Lock()
-			defer c.Lock.Unlock()
-			c.disconnectInternal()
-		}()
-		return false, nil
-	}
-	atomic.AddInt64(&c.TransportPacketsSent, 1)
-	return true, nil
-}
-
 func (c *ControllerImpl) SendPacket(pk *ds.PacketType) (bool, error) {
-	if !global.OutrigEnabled.Load() {
-		return false, nil
-	}
-
-	return c.sendPacketInternal(pk)
+	return c.transport.SendPacket(pk, false)
 }
 
 func (c *ControllerImpl) sendAppInfo() {
-	// Send AppInfo as the first packet
 	appInfoPacket := &ds.PacketType{
 		Type: ds.PacketTypeAppInfo,
 		Data: &c.AppInfo,
 	}
-	c.sendPacketInternal(appInfoPacket)
+	c.transport.SendPacket(appInfoPacket, true)
 }
 
 // Initialization methods
@@ -436,7 +371,7 @@ func (c *ControllerImpl) Shutdown() {
 	defer c.Lock.Unlock()
 	// TODO: wait for last log lines to be sent
 	// TODO: send shutdown log lines
-	c.disconnectInternal()
+	c.disconnectInternal_nolock()
 }
 
 // Private methods
@@ -453,13 +388,17 @@ func (c *ControllerImpl) runConnPoller() {
 func (c *ControllerImpl) pollConn() {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
-	if c.isConnected() {
+	if c.transport.HasConnections() {
 		return
 	}
+	// Try to connect
 	connected, _ := c.connectInternal(false)
 	if connected {
 		c.setEnabled(true)
+		return
 	}
+	// No connections after trying to connect, so disable
+	c.setEnabled(false)
 }
 
 // lock should be held

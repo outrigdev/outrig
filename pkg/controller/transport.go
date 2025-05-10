@@ -15,7 +15,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/global"
 )
 
-const TransportPeerBufferSize = 32
+const TransportPeerBufferSize = 100
 const WriteDeadline = 10 * time.Second // this is very high, just helps to clear out hung connections, not for real flow control
 
 // transportPeer wraps a comm.ConnWrap with a buffered channel for packet sending
@@ -50,7 +50,7 @@ func makeTransportPeer(conn *comm.ConnWrap) *transportPeer {
 }
 
 // IsConnected returns true if there are any active connections
-func (t *Transport) IsConnected() bool {
+func (t *Transport) HasConnections() bool {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	return len(t.connMap) > 0
@@ -160,8 +160,8 @@ func (t *Transport) sendPacketInternal(pk *ds.PacketType) (bool, error) {
 }
 
 // SendPacket sends a packet if Outrig is enabled
-func (t *Transport) SendPacket(pk *ds.PacketType) (bool, error) {
-	if !global.OutrigEnabled.Load() {
+func (t *Transport) SendPacket(pk *ds.PacketType, force bool) (bool, error) {
+	if !force && !global.OutrigEnabled.Load() {
 		return false, nil
 	}
 	return t.sendPacketInternal(pk)
