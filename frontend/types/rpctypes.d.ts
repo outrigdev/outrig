@@ -333,11 +333,11 @@ declare global {
 
     // rpctypes.TEventFeProps
     type TEventFeProps = {
-        "debug:clicktype"?: string;
         "frontend:tab"?: string;
         "frontend:logsearchfeatures"?: string[];
         "frontend:searchlatency"?: number;
         "frontend:searchitems"?: number;
+        "frontend:clicktype"?: string;
     };
 
     // rpctypes.UpdateCheckData

@@ -129,12 +129,12 @@ type TEventProps struct {
 	TEventUserProps `tstype:"-"` // generally don't need to set these since they will be automatically copied over
 
 	PanicType string `json:"debug:panictype,omitempty"`
-	ClickType string `json:"debug:clicktype,omitempty"`
 
 	FrontendTab            string   `json:"frontend:tab,omitempty"`
 	FrontendSearchFeatures []string `json:"frontend:logsearchfeatures,omitempty"`
 	FrontendSearchLatency  int      `json:"frontend:searchlatency,omitempty"`
 	FrontendSearchItems    int      `json:"frontend:searchitems,omitempty"`
+	FrontendClickType      string   `json:"frontend:clicktype,omitempty"`
 
 	ServerNumAppRuns int `json:"server:numappruns,omitempty"`
 	ServerNumApps    int `json:"server:numapps,omitempty"`

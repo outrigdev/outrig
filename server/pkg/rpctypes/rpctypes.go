@@ -390,12 +390,11 @@ type ParsedGoRoutine struct {
 
 // TEventFeProps represents frontend-related properties for a telemetry event
 type TEventFeProps struct {
-	ClickType string `json:"debug:clicktype,omitempty"`
-
 	FrontendTab            string   `json:"frontend:tab,omitempty"`
 	FrontendSearchFeatures []string `json:"frontend:logsearchfeatures,omitempty"`
 	FrontendSearchLatency  int      `json:"frontend:searchlatency,omitempty"`
 	FrontendSearchItems    int      `json:"frontend:searchitems,omitempty"`
+	FrontendClickType      string   `json:"frontend:clicktype,omitempty"`
 }
 
 // TEventFeData represents a simplified telemetry event for frontend use

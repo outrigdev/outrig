@@ -47,3 +47,26 @@ export function sendTabEvent(tabName: string): void {
         console.error("Failed to send tab event:", err);
     });
 }
+
+/**
+ * Send a frontend:click event with a specific click type
+ *
+ * @param clickType The type of click event (e.g., "addwatch")
+ */
+export function sendClickEvent(clickType: string): void {
+    // Skip if RPC client is not initialized
+    if (!DefaultRpcClient) {
+        return;
+    }
+
+    const teventData: TEventFeData = {
+        event: "frontend:click",
+        props: {
+            "frontend:clicktype": clickType,
+        },
+    };
+    // Send the event to the backend
+    RpcApi.SendTEventFeCommand(DefaultRpcClient, teventData).catch((err: Error) => {
+        console.error("Failed to send click event:", err);
+    });
+}

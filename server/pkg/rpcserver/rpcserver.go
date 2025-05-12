@@ -215,12 +215,12 @@ func (*RpcServerImpl) GetAppRunRuntimeStatsCommand(ctx context.Context, data rpc
 
 	// Initialize result with goroutine counts
 	result := rpctypes.AppRunRuntimeStatsData{
-		AppRunId:              peer.AppRunId,
-		AppName:               peer.AppInfo.AppName,
-		NumTotalGoRoutines:    numGoRoutines,
-		NumActiveGoRoutines:   numActiveGoRoutines,
-		NumOutrigGoRoutines:   numOutrigGoRoutines,
-		Stats:                 peer.RuntimeStats.GetRuntimeStats(data.Since),
+		AppRunId:            peer.AppRunId,
+		AppName:             peer.AppInfo.AppName,
+		NumTotalGoRoutines:  numGoRoutines,
+		NumActiveGoRoutines: numActiveGoRoutines,
+		NumOutrigGoRoutines: numOutrigGoRoutines,
+		Stats:               peer.RuntimeStats.GetRuntimeStats(data.Since),
 	}
 
 	return result, nil
@@ -455,7 +455,7 @@ func (*RpcServerImpl) UpdateBrowserTabUrlCommand(ctx context.Context, data rpcty
 func (*RpcServerImpl) SendTEventFeCommand(ctx context.Context, data rpctypes.TEventFeData) error {
 	// Create a TEvent from the frontend data
 	props := tevent.TEventProps{
-		ClickType:              data.Props.ClickType,
+		FrontendClickType:      data.Props.FrontendClickType,
 		FrontendTab:            data.Props.FrontendTab,
 		FrontendSearchFeatures: data.Props.FrontendSearchFeatures,
 		FrontendSearchLatency:  data.Props.FrontendSearchLatency,
@@ -475,7 +475,7 @@ func (*RpcServerImpl) SendTEventFeCommand(ctx context.Context, data rpctypes.TEv
 func (*RpcServerImpl) UpdateCheckCommand(ctx context.Context) (rpctypes.UpdateCheckData, error) {
 	// Get the newer version from the updatecheck package
 	newerVersion := updatecheck.GetUpdatedVersion()
-	
+
 	return rpctypes.UpdateCheckData{
 		NewerVersion: newerVersion,
 	}, nil

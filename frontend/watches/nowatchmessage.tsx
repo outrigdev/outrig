@@ -3,14 +3,22 @@
 
 import React from "react";
 
-export const NoWatchesMessage: React.FC = () => {
+interface NoWatchesMessageProps {
+    hideTitle?: boolean;
+}
+
+export const NoWatchesMessage: React.FC<NoWatchesMessageProps> = ({ hideTitle = false }) => {
     return (
         <div className="flex flex-col items-center min-h-full p-6 pt-6 overflow-auto">
             <div className="max-w-4xl mx-auto w-full">
-                <h2 className="text-2xl md:text-3xl font-bold text-center text-primary">No Watches Found</h2>
-                <p className="text-lg text-center mb-4 text-secondary">
-                    Add watches to your Go application to monitor values in real-time.
-                </p>
+                {!hideTitle && (
+                    <>
+                        <h2 className="text-2xl md:text-3xl font-bold text-center text-primary">No Watches Found</h2>
+                        <p className="text-lg text-center mb-4 text-secondary">
+                            Add watches to your Go application to monitor values in real-time.
+                        </p>
+                    </>
+                )}
 
                 <div className="bg-secondary/5 rounded-lg p-6 mb-8">
                     <h3 className="text-xl font-semibold mb-4 text-primary">Available Watch Functions</h3>
@@ -78,20 +86,30 @@ export const NoWatchesMessage: React.FC = () => {
                     <h3 className="text-xl font-semibold mb-4 text-primary font-sans">Example Usage</h3>
                     <pre className="whitespace-pre text-primary">
                         <code>
-                            {`// Track a value
-outrig.TrackValue("user.profile", user)
-
-// Watch a counter that updates automatically
-counter := atomic.Int64{}
-outrig.WatchAtomic("requests.count", &counter)
-
-// Watch a value with a function
-outrig.WatchFunc("cache.size", func() int {
-    return len(myCache)
-})
-
-// Watch a value with mutex protection
-outrig.WatchSync("app.state", &mu, &appState)`}
+                            <span className="text-accent">// Track a value</span>
+                            <br />
+                            outrig.TrackValue("user.profile", user)
+                            <br />
+                            <br />
+                            <span className="text-accent">// Watch a counter that updates automatically</span>
+                            <br />
+                            counter := atomic.Int64{}
+                            <br />
+                            outrig.WatchAtomic("requests.count", &counter)
+                            <br />
+                            <br />
+                            <span className="text-accent">// Watch a value with a function</span>
+                            <br />
+                            outrig.WatchFunc("cache.size", func() int {"{"}
+                            <br />
+                            {"    "}return len(myCache)
+                            <br />
+                            {"}"})
+                            <br />
+                            <br />
+                            <span className="text-accent">// Watch a value with mutex protection</span>
+                            <br />
+                            outrig.WatchSync("app.state", &mu, &appState)
                         </code>
                     </pre>
                 </div>

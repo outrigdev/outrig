@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AutoRefreshButton } from "@/elements/autorefreshbutton";
+import { Modal } from "@/elements/modal";
 import { RefreshButton } from "@/elements/refreshbutton";
 import { Tag } from "@/elements/tag";
 import { TimestampDot } from "@/elements/timestampdot";
 import { Tooltip } from "@/elements/tooltip";
 import { SearchFilter } from "@/searchfilter/searchfilter";
+import { sendClickEvent } from "@/tevent";
 import { EmptyMessageDelayMs } from "@/util/constants";
 import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
@@ -300,6 +302,8 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
         }
     }, [filteredWatches.length, isRefreshing]);
 
+    const [isAddWatchModalOpen, setIsAddWatchModalOpen] = useState(false);
+
     return (
         <div ref={contentRef} className="w-full h-full overflow-auto flex-1 px-0 py-2">
             {isRefreshing ? (
@@ -321,12 +325,38 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                     {filteredWatches.map((watch, index) => (
                         <React.Fragment key={watch.name}>
                             <WatchView watch={watch} model={model} />
-                            {/* Add divider after each watch except the last one */}
-                            {index < filteredWatches.length - 1 && <div className="h-px bg-border my-2 w-full"></div>}
+                            {/* Add divider after each watch */}
+                            <div className="h-px bg-border my-2 w-full"></div>
                         </React.Fragment>
                     ))}
+
+                    {/* Add Watch button - only shown when no search is active */}
+                    {!search && (
+                        <div className="flex justify-center mt-6">
+                            <Tooltip content="Add a new watch">
+                                <button
+                                    onClick={() => {
+                                        setIsAddWatchModalOpen(true);
+                                        sendClickEvent("addwatch");
+                                    }}
+                                    className="flex items-center justify-center h-8 px-3 text-sm text-primary/80 bg-primary/10 border border-primary/20 hover:bg-primary/20 rounded-md cursor-pointer"
+                                >
+                                    + Add Watch
+                                </button>
+                            </Tooltip>
+                        </div>
+                    )}
                 </div>
             )}
+
+            <Modal
+                isOpen={isAddWatchModalOpen}
+                onClose={() => setIsAddWatchModalOpen(false)}
+                title="Add Watch"
+                className="w-[750px]"
+            >
+                <NoWatchesMessage hideTitle={true} />
+            </Modal>
         </div>
     );
 };

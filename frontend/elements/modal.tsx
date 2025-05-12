@@ -1,7 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { AppModel } from "@/appmodel";
+import { cn } from "@/util/util";
 import { X } from "lucide-react";
 import React, { useEffect, useRef } from "react";
 
@@ -10,9 +10,10 @@ interface ModalProps {
     title: string;
     children: React.ReactNode;
     onClose: () => void;
+    className?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, title, children, onClose }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, title, children, onClose, className }) => {
     const modalRef = useRef<HTMLDivElement>(null);
 
     // Add a class to the body when the modal is open to prevent scrolling
@@ -31,21 +32,17 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, title, children, onClose }
     if (!isOpen) return null;
 
     return (
-        <div
-            className="fixed inset-0 flex items-center justify-center z-50"
-            onClick={onClose}
-        >
+        <div className="fixed inset-0 flex items-center justify-center z-50" onClick={onClose}>
             {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-[#000000]/35"
-                aria-hidden="true"
-                onClick={onClose}
-            ></div>
+            <div className="absolute inset-0 bg-[#000000]/35" aria-hidden="true" onClick={onClose}></div>
 
             {/* Modal content - stop propagation to prevent closing when clicked */}
             <div
                 ref={modalRef}
-                className="bg-panel border border-border rounded-md shadow-lg w-[500px] max-w-[90vw] max-h-[80vh] flex flex-col focus:outline-none z-10"
+                className={cn(
+                    "bg-panel border border-border rounded-md shadow-lg w-[500px] max-w-[90vw] max-h-[80vh] flex flex-col focus:outline-none z-10",
+                    className
+                )}
                 tabIndex={-1}
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
