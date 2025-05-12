@@ -199,7 +199,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		p.AppInfo = &appInfo
 		p.Status = AppStatusRunning
 		log.Printf("Received AppInfo for app run ID: %s, app: %s", p.AppRunId, appInfo.AppName)
-		
+
 		// Extract Go version if available
 		goVersion := ""
 		if appInfo.BuildInfo != nil {
@@ -213,6 +213,13 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 			return fmt.Errorf("failed to unmarshal LogLine: %w", err)
 		}
 		p.Logs.ProcessLogLine(logLine)
+
+	case ds.PacketTypeMultiLog:
+		var multiLogLines ds.MultiLogLines
+		if err := json.Unmarshal(packetData, &multiLogLines); err != nil {
+			return fmt.Errorf("failed to unmarshal MultiLogLines: %w", err)
+		}
+		p.Logs.ProcessMultiLogLines(multiLogLines.LogLines)
 
 	case ds.PacketTypeGoroutine:
 		var goroutineInfo ds.GoroutineInfo

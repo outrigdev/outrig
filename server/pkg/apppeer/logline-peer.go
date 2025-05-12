@@ -49,6 +49,15 @@ func (lp *LogLinePeer) ProcessLogLine(line ds.LogLine) {
 	lp.NotifySearchManagers(line)
 }
 
+// ProcessMultiLogLines processes multiple log lines at once
+func (lp *LogLinePeer) ProcessMultiLogLines(lines []ds.LogLine) {
+	for i := range lines {
+		lines[i].Msg = normalizeLineEndings(lines[i].Msg)
+		lp.addLogLine(&lines[i])
+		lp.NotifySearchManagers(lines[i])
+	}
+}
+
 // normalizeLineEndings ensures consistent line endings in log messages
 func normalizeLineEndings(msg string) string {
 	msg = strings.ReplaceAll(msg, "\r", "")

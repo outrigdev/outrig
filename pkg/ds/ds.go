@@ -12,6 +12,7 @@ import (
 // Transport packet types
 const (
 	PacketTypeLog          = "log"
+	PacketTypeMultiLog     = "multilog"
 	PacketTypeAppInfo      = "appinfo"
 	PacketTypeGoroutine    = "goroutine"
 	PacketTypeAppDone      = "appdone"
@@ -110,6 +111,11 @@ type LogLine struct {
 	Ts      int64  `json:"ts"`
 	Msg     string `json:"msg"`
 	Source  string `json:"source,omitempty"`
+}
+
+// MultiLogLines represents a collection of log lines to be processed together
+type MultiLogLines struct {
+	LogLines []LogLine `json:"loglines"`
 }
 
 type ViewWindow struct {
