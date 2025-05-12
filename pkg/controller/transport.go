@@ -15,22 +15,34 @@ import (
 	"github.com/outrigdev/outrig/pkg/global"
 )
 
+// Global counters for transport statistics
+var TransportPacketsSent int64
+var TransportDroppedPackets int64
+
 const TransportPeerBufferSize = 100
 const WriteDeadline = 10 * time.Second // this is very high, just helps to clear out hung connections, not for real flow control
+const LogBatchSize = 100
+
+// packetWrap wraps a packet for sending, with special handling for multilog packets
+type packetWrap struct {
+	RawPacket string
+	MultiLog  bool
+	LogLines  *[]ds.LogLine
+}
 
 // transportPeer wraps a comm.ConnWrap with a buffered channel for packet sending
 type transportPeer struct {
-	Conn   *comm.ConnWrap
-	SendCh chan string
+	Conn         *comm.ConnWrap
+	SendCh       chan packetWrap
+	multiLogLock sync.Mutex
+	logLines     *[]ds.LogLine
 }
 
 // Transport handles connection management and packet sending functionality
 type Transport struct {
-	lock                    sync.Mutex
-	connMap                 map[string]*transportPeer // map of connections by peer name
-	config                  *ds.Config
-	TransportPacketsSent    int64
-	TransportDroppedPackets int64
+	lock    sync.Mutex
+	connMap map[string]*transportPeer // map of connections by peer name
+	config  *ds.Config
 }
 
 // MakeTransport creates a new Transport instance
@@ -44,8 +56,9 @@ func MakeTransport(config *ds.Config) *Transport {
 // makeTransportPeer creates a new TransportPeer instance
 func makeTransportPeer(conn *comm.ConnWrap) *transportPeer {
 	return &transportPeer{
-		Conn:   conn,
-		SendCh: make(chan string, TransportPeerBufferSize),
+		Conn:     conn,
+		SendCh:   make(chan packetWrap, TransportPeerBufferSize),
+		logLines: nil,
 	}
 }
 
@@ -59,9 +72,25 @@ func (t *Transport) HasConnections() bool {
 // startPeerLoop starts a goroutine to process packets for a TransportPeer
 func (t *Transport) startPeerLoop(peer *transportPeer) {
 	go func() {
-		for jsonStr := range peer.SendCh {
+		for packet := range peer.SendCh {
 			peer.Conn.Conn.SetWriteDeadline(time.Now().Add(WriteDeadline))
-			err := peer.Conn.WriteLine(jsonStr)
+
+			var jsonStr string
+			var err error
+
+			if packet.MultiLog {
+				// For multilog packets, marshal the packet just before sending
+				jsonStr, err = peer.marshalMultiLogPacket(packet.LogLines)
+				if err != nil {
+					// If there's an error marshaling, skip this packet
+					continue
+				}
+			} else {
+				// For regular packets, just use the pre-marshaled JSON
+				jsonStr = packet.RawPacket
+			}
+
+			err = peer.Conn.WriteLine(jsonStr)
 			if err != nil {
 				t.closeConn(peer, err)
 				return
@@ -129,14 +158,80 @@ func (t *Transport) CloseAllConns() {
 	}
 }
 
+// marshalMultiLogPacket marshals a multilog packet to JSON
+func (p *transportPeer) marshalMultiLogPacket(logLines *[]ds.LogLine) (string, error) {
+	p.multiLogLock.Lock()
+	defer p.multiLogLock.Unlock()
+
+	// Create the multilog packet
+	multiLogPacket := &ds.PacketType{
+		Type: ds.PacketTypeMultiLog,
+		Data: &ds.MultiLogLines{
+			LogLines: *logLines,
+		},
+	}
+
+	// Marshal the packet
+	barr, err := json.Marshal(multiLogPacket)
+	if err != nil {
+		return "", err
+	}
+
+	// If this is our current logLines, clear it
+	if logLines == p.logLines {
+		p.logLines = nil
+	}
+
+	return string(barr), nil
+}
+
+// addLogLine adds a log line from a packet to the peer's multilog packet
+// Returns true if the log line was successfully added
+func (p *transportPeer) addLogLine(pk *ds.PacketType) bool {
+	// Extract the log line from the packet
+	logData, ok := pk.Data.(ds.LogLine)
+	if !ok {
+		return false
+	}
+
+	p.multiLogLock.Lock()
+	defer p.multiLogLock.Unlock()
+
+	// If we don't have a multilog packet in the queue yet or past buffer size, create one
+	if p.logLines == nil || len(*p.logLines) >= LogBatchSize {
+		// Create a new log lines slice
+		logLines := make([]ds.LogLine, 0, LogBatchSize)
+
+		// Create the packet wrap
+		packet := packetWrap{
+			MultiLog: true,
+			LogLines: &logLines,
+		}
+
+		// Store the log lines pointer
+		p.logLines = &logLines
+
+		// Append the log line
+		*p.logLines = append(*p.logLines, logData)
+
+		// Send the packet to the channel
+		sent := sendNonBlock(p.SendCh, packet)
+		if !sent {
+			// Channel is full, clear the log lines
+			p.logLines = nil
+		}
+		return sent
+	}
+
+	// We already have a multilog packet in the queue, just append the log line
+	*p.logLines = append(*p.logLines, logData)
+	return true
+}
+
 // SendPacketInternal sends a packet to all available connections
 // This is an internal method that doesn't check if Outrig is enabled
 func (t *Transport) sendPacketInternal(pk *ds.PacketType) (bool, error) {
-	barr, err := json.Marshal(pk)
-	if err != nil {
-		return false, err
-	}
-	jsonStr := string(barr)
+	isLogPacket := pk.Type == ds.PacketTypeLog
 
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -146,14 +241,27 @@ func (t *Transport) sendPacketInternal(pk *ds.PacketType) (bool, error) {
 
 	sentToAny := false
 	for _, peer := range t.connMap {
-		// Try to send to channel non-blocking
-		select {
-		case peer.SendCh <- jsonStr:
-			sentToAny = true
-			atomic.AddInt64(&t.TransportPacketsSent, 1)
-		default:
-			// Channel is full, increment dropped packets counter
-			atomic.AddInt64(&t.TransportDroppedPackets, 1)
+		if isLogPacket {
+			// For log packets, just add to the peer's multilog packet
+			if peer.addLogLine(pk) {
+				sentToAny = true
+			}
+		} else {
+			// For non-log packets, marshal and send directly
+			barr, err := json.Marshal(pk)
+			if err != nil {
+				continue
+			}
+
+			packet := packetWrap{
+				RawPacket: string(barr),
+				MultiLog:  false,
+				LogLines:  nil,
+			}
+
+			if sendNonBlock(peer.SendCh, packet) {
+				sentToAny = true
+			}
 		}
 	}
 	return sentToAny, nil
@@ -169,3 +277,17 @@ func (t *Transport) SendPacket(pk *ds.PacketType, force bool) (bool, error) {
 
 // Note: This implementation uses the printf and isStdoutATerminal functions
 // from controller.go to avoid redeclaration issues
+
+// sendNonBlock attempts to send a packet to a channel without blocking
+// Returns true if the send was successful, false if the channel is full
+// Also updates the global packet counters
+func sendNonBlock(ch chan packetWrap, packet packetWrap) bool {
+	select {
+	case ch <- packet:
+		atomic.AddInt64(&TransportPacketsSent, 1)
+		return true
+	default:
+		atomic.AddInt64(&TransportDroppedPackets, 1)
+		return false
+	}
+}
