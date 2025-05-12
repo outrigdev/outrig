@@ -16,7 +16,7 @@ import (
 )
 
 // Global counters for transport statistics
-var TransportPacketsSent int64
+var TransportPacketsQueued int64
 var TransportDroppedPackets int64
 
 const TransportPeerBufferSize = 100
@@ -188,9 +188,20 @@ func (p *transportPeer) marshalMultiLogPacket(logLines *[]ds.LogLine) (string, e
 // addLogLine adds a log line from a packet to the peer's multilog packet
 // Returns true if the log line was successfully added
 func (p *transportPeer) addLogLine(pk *ds.PacketType) bool {
-	// Extract the log line from the packet
-	logData, ok := pk.Data.(ds.LogLine)
-	if !ok {
+	var logData ds.LogLine
+
+	// Handle both ds.LogLine and *ds.LogLine cases
+	if data, ok := pk.Data.(ds.LogLine); ok {
+		// Case 1: pk.Data is a ds.LogLine value
+		logData = data
+	} else if ptrData, ok := pk.Data.(*ds.LogLine); ok {
+		// Case 2: pk.Data is a *ds.LogLine pointer
+		if ptrData == nil {
+			return false
+		}
+		logData = *ptrData
+	} else {
+		// Neither a LogLine nor a *LogLine
 		return false
 	}
 
@@ -201,6 +212,7 @@ func (p *transportPeer) addLogLine(pk *ds.PacketType) bool {
 	if p.logLines == nil || len(*p.logLines) >= LogBatchSize {
 		// Create a new log lines slice
 		logLines := make([]ds.LogLine, 0, LogBatchSize)
+		logLines = append(logLines, logData)
 
 		// Create the packet wrap
 		packet := packetWrap{
@@ -210,9 +222,6 @@ func (p *transportPeer) addLogLine(pk *ds.PacketType) bool {
 
 		// Store the log lines pointer
 		p.logLines = &logLines
-
-		// Append the log line
-		*p.logLines = append(*p.logLines, logData)
 
 		// Send the packet to the channel
 		sent := sendNonBlock(p.SendCh, packet)
@@ -284,7 +293,7 @@ func (t *Transport) SendPacket(pk *ds.PacketType, force bool) (bool, error) {
 func sendNonBlock(ch chan packetWrap, packet packetWrap) bool {
 	select {
 	case ch <- packet:
-		atomic.AddInt64(&TransportPacketsSent, 1)
+		atomic.AddInt64(&TransportPacketsQueued, 1)
 		return true
 	default:
 		atomic.AddInt64(&TransportDroppedPackets, 1)

@@ -54,6 +54,10 @@ func main() {
 	outrig.TrackValue("map #test", m)
 
 	outrig.Logf("#test: this is a log line from outrig :warning: logger :apple: :pizza:")
+	outrig.Logf("#test: another log line")
+	for i := 0; i < 5; i++ {
+		outrig.Logf("#test: log line %d", i)
+	}
 
 	logrus.SetFormatter(&logrus.TextFormatter{
 		ForceColors:   true,
