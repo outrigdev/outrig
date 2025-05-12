@@ -11,7 +11,7 @@ import { LogViewerModel } from "./logviewer-model";
 
 // Initialize emoji parser
 const emoji = new EmojiJS();
-emoji.replace_mode = 'unified';
+emoji.replace_mode = "unified";
 emoji.allow_native = true;
 
 // Global variable for emoji replacement setting
@@ -22,7 +22,7 @@ import { SettingsModel } from "@/settings/settings-model";
 
 // Map of sources that should have emoji replacement when in "outrig" mode
 const outrigEmojiReplacementSources: Record<string, boolean> = {
-    "outrig": true
+    outrig: true,
 };
 
 // Update the global variable when settings change
@@ -126,10 +126,14 @@ function formatSource(source: string): React.ReactNode {
     }
     const padded = srcStr.padStart(6, " ");
     let className = "text-muted";
-    if (srcStr === "stderr") {
+    if (srcStr == "stdout") {
+        className = "text-muted";
+    } else if (srcStr === "stderr") {
         className = "text-error";
     } else if (srcStr === "outrig") {
         className = "text-accent";
+    } else {
+        className = "text-ansi-brightmagenta";
     }
     return <span className={className}>[{padded}]</span>;
 }
@@ -144,7 +148,7 @@ function processMessageText(message: string, source: string): string {
         // Replace emojis only for specified sources in "outrig" mode
         return emoji.replace_colons(message);
     }
-    
+
     // Return original message if no replacement needed
     return message;
 }

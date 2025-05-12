@@ -7,6 +7,7 @@ package outrig
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
+	"github.com/outrigdev/outrig/pkg/collector/logprocess"
 	"github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/controller"
@@ -305,4 +307,11 @@ func Logf(format string, args ...any) {
 	}
 	msg := fmt.Sprintf(format, args...)
 	logInternal(msg)
+}
+
+// MakeLogStream creates an io.Writer that sends written data as log lines to Outrig
+// The name parameter specifies the source of the logs
+func MakeLogStream(name string) (io.Writer, error) {
+	// Create a log stream writer using the logprocess package
+	return logprocess.MakeLogStreamWriter(name), nil
 }

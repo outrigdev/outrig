@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"runtime/debug"
 	"time"
@@ -58,6 +59,12 @@ func main() {
 	for i := 0; i < 5; i++ {
 		outrig.Logf("#test: log line %d", i)
 	}
+
+	ow, _ := outrig.MakeLogStream("hello")
+	bow := bufio.NewWriter(ow)
+	bow.WriteString("Hello, world!\n")
+	fmt.Fprintf(bow, "This is a test log line with a number: %d\n", 42)
+	bow.Flush()
 
 	logrus.SetFormatter(&logrus.TextFormatter{
 		ForceColors:   true,
