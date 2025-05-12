@@ -88,22 +88,22 @@
     }
 
     /* ANSI Colors for Log Lines (Light Palette) */
-    --themecolor-ansi-black: #c1c1c1; /* swapped: original ansi-white */
+    --themecolor-ansi-black: #202020;
     --themecolor-ansi-red: #b3544a; /* darkened from #cc685c */
     --themecolor-ansi-green: #689e5a; /* darkened from #76c266 */
     --themecolor-ansi-yellow: #b0a88c; /* darkened from #cbca9b */
     --themecolor-ansi-blue: #7d98af; /* darkened from #85aacb */
     --themecolor-ansi-magenta: #b354a2; /* darkened from #cc72ca */
     --themecolor-ansi-cyan: #689e9f; /* darkened from #74a7cb */
-    --themecolor-ansi-white: #404040; /* swapped: original ansi-black */
-    --themecolor-ansi-brightblack: #f0f0f0;
+    --themecolor-ansi-white: #c1c1c1;
+    --themecolor-ansi-brightblack: #505050;
     --themecolor-ansi-brightred: #cc685c;
     --themecolor-ansi-brightgreen: #76c266;
     --themecolor-ansi-brightyellow: #cbca9b;
     --themecolor-ansi-brightblue: #85aacb;
     --themecolor-ansi-brightmagenta: #cc72ca;
     --themecolor-ansi-brightcyan: #74a7cb;
-    --themecolor-ansi-brightwhite: #727272;
+    --themecolor-ansi-brightwhite: #f0f0f0;
 
     /* Scrollbar */
     --scrollbar-thumb: rgba(0, 0, 0, 0.2);
@@ -141,7 +141,7 @@
     }
 
     /* ANSI Colors for Log Lines (Dark Palette) */
-    --themecolor-ansi-black: #757575;
+    --themecolor-ansi-black: #303030;
     --themecolor-ansi-red: #cc685c;
     --themecolor-ansi-green: #76c266;
     --themecolor-ansi-yellow: #cbca9b;
@@ -149,7 +149,7 @@
     --themecolor-ansi-magenta: #cc72ca;
     --themecolor-ansi-cyan: #74a7cb;
     --themecolor-ansi-white: #c1c1c1;
-    --themecolor-ansi-brightblack: #727272;
+    --themecolor-ansi-brightblack: #505050;
     --themecolor-ansi-brightred: #cc9d97;
     --themecolor-ansi-brightgreen: #a3dd97;
     --themecolor-ansi-brightyellow: #cbcaaa;

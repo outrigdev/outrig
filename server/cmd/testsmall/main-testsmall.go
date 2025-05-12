@@ -60,10 +60,10 @@ func main() {
 		outrig.Logf("#test: log line %d", i)
 	}
 
-	ow, _ := outrig.MakeLogStream("hello")
+	ow, _ := outrig.MakeLogStream("hellohello")
 	bow := bufio.NewWriter(ow)
 	bow.WriteString("Hello, world!\n")
-	fmt.Fprintf(bow, "This is a test log line with a number: %d\n", 42)
+	fmt.Fprintf(bow, "This is a \033[30;43mtest log\033[0m line with a \033[3mnumber\033[0m: %d\n", 42)
 	bow.Flush()
 
 	logrus.SetFormatter(&logrus.TextFormatter{

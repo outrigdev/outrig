@@ -124,6 +124,16 @@ function formatSource(source: string): React.ReactNode {
     if (srcStr.startsWith("/dev/")) {
         srcStr = srcStr.slice(5);
     }
+
+    // Store original source for tooltip
+    const originalSrc = srcStr;
+    const isTruncated = srcStr.length > 6;
+
+    // Limit source to max 6 chars
+    if (isTruncated) {
+        srcStr = srcStr.substring(0, 6);
+    }
+
     const padded = srcStr.padStart(6, " ");
     let className = "text-muted";
     if (srcStr == "stdout") {
@@ -135,7 +145,12 @@ function formatSource(source: string): React.ReactNode {
     } else {
         className = "text-ansi-brightmagenta";
     }
-    return <span className={className}>[{padded}]</span>;
+
+    return (
+        <span className={className} title={isTruncated ? "Source: " + originalSrc : undefined}>
+            [{padded}]
+        </span>
+    );
 }
 
 // Process message text with emoji replacement if needed
