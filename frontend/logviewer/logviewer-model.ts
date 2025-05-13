@@ -1,8 +1,10 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
 import { emitter } from "@/events";
 import { DefaultRpcClient } from "@/init";
+import { SearchStore } from "@/store/searchstore";
 import { PromiseQueue } from "@/util/promisequeue";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { selectAtom } from "jotai/utils";
@@ -41,7 +43,7 @@ class LogViewerModel {
     widgetId: string;
     appRunId: string;
     createTs: number = Date.now();
-    searchTerm: PrimitiveAtom<string> = atom("");
+    searchTerm: PrimitiveAtom<string>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     isLoading: PrimitiveAtom<boolean> = atom(false);
     followOutput: PrimitiveAtom<boolean> = atom(true);
@@ -89,6 +91,14 @@ class LogViewerModel {
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();
         this.appRunId = appRunId;
+
+        // Get app name from AppModel using the appRunId
+        const appRunInfoAtom = AppModel.getAppRunInfoAtom(appRunId);
+        const appRunInfo = getDefaultStore().get(appRunInfoAtom);
+        const appName = appRunInfo?.appname || "unknown";
+
+        // Get search term atom from SearchStore
+        this.searchTerm = SearchStore.getSearchTermAtom(appName, appRunId, "logs");
 
         // Initialize the list atom with empty state
         this.listAtom = atom<LogListInterface>({

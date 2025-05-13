@@ -3,6 +3,7 @@
 
 import { AppModel } from "@/appmodel";
 import { DefaultRpcClient } from "@/init";
+import { SearchStore } from "@/store/searchstore";
 import { Atom, atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcApi } from "../rpc/rpcclientapi";
 
@@ -23,7 +24,7 @@ class WatchesModel {
         totalCount: 0,
         errorSpans: [] 
     });
-    searchTerm: PrimitiveAtom<string> = atom("");
+    searchTerm: PrimitiveAtom<string>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
     preferJson: PrimitiveAtom<boolean> = atom(true); // Default to prefer JSON format
@@ -52,6 +53,14 @@ class WatchesModel {
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();
         this.appRunId = appRunId;
+        
+        // Get app name from AppModel using the appRunId
+        const appRunInfoAtom = AppModel.getAppRunInfoAtom(appRunId);
+        const appRunInfo = getDefaultStore().get(appRunInfoAtom);
+        const appName = appRunInfo?.appname || "unknown";
+
+        // Get search term atom from SearchStore
+        this.searchTerm = SearchStore.getSearchTermAtom(appName, appRunId, "watches");
 
         // Initial refresh
         this.quietRefresh(true);

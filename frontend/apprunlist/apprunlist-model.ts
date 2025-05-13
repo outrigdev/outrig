@@ -12,7 +12,7 @@ import { addWSReconnectHandler } from "../websocket/client";
 class AppRunModel {
     appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);
     appRunCount = selectAtom(this.appRuns, (appRuns) => appRuns.length);
-    
+
     // Track the last time we fetched app run updates (in milliseconds)
     appRunsInfoLastUpdateTime: number = 0;
     needsFullAppRunsRefresh: boolean = false;
@@ -119,10 +119,8 @@ class AppRunModel {
             return null;
         }
 
-        const filteredAppRuns = appName 
-            ? appRuns.filter(run => run.appname === appName)
-            : appRuns;
-        
+        const filteredAppRuns = appName ? appRuns.filter((run) => run.appname === appName) : appRuns;
+
         if (filteredAppRuns.length === 0) {
             return null;
         }
@@ -149,7 +147,7 @@ class AppRunModel {
         }
 
         const appRuns = getDefaultStore().get(this.appRuns);
-        const currentAppRun = appRuns.find(run => run.apprunid === currentAppRunId);
+        const currentAppRun = appRuns.find((run) => run.apprunid === currentAppRunId);
         if (!currentAppRun) {
             // Current app run not found in the list, do nothing
             return;
@@ -166,7 +164,9 @@ class AppRunModel {
             return;
         }
 
-        console.log(`[AutoFollow] Switching from ${currentAppRunId} to ${bestAppRun.apprunid} (same app: ${currentAppRun.appname})`);
+        console.log(
+            `[AutoFollow] Switching from ${currentAppRunId} to ${bestAppRun.apprunid} (same app: ${currentAppRun.appname})`
+        );
 
         const currentTab = getDefaultStore().get(AppModel.selectedTab);
         AppModel.selectAppRunKeepTab(bestAppRun.apprunid, true);

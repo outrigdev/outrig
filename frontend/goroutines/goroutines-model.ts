@@ -1,7 +1,9 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
 import { DefaultRpcClient } from "@/init";
+import { SearchStore } from "@/store/searchstore";
 import { Atom, atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcApi } from "../rpc/rpcclientapi";
 
@@ -25,7 +27,7 @@ class GoRoutinesModel {
         totalCount: 0,
         errorSpans: [],
     });
-    searchTerm: PrimitiveAtom<string> = atom("");
+    searchTerm: PrimitiveAtom<string>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     contentRef: React.RefObject<HTMLDivElement> = null;
     currentSearchId: string = "";
@@ -73,6 +75,15 @@ class GoRoutinesModel {
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();
         this.appRunId = appRunId;
+        
+        // Get app name from AppModel using the appRunId
+        const appRunInfoAtom = AppModel.getAppRunInfoAtom(appRunId);
+        const appRunInfo = getDefaultStore().get(appRunInfoAtom);
+        const appName = appRunInfo?.appname || "unknown";
+
+        // Get search term atom from SearchStore
+        this.searchTerm = SearchStore.getSearchTermAtom(appName, appRunId, "goroutines");
+        
         this.loadAppRunGoroutines();
     }
 
