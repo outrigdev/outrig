@@ -22,6 +22,8 @@
     --color-error: var(--themecolor-error);
     --color-accent: var(--themecolor-accent);
     --color-accentbg: var(--themecolor-accentbg);
+    --color-shadow: var(--themecolor-shadow);
+    --color-darkshadow: var(--themecolor-darkshadow);
 
     /* ANSI Colors */
     --color-ansi-black: var(--themecolor-ansi-black);
@@ -73,6 +75,9 @@
     --themecolor-buttonhover: rgba(0, 0, 0, 0.05);
     --themecolor-selected: rgba(0, 0, 0, 0.06);
     --themecolor-button: transparent;
+
+    --themecolor-shadow: rgba(0, 0, 0, 0.1);
+    --themecolor-darkshadow: rgba(0, 0, 0, 0.25);
 
     --themecolor-success: #10b981;
     --themecolor-warning: #f59e0b;
@@ -126,6 +131,9 @@
     --themecolor-buttonhover: rgba(255, 255, 255, 0.06);
     --themecolor-selected: rgba(255, 255, 255, 0.06);
     --themecolor-button: transparent;
+
+    --themecolor-shadow: rgba(0, 0, 0, 0.7);
+    --themecolor-darkshadow: rgba(0, 0, 0, 1);
 
     --themecolor-success: #22c55e;
     --themecolor-warning: #facc15;

@@ -4,10 +4,12 @@
 import { AppModel } from "@/appmodel";
 import { Tooltip } from "@/elements/tooltip";
 import { emitter } from "@/events";
+import { SearchStore } from "@/store/searchstore";
 import { checkKeyPressed, keydownWrapper } from "@/util/keyutil";
+import { cn } from "@/util/util";
 import { getDefaultStore, useAtomValue } from "jotai";
-import { Filter } from "lucide-react";
-import React, { useEffect, useRef } from "react";
+import { Filter, X } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 import { DELIMITER_PAIRS, handleDelimiter, handleSelectionWrapping, handleSpecialChar } from "./searchfilter-helpers";
 
 interface SearchFilterProps {
@@ -161,11 +163,21 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
     // Track cursor position and selection
     const [cursorInfo, setCursorInfo] = React.useState<CursorInfo>({ start: 0, end: 0 });
 
+    // State for search history dropdown
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(-1);
+    const [searchHistory, setSearchHistory] = useState<string[]>([]);
+
     // Create internal ref for the input element
     const inputRef = useRef<HTMLInputElement>(null);
+    const historyDropdownRef = useRef<HTMLDivElement>(null);
 
     // Get the settings modal state
     const settingsModalOpen = useAtomValue(AppModel.settingsModalOpen);
+
+    // Get the current app run info for search history
+    const appRunId = useAtomValue(AppModel.selectedAppRunId);
+    const tabName = useAtomValue(AppModel.selectedTab);
 
     // Update cursor position when selection changes
     useEffect(() => {
@@ -193,10 +205,81 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
             document.removeEventListener("selectionchange", handleSelectionChange);
         };
     }, []);
+
+    // Load search history when app run or tab changes
+    useEffect(() => {
+        if (!appRunId) return;
+
+        const store = getDefaultStore();
+        const appRunInfoAtom = AppModel.getAppRunInfoAtom(appRunId);
+        const appRunInfo = store.get(appRunInfoAtom);
+
+        if (appRunInfo) {
+            const history = SearchStore.getSearchHistory(appRunInfo.appname, appRunId, tabName);
+            setSearchHistory(history);
+        }
+    }, [appRunId, tabName]);
+
+    // Close history dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                historyDropdownRef.current &&
+                !historyDropdownRef.current.contains(event.target as Node) &&
+                inputRef.current &&
+                !inputRef.current.contains(event.target as Node)
+            ) {
+                setIsHistoryOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
     // Handle keydown events for the search filter
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const input = e.currentTarget;
         const key = e.key;
+
+        // Handle history navigation with arrow keys
+        if (key === "ArrowUp" || key === "ArrowDown") {
+            if (searchHistory.length > 0) {
+                e.preventDefault();
+
+                // Open history dropdown if it's not already open
+                if (!isHistoryOpen) {
+                    setIsHistoryOpen(true);
+                    setSelectedHistoryIndex(0); // Always select the first item when opening
+                    return;
+                }
+
+                // Navigate through history items
+                if (key === "ArrowUp") {
+                    setSelectedHistoryIndex((prev) => (prev <= 0 ? searchHistory.length - 1 : prev - 1));
+                } else {
+                    setSelectedHistoryIndex((prev) => (prev >= searchHistory.length - 1 ? 0 : prev + 1));
+                }
+                return;
+            }
+        }
+
+        // Handle Enter key when history dropdown is open
+        if (key === "Enter" && isHistoryOpen && selectedHistoryIndex >= 0) {
+            e.preventDefault();
+            onValueChange(searchHistory[selectedHistoryIndex]);
+            setIsHistoryOpen(false);
+            return;
+        }
+
+        // Handle Escape key to close history dropdown
+        if (key === "Escape" && isHistoryOpen) {
+            e.preventDefault();
+            setIsHistoryOpen(false);
+            return;
+        }
 
         // Check if text is selected and a delimiter key is pressed
         if (input.selectionStart !== input.selectionEnd && key in DELIMITER_PAIRS) {
@@ -232,6 +315,29 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
 
         // If we didn't handle the key, pass to the regular handler
         keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
+            // Handle Enter key to save search history
+            if (checkKeyPressed(keyEvent, "Enter")) {
+                const store = getDefaultStore();
+                const appRunId = store.get(AppModel.selectedAppRunId);
+                const tabName = store.get(AppModel.selectedTab);
+
+                if (appRunId) {
+                    // Get the app info to get the app name
+                    const appRunInfoAtom = AppModel.getAppRunInfoAtom(appRunId);
+                    const appRunInfo = store.get(appRunInfoAtom);
+
+                    if (appRunInfo) {
+                        // Save the search term to history
+                        SearchStore.saveSearchHistory(appRunInfo.appname, appRunId, tabName);
+                        // Update local history state
+                        const updatedHistory = SearchStore.getSearchHistory(appRunInfo.appname, appRunId, tabName);
+                        setSearchHistory(updatedHistory);
+                    }
+                }
+
+                // Don't return true here so that other handlers can still process the Enter key
+            }
+
             // Handle Escape key
             if (checkKeyPressed(keyEvent, "Escape")) {
                 // First check if search tips are open
@@ -239,12 +345,18 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                 if (isSearchTipsOpen) {
                     // Close search tips
                     AppModel.closeSearchTips();
-                    
+
                     // Focus the input directly using the ref
                     setTimeout(() => {
                         inputRef.current?.focus();
                     }, 50);
-                    
+
+                    return true;
+                }
+
+                // If history dropdown is open, close it
+                if (isHistoryOpen) {
+                    setIsHistoryOpen(false);
                     return true;
                 }
 
@@ -259,6 +371,31 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
 
             return false;
         })(e);
+    };
+
+    // Handle removing a search history item
+    const handleRemoveHistoryItem = (e: React.MouseEvent, index: number) => {
+        e.stopPropagation();
+
+        if (appRunId) {
+            const store = getDefaultStore();
+            const appRunInfoAtom = AppModel.getAppRunInfoAtom(appRunId);
+            const appRunInfo = store.get(appRunInfoAtom);
+
+            if (appRunInfo) {
+                const termToRemove = searchHistory[index];
+                SearchStore.removeFromSearchHistory(appRunInfo.appname, appRunId, tabName, termToRemove);
+
+                // Update local history state
+                const updatedHistory = SearchStore.getSearchHistory(appRunInfo.appname, appRunId, tabName);
+                setSearchHistory(updatedHistory);
+
+                // Adjust selected index if needed
+                if (selectedHistoryIndex >= updatedHistory.length) {
+                    setSelectedHistoryIndex(updatedHistory.length - 1);
+                }
+            }
+        }
     };
 
     // Also update cursor position when input value changes
@@ -342,7 +479,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                     autoCorrect="off"
                     autoCapitalize="off"
                     autoComplete="off"
-                    className="w-full bg-transparent text-primary translate-y-px placeholder:text-secondary text-sm py-1 pl-0 pr-2 
+                    className="w-full bg-transparent text-primary translate-y-px placeholder:text-secondary text-sm py-1 pl-0 pr-2
                       border-none ring-0 outline-none focus:outline-none focus:ring-0 font-mono"
                 />
                 {errorSpans?.length > 0 && (
@@ -353,6 +490,43 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                         inputRef={inputRef}
                         cursorInfo={cursorInfo}
                     />
+                )}
+
+                {/* Search History Dropdown */}
+                {isHistoryOpen && searchHistory.length > 0 && (
+                    <div
+                        ref={historyDropdownRef}
+                        className="absolute z-50 w-full bg-panel mt-1 border border-strongborder rounded-md shadow-lg shadow-shadow max-h-60 overflow-auto"
+                    >
+                        <ul>
+                            {searchHistory.map((historyItem, index) => (
+                                <li
+                                    key={`${historyItem}-${index}`}
+                                    className={cn(
+                                        "px-3 py-2 flex justify-between items-center cursor-pointer text-sm font-mono group",
+                                        index === selectedHistoryIndex
+                                            ? "bg-accentbg/20 text-accent"
+                                            : "text-primary hover:bg-buttonhover"
+                                    )}
+                                    onClick={() => {
+                                        onValueChange(historyItem);
+                                        setIsHistoryOpen(false);
+                                    }}
+                                >
+                                    <span className="truncate">{historyItem}</span>
+                                    <Tooltip content="Remove Search from History" placement="top">
+                                        <button
+                                            className="ml-2 p-1 rounded-full hover:bg-buttonbg text-muted hover:text-primary cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={(e) => handleRemoveHistoryItem(e, index)}
+                                            aria-label="Remove from history"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </Tooltip>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 )}
             </div>
         </div>
