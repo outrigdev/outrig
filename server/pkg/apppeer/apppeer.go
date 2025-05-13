@@ -102,7 +102,7 @@ func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 			AppRunId:      appRunId,
 			Logs:          MakeLogLinePeer(),
 			GoRoutines:    MakeGoRoutinePeer(appRunId),
-			Watches:       MakeWatchesPeer(),
+			Watches:       MakeWatchesPeer(appRunId),
 			RuntimeStats:  MakeRuntimeStatsPeer(),
 			Status:        AppStatusRunning,
 			LastModTime:   time.Now().UnixMilli(),
@@ -226,20 +226,16 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		if err := json.Unmarshal(packetData, &goroutineInfo); err != nil {
 			return fmt.Errorf("failed to unmarshal GoroutineInfo: %w", err)
 		}
-
 		p.GoRoutines.ProcessGoroutineStacks(goroutineInfo)
-
-		log.Printf("Processed %d goroutines for app run ID: %s", len(goroutineInfo.Stacks), p.AppRunId)
+		log.Printf("Processed %d goroutines for app run ID: %s (delta: %v)", len(goroutineInfo.Stacks), p.AppRunId, goroutineInfo.Delta)
 
 	case ds.PacketTypeWatch:
 		var watchInfo ds.WatchInfo
 		if err := json.Unmarshal(packetData, &watchInfo); err != nil {
 			return fmt.Errorf("failed to unmarshal WatchInfo: %w", err)
 		}
-
-		p.Watches.ProcessWatchValues(watchInfo.Watches)
-
-		log.Printf("Processed %d watches for app run ID: %s", len(watchInfo.Watches), p.AppRunId)
+		p.Watches.ProcessWatchValues(watchInfo.Watches, watchInfo.Delta)
+		log.Printf("Processed %d watches for app run ID: %s (delta: %v)", len(watchInfo.Watches), p.AppRunId, watchInfo.Delta)
 
 	case ds.PacketTypeAppDone:
 		p.Status = AppStatusDone
@@ -250,9 +246,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		if err := json.Unmarshal(packetData, &runtimeStats); err != nil {
 			return fmt.Errorf("failed to unmarshal RuntimeStatsInfo: %w", err)
 		}
-
 		p.RuntimeStats.ProcessRuntimeStats(runtimeStats)
-
 		log.Printf("Received runtime stats for app run ID: %s", p.AppRunId)
 
 	default:

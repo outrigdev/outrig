@@ -41,7 +41,7 @@ func main() {
 	outrig.Init("test-small", config)
 	defer outrig.AppDone()
 
-	outrig.TrackValue("test #test", nil)
+	outrig.TrackValue("test-nil #test", nil)
 
 	foo := &Foo{5, make(chan int, 2), Point{1, 2, "test{[()]}"}}
 	outrig.TrackValue("foo #test", foo)

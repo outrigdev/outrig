@@ -167,6 +167,7 @@ type GoRoutineStack struct {
 
 type WatchInfo struct {
 	Ts      int64         `json:"ts"`
+	Delta   bool          `json:"delta,omitempty"`
 	Watches []WatchSample `json:"watches"`
 }
 
@@ -216,7 +217,7 @@ type WatchSample struct {
 	StrVal   string   `json:"strval,omitempty"`
 	GoFmtVal string   `json:"gofmtval,omitempty"`
 	JsonVal  string   `json:"jsonval,omitempty"`
-	Type     string   `json:"type"`
+	Type     string   `json:"type,omitempty"`
 	Error    string   `json:"error,omitempty"`
 	Addr     []string `json:"addr,omitempty"`
 	Cap      int      `json:"cap,omitempty"`

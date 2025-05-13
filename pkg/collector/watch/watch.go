@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -30,12 +31,14 @@ type AtomicStorer[T any] interface {
 
 // WatchCollector implements the collector.Collector interface for watch collection
 type WatchCollector struct {
-	lock       sync.Mutex
-	executor   *collector.PeriodicExecutor
-	controller ds.Controller
-	config     ds.WatchConfig
-	watchDecls map[string]*WatchDecl
-	watchVals  []ds.WatchSample
+	lock            sync.Mutex
+	executor        *collector.PeriodicExecutor
+	controller      ds.Controller
+	config          ds.WatchConfig
+	watchDecls      map[string]*WatchDecl
+	watchVals       []ds.WatchSample
+	lastWatchValues map[string]ds.WatchSample // last set of watch values for delta calculation
+	nextSendFull    bool                      // true for full update, false for delta update
 }
 
 type WatchDecl struct {
@@ -98,7 +101,9 @@ var instanceOnce sync.Once
 func GetInstance() *WatchCollector {
 	instanceOnce.Do(func() {
 		instance = &WatchCollector{
-			watchDecls: make(map[string]*WatchDecl),
+			watchDecls:      make(map[string]*WatchDecl),
+			lastWatchValues: make(map[string]ds.WatchSample),
+			nextSendFull:    true, // First send is always a full update
 		}
 		instance.executor = collector.MakePeriodicExecutor("WatchCollector", 1*time.Second, instance.CollectWatches)
 	})
@@ -162,6 +167,24 @@ func (wc *WatchCollector) UnregisterWatch(name string) {
 	delete(wc.watchDecls, cleanName)
 }
 
+// getSendFullAndReset returns the current sendFull value and always sets it to false
+func (wc *WatchCollector) getSendFullAndReset() bool {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+
+	sendFull := wc.nextSendFull
+	wc.nextSendFull = false // Always set to false after getting the value
+	return sendFull
+}
+
+// SetNextSendFull sets the nextSendFull flag to force a full update on the next dump
+func (wc *WatchCollector) SetNextSendFull(full bool) {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+
+	wc.nextSendFull = full
+}
+
 // InitCollector initializes the watch collector with a controller and configuration
 func (wc *WatchCollector) InitCollector(controller ds.Controller, config any, arCtx ds.AppRunContext) error {
 	wc.controller = controller
@@ -210,6 +233,53 @@ func (wc *WatchCollector) getAndClearWatchVals() []ds.WatchSample {
 	watchVals := wc.watchVals
 	wc.watchVals = nil
 	return watchVals
+}
+
+// computeDeltaWatch compares current and last watch sample and returns a delta sample
+// For delta updates, we start with a full copy of current and clear fields that haven't changed
+func (wc *WatchCollector) computeDeltaWatch(name string, current ds.WatchSample) (ds.WatchSample, bool) {
+	// For push values, we always include all fields and don't compute deltas
+	if current.IsPush() {
+		return current, false
+	}
+	wc.lock.Lock()
+	lastSample, exists := wc.lastWatchValues[name]
+	wc.lock.Unlock()
+	if !exists {
+		// New watch, include all fields
+		return current, false
+	}
+	deltaSample := current
+	sameValue := true
+	// delta only operates for flags, type, strval, gofmtval, jsonval, addr, tags
+	if lastSample.Flags == current.Flags {
+		deltaSample.Flags = 0
+	}
+	if lastSample.Type == current.Type {
+		deltaSample.Type = ""
+	}
+	if lastSample.StrVal == current.StrVal {
+		deltaSample.StrVal = ""
+	} else {
+		sameValue = false
+	}
+	if lastSample.GoFmtVal == current.GoFmtVal {
+		deltaSample.GoFmtVal = ""
+	} else {
+		sameValue = false
+	}
+	if lastSample.JsonVal == current.JsonVal {
+		deltaSample.JsonVal = ""
+	} else {
+		sameValue = false
+	}
+	if slices.Equal(lastSample.Addr, current.Addr) {
+		deltaSample.Addr = nil
+	}
+	if slices.Equal(lastSample.Tags, current.Tags) {
+		deltaSample.Tags = nil
+	}
+	return deltaSample, sameValue
 }
 
 func (wc *WatchCollector) collectWatch(decl *WatchDecl) {
@@ -262,6 +332,9 @@ func (wc *WatchCollector) CollectWatches() {
 		return
 	}
 
+	sendFull := wc.getSendFullAndReset()
+	currentWatchValues := make(map[string]ds.WatchSample)
+
 	watchNames := wc.GetWatchNames()
 	for _, name := range watchNames {
 		watchDecl := wc.getWatchDecl(name)
@@ -271,9 +344,36 @@ func (wc *WatchCollector) CollectWatches() {
 		wc.collectWatch(watchDecl)
 	}
 
+	// Get all collected watch values
+	allWatchVals := wc.getAndClearWatchVals()
+	deltaWatchVals := make([]ds.WatchSample, 0, len(allWatchVals))
+	numSameValue := 0
+
+	// Process each watch value for delta calculation
+	for _, watch := range allWatchVals {
+		// Store current watch value for next delta calculation
+		currentWatchValues[watch.Name] = watch
+
+		// For delta updates, only include changed fields
+		if !sendFull {
+			deltaWatch, sameValue := wc.computeDeltaWatch(watch.Name, watch)
+			if sameValue {
+				numSameValue++
+			}
+			deltaWatchVals = append(deltaWatchVals, deltaWatch)
+		} else {
+			// Full update, include all fields
+			deltaWatchVals = append(deltaWatchVals, watch)
+		}
+	}
+
+	// Update the last watch values for next delta calculation
+	wc.setLastWatchValues(currentWatchValues)
+
 	watchInfo := &ds.WatchInfo{
 		Ts:      time.Now().UnixMilli(),
-		Watches: wc.getAndClearWatchVals(),
+		Delta:   !sendFull,
+		Watches: deltaWatchVals,
 	}
 
 	// Send the watch packet
@@ -369,4 +469,21 @@ func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync
 		watch.Error = fmt.Sprintf("unsupported kind: %s", rval.Kind())
 	}
 	wc.recordWatch(watch)
+}
+
+func (wc *WatchCollector) setLastWatchValues(watches map[string]ds.WatchSample) {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+
+	// Update last watch values with current ones
+	for name, watch := range watches {
+		wc.lastWatchValues[name] = watch
+	}
+
+	// Remove watches that no longer exist
+	for name := range wc.lastWatchValues {
+		if _, found := watches[name]; !found {
+			delete(wc.lastWatchValues, name)
+		}
+	}
 }

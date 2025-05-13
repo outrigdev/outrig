@@ -241,13 +241,17 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 		fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
 	}
 	c.transport.AddConn(connWrap)
-	
+	c.sendAppInfo()
+
 	// Force a full goroutine update on the next dump after a new connection
 	if goCollector, ok := c.Collectors["goroutine"].(*goroutine.GoroutineCollector); ok {
 		goCollector.SetNextSendFull(true)
 	}
-	
-	c.sendAppInfo()
+	// Force the watch collector to send a full update on the next cycle as well
+	if watchCollector, ok := c.Collectors["watch"].(*watch.WatchCollector); ok {
+		watchCollector.SetNextSendFull(true)
+	}
+
 	return true, nil
 }
 

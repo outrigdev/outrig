@@ -8,10 +8,10 @@ import (
 	"slices"
 	"sort"
 	"sync"
-	"sync/atomic"
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilds"
+	"github.com/outrigdev/outrig/server/pkg/logutil"
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/stacktrace"
 )
@@ -32,14 +32,13 @@ type GoRoutine struct {
 
 // GoRoutinePeer manages goroutines for an AppRunPeer
 type GoRoutinePeer struct {
-	goRoutines            *utilds.SyncMap[int64, GoRoutine]
-	activeGoRoutines      map[int64]bool // Tracks currently running goroutines
-	lock                  sync.RWMutex   // Lock for synchronizing goroutine operations
-	currentIteration      int64          // Current iteration counter
-	maxGoId               int64          // Maximum goroutine ID seen
-	missingLastStackCount atomic.Int64   // Counter for delta updates without a last stack
-	hasSeenFullUpdate     bool           // Flag to track if we've seen a full update
-	appRunId              string         // ID of the app run this peer belongs to
+	goRoutines        *utilds.SyncMap[int64, GoRoutine]
+	activeGoRoutines  map[int64]bool // Tracks currently running goroutines
+	lock              sync.RWMutex   // Lock for synchronizing goroutine operations
+	currentIteration  int64          // Current iteration counter
+	maxGoId           int64          // Maximum goroutine ID seen
+	hasSeenFullUpdate bool           // Flag to track if we've seen a full update
+	appRunId          string         // ID of the app run this peer belongs to
 }
 
 // mergeGoRoutineStacks combines a base stack with a delta stack to create a complete stack
@@ -150,10 +149,8 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 				completeStack := mergeGoRoutineStacks(lastStack, stack)
 				goroutine.StackTraces.Write(completeStack)
 			} else {
-				newCount := gp.missingLastStackCount.Add(1)
-				if newCount == 1 {
-					fmt.Printf("WARNING: [AppRun: %s] Delta update received for goroutine %d with no last stack\n", gp.appRunId, goId)
-				}
+				logKey := fmt.Sprintf("goroutine-nodeltaupdate-%s", gp.appRunId)
+				logutil.LogfOnce(logKey, "WARNING: [AppRun: %s] Delta update received for goroutine %d with no last stack\n", gp.appRunId, goId)
 			}
 		} else {
 			// full updates write the stack directly
