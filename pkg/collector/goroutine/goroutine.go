@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -19,11 +20,13 @@ import (
 
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
 type GoroutineCollector struct {
-	lock           sync.Mutex
-	executor       *collector.PeriodicExecutor
-	controller     ds.Controller
-	config         ds.GoRoutineConfig
-	goroutineNames map[int64]string // map from goroutine ID to name
+	lock                sync.Mutex
+	executor            *collector.PeriodicExecutor
+	controller          ds.Controller
+	config              ds.GoRoutineConfig
+	goroutineNames      map[int64]string            // map from goroutine ID to name
+	lastGoroutineStacks map[int64]ds.GoRoutineStack // last set of goroutine stacks for delta calculation
+	nextSendFull        bool                        // true for full update, false for delta update
 }
 
 // CollectorName returns the unique name of the collector
@@ -39,7 +42,9 @@ var instanceOnce sync.Once
 func GetInstance() *GoroutineCollector {
 	instanceOnce.Do(func() {
 		instance = &GoroutineCollector{
-			goroutineNames: make(map[int64]string),
+			goroutineNames:      make(map[int64]string),
+			lastGoroutineStacks: make(map[int64]ds.GoRoutineStack),
+			nextSendFull:        true, // First send is always a full update
 		}
 		instance.executor = collector.MakePeriodicExecutor("GoroutineCollector", 1*time.Second, instance.DumpGoroutines)
 	})
@@ -64,6 +69,24 @@ func (gc *GoroutineCollector) Disable() {
 	gc.executor.Disable()
 }
 
+// getSendFullAndReset returns the current sendFull value and always sets it to false
+func (gc *GoroutineCollector) getSendFullAndReset() bool {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+
+	sendFull := gc.nextSendFull
+	gc.nextSendFull = false // Always set to false after getting the value
+	return sendFull
+}
+
+// SetNextSendFull sets the nextSendFull flag to force a full update on the next dump
+func (gc *GoroutineCollector) SetNextSendFull(full bool) {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+
+	gc.nextSendFull = full
+}
+
 // DumpGoroutines dumps all goroutines and sends the information
 func (gc *GoroutineCollector) DumpGoroutines() {
 	if !global.OutrigEnabled.Load() || gc.controller == nil {
@@ -75,8 +98,11 @@ func (gc *GoroutineCollector) DumpGoroutines() {
 	stackLen := runtime.Stack(buf, true)
 	stackData := buf[:stackLen]
 
+	// Determine if this should be a full or delta update
+	sendFull := gc.getSendFullAndReset()
+
 	// Parse the stack data
-	goroutineInfo := gc.parseGoroutineStacks(stackData)
+	goroutineInfo := gc.parseGoroutineStacks(stackData, !sendFull)
 
 	// Send the goroutine packet
 	pk := &ds.PacketType{
@@ -105,9 +131,48 @@ func (gc *GoroutineCollector) GetGoRoutineName(goId int64) (string, bool) {
 var startRe = regexp.MustCompile(`(?m)^goroutine\s+\d+`)
 var stackRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\].*\n((?s).*)`)
 
-func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.GoroutineInfo {
+// computeDeltaStack compares current and last goroutine stack and returns a delta stack
+// For delta updates, we always include the goroutine ID, but only include other fields if they've changed
+func (gc *GoroutineCollector) computeDeltaStack(id int64, current ds.GoRoutineStack) ds.GoRoutineStack {
+	lastStack, exists := gc.lastGoroutineStacks[id]
+	if !exists {
+		// New goroutine, include all fields
+		return current
+	}
+
+	// For delta updates, we always include the goroutine ID
+	// but only include other fields if they've changed
+	deltaStack := ds.GoRoutineStack{
+		GoId: id,
+	}
+
+	// Only include fields that have changed
+	if lastStack.State != current.State {
+		deltaStack.State = current.State
+	}
+
+	if lastStack.StackTrace != current.StackTrace {
+		deltaStack.StackTrace = current.StackTrace
+	}
+
+	if lastStack.Name != current.Name {
+		deltaStack.Name = current.Name
+	}
+
+	// Compare tags using slices.Equal
+	tagsChanged := !slices.Equal(lastStack.Tags, current.Tags)
+
+	if tagsChanged {
+		deltaStack.Tags = current.Tags
+	}
+
+	return deltaStack
+}
+
+func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool) *ds.GoroutineInfo {
 	goroutineStacks := make([]ds.GoRoutineStack, 0)
 	activeGoroutines := make(map[int64]bool)
+	currentStacks := make(map[int64]ds.GoRoutineStack)
 
 	startIndices := startRe.FindAllIndex(stackData, -1)
 	for i, startIdx := range startIndices {
@@ -123,22 +188,43 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte) *ds.Gorouti
 		}
 		id, _ := strconv.ParseInt(string(matches[1]), 10, 64) // this is safe because the regex guarantees a number
 		activeGoroutines[id] = true
+
+		state := string(matches[2])
+		stackTrace := string(bytes.TrimSpace(matches[3]))
+
 		grStack := ds.GoRoutineStack{
 			GoId:       id,
-			State:      string(matches[2]),
-			StackTrace: string(bytes.TrimSpace(matches[3])),
+			State:      state,
+			StackTrace: stackTrace,
 		}
+
 		if name, ok := gc.GetGoRoutineName(id); ok {
 			grStack.Name, grStack.Tags = utilfn.ParseNameAndTags(name)
 		}
-		goroutineStacks = append(goroutineStacks, grStack)
+
+		currentStacks[id] = grStack
+
+		// For delta updates, only include changed fields
+		if delta {
+			deltaStack := gc.computeDeltaStack(id, grStack)
+			goroutineStacks = append(goroutineStacks, deltaStack)
+		} else {
+			// Full update, include all fields
+			goroutineStacks = append(goroutineStacks, grStack)
+		}
 	}
+
+	// Store current stacks for next delta calculation
+	gc.lock.Lock()
+	gc.lastGoroutineStacks = currentStacks
+	gc.lock.Unlock()
 
 	gc.cleanupGoroutineNames(activeGoroutines)
 	return &ds.GoroutineInfo{
 		Ts:     time.Now().UnixMilli(),
-		Count:  len(goroutineStacks),
+		Count:  len(currentStacks), // Always report the total count
 		Stacks: goroutineStacks,
+		Delta:  delta,
 	}
 }
 

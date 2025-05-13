@@ -4,9 +4,11 @@
 package apppeer
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilds"
@@ -30,20 +32,53 @@ type GoRoutine struct {
 
 // GoRoutinePeer manages goroutines for an AppRunPeer
 type GoRoutinePeer struct {
-	goRoutines       *utilds.SyncMap[int64, GoRoutine]
-	activeGoRoutines map[int64]bool // Tracks currently running goroutines
-	lock             sync.RWMutex   // Lock for synchronizing goroutine operations
-	currentIteration int64          // Current iteration counter
-	maxGoId          int64          // Maximum goroutine ID seen
+	goRoutines            *utilds.SyncMap[int64, GoRoutine]
+	activeGoRoutines      map[int64]bool // Tracks currently running goroutines
+	lock                  sync.RWMutex   // Lock for synchronizing goroutine operations
+	currentIteration      int64          // Current iteration counter
+	maxGoId               int64          // Maximum goroutine ID seen
+	missingLastStackCount atomic.Int64   // Counter for delta updates without a last stack
+	hasSeenFullUpdate     bool           // Flag to track if we've seen a full update
+	appRunId              string         // ID of the app run this peer belongs to
+}
+
+// mergeGoRoutineStacks combines a base stack with a delta stack to create a complete stack
+// It starts with the base stack and applies changes from the delta stack
+func mergeGoRoutineStacks(baseStack, deltaStack ds.GoRoutineStack) ds.GoRoutineStack {
+	// Start with the base stack
+	completeStack := ds.GoRoutineStack{
+		GoId:       baseStack.GoId,
+		State:      baseStack.State,
+		Name:       baseStack.Name,
+		Tags:       baseStack.Tags,
+		StackTrace: baseStack.StackTrace,
+	}
+
+	// Override with non-empty fields from the delta stack
+	if deltaStack.State != "" {
+		completeStack.State = deltaStack.State
+	}
+	if deltaStack.Name != "" {
+		completeStack.Name = deltaStack.Name
+	}
+	if len(deltaStack.Tags) > 0 {
+		completeStack.Tags = deltaStack.Tags
+	}
+	if deltaStack.StackTrace != "" {
+		completeStack.StackTrace = deltaStack.StackTrace
+	}
+
+	return completeStack
 }
 
 // MakeGoRoutinePeer creates a new GoRoutinePeer instance
-func MakeGoRoutinePeer() *GoRoutinePeer {
+func MakeGoRoutinePeer(appRunId string) *GoRoutinePeer {
 	return &GoRoutinePeer{
 		goRoutines:       utilds.MakeSyncMap[int64, GoRoutine](),
 		activeGoRoutines: make(map[int64]bool),
 		currentIteration: 0,
 		maxGoId:          0,
+		appRunId:         appRunId,
 	}
 }
 
@@ -57,6 +92,18 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 
 	activeGoroutines := make(map[int64]bool)
 	timestamp := info.Ts
+	isDelta := info.Delta
+
+	// If this is a delta update but we haven't seen a full update yet, ignore it
+	if isDelta && !gp.hasSeenFullUpdate {
+		fmt.Printf("WARNING: [AppRun: %s] Ignoring delta update because no full update has been seen yet\n", gp.appRunId)
+		return
+	}
+
+	// If this is a full update, mark that we've seen one
+	if !isDelta {
+		gp.hasSeenFullUpdate = true
+	}
 
 	// Process goroutine stacks
 	for _, stack := range info.Stacks {
@@ -69,7 +116,7 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 			gp.maxGoId = goId
 		}
 
-		goroutine, _ := gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
+		goroutine, wasFound := gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
 			return GoRoutine{
 				GoId:                goId,
 				StackTraces:         utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
@@ -83,6 +130,7 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		goroutine.LastActiveIteration = gp.currentIteration
 		goroutine.LastSeen = timestamp
 
+		// Update fields based on the stack data
 		if stack.Name != "" {
 			goroutine.Name = stack.Name
 		}
@@ -90,11 +138,33 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 			goroutine.Tags = stack.Tags
 		}
 
-		goroutine.StackTraces.Write(stack)
+		// Handle stack trace updates based on whether it's a delta update
+		if isDelta {
+			// Delta updates need a base stack to merge with
+			var exists bool
+			var lastStack ds.GoRoutineStack
+			if wasFound {
+				lastStack, _, exists = goroutine.StackTraces.GetLast()
+			}
+			if exists {
+				completeStack := mergeGoRoutineStacks(lastStack, stack)
+				goroutine.StackTraces.Write(completeStack)
+			} else {
+				newCount := gp.missingLastStackCount.Add(1)
+				if newCount == 1 {
+					fmt.Printf("WARNING: [AppRun: %s] Delta update received for goroutine %d with no last stack\n", gp.appRunId, goId)
+				}
+			}
+		} else {
+			// full updates write the stack directly
+			goroutine.StackTraces.Write(stack)
+		}
 
 		gp.goRoutines.Set(goId, goroutine)
 	}
 
+	// Always update the active goroutines map
+	// Delta updates include all active goroutines, not just the ones that have changed
 	gp.activeGoRoutines = activeGoroutines
 
 	gp.pruneOldGoroutines()

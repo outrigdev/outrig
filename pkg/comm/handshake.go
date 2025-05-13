@@ -24,8 +24,8 @@ const (
 	ConnectionModeLog    = "log"
 )
 
-const MinClientVersion = "v0.4.0"
-const MinServerVersion = "v0.4.0"
+const MinClientVersion = "v0.5.0"
+const MinServerVersion = "v0.5.0"
 
 type ServerHandshakePacket struct {
 	OutrigVersion string `json:"outrigversion"`
@@ -47,7 +47,6 @@ type ServerHandshakeResponse struct {
 
 // Regexp for validating log source paths
 var logSourceRegexp = regexp.MustCompile(`^[a-zA-Z0-9.+_/:-]+$`)
-
 
 // ConnWrap wraps a net.Conn and a bufio.Reader for convenient line-based communication.
 type ConnWrap struct {

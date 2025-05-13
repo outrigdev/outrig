@@ -101,7 +101,7 @@ func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 		return &AppRunPeer{
 			AppRunId:      appRunId,
 			Logs:          MakeLogLinePeer(),
-			GoRoutines:    MakeGoRoutinePeer(),
+			GoRoutines:    MakeGoRoutinePeer(appRunId),
 			Watches:       MakeWatchesPeer(),
 			RuntimeStats:  MakeRuntimeStatsPeer(),
 			Status:        AppStatusRunning,

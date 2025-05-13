@@ -153,15 +153,16 @@ type AppInfo struct {
 type GoroutineInfo struct {
 	Ts     int64            `json:"ts"`
 	Count  int              `json:"count"`
+	Delta  bool             `json:"delta,omitempty"`
 	Stacks []GoRoutineStack `json:"stacks"`
 }
 
 type GoRoutineStack struct {
 	GoId       int64    `json:"goid"`
-	State      string   `json:"state"`
-	StackTrace string   `json:"stacktrace"` // does not include the goroutine header (goid + state)
+	State      string   `json:"state,omitempty"`
 	Name       string   `json:"name,omitempty"`
 	Tags       []string `json:"tags,omitempty"`
+	StackTrace string   `json:"stacktrace,omitempty"` // does not include the goroutine header (goid + state)
 }
 
 type WatchInfo struct {
