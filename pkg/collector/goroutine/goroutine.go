@@ -159,42 +159,30 @@ var startRe = regexp.MustCompile(`(?m)^goroutine\s+\d+`)
 var stackRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\].*\n((?s).*)`)
 
 // computeDeltaStack compares current and last goroutine stack and returns a delta stack
-// For delta updates, we always include the goroutine ID, but only include other fields if they've changed
+// For delta updates, we start with a full copy of current and clear fields that haven't changed
 func (gc *GoroutineCollector) computeDeltaStack(id int64, current ds.GoRoutineStack) (ds.GoRoutineStack, bool) {
 	lastStack, exists := gc.lastGoroutineStacks[id]
 	if !exists {
 		// New goroutine, include all fields
 		return current, false
 	}
-
-	// For delta updates, we always include the goroutine ID
-	// but only include other fields if they've changed
-	deltaStack := ds.GoRoutineStack{
-		GoId: id,
-	}
-
-	// Only include fields that have changed
-	if lastStack.State != current.State {
-		deltaStack.State = current.State
-	}
-
+	// For delta updates, start with a full copy of current and clear fields that haven't changed
+	deltaStack := current
 	sameStack := true
-	if lastStack.StackTrace != current.StackTrace {
-		deltaStack.StackTrace = current.StackTrace
+	if lastStack.State == current.State {
+		deltaStack.State = ""
+	}
+	if lastStack.StackTrace == current.StackTrace {
+		deltaStack.StackTrace = ""
+	} else {
 		sameStack = false
 	}
-
-	if lastStack.Name != current.Name {
-		deltaStack.Name = current.Name
+	if lastStack.Name == current.Name {
+		deltaStack.Name = ""
 	}
-
-	// Compare tags using slices.Equal
-	tagsChanged := !slices.Equal(lastStack.Tags, current.Tags)
-
-	if tagsChanged {
-		deltaStack.Tags = current.Tags
+	if slices.Equal(lastStack.Tags, current.Tags) {
+		deltaStack.Tags = nil
 	}
-
 	return deltaStack, sameStack
 }
 
