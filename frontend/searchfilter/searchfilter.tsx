@@ -246,30 +246,38 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
 
         // Handle history navigation with arrow keys
         if (key === "ArrowUp" || key === "ArrowDown") {
-            if (searchHistory.length > 0) {
-                e.preventDefault();
+            e.preventDefault();
 
-                // Open history dropdown if it's not already open
-                if (!isHistoryOpen) {
-                    setIsHistoryOpen(true);
-                    setSelectedHistoryIndex(0); // Always select the first item when opening
-                    return;
+            // Open history dropdown if it's not already open
+            if (!isHistoryOpen) {
+                setIsHistoryOpen(true);
+                // Only set selected index if there are items
+                if (searchHistory.length > 0) {
+                    setSelectedHistoryIndex(0);
                 }
+                return;
+            }
 
+            // Only navigate through history items if there are any
+            if (searchHistory.length > 0) {
                 // Navigate through history items
                 if (key === "ArrowUp") {
                     setSelectedHistoryIndex((prev) => (prev <= 0 ? searchHistory.length - 1 : prev - 1));
                 } else {
                     setSelectedHistoryIndex((prev) => (prev >= searchHistory.length - 1 ? 0 : prev + 1));
                 }
-                return;
             }
+            return;
         }
 
         // Handle Enter key when history dropdown is open
-        if (key === "Enter" && isHistoryOpen && selectedHistoryIndex >= 0) {
+        if (key === "Enter" && isHistoryOpen) {
             e.preventDefault();
-            onValueChange(searchHistory[selectedHistoryIndex]);
+            // If we have a valid selected history item, use it
+            if (selectedHistoryIndex >= 0 && selectedHistoryIndex < searchHistory.length) {
+                onValueChange(searchHistory[selectedHistoryIndex]);
+            }
+            // Always close the dropdown
             setIsHistoryOpen(false);
             return;
         }
@@ -493,39 +501,48 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
                 )}
 
                 {/* Search History Dropdown */}
-                {isHistoryOpen && searchHistory.length > 0 && (
+                {isHistoryOpen && (
                     <div
                         ref={historyDropdownRef}
                         className="absolute z-50 w-full bg-panel mt-1 border border-strongborder rounded-md shadow-lg shadow-shadow max-h-60 overflow-auto"
                     >
-                        <ul>
-                            {searchHistory.map((historyItem, index) => (
-                                <li
-                                    key={`${historyItem}-${index}`}
-                                    className={cn(
-                                        "px-3 py-2 flex justify-between items-center cursor-pointer text-sm font-mono group",
-                                        index === selectedHistoryIndex
-                                            ? "bg-accentbg/20 text-accent"
-                                            : "text-primary hover:bg-buttonhover"
-                                    )}
-                                    onClick={() => {
-                                        onValueChange(historyItem);
-                                        setIsHistoryOpen(false);
-                                    }}
-                                >
-                                    <span className="truncate">{historyItem}</span>
-                                    <Tooltip content="Remove Search from History" placement="top">
-                                        <button
-                                            className="ml-2 p-1 rounded-full hover:bg-buttonbg text-muted hover:text-primary cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={(e) => handleRemoveHistoryItem(e, index)}
-                                            aria-label="Remove from history"
-                                        >
-                                            <X size={14} />
-                                        </button>
-                                    </Tooltip>
-                                </li>
-                            ))}
-                        </ul>
+                        {searchHistory.length > 0 ? (
+                            <ul>
+                                {searchHistory.map((historyItem, index) => (
+                                    <li
+                                        key={`${historyItem}-${index}`}
+                                        className={cn(
+                                            "px-3 py-2 flex justify-between items-center cursor-pointer text-sm font-mono group",
+                                            index === selectedHistoryIndex
+                                                ? "bg-accentbg/20 text-accent"
+                                                : "text-primary hover:bg-buttonhover"
+                                        )}
+                                        onClick={() => {
+                                            onValueChange(historyItem);
+                                            setIsHistoryOpen(false);
+                                        }}
+                                    >
+                                        <span className="truncate">{historyItem}</span>
+                                        <Tooltip content="Remove Search from History" placement="top">
+                                            <button
+                                                className="ml-2 p-1 rounded-full hover:bg-buttonbg text-muted hover:text-primary cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={(e) => handleRemoveHistoryItem(e, index)}
+                                                aria-label="Remove from history"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </Tooltip>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <div className="px-3 py-4 text-center">
+                                <p className="text-primary font-medium text-sm">No Search History</p>
+                                <p className="text-secondary text-sm">
+                                    To explicitly save a search to history press Enter &crarr;
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
