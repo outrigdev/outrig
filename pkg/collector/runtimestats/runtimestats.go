@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/collector"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 )
@@ -19,7 +20,7 @@ type RuntimeStatsCollector struct {
 	lock       sync.Mutex
 	executor   *collector.PeriodicExecutor
 	controller ds.Controller
-	config     ds.RuntimeStatsConfig
+	config     config.RuntimeStatsConfig
 }
 
 // CollectorName returns the unique name of the collector
@@ -41,9 +42,9 @@ func GetInstance() *RuntimeStatsCollector {
 }
 
 // InitCollector initializes the runtime stats collector with a controller and configuration
-func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, config any, arCtx ds.AppRunContext) error {
+func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, cfg any, arCtx ds.AppRunContext) error {
 	rc.controller = controller
-	if statsConfig, ok := config.(ds.RuntimeStatsConfig); ok {
+	if statsConfig, ok := cfg.(config.RuntimeStatsConfig); ok {
 		rc.config = statsConfig
 	}
 	return nil

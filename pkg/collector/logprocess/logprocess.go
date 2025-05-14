@@ -7,13 +7,14 @@ import (
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 // LogCollector implements the collector.Collector interface for log collection
 type LogCollector struct {
 	controller    ds.Controller
-	config        ds.LogProcessorConfig
+	config        config.LogProcessorConfig
 	appRunContext ds.AppRunContext
 }
 
@@ -35,9 +36,9 @@ func GetInstance() *LogCollector {
 }
 
 // InitCollector initializes the log collector with a controller and configuration
-func (lc *LogCollector) InitCollector(controller ds.Controller, config any, appRunContext ds.AppRunContext) error {
+func (lc *LogCollector) InitCollector(controller ds.Controller, cfg any, appRunContext ds.AppRunContext) error {
 	lc.controller = controller
-	if logConfig, ok := config.(ds.LogProcessorConfig); ok {
+	if logConfig, ok := cfg.(config.LogProcessorConfig); ok {
 		lc.config = logConfig
 	}
 	lc.appRunContext = appRunContext

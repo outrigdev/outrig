@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/base"
-	"github.com/outrigdev/outrig/pkg/ds"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 )
 
@@ -39,7 +39,7 @@ type extCaptureProc struct {
 	closing                  atomic.Bool   // Flag to indicate that disableExternalLogWrapImpl is running
 }
 
-func enableExternalLogWrapImpl(appRunId string, config ds.LogProcessorConfig, isDev bool) error {
+func enableExternalLogWrapImpl(appRunId string, config config.LogProcessorConfig, isDev bool) error {
 	externalCaptureLock.Lock()
 	defer externalCaptureLock.Unlock()
 

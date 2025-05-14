@@ -7,6 +7,8 @@ import (
 	"net"
 	"reflect"
 	"strconv"
+
+	"github.com/outrigdev/outrig/pkg/config"
 )
 
 // Transport packet types
@@ -46,58 +48,6 @@ const (
 type PacketType struct {
 	Type string `json:"type"`
 	Data any    `json:"data"`
-}
-
-type LogProcessorConfig struct {
-	// Enabled indicates whether the log processor is enabled
-	Enabled    bool
-	WrapStdout bool
-	WrapStderr bool
-	// OutrigPath is the full path to the outrig executable (including the executable name)
-	// If empty, the system will look for "outrig" in the PATH
-	OutrigPath string
-	// AdditionalArgs are additional arguments to pass to the outrig command
-	// These are inserted before the "capturelogs" argument
-	AdditionalArgs []string
-}
-
-type WatchConfig struct {
-	// Enabled indicates whether the watch collector is enabled
-	Enabled bool
-}
-
-type GoRoutineConfig struct {
-	// Enabled indicates whether the goroutine collector is enabled
-	Enabled bool
-}
-
-type RuntimeStatsConfig struct {
-	// Enabled indicates whether the runtime stats collector is enabled
-	Enabled bool
-}
-
-type Config struct {
-	Quiet bool // If true, suppresses init, connect, and disconnect messages
-
-	// DomainSocketPath is the path to the Unix domain socket. If "" => use default.
-	// If "-" => disable domain socket.
-	DomainSocketPath string
-
-	// ModuleName is the name of the Go module. If not specified, it will be determined
-	// from the go.mod file.
-	ModuleName string
-
-	// Dev indicates whether the client is in development mode
-	Dev bool
-
-	// If true, try to synchronously connect to the server on Init
-	ConnectOnInit bool
-
-	// Collector configurations
-	LogProcessorConfig LogProcessorConfig
-	WatchConfig        WatchConfig
-	GoRoutineConfig    GoRoutineConfig
-	RuntimeStatsConfig RuntimeStatsConfig
 }
 
 // ClientType represents our active connection client
@@ -292,7 +242,7 @@ func (w *WatchSample) GetNumericVal() float64 {
 // for internal use (import cycles)
 type Controller interface {
 	// Configuration
-	GetConfig() Config
+	GetConfig() config.Config
 	GetAppRunId() string
 
 	// Transport

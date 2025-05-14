@@ -87,6 +87,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 
 ### Notes
 
+- **CRITICAL: Completion format MUST be: "Done: [one-line description]"**
 - **Keep your Task Completed summaries VERY short**
 - **No lengthy pre-completion summaries** - Do not provide detailed explanations of implementation before using attempt_completion
 - **No recaps of changes** - Skip explaining what was done before completion

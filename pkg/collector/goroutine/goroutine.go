@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/collector"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -26,7 +27,7 @@ type GoroutineCollector struct {
 	lock                sync.Mutex
 	executor            *collector.PeriodicExecutor
 	controller          ds.Controller
-	config              ds.GoRoutineConfig
+	config              config.GoRoutineConfig
 	goroutineNames      map[int64]string            // map from goroutine ID to name
 	lastGoroutineStacks map[int64]ds.GoRoutineStack // last set of goroutine stacks for delta calculation
 	nextSendFull        bool                        // true for full update, false for delta update
@@ -57,9 +58,9 @@ func GetInstance() *GoroutineCollector {
 }
 
 // InitCollector initializes the goroutine collector with a controller and configuration
-func (gc *GoroutineCollector) InitCollector(controller ds.Controller, config any, appRunContext ds.AppRunContext) error {
+func (gc *GoroutineCollector) InitCollector(controller ds.Controller, cfg any, appRunContext ds.AppRunContext) error {
 	gc.controller = controller
-	if goConfig, ok := config.(ds.GoRoutineConfig); ok {
+	if goConfig, ok := cfg.(config.GoRoutineConfig); ok {
 		gc.config = goConfig
 	}
 	return nil

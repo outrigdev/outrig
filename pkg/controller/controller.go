@@ -24,6 +24,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/collector/runtimestats"
 	"github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/comm"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
@@ -37,7 +38,7 @@ const MaxInternalLog = 100
 
 type ControllerImpl struct {
 	Lock                sync.Mutex // lock for this struct
-	config              *ds.Config
+	config              *config.Config
 	pollerOnce          sync.Once                      // ensures poller is started only once
 	AppInfo             ds.AppInfo                     // combined application information
 	OutrigForceDisabled bool                           // whether outrig is force disabled
@@ -47,7 +48,7 @@ type ControllerImpl struct {
 }
 
 // this is idempotent
-func MakeController(appName string, config ds.Config) (*ControllerImpl, error) {
+func MakeController(appName string, cfg config.Config) (*ControllerImpl, error) {
 	if appName == "" {
 		appName = determineAppName()
 	}
@@ -57,11 +58,11 @@ func MakeController(appName string, config ds.Config) (*ControllerImpl, error) {
 	}
 
 	// Initialize transport
-	c.transport = MakeTransport(&config)
+	c.transport = MakeTransport(&cfg)
 
 	// Initialize AppInfo using the dedicated function
-	c.AppInfo = c.createAppInfo(appName, &config)
-	c.config = &config
+	c.AppInfo = c.createAppInfo(appName, &cfg)
+	c.config = &cfg
 
 	arCtx := ds.AppRunContext{
 		AppRunId: c.AppInfo.AppRunId,
@@ -111,7 +112,7 @@ func (c *ControllerImpl) InitialStart() {
 }
 
 // createAppInfo creates and initializes the AppInfo structure
-func (c *ControllerImpl) createAppInfo(appName string, config *ds.Config) ds.AppInfo {
+func (c *ControllerImpl) createAppInfo(appName string, cfg *config.Config) ds.AppInfo {
 	appInfo := ds.AppInfo{}
 
 	// Initialize basic AppInfo
@@ -125,7 +126,7 @@ func (c *ControllerImpl) createAppInfo(appName string, config *ds.Config) ds.App
 	appInfo.AppName = appName
 
 	// Set module name
-	moduleName := config.ModuleName
+	moduleName := cfg.ModuleName
 	if moduleName == "" {
 		moduleName = c.determineModuleName()
 	}
@@ -299,7 +300,7 @@ func (c *ControllerImpl) IsForceDisabled() bool {
 	return c.OutrigForceDisabled
 }
 
-func (c *ControllerImpl) GetConfig() ds.Config {
+func (c *ControllerImpl) GetConfig() config.Config {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 	return *c.config

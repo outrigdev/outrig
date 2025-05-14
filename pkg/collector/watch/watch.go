@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/collector"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -34,7 +35,7 @@ type WatchCollector struct {
 	lock            sync.Mutex
 	executor        *collector.PeriodicExecutor
 	controller      ds.Controller
-	config          ds.WatchConfig
+	config          config.WatchConfig
 	watchDecls      map[string]*WatchDecl
 	watchVals       []ds.WatchSample
 	lastWatchValues map[string]ds.WatchSample // last set of watch values for delta calculation
@@ -186,9 +187,9 @@ func (wc *WatchCollector) SetNextSendFull(full bool) {
 }
 
 // InitCollector initializes the watch collector with a controller and configuration
-func (wc *WatchCollector) InitCollector(controller ds.Controller, config any, arCtx ds.AppRunContext) error {
+func (wc *WatchCollector) InitCollector(controller ds.Controller, cfg any, arCtx ds.AppRunContext) error {
 	wc.controller = controller
-	if watchConfig, ok := config.(ds.WatchConfig); ok {
+	if watchConfig, ok := cfg.(config.WatchConfig); ok {
 		wc.config = watchConfig
 	}
 	return nil

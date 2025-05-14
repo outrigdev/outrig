@@ -4,17 +4,15 @@
 // Package loginitex provides external process-based log capture functionality
 package loginitex
 
-import (
-	"github.com/outrigdev/outrig/pkg/ds"
-)
+import "github.com/outrigdev/outrig/pkg/config"
 
 // EnableExternalLogWrap redirects stdout and stderr to an external outrig capturelogs process
 // appRunId is the unique identifier for the application run
 // config specifies which streams to wrap (stdout/stderr)
 // isDev specifies whether to run the process in development mode
-func EnableExternalLogWrap(appRunId string, config ds.LogProcessorConfig, isDev bool) error {
+func EnableExternalLogWrap(appRunId string, cfg config.LogProcessorConfig, isDev bool) error {
 	// Platform-specific implementation will be provided
-	return enableExternalLogWrapImpl(appRunId, config, isDev)
+	return enableExternalLogWrapImpl(appRunId, cfg, isDev)
 }
 
 // DisableExternalLogWrap stops the external log capture process and restores original file descriptors

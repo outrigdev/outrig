@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/comm"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
 )
@@ -42,14 +43,14 @@ type transportPeer struct {
 type Transport struct {
 	lock    sync.Mutex
 	connMap map[string]*transportPeer // map of connections by peer name
-	config  *ds.Config
+	config  *config.Config
 }
 
 // MakeTransport creates a new Transport instance
-func MakeTransport(config *ds.Config) *Transport {
+func MakeTransport(cfg *config.Config) *Transport {
 	return &Transport{
 		connMap: make(map[string]*transportPeer),
-		config:  config,
+		config:  cfg,
 	}
 }
 
