@@ -1,12 +1,14 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+// Package ds provides data structures, types, and constants used over the wire between the SDK and the server
 package ds
 
 import (
 	"net"
 	"reflect"
 	"strconv"
+	"sync"
 
 	"github.com/outrigdev/outrig/pkg/config"
 )
@@ -118,7 +120,51 @@ type GoRoutineStack struct {
 type WatchInfo struct {
 	Ts      int64         `json:"ts"`
 	Delta   bool          `json:"delta,omitempty"`
+	Decls   []WatchDecl   `json:"decls,omitempty"`
 	Watches []WatchSample `json:"watches"`
+}
+
+type WatchDecl struct {
+	Name      string      `json:"name"`
+	Tags      []string    `json:"tags,omitempty"`
+	NewLine   string      `json:"newline,omitempty"`
+	WatchType string      `json:"watchtype"`
+	Format    string      `json:"format"`
+	Counter   bool        `json:"counter,omitempty"`
+	ConfigErr *ErrWithLine `json:"configerr,omitempty"`
+
+	SyncLock sync.Locker `json:"-"`
+	PollObj  any         `json:"-"`
+}
+
+type WatchSample2 struct {
+	Name    string   `json:"name"`
+	Ts      int64    `json:"ts"` // timestamp in milliseconds
+	Kind    int      `json:"kind,omitempty"`
+	Type    string   `json:"type,omitempty"`
+	Val     string   `json:"val,omitempty"`
+	Error   string   `json:"error,omitempty"`
+	Addr    []string `json:"addr,omitempty"`
+	Cap     int      `json:"cap,omitempty"`
+	Len     int      `json:"len,omitempty"`
+	PollDur int64    `json:"polldur,omitempty"`
+}
+
+type WatchSample struct {
+	WatchNum int64    `json:"watchnum,omitempty"`
+	Name     string   `json:"name"`
+	Tags     []string `json:"tags,omitempty"`
+	Ts       int64    `json:"ts"`
+	Flags    int      `json:"flags,omitempty"`
+	StrVal   string   `json:"strval,omitempty"`
+	GoFmtVal string   `json:"gofmtval,omitempty"`
+	JsonVal  string   `json:"jsonval,omitempty"`
+	Type     string   `json:"type,omitempty"`
+	Error    string   `json:"error,omitempty"`
+	Addr     []string `json:"addr,omitempty"`
+	Cap      int      `json:"cap,omitempty"`
+	Len      int      `json:"len,omitempty"`
+	WaitTime int64    `json:"waittime,omitempty"`
 }
 
 type MemoryStatsInfo struct {
@@ -156,23 +202,6 @@ type RuntimeStatsInfo struct {
 	Pid            int             `json:"pid"`
 	Cwd            string          `json:"cwd"`
 	MemStats       MemoryStatsInfo `json:"memstats"`
-}
-
-type WatchSample struct {
-	WatchNum int64    `json:"watchnum,omitempty"`
-	Name     string   `json:"name"`
-	Tags     []string `json:"tags,omitempty"`
-	Ts       int64    `json:"ts"`
-	Flags    int      `json:"flags,omitempty"`
-	StrVal   string   `json:"strval,omitempty"`
-	GoFmtVal string   `json:"gofmtval,omitempty"`
-	JsonVal  string   `json:"jsonval,omitempty"`
-	Type     string   `json:"type,omitempty"`
-	Error    string   `json:"error,omitempty"`
-	Addr     []string `json:"addr,omitempty"`
-	Cap      int      `json:"cap,omitempty"`
-	Len      int      `json:"len,omitempty"`
-	WaitTime int64    `json:"waittime,omitempty"`
 }
 
 // GetKind extracts the reflect.Kind from the flags
@@ -254,4 +283,10 @@ type Controller interface {
 type AppRunContext struct {
 	IsDev    bool
 	AppRunId string
+}
+
+// ErrWithLine represents an error with a source code line reference
+type ErrWithLine struct {
+	Error string `json:"error"`
+	Line  string `json:"line"`
 }

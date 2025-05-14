@@ -36,10 +36,12 @@ type WatchCollector struct {
 	executor        *collector.PeriodicExecutor
 	controller      ds.Controller
 	config          config.WatchConfig
+	watchDecls2     map[string]*ds.WatchDecl
 	watchDecls      map[string]*WatchDecl
 	watchVals       []ds.WatchSample
 	lastWatchValues map[string]ds.WatchSample // last set of watch values for delta calculation
 	nextSendFull    bool                      // true for full update, false for delta update
+	regErrors       []ds.ErrWithLine         // errors encountered during watch registration
 }
 
 type WatchDecl struct {
@@ -103,8 +105,10 @@ func GetInstance() *WatchCollector {
 	instanceOnce.Do(func() {
 		instance = &WatchCollector{
 			watchDecls:      make(map[string]*WatchDecl),
+			watchDecls2:     make(map[string]*ds.WatchDecl),
 			lastWatchValues: make(map[string]ds.WatchSample),
 			nextSendFull:    true, // First send is always a full update
+			regErrors:       make([]ds.ErrWithLine, 0),
 		}
 		instance.executor = collector.MakePeriodicExecutor("WatchCollector", 1*time.Second, instance.CollectWatches)
 	})
@@ -166,6 +170,47 @@ func (wc *WatchCollector) UnregisterWatch(name string) {
 	defer wc.lock.Unlock()
 	cleanName, _ := utilfn.ParseNameAndTags(name)
 	delete(wc.watchDecls, cleanName)
+}
+
+// RegisterWatchDecl registers a watch declaration in the watchDecls2 map
+// Returns an error if a watch with the same name already exists
+func (wc *WatchCollector) RegisterWatchDecl(decl *ds.WatchDecl) error {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+	
+	if decl == nil || decl.Name == "" {
+		err := fmt.Errorf("watch declaration is nil or has empty name")
+		wc.regErrors = append(wc.regErrors, ds.ErrWithLine{
+			Error: err.Error(),
+			Line:  decl.NewLine,
+		})
+		return err
+	}
+	
+	// Check if a watch with this name already exists
+	if _, exists := wc.watchDecls2[decl.Name]; exists {
+		err := fmt.Errorf("watch with name '%s' already registered", decl.Name)
+		wc.regErrors = append(wc.regErrors, ds.ErrWithLine{
+			Error: err.Error(),
+			Line:  decl.NewLine,
+		})
+		return err
+	}
+	
+	// Register the watch declaration
+	wc.watchDecls2[decl.Name] = decl
+	return nil
+}
+
+// GetRegErrors returns a copy of the registration errors
+func (wc *WatchCollector) GetRegErrors() []ds.ErrWithLine {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+	
+	// Create a copy to avoid race conditions
+	result := make([]ds.ErrWithLine, len(wc.regErrors))
+	copy(result, wc.regErrors)
+	return result
 }
 
 // getSendFullAndReset returns the current sendFull value and always sets it to false

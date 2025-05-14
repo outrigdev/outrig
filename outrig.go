@@ -11,6 +11,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -54,18 +55,12 @@ type Number interface {
 }
 
 type Watch struct {
-	name          string
-	tags          []string
-	newLine       string
-	configErr     error
-	configErrLine string
+	decl *ds.WatchDecl
+}
 
-	watchType   string
-	watchFormat string
-	counter     bool
-
-	syncLock sync.Locker
-	val      any // depends on flags (atomic, sync, func)
+type Pusher struct {
+	decl     *ds.WatchDecl
+	disabled bool
 }
 
 func init() {
@@ -335,8 +330,10 @@ func MakeLogStream(name string) (io.Writer, error) {
 
 func NewWatch(name string) *Watch {
 	w := &Watch{
-		name:    name,
-		newLine: getCallerInfo(1),
+		decl: &ds.WatchDecl{
+			Name:    name,
+			NewLine: getCallerInfo(1),
+		},
 	}
 
 	if name == "" {
@@ -346,77 +343,237 @@ func NewWatch(name string) *Watch {
 	return w
 }
 
-func (w *Watch) SetTags(tags ...string) *Watch {
-	w.tags = tags
+func (w *Watch) WithTags(tags ...string) *Watch {
+	w.decl.Tags = tags
 	return w
 }
 
 func (w *Watch) AsCounter() *Watch {
-	w.counter = true
+	w.decl.Counter = true
 	return w
 }
 
 func (w *Watch) AsJSON() *Watch {
-	w.watchFormat = watchFormat_Json
+	w.decl.Format = watchFormat_Json
 	return w
 }
 
 func (w *Watch) AsStringer() *Watch {
-	w.watchFormat = watchFormat_Stringer
+	w.decl.Format = watchFormat_Stringer
 	return w
 }
 
 func (w *Watch) AsGoFmt() *Watch {
-	w.watchFormat = watchFormat_Gofmt
+	w.decl.Format = watchFormat_Gofmt
 	return w
 }
 
 func (w *Watch) setType(typ string) bool {
-	if w.watchType != "" {
+	if w.decl.WatchType != "" {
 		return false
 	}
-	w.watchType = typ
+	w.decl.WatchType = typ
 	return true
 }
 
 func (w *Watch) setConfigErr(err error) {
-	if err != nil && w.configErr == nil {
-		w.configErr = err
-		w.configErrLine = getCallerInfo(2)
+	if err != nil && w.decl.ConfigErr == nil {
+		w.decl.ConfigErr = &ds.ErrWithLine{
+			Error: err.Error(),
+			Line:  getCallerInfo(2),
+		}
 	}
 }
 
-func (w *Watch) Push(val any) {
+// registerWatch registers the watch declaration with the WatchCollector
+// Returns an error if registration fails
+func (w *Watch) registerWatch() error {
+	wc := watch.GetInstance()
+	return wc.RegisterWatchDecl(w.decl)
+}
+
+func (w *Watch) ForPush() *Pusher {
 	if !w.setType(watchType_Push) {
-		w.setConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.watchType, watchType_Push))
+		w.setConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Push))
+		return &Pusher{decl: w.decl, disabled: true}
+	}
+
+	if err := w.registerWatch(); err != nil {
+		w.setConfigErr(err)
+	}
+	return &Pusher{decl: w.decl}
+}
+
+func (p *Pusher) Push(val any) {
+	if p.disabled {
 		return
 	}
-	w.val = val
+	// todo send push value
 }
 
+// PollFunc sets up a function-based watch that periodically calls the provided function
+// to retrieve its current value. The provided function must take no arguments and must return
+// exactly one value (of any type).
+//
+// Requirements for fn:
+//   - Non-nil function
+//   - Zero arguments
+//   - Exactly one return value
+//
+// Example:
+//
+//	outrig.NewWatch("counter").PollFunc(func() int { return myCounter })
 func (w *Watch) PollFunc(fn any) {
 	if !w.setType(watchType_Func) {
-		w.setConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.watchType, watchType_Func))
+		w.setConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Func))
 		return
 	}
-	w.val = fn
+	// Validate that fn is a function that takes 0 arguments and returns exactly 1 value
+	if fn == nil {
+		w.setConfigErr(fmt.Errorf("PollFunc requires a non-nil function"))
+		return
+	}
+	fnType := reflect.TypeOf(fn)
+	if fnType.Kind() != reflect.Func {
+		w.setConfigErr(fmt.Errorf("PollFunc requires a function, got %s", fnType.Kind()))
+		return
+	}
+	if fnType.NumIn() != 0 {
+		w.setConfigErr(fmt.Errorf("PollFunc requires a function with 0 arguments, got %d", fnType.NumIn()))
+		return
+	}
+	if fnType.NumOut() != 1 {
+		w.setConfigErr(fmt.Errorf("PollFunc requires a function that returns exactly 1 value, got %d", fnType.NumOut()))
+		return
+	}
+	w.decl.PollObj = fn
+	if err := w.registerWatch(); err != nil {
+		w.setConfigErr(err)
+	}
 }
 
+// PollAtomic sets up an atomic-based watch that reads values from atomic variables.
+// This method is optimized for monitoring values that are updated using atomic operations.
+//
+// The val parameter must be:
+//   - A non-nil pointer
+//   - A pointer to one of the following types:
+//   - sync/atomic package types (atomic.Bool, atomic.Int32, atomic.Int64, etc.)
+//   - Primitive types that support atomic operations (int32, int64, uint32, uint64, uintptr)
+//   - unsafe.Pointer
+//
+// Example:
+//
+//	var counter atomic.Int64
+//	outrig.NewWatch("atomic-counter").PollAtomic(&counter)
 func (w *Watch) PollAtomic(val any) {
 	if !w.setType(watchType_Atomic) {
-		w.setConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.watchType, watchType_Atomic))
+		w.setConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Atomic))
 		return
 	}
-	w.val = val
+
+	// Validate that val is not nil
+	if val == nil {
+		w.setConfigErr(fmt.Errorf("PollAtomic requires a non-nil value"))
+		return
+	}
+
+	// Get the type of val
+	valType := reflect.TypeOf(val)
+
+	// First, ensure we're dealing with a pointer
+	if valType.Kind() != reflect.Ptr {
+		w.setConfigErr(fmt.Errorf("PollAtomic requires a pointer to a value, got %s", valType.String()))
+		return
+	}
+
+	// Get the element type (what the pointer points to)
+	elemType := valType.Elem()
+	typeName := elemType.String()
+
+	// Check if val is a valid atomic type
+	isValidAtomic := false
+
+	// Check for atomic package types
+	if strings.HasPrefix(typeName, "atomic.") {
+		// Valid atomic types from sync/atomic package
+		validAtomicTypes := map[string]bool{
+			"atomic.Bool":    true,
+			"atomic.Int32":   true,
+			"atomic.Int64":   true,
+			"atomic.Pointer": true,
+			"atomic.Uint32":  true,
+			"atomic.Uint64":  true,
+			"atomic.Uintptr": true,
+			"atomic.Value":   true,
+		}
+		isValidAtomic = validAtomicTypes[typeName]
+	} else {
+		// Check for primitive types that can be used with atomic operations
+		switch elemType.Kind() {
+		case reflect.Int32, reflect.Int64, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			isValidAtomic = true
+		}
+
+		// Special case for unsafe.Pointer
+		if typeName == "unsafe.Pointer" {
+			isValidAtomic = true
+		}
+	}
+
+	if !isValidAtomic {
+		w.setConfigErr(fmt.Errorf("PollAtomic requires an atomic type, got %s", typeName))
+		return
+	}
+
+	w.decl.PollObj = val
+	if err := w.registerWatch(); err != nil {
+		w.setConfigErr(err)
+	}
 }
 
+// PollSync sets up a synchronization-based watch to monitor values protected by a mutex or other locker.
+// It's intended for values updated concurrently, ensuring thread-safe access during polling.
+//
+// Requirements:
+//   - lock: A non-nil sync.Locker (e.g., *sync.Mutex, *sync.RWMutex)
+//   - val: A non-nil pointer to the value being watched
+//
+// Example:
+//
+//	var mu sync.Mutex
+//	var counter int
+//	outrig.NewWatch("sync-counter").PollSync(&mu, &counter)
 func (w *Watch) PollSync(lock sync.Locker, val any) {
 	if !w.setType(watchType_Sync) {
-		w.setConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.watchType, watchType_Sync))
+		w.setConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Sync))
 		return
 	}
-	w.syncLock = lock
-	w.val = val
+
+	// Validate that lock is not nil
+	if lock == nil {
+		w.setConfigErr(fmt.Errorf("PollSync requires a non-nil sync.Locker"))
+		return
+	}
+
+	// Validate that val is not nil
+	if val == nil {
+		w.setConfigErr(fmt.Errorf("PollSync requires a non-nil value"))
+		return
+	}
+
+	// Validate that val is a pointer
+	valType := reflect.TypeOf(val)
+	if valType.Kind() != reflect.Ptr {
+		w.setConfigErr(fmt.Errorf("PollSync requires a pointer to a value, got %s", valType.String()))
+		return
+	}
+
+	w.decl.SyncLock = lock
+	w.decl.PollObj = val
+	if err := w.registerWatch(); err != nil {
+		w.setConfigErr(err)
+	}
 }
 
 // getCallerInfo returns the file and line number of the caller.
