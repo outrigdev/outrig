@@ -11,7 +11,6 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -424,25 +423,12 @@ func (w *Watch) PollFunc(fn any) {
 		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Func), false)
 		return
 	}
-	// Validate that fn is a function that takes 0 arguments and returns exactly 1 value
-	if fn == nil {
-		w.addConfigErr(fmt.Errorf("PollFunc requires a non-nil function"), true)
-		return
+	err := watch.ValidatePollFunc(fn)
+	if err != nil {
+		w.addConfigErr(err, true)
+	} else {
+		w.decl.PollObj = fn
 	}
-	fnType := reflect.TypeOf(fn)
-	if fnType.Kind() != reflect.Func {
-		w.addConfigErr(fmt.Errorf("PollFunc requires a function, got %s", fnType.Kind()), true)
-		return
-	}
-	if fnType.NumIn() != 0 {
-		w.addConfigErr(fmt.Errorf("PollFunc requires a function with 0 arguments, got %d", fnType.NumIn()), true)
-		return
-	}
-	if fnType.NumOut() != 1 {
-		w.addConfigErr(fmt.Errorf("PollFunc requires a function that returns exactly 1 value, got %d", fnType.NumOut()), true)
-		return
-	}
-	w.decl.PollObj = fn
 	w.registerWatch()
 }
 
@@ -465,54 +451,12 @@ func (w *Watch) PollAtomic(val any) {
 		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Atomic), false)
 		return
 	}
-	if val == nil {
-		w.addConfigErr(fmt.Errorf("PollAtomic requires a non-nil value"), true)
-		return
-	}
-	valType := reflect.TypeOf(val)
-	// First, ensure we're dealing with a pointer
-	if valType.Kind() != reflect.Ptr {
-		w.addConfigErr(fmt.Errorf("PollAtomic requires a pointer to a value, got %s", valType.String()), true)
-		return
-	}
-	// Get the element type (what the pointer points to)
-	elemType := valType.Elem()
-	typeName := elemType.String()
-	// Check if val is a valid atomic type
-	isValidAtomic := false
-	// Check for atomic package types
-	if strings.HasPrefix(typeName, "atomic.") {
-		// Valid atomic types from sync/atomic package
-		validAtomicTypes := map[string]bool{
-			"atomic.Bool":    true,
-			"atomic.Int32":   true,
-			"atomic.Int64":   true,
-			"atomic.Pointer": true,
-			"atomic.Uint32":  true,
-			"atomic.Uint64":  true,
-			"atomic.Uintptr": true,
-			"atomic.Value":   true,
-		}
-		isValidAtomic = validAtomicTypes[typeName]
+	err := watch.ValidatePollAtomic(val)
+	if err != nil {
+		w.addConfigErr(err, true)
 	} else {
-		// Check for primitive types that can be used with atomic operations
-		switch elemType.Kind() {
-		case reflect.Int32, reflect.Int64, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-			isValidAtomic = true
-		}
-
-		// Special case for unsafe.Pointer
-		if typeName == "unsafe.Pointer" {
-			isValidAtomic = true
-		}
+		w.decl.PollObj = val
 	}
-
-	if !isValidAtomic {
-		w.addConfigErr(fmt.Errorf("PollAtomic requires an atomic type, got %s", typeName), true)
-		return
-	}
-
-	w.decl.PollObj = val
 	w.registerWatch()
 }
 
@@ -533,28 +477,13 @@ func (w *Watch) PollSync(lock sync.Locker, val any) {
 		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Sync), false)
 		return
 	}
-
-	// Validate that lock is not nil
-	if lock == nil {
-		w.addConfigErr(fmt.Errorf("PollSync requires a non-nil sync.Locker"), true)
-		return
+	err := watch.ValidatePollSync(lock, val)
+	if err != nil {
+		w.addConfigErr(err, true)
+	} else {
+		w.decl.SyncLock = lock
+		w.decl.PollObj = val
 	}
-
-	// Validate that val is not nil
-	if val == nil {
-		w.addConfigErr(fmt.Errorf("PollSync requires a non-nil value"), true)
-		return
-	}
-
-	// Validate that val is a pointer
-	valType := reflect.TypeOf(val)
-	if valType.Kind() != reflect.Ptr {
-		w.addConfigErr(fmt.Errorf("PollSync requires a pointer to a value, got %s", valType.String()), true)
-		return
-	}
-
-	w.decl.SyncLock = lock
-	w.decl.PollObj = val
 	w.registerWatch()
 }
 
