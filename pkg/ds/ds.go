@@ -125,13 +125,13 @@ type WatchInfo struct {
 }
 
 type WatchDecl struct {
-	Name      string      `json:"name"`
-	Tags      []string    `json:"tags,omitempty"`
-	NewLine   string      `json:"newline,omitempty"`
-	WatchType string      `json:"watchtype"`
-	Format    string      `json:"format"`
-	Counter   bool        `json:"counter,omitempty"`
-	ConfigErr *ErrWithLine `json:"configerr,omitempty"`
+	Name      string   `json:"name"`
+	Tags      []string `json:"tags,omitempty"`
+	NewLine   string   `json:"newline,omitempty"`
+	WatchType string   `json:"watchtype"`
+	Format    string   `json:"format"`
+	Counter   bool     `json:"counter,omitempty"`
+	Invalid   bool     `json:"invalid,omitempty"`
 
 	SyncLock sync.Locker `json:"-"`
 	PollObj  any         `json:"-"`
@@ -285,8 +285,9 @@ type AppRunContext struct {
 	AppRunId string
 }
 
-// ErrWithLine represents an error with a source code line reference
-type ErrWithLine struct {
-	Error string `json:"error"`
-	Line  string `json:"line"`
+// ErrWithContext represents an error with a source code line reference
+type ErrWithContext struct {
+	Ref   string `json:"ref,omitempty"` // reference to the object that caused the error (e.g. watchname, goroutine id, log source, etc.)
+	Error string `json:"error"`         // the error message
+	Line  string `json:"line"`          // file:line
 }
