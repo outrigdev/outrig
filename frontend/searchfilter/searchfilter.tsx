@@ -161,7 +161,7 @@ interface SearchHistoryDropdownProps {
 }
 
 interface SearchHistoryDropdownHandle {
-    handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+    handleKeyDown: (keyEvent: OutrigKeyboardEvent) => boolean;
 }
 
 const SearchHistoryDropdown = React.forwardRef<SearchHistoryDropdownHandle, SearchHistoryDropdownProps>(
@@ -169,7 +169,7 @@ const SearchHistoryDropdown = React.forwardRef<SearchHistoryDropdownHandle, Sear
         const [searchHistory, setSearchHistory] = useState<string[]>([]);
         const [selectedIndex, setSelectedIndex] = useState(-1);
         const historyDropdownRef = useRef<HTMLDivElement>(null);
-        
+
         // Get the current app run info for search history
         const appRunId = useAtomValue(AppModel.selectedAppRunId);
         const tabName = useAtomValue(AppModel.selectedTab);
@@ -243,37 +243,32 @@ const SearchHistoryDropdown = React.forwardRef<SearchHistoryDropdownHandle, Sear
 
         // Expose methods to parent via ref
         useImperativeHandle(ref, () => ({
-            handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                switch (e.key) {
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        if (searchHistory.length > 0) {
-                            setSelectedIndex((prev) =>
-                                prev >= searchHistory.length - 1 ? 0 : prev + 1
-                            );
-                        }
-                        break;
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        if (searchHistory.length > 0) {
-                            setSelectedIndex((prev) =>
-                                prev <= 0 ? searchHistory.length - 1 : prev - 1
-                            );
-                        }
-                        break;
-                    case 'Enter':
-                        e.preventDefault();
-                        if (selectedIndex >= 0 && selectedIndex < searchHistory.length) {
-                            onSelect(searchHistory[selectedIndex]);
-                            onClose();
-                        }
-                        break;
-                    case 'Escape':
-                        e.preventDefault();
-                        onClose();
-                        break;
+            handleKeyDown: (keyEvent: OutrigKeyboardEvent) => {
+                if (checkKeyPressed(keyEvent, "ArrowDown")) {
+                    if (searchHistory.length > 0) {
+                        setSelectedIndex((prev) => (prev >= searchHistory.length - 1 ? 0 : prev + 1));
+                    }
+                    return true;
                 }
-            }
+                if (checkKeyPressed(keyEvent, "ArrowUp")) {
+                    if (searchHistory.length > 0) {
+                        setSelectedIndex((prev) => (prev <= 0 ? searchHistory.length - 1 : prev - 1));
+                    }
+                    return true;
+                }
+                if (checkKeyPressed(keyEvent, "Enter")) {
+                    if (selectedIndex >= 0 && selectedIndex < searchHistory.length) {
+                        onSelect(searchHistory[selectedIndex]);
+                        onClose();
+                    }
+                    return true;
+                }
+                if (checkKeyPressed(keyEvent, "Escape")) {
+                    onClose();
+                    return true;
+                }
+                return false;
+            },
         }));
 
         return (
@@ -340,7 +335,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
 
     // State for search history dropdown
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-    
+
     // Create refs for the input element and dropdown
     const inputRef = useRef<HTMLInputElement>(null);
     const dropdownRef = useRef<SearchHistoryDropdownHandle>(null);
@@ -384,21 +379,6 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
         const input = e.currentTarget;
         const key = e.key;
 
-        // If history dropdown is open, delegate keyboard events to it
-        if (isHistoryOpen && (key === "ArrowUp" || key === "ArrowDown" || key === "Enter" || key === "Escape")) {
-            if (dropdownRef.current) {
-                dropdownRef.current.handleKeyDown(e);
-                return;
-            }
-        }
-        
-        // Open history dropdown on arrow down/up when it's not open
-        if ((key === "ArrowUp" || key === "ArrowDown") && !isHistoryOpen) {
-            e.preventDefault();
-            setIsHistoryOpen(true);
-            return;
-        }
-
         // Check if text is selected and a delimiter key is pressed
         if (input.selectionStart !== input.selectionEnd && key in DELIMITER_PAIRS) {
             if (handleSelectionWrapping(e, input, key, DELIMITER_PAIRS[key], onValueChange)) {
@@ -431,8 +411,22 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({
             }
         }
 
-        // If we didn't handle the key, pass to the regular handler
+        // Handle all other key events
         keydownWrapper((keyEvent: OutrigKeyboardEvent) => {
+            // If history dropdown is open, delegate keyboard events to it
+            if (isHistoryOpen && dropdownRef.current) {
+                const handled = dropdownRef.current.handleKeyDown(keyEvent);
+                if (handled) {
+                    return true;
+                }
+            }
+
+            // Open history dropdown on arrow down/up when it's not open
+            if ((checkKeyPressed(keyEvent, "ArrowUp") || checkKeyPressed(keyEvent, "ArrowDown")) && !isHistoryOpen) {
+                setIsHistoryOpen(true);
+                return true;
+            }
+
             // Handle Enter key to save search history
             if (checkKeyPressed(keyEvent, "Enter")) {
                 const store = getDefaultStore();
