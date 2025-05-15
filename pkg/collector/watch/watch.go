@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"slices"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,6 +21,17 @@ import (
 )
 
 const MaxWatchVals = 10000
+
+const (
+	WatchFormat_Json     = "json"
+	WatchFormat_Stringer = "stringer"
+	WatchFormat_Gofmt    = "gofmt"
+
+	WatchType_Sync   = "sync"
+	WatchType_Atomic = "atomic"
+	WatchType_Func   = "func"
+	WatchType_Push   = "push"
+)
 
 type AtomicLoader[T any] interface {
 	Load() T
@@ -448,6 +458,103 @@ func (wc *WatchCollector) recordWatch(watch ds.WatchSample) {
 
 const MaxWatchWaitTime = 10 * time.Millisecond
 
+func (wc *WatchCollector) CollectWatch(decl *ds.WatchDecl) (reflect.Value, error) {
+	return reflect.Value{}, nil
+}
+
+func (wc *WatchCollector) NewWatchSample2(decl *ds.WatchDecl, rval reflect.Value, pollDur int64) *ds.WatchSample2 {
+	sample := ds.WatchSample2{
+		Name:    decl.Name,
+		Ts:      time.Now().UnixMilli(),
+		PollDur: pollDur,
+	}
+	if !rval.IsValid() {
+		sample.Val = "nil"
+		sample.Kind = int(reflect.Invalid)
+		sample.Type = "nil"
+		return &sample
+	}
+	sample.Type = rval.Type().String()
+	const maxPtrDepth = 10
+	for depth := 0; rval.Kind() == reflect.Ptr && depth < maxPtrDepth; depth++ {
+		if rval.IsNil() {
+			sample.Val = "nil"
+			sample.Kind = int(reflect.Invalid)
+			return &sample
+		}
+		sample.Addr = append(sample.Addr, fmt.Sprintf("%p", rval.Interface()))
+		rval = rval.Elem()
+	}
+	sample.Kind = int(rval.Kind())
+	switch rval.Kind() {
+	case reflect.String:
+		sample.Val = rval.String()
+	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+		sample.Val = fmt.Sprint(rval.Interface())
+	case reflect.Slice, reflect.Array, reflect.Map, reflect.Struct, reflect.Interface:
+		if (rval.Kind() == reflect.Interface || rval.Kind() == reflect.Slice || rval.Kind() == reflect.Map) && rval.IsNil() {
+			sample.Val = "nil"
+			return &sample
+		}
+		var err error
+		sample.Val, err = formatWatchValue(decl, rval)
+		if err != nil {
+			sample.Error = err.Error()
+		}
+		if rval.Kind() == reflect.Slice || rval.Kind() == reflect.Array || rval.Kind() == reflect.Map {
+			sample.Len = rval.Len()
+		}
+		if rval.Kind() == reflect.Slice {
+			sample.Cap = rval.Cap()
+		}
+	case reflect.Chan:
+		if rval.IsNil() {
+			sample.Val = "nil"
+		} else {
+			sample.Val = fmt.Sprintf("(chan:%p)", rval.Interface())
+		}
+		sample.Len = rval.Len()
+		sample.Cap = rval.Cap()
+	case reflect.Func:
+		if rval.IsNil() {
+			sample.Val = "nil"
+		} else {
+			sample.Val = fmt.Sprintf("(func:%p)", rval.Interface())
+		}
+	case reflect.UnsafePointer, reflect.Ptr:
+		sample.Val = fmt.Sprintf("%p", rval.Interface())
+	default:
+		sample.Error = fmt.Sprintf("unsupported kind: %s", rval.Kind())
+	}
+	return &sample
+}
+
+func formatWatchValue(decl *ds.WatchDecl, rval reflect.Value) (string, error) {
+	if decl.Format == "" {
+		// default to JSON, but fallback to %#v if JSON fails
+		barr, err := json.Marshal(rval.Interface())
+		if err == nil {
+			return string(barr), nil
+		}
+		return fmt.Sprintf("%#v", rval.Interface()), nil
+	}
+	if decl.Format == WatchFormat_Json {
+		barr, err := json.Marshal(rval.Interface())
+		if err == nil {
+			return string(barr), nil
+		}
+		return "", fmt.Errorf("json.Marshal: %w", err)
+	} else if decl.Format == WatchFormat_Stringer {
+		return fmt.Sprint(rval.Interface()), nil
+	} else if decl.Format == WatchFormat_Gofmt {
+		return fmt.Sprintf("%#v", rval.Interface()), nil
+	} else {
+		return "", fmt.Errorf("unsupported format: %s", decl.Format)
+	}
+}
+
 func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync.Locker, rval reflect.Value, typeStr string, flags int) {
 	watch := ds.WatchSample{Name: name, Tags: tags, Flags: flags}
 	watch.Type = typeStr
@@ -538,113 +645,4 @@ func (wc *WatchCollector) setLastWatchValues(watches map[string]ds.WatchSample) 
 			delete(wc.lastWatchValues, name)
 		}
 	}
-}
-
-// ValidatePollFunc validates that the provided function is suitable for use as a poll function.
-// A valid poll function must:
-// - Be non-nil
-// - Be a function
-// - Take 0 arguments
-// - Return exactly 1 value
-func ValidatePollFunc(fn any) error {
-	if fn == nil {
-		return fmt.Errorf("PollFunc requires a non-nil function")
-	}
-	
-	fnType := reflect.TypeOf(fn)
-	if fnType.Kind() != reflect.Func {
-		return fmt.Errorf("PollFunc requires a function, got %s", fnType.Kind())
-	}
-	
-	if fnType.NumIn() != 0 {
-		return fmt.Errorf("PollFunc requires a function with 0 arguments, got %d", fnType.NumIn())
-	}
-	
-	if fnType.NumOut() != 1 {
-		return fmt.Errorf("PollFunc requires a function that returns exactly 1 value, got %d", fnType.NumOut())
-	}
-	
-	return nil
-}
-
-// ValidatePollAtomic validates that the provided value is suitable for use as an atomic poll value.
-// A valid atomic poll value must:
-// - Be non-nil
-// - Be a pointer
-// - Point to a valid atomic type (sync/atomic package types or primitive types that support atomic operations)
-func ValidatePollAtomic(val any) error {
-	if val == nil {
-		return fmt.Errorf("PollAtomic requires a non-nil value")
-	}
-	
-	valType := reflect.TypeOf(val)
-	// First, ensure we're dealing with a pointer
-	if valType.Kind() != reflect.Ptr {
-		return fmt.Errorf("PollAtomic requires a pointer to a value, got %s", valType.String())
-	}
-	
-	// Get the element type (what the pointer points to)
-	elemType := valType.Elem()
-	typeName := elemType.String()
-	
-	// Check if val is a valid atomic type
-	isValidAtomic := false
-	
-	// Check for atomic package types
-	if strings.HasPrefix(typeName, "atomic.") {
-		// Valid atomic types from sync/atomic package
-		validAtomicTypes := map[string]bool{
-			"atomic.Bool":    true,
-			"atomic.Int32":   true,
-			"atomic.Int64":   true,
-			"atomic.Pointer": true,
-			"atomic.Uint32":  true,
-			"atomic.Uint64":  true,
-			"atomic.Uintptr": true,
-			"atomic.Value":   true,
-		}
-		isValidAtomic = validAtomicTypes[typeName]
-	} else {
-		// Check for primitive types that can be used with atomic operations
-		switch elemType.Kind() {
-		case reflect.Int32, reflect.Int64, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-			isValidAtomic = true
-		}
-
-		// Special case for unsafe.Pointer
-		if typeName == "unsafe.Pointer" {
-			isValidAtomic = true
-		}
-	}
-
-	if !isValidAtomic {
-		return fmt.Errorf("PollAtomic requires an atomic type, got %s", typeName)
-	}
-	
-	return nil
-}
-
-// ValidatePollSync validates that the provided lock and value are suitable for use in a sync-based watch.
-// A valid sync poll setup must have:
-// - A non-nil sync.Locker
-// - A non-nil value
-// - The value must be a pointer
-func ValidatePollSync(lock sync.Locker, val any) error {
-	// Validate that lock is not nil
-	if lock == nil {
-		return fmt.Errorf("PollSync requires a non-nil sync.Locker")
-	}
-
-	// Validate that val is not nil
-	if val == nil {
-		return fmt.Errorf("PollSync requires a non-nil value")
-	}
-
-	// Validate that val is a pointer
-	valType := reflect.TypeOf(val)
-	if valType.Kind() != reflect.Ptr {
-		return fmt.Errorf("PollSync requires a pointer to a value, got %s", valType.String())
-	}
-
-	return nil
 }

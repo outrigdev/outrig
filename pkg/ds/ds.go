@@ -118,10 +118,11 @@ type GoRoutineStack struct {
 }
 
 type WatchInfo struct {
-	Ts      int64         `json:"ts"`
-	Delta   bool          `json:"delta,omitempty"`
-	Decls   []WatchDecl   `json:"decls,omitempty"`
-	Watches []WatchSample `json:"watches"`
+	Ts        int64            `json:"ts"`
+	Delta     bool             `json:"delta,omitempty"`
+	Decls     []WatchDecl      `json:"decls,omitempty"`
+	Watches   []WatchSample    `json:"watches"`
+	RegErrors []ErrWithContext `json:"regerrors,omitempty"`
 }
 
 type WatchDecl struct {

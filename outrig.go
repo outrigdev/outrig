@@ -34,17 +34,6 @@ const (
 	NoTelemetryEnvName  = ds.NoTelemetryEnvName
 )
 
-const (
-	watchFormat_Json     = "json"
-	watchFormat_Stringer = "stringer"
-	watchFormat_Gofmt    = "gofmt"
-
-	watchType_Sync   = "sync"
-	watchType_Atomic = "atomic"
-	watchType_Func   = "func"
-	watchType_Push   = "push"
-)
-
 // Re-export ds.Config so callers can do "outrig.Config" if you prefer:
 type Config = config.Config
 
@@ -350,17 +339,17 @@ func (w *Watch) AsCounter() *Watch {
 }
 
 func (w *Watch) AsJSON() *Watch {
-	w.decl.Format = watchFormat_Json
+	w.decl.Format = watch.WatchFormat_Json
 	return w
 }
 
 func (w *Watch) AsStringer() *Watch {
-	w.decl.Format = watchFormat_Stringer
+	w.decl.Format = watch.WatchFormat_Stringer
 	return w
 }
 
 func (w *Watch) AsGoFmt() *Watch {
-	w.decl.Format = watchFormat_Gofmt
+	w.decl.Format = watch.WatchFormat_Gofmt
 	return w
 }
 
@@ -391,8 +380,8 @@ func (w *Watch) registerWatch() {
 }
 
 func (w *Watch) ForPush() *Pusher {
-	if !w.setType(watchType_Push) {
-		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Push), false)
+	if !w.setType(watch.WatchType_Push) {
+		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watch.WatchType_Push), false)
 		return &Pusher{decl: w.decl, disabled: true}
 	}
 	w.registerWatch()
@@ -419,8 +408,8 @@ func (p *Pusher) Push(val any) {
 //
 //	outrig.NewWatch("counter").PollFunc(func() int { return myCounter })
 func (w *Watch) PollFunc(fn any) {
-	if !w.setType(watchType_Func) {
-		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Func), false)
+	if !w.setType(watch.WatchType_Func) {
+		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watch.WatchType_Func), false)
 		return
 	}
 	err := watch.ValidatePollFunc(fn)
@@ -447,8 +436,8 @@ func (w *Watch) PollFunc(fn any) {
 //	var counter atomic.Int64
 //	outrig.NewWatch("atomic-counter").PollAtomic(&counter)
 func (w *Watch) PollAtomic(val any) {
-	if !w.setType(watchType_Atomic) {
-		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Atomic), false)
+	if !w.setType(watch.WatchType_Atomic) {
+		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watch.WatchType_Atomic), false)
 		return
 	}
 	err := watch.ValidatePollAtomic(val)
@@ -473,8 +462,8 @@ func (w *Watch) PollAtomic(val any) {
 //	var counter int
 //	outrig.NewWatch("sync-counter").PollSync(&mu, &counter)
 func (w *Watch) PollSync(lock sync.Locker, val any) {
-	if !w.setType(watchType_Sync) {
-		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watchType_Sync), false)
+	if !w.setType(watch.WatchType_Sync) {
+		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watch.WatchType_Sync), false)
 		return
 	}
 	err := watch.ValidatePollSync(lock, val)
