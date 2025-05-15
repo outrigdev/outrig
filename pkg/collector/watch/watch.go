@@ -458,8 +458,113 @@ func (wc *WatchCollector) recordWatch(watch ds.WatchSample) {
 
 const MaxWatchWaitTime = 10 * time.Millisecond
 
-func (wc *WatchCollector) CollectWatch(decl *ds.WatchDecl) (reflect.Value, error) {
-	return reflect.Value{}, nil
+// watchSampleErr creates a WatchSample2 with an error message
+func watchSampleErr(decl *ds.WatchDecl, startTime time.Time, errMsg string) *ds.WatchSample2 {
+	pollDur := time.Since(startTime).Microseconds()
+	return &ds.WatchSample2{
+		Name:    decl.Name,
+		Ts:      time.Now().UnixMilli(),
+		PollDur: pollDur,
+		Error:   errMsg,
+	}
+}
+
+// getAtomicValue extracts the value from an atomic variable
+func getAtomicValue(atomicVal any) (reflect.Value, error) {
+	atomicValue := reflect.ValueOf(atomicVal)
+	
+	// Check if it's a pointer
+	if atomicValue.Kind() != reflect.Ptr {
+		return reflect.Value{}, fmt.Errorf("atomic value must be a pointer")
+	}
+	
+	// First try to use the Load() method (for atomic package types)
+	loadMethod := atomicValue.MethodByName("Load")
+	if loadMethod.IsValid() {
+		results := loadMethod.Call(nil)
+		if len(results) > 0 {
+			return results[0], nil
+		}
+		return reflect.Value{}, fmt.Errorf("atomic Load method returned no values")
+	}
+	
+	// If no Load() method, check if it's a primitive type that supports atomic operations
+	elemType := atomicValue.Type().Elem()
+	elemKind := elemType.Kind()
+	
+	switch elemKind {
+	case reflect.Int32:
+		if ptr, ok := atomicVal.(*int32); ok {
+			val := atomic.LoadInt32(ptr)
+			return reflect.ValueOf(val), nil
+		}
+	case reflect.Int64:
+		if ptr, ok := atomicVal.(*int64); ok {
+			val := atomic.LoadInt64(ptr)
+			return reflect.ValueOf(val), nil
+		}
+	case reflect.Uint32:
+		if ptr, ok := atomicVal.(*uint32); ok {
+			val := atomic.LoadUint32(ptr)
+			return reflect.ValueOf(val), nil
+		}
+	case reflect.Uint64:
+		if ptr, ok := atomicVal.(*uint64); ok {
+			val := atomic.LoadUint64(ptr)
+			return reflect.ValueOf(val), nil
+		}
+	case reflect.Uintptr:
+		if ptr, ok := atomicVal.(*uintptr); ok {
+			val := atomic.LoadUintptr(ptr)
+			return reflect.ValueOf(val), nil
+		}
+	}
+	
+	return reflect.Value{}, fmt.Errorf("unsupported atomic type: %s", elemType.String())
+}
+
+func (wc *WatchCollector) CollectWatch(decl *ds.WatchDecl) *ds.WatchSample2 {
+	startTime := time.Now()
+
+	if decl == nil || decl.Invalid {
+		return nil
+	}
+
+	var rval reflect.Value
+	var err error
+
+	switch decl.WatchType {
+	case WatchType_Sync:
+		locked, waitDuration := utilfn.TryLockWithTimeout(decl.SyncLock, MaxWatchWaitTime)
+		if !locked {
+			return watchSampleErr(decl, startTime, fmt.Sprintf("timeout waiting for lock after %v", waitDuration))
+		}
+		defer decl.SyncLock.Unlock()
+		rval = reflect.ValueOf(decl.PollObj)
+
+	case WatchType_Atomic:
+		rval, err = getAtomicValue(decl.PollObj)
+		if err != nil {
+			return watchSampleErr(decl, startTime, err.Error())
+		}
+
+	case WatchType_Func:
+		fnValue := reflect.ValueOf(decl.PollObj)
+		results := fnValue.Call(nil)
+		if len(results) == 0 {
+			return watchSampleErr(decl, startTime, "function returned no values")
+		}
+		rval = results[0]
+
+	case WatchType_Push:
+		return nil
+
+	default:
+		return nil
+	}
+	
+	pollDur := time.Since(startTime).Microseconds()
+	return wc.NewWatchSample2(decl, rval, pollDur)
 }
 
 func (wc *WatchCollector) NewWatchSample2(decl *ds.WatchDecl, rval reflect.Value, pollDur int64) *ds.WatchSample2 {
