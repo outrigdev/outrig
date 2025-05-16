@@ -31,11 +31,6 @@ class RpcApiType {
         return client.rpcCall("eventunsuball", null, opts);
     }
 
-    // command "getapprungoroutines" [call]
-    GetAppRunGoRoutinesCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunGoRoutinesData> {
-        return client.rpcCall("getapprungoroutines", data, opts);
-    }
-
     // command "getapprungoroutinesbyids" [call]
     GetAppRunGoRoutinesByIdsCommand(client: RpcClient, data: AppRunGoRoutinesByIdsRequest, opts?: RpcOpts): Promise<AppRunGoRoutinesData> {
         return client.rpcCall("getapprungoroutinesbyids", data, opts);
@@ -51,24 +46,9 @@ class RpcApiType {
         return client.rpcCall("getappruns", data, opts);
     }
 
-    // command "getapprunwatches" [call]
-    GetAppRunWatchesCommand(client: RpcClient, data: AppRunRequest, opts?: RpcOpts): Promise<AppRunWatchesData> {
-        return client.rpcCall("getapprunwatches", data, opts);
-    }
-
     // command "getapprunwatchesbyids" [call]
     GetAppRunWatchesByIdsCommand(client: RpcClient, data: AppRunWatchesByIdsRequest, opts?: RpcOpts): Promise<AppRunWatchesData> {
         return client.rpcCall("getapprunwatchesbyids", data, opts);
-    }
-
-    // command "getwatchhistory" [call]
-    GetWatchHistoryCommand(client: RpcClient, data: WatchHistoryRequest, opts?: RpcOpts): Promise<WatchHistoryData> {
-        return client.rpcCall("getwatchhistory", data, opts);
-    }
-
-    // command "getwatchnumeric" [call]
-    GetWatchNumericCommand(client: RpcClient, data: WatchNumericRequest, opts?: RpcOpts): Promise<WatchNumericData> {
-        return client.rpcCall("getwatchnumeric", data, opts);
     }
 
     // command "goroutinesearchrequest" [call]

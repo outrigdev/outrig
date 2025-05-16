@@ -13,7 +13,6 @@ import (
 	watchcollector "github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilds"
-	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/logutil"
 )
 
@@ -30,11 +29,15 @@ type Watch struct {
 type WatchesPeer struct {
 	watches           *utilds.SyncMap[int64, Watch]
 	nameToWatchNum    map[string]int64 // Maps watch names to their watch numbers
-	activeWatches     map[int64]bool   // Tracks currently active watches by watchnum
 	watchNum          int64            // Counter for watch numbers
 	lock              sync.RWMutex     // Lock for synchronizing watch operations
 	hasSeenFullUpdate bool             // Flag to track if we've seen a full update
 	appRunId          string           // ID of the app run this peer belongs to
+}
+
+type CombinedWatchSample struct {
+	Decl   ds.WatchDecl
+	Sample ds.WatchSample
 }
 
 // MakeWatchesPeer creates a new WatchesPeer instance
@@ -42,7 +45,6 @@ func MakeWatchesPeer(appRunId string) *WatchesPeer {
 	return &WatchesPeer{
 		watches:           utilds.MakeSyncMap[int64, Watch](),
 		nameToWatchNum:    make(map[string]int64),
-		activeWatches:     make(map[int64]bool),
 		watchNum:          0,
 		hasSeenFullUpdate: false,
 		appRunId:          appRunId,
@@ -109,8 +111,6 @@ func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 	wp.lock.Lock()
 	defer wp.lock.Unlock()
 
-	activeWatches := make(map[int64]bool)
-
 	// If this is a delta update but we haven't seen a full update yet, ignore it
 	if watchInfo.Delta && !wp.hasSeenFullUpdate {
 		fmt.Printf("WARNING: [AppRun: %s] Ignoring delta update because no full update has been seen yet\n", wp.appRunId)
@@ -153,7 +153,6 @@ func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 
 		// Get or create the watch
 		watch, watchNum := wp.getOrCreateWatch_nolock(decl)
-		activeWatches[watchNum] = true
 
 		// Handle watch value updates based on whether it's a delta update
 		isPush := decl.Format == watchcollector.WatchType_Push // Equivalent to the old IsPush() check
@@ -175,15 +174,11 @@ func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 
 		wp.watches.Set(watchNum, watch)
 	}
-
-	wp.activeWatches = activeWatches
 }
 
 // GetActiveWatchCount returns the number of active watches
 func (wp *WatchesPeer) GetActiveWatchCount() int {
-	wp.lock.RLock()
-	defer wp.lock.RUnlock()
-	return len(wp.activeWatches)
+	return wp.GetTotalWatchCount()
 }
 
 // GetTotalWatchCount returns the total number of watches (active and inactive)
@@ -191,13 +186,13 @@ func (wp *WatchesPeer) GetTotalWatchCount() int {
 	return len(wp.watches.Keys())
 }
 
-// GetAllWatches returns all watches with their most recent values
-func (wp *WatchesPeer) GetAllWatches() []ds.WatchInfo {
-	watchNums := wp.watches.Keys()
+// GetAllWatches returns all watches with their most recent values as combined samples
+func (wp *WatchesPeer) GetAllWatches() []CombinedWatchSample {
+	wp.lock.RLock()
+	defer wp.lock.RUnlock()
 
-	// Group watches by active status
-	activeWatches := make([]ds.WatchSample, 0, len(wp.activeWatches))
-	activeDecls := make([]ds.WatchDecl, 0, len(wp.activeWatches))
+	watchNums := wp.watches.Keys()
+	result := make([]CombinedWatchSample, 0, len(watchNums))
 
 	for _, num := range watchNums {
 		watch, exists := wp.watches.GetEx(num)
@@ -205,27 +200,18 @@ func (wp *WatchesPeer) GetAllWatches() []ds.WatchInfo {
 			continue
 		}
 
-		latestWatch, _, exists := watch.WatchVals.GetLast()
+		latestSample, _, exists := watch.WatchVals.GetLast()
 		if !exists {
 			continue
 		}
 
-		// Only include active watches
-		if _, isActive := wp.activeWatches[num]; isActive {
-			activeWatches = append(activeWatches, latestWatch)
-			activeDecls = append(activeDecls, watch.Decl)
-		}
+		result = append(result, CombinedWatchSample{
+			Decl:   watch.Decl,
+			Sample: latestSample,
+		})
 	}
 
-	// Create a single WatchInfo with all watches
-	return []ds.WatchInfo{
-		{
-			Ts:      activeWatches[0].Ts, // Use timestamp from first watch
-			Delta:   false,
-			Decls:   activeDecls,
-			Watches: activeWatches,
-		},
-	}
+	return result
 }
 
 // getNumericVal returns a float64 representation of a WatchSample value
@@ -254,36 +240,6 @@ func getNumericVal(sample ds.WatchSample) float64 {
 	default:
 		return 0
 	}
-}
-
-// GetWatchNumeric returns an array of numeric values for a specific watch
-// If the watch is a counter, it returns deltas between consecutive values
-func (wp *WatchesPeer) GetWatchNumeric(watchNum int64) []float64 {
-	// Get the watch directly by its number
-	watch, exists := wp.watches.GetEx(watchNum)
-	if !exists {
-		return nil
-	}
-
-	// Get all samples from the circular buffer
-	samples, _ := watch.WatchVals.GetAll()
-	if len(samples) == 0 {
-		return nil
-	}
-
-	// Convert each sample to a numeric value
-	numericValues := make([]float64, 0, len(samples))
-	for _, sample := range samples {
-		numericValues = append(numericValues, getNumericVal(sample))
-	}
-
-	// Check if this is a counter
-	if watch.Decl.Counter {
-		// For counters, convert to deltas
-		return utilfn.CalculateDeltas(numericValues)
-	}
-
-	return numericValues
 }
 
 // GetWatchesByIds returns watches for specific watch IDs
@@ -327,29 +283,6 @@ func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) ds.WatchInfo {
 		Ts:      samples[0].Ts, // Use timestamp from first watch
 		Delta:   false,
 		Decls:   decls,
-		Watches: samples,
-	}
-}
-
-// GetWatchHistory returns the full history of samples for a specific watch
-func (wp *WatchesPeer) GetWatchHistory(watchNum int64) ds.WatchInfo {
-	// Get the watch directly by its number
-	watch, exists := wp.watches.GetEx(watchNum)
-	if !exists {
-		return ds.WatchInfo{}
-	}
-
-	// Get all samples from the circular buffer
-	samples, _ := watch.WatchVals.GetAll()
-	if len(samples) == 0 {
-		return ds.WatchInfo{}
-	}
-
-	// Create a WatchInfo with the watch history
-	return ds.WatchInfo{
-		Ts:      samples[0].Ts, // Use timestamp from first sample
-		Delta:   false,
-		Decls:   []ds.WatchDecl{watch.Decl},
 		Watches: samples,
 	}
 }

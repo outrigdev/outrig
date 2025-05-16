@@ -42,8 +42,6 @@ type FullRpcInterface interface {
 
 	// app run commands
 	GetAppRunsCommand(ctx context.Context, data AppRunUpdatesRequest) (AppRunsData, error)
-	GetAppRunGoRoutinesCommand(ctx context.Context, data AppRunRequest) (AppRunGoRoutinesData, error)
-	GetAppRunWatchesCommand(ctx context.Context, data AppRunRequest) (AppRunWatchesData, error)
 	GetAppRunRuntimeStatsCommand(ctx context.Context, data AppRunRequest) (AppRunRuntimeStatsData, error)
 
 	// goroutine search
@@ -52,8 +50,6 @@ type FullRpcInterface interface {
 
 	// watch search
 	GetAppRunWatchesByIdsCommand(ctx context.Context, data AppRunWatchesByIdsRequest) (AppRunWatchesData, error)
-	GetWatchHistoryCommand(ctx context.Context, data WatchHistoryRequest) (WatchHistoryData, error)
-	GetWatchNumericCommand(ctx context.Context, data WatchNumericRequest) (WatchNumericData, error)
 	WatchSearchRequestCommand(ctx context.Context, data WatchSearchRequestData) (WatchSearchResultData, error)
 
 	// event commands
@@ -325,31 +321,6 @@ type BrowserTabUrlData struct {
 	AutoFollow bool   `json:"autofollow"`
 }
 
-// WatchHistoryRequest defines the request for getting watch history
-type WatchHistoryRequest struct {
-	AppRunId string `json:"apprunid"`
-	WatchNum int64  `json:"watchnum"`
-}
-
-// WatchHistoryData defines the response for watch history
-type WatchHistoryData struct {
-	AppRunId     string              `json:"apprunid"`
-	AppName      string              `json:"appname"`
-	WatchHistory []ds.WatchSampleOld `json:"watchhistory"`
-}
-
-// WatchNumericRequest defines the request for getting numeric watch values
-type WatchNumericRequest struct {
-	AppRunId string `json:"apprunid"`
-	WatchNum int64  `json:"watchnum"`
-}
-
-// WatchNumericData defines the response for numeric watch values
-type WatchNumericData struct {
-	AppRunId      string    `json:"apprunid"`
-	AppName       string    `json:"appname"`
-	NumericValues []float64 `json:"numericvalues"`
-}
 
 // StackFrame represents a single frame in a goroutine stack trace
 type StackFrame struct {

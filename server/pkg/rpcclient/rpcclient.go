@@ -40,12 +40,6 @@ func EventUnsubAllCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) error {
 	return err
 }
 
-// command "getapprungoroutines", rpctypes.GetAppRunGoRoutinesCommand
-func GetAppRunGoRoutinesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunGoRoutinesData, error) {
-	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunGoRoutinesData](w, "getapprungoroutines", data, opts)
-	return resp, err
-}
-
 // command "getapprungoroutinesbyids", rpctypes.GetAppRunGoRoutinesByIdsCommand
 func GetAppRunGoRoutinesByIdsCommand(w *rpc.RpcClient, data rpctypes.AppRunGoRoutinesByIdsRequest, opts *rpc.RpcOpts) (rpctypes.AppRunGoRoutinesData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunGoRoutinesData](w, "getapprungoroutinesbyids", data, opts)
@@ -64,27 +58,9 @@ func GetAppRunsCommand(w *rpc.RpcClient, data rpctypes.AppRunUpdatesRequest, opt
 	return resp, err
 }
 
-// command "getapprunwatches", rpctypes.GetAppRunWatchesCommand
-func GetAppRunWatchesCommand(w *rpc.RpcClient, data rpctypes.AppRunRequest, opts *rpc.RpcOpts) (rpctypes.AppRunWatchesData, error) {
-	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunWatchesData](w, "getapprunwatches", data, opts)
-	return resp, err
-}
-
 // command "getapprunwatchesbyids", rpctypes.GetAppRunWatchesByIdsCommand
 func GetAppRunWatchesByIdsCommand(w *rpc.RpcClient, data rpctypes.AppRunWatchesByIdsRequest, opts *rpc.RpcOpts) (rpctypes.AppRunWatchesData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.AppRunWatchesData](w, "getapprunwatchesbyids", data, opts)
-	return resp, err
-}
-
-// command "getwatchhistory", rpctypes.GetWatchHistoryCommand
-func GetWatchHistoryCommand(w *rpc.RpcClient, data rpctypes.WatchHistoryRequest, opts *rpc.RpcOpts) (rpctypes.WatchHistoryData, error) {
-	resp, err := SendRpcRequestCallHelper[rpctypes.WatchHistoryData](w, "getwatchhistory", data, opts)
-	return resp, err
-}
-
-// command "getwatchnumeric", rpctypes.GetWatchNumericCommand
-func GetWatchNumericCommand(w *rpc.RpcClient, data rpctypes.WatchNumericRequest, opts *rpc.RpcOpts) (rpctypes.WatchNumericData, error) {
-	resp, err := SendRpcRequestCallHelper[rpctypes.WatchNumericData](w, "getwatchnumeric", data, opts)
 	return resp, err
 }
 

@@ -69,7 +69,7 @@ declare global {
     type AppRunWatchesData = {
         apprunid: string;
         appname: string;
-        watches: WatchSample[];
+        watches: WatchSampleOld[];
     };
 
     // rpctypes.AppRunsData
@@ -345,34 +345,8 @@ declare global {
         newerversion: string;
     };
 
-    // rpctypes.WatchHistoryData
-    type WatchHistoryData = {
-        apprunid: string;
-        appname: string;
-        watchhistory: WatchSample[];
-    };
-
-    // rpctypes.WatchHistoryRequest
-    type WatchHistoryRequest = {
-        apprunid: string;
-        watchnum: number;
-    };
-
-    // rpctypes.WatchNumericData
-    type WatchNumericData = {
-        apprunid: string;
-        appname: string;
-        numericvalues: number[];
-    };
-
-    // rpctypes.WatchNumericRequest
-    type WatchNumericRequest = {
-        apprunid: string;
-        watchnum: number;
-    };
-
-    // ds.WatchSample
-    type WatchSample = {
+    // ds.WatchSampleOld
+    type WatchSampleOld = {
         watchnum?: number;
         name: string;
         tags?: string[];
@@ -381,7 +355,7 @@ declare global {
         strval?: string;
         gofmtval?: string;
         jsonval?: string;
-        type: string;
+        type?: string;
         error?: string;
         addr?: string[];
         cap?: number;

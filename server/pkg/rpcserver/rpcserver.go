@@ -81,30 +81,6 @@ func (*RpcServerImpl) GetAppRunsCommand(ctx context.Context, data rpctypes.AppRu
 	}, nil
 }
 
-// GetAppRunGoRoutinesCommand returns goroutines for a specific app run
-func (*RpcServerImpl) GetAppRunGoRoutinesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunGoRoutinesData, error) {
-	// Get the app run peer
-	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
-	if peer == nil || peer.AppInfo == nil {
-		return rpctypes.AppRunGoRoutinesData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
-	}
-
-	// Get module name from AppInfo
-	moduleName := ""
-	if peer.AppInfo != nil {
-		moduleName = peer.AppInfo.ModuleName
-	}
-
-	// Get parsed goroutines from the GoRoutinePeer
-	parsedGoRoutines := peer.GoRoutines.GetParsedGoRoutines(moduleName)
-
-	return rpctypes.AppRunGoRoutinesData{
-		AppRunId:   peer.AppRunId,
-		AppName:    peer.AppInfo.AppName,
-		GoRoutines: parsedGoRoutines,
-	}, nil
-}
-
 // GetAppRunGoRoutinesByIdsCommand returns specific goroutines by their IDs for a specific app run
 func (*RpcServerImpl) GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data rpctypes.AppRunGoRoutinesByIdsRequest) (rpctypes.AppRunGoRoutinesData, error) {
 	// Get the app run peer
@@ -129,25 +105,6 @@ func (*RpcServerImpl) GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data 
 	}, nil
 }
 
-// GetAppRunWatchesCommand returns watches for a specific app run
-func (*RpcServerImpl) GetAppRunWatchesCommand(ctx context.Context, data rpctypes.AppRunRequest) (rpctypes.AppRunWatchesData, error) {
-	// Get the app run peer
-	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
-	if peer == nil || peer.AppInfo == nil {
-		return rpctypes.AppRunWatchesData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
-	}
-
-	// Get all watches using the WatchesPeer method
-	watches := peer.Watches.GetAllWatches()
-
-	// Create and return AppRunWatchesData
-	return rpctypes.AppRunWatchesData{
-		AppRunId: peer.AppRunId,
-		AppName:  peer.AppInfo.AppName,
-		Watches:  watches,
-	}, nil
-}
-
 // GetAppRunWatchesByIdsCommand returns specific watches by their IDs for a specific app run
 func (*RpcServerImpl) GetAppRunWatchesByIdsCommand(ctx context.Context, data rpctypes.AppRunWatchesByIdsRequest) (rpctypes.AppRunWatchesData, error) {
 	// Get the app run peer
@@ -163,42 +120,6 @@ func (*RpcServerImpl) GetAppRunWatchesByIdsCommand(ctx context.Context, data rpc
 		AppRunId: peer.AppRunId,
 		AppName:  peer.AppInfo.AppName,
 		Watches:  watches,
-	}, nil
-}
-
-// GetWatchHistoryCommand returns the history of samples for a specific watch
-func (*RpcServerImpl) GetWatchHistoryCommand(ctx context.Context, data rpctypes.WatchHistoryRequest) (rpctypes.WatchHistoryData, error) {
-	// Get the app run peer
-	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
-	if peer == nil || peer.AppInfo == nil {
-		return rpctypes.WatchHistoryData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
-	}
-
-	// Get watch history from the WatchesPeer
-	watchHistory := peer.Watches.GetWatchHistory(data.WatchNum)
-
-	return rpctypes.WatchHistoryData{
-		AppRunId:     peer.AppRunId,
-		AppName:      peer.AppInfo.AppName,
-		WatchHistory: watchHistory,
-	}, nil
-}
-
-// GetWatchNumericCommand returns numeric values for a specific watch
-func (*RpcServerImpl) GetWatchNumericCommand(ctx context.Context, data rpctypes.WatchNumericRequest) (rpctypes.WatchNumericData, error) {
-	// Get the app run peer
-	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
-	if peer == nil || peer.AppInfo == nil {
-		return rpctypes.WatchNumericData{}, fmt.Errorf("app run not found: %s", data.AppRunId)
-	}
-
-	// Get numeric values from the WatchesPeer
-	numericValues := peer.Watches.GetWatchNumeric(data.WatchNum)
-
-	return rpctypes.WatchNumericData{
-		AppRunId:      peer.AppRunId,
-		AppName:       peer.AppInfo.AppName,
-		NumericValues: numericValues,
 	}, nil
 }
 
