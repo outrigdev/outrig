@@ -453,11 +453,52 @@ func Go(name string) *GoRoutine {
 	}
 }
 
-func (g *GoRoutine) WithTags(tags ...string) *GoRoutine {
-	if atomic.LoadInt32(&g.decl.State) != goroutine.GoState_Init {
-		return g
+// CurrentGR returns a GoRoutine for the current goroutine.
+// If the goroutine is already registered, it returns the existing declaration.
+// Otherwise, it creates a new one and registers it.
+func CurrentGR() *GoRoutine {
+	goId := utilfn.GetGoroutineID()
+	if goId <= 0 {
+		return nil
 	}
-	g.decl.Tags = tags
+	gc := goroutine.GetInstance()
+	decl := gc.GetGoRoutineDecl(goId)
+	if decl != nil {
+		// return existing decl if it exists
+		return &GoRoutine{decl: decl}
+	}
+	decl = &ds.GoDecl{
+		GoId:    goId,
+		State:   goroutine.GoState_Running,
+		StartTs: time.Now().UnixMilli(),
+	}
+	gc.RecordGoRoutineStart(decl)
+	return &GoRoutine{decl: decl}
+}
+
+func (g *GoRoutine) WithTags(tags ...string) *GoRoutine {
+	state := atomic.LoadInt32(&g.decl.State)
+	if state == goroutine.GoState_Init {
+		// For goroutines that haven't started yet, directly set the tags
+		g.decl.Tags = tags
+	} else {
+		// For running or completed goroutines, use the collector to update tags
+		gc := goroutine.GetInstance()
+		gc.UpdateGoRoutineTags(g.decl, tags)
+	}
+	return g
+}
+
+func (g *GoRoutine) WithName(name string) *GoRoutine {
+	state := atomic.LoadInt32(&g.decl.State)
+	if state == goroutine.GoState_Init {
+		// For goroutines that haven't started yet, directly set the name
+		g.decl.Name = name
+	} else {
+		// For running or completed goroutines, use the collector to update name
+		gc := goroutine.GetInstance()
+		gc.UpdateGoRoutineName(g.decl, name)
+	}
 	return g
 }
 

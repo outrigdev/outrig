@@ -106,6 +106,20 @@ func (gc *GoroutineCollector) incrementParentSpawnCount(parentGoId int64) {
 	}
 }
 
+func (gc *GoroutineCollector) UpdateGoRoutineName(decl *ds.GoDecl, newName string) {
+	// we use the gc.Lock to synchronize access to existing decls
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	decl.Name = newName
+}
+
+func (gc *GoroutineCollector) UpdateGoRoutineTags(decl *ds.GoDecl, newTags []string) {
+	// we use the gc.Lock to synchronize access to existing decls
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	decl.Tags = newTags
+}
+
 func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl) {
 	stack := gc.dumpSingleStack()
 	if stack == nil {
@@ -244,6 +258,18 @@ func (gc *GoroutineCollector) GetGoRoutineName(goId int64) (string, bool) {
 	return decl.Name, true
 }
 
+// GetGoRoutineDecl gets the declaration for a goroutine by ID
+// Returns nil if no declaration exists for the given ID
+func (gc *GoroutineCollector) GetGoRoutineDecl(goId int64) *ds.GoDecl {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	decl, ok := gc.goroutineDecls[goId]
+	if !ok {
+		return nil
+	}
+	return decl
+}
+
 var startRe = regexp.MustCompile(`(?m)^goroutine\s+\d+`)
 var stackRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\].*\n((?s).*)`)
 var goCreationRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\]`)
@@ -342,9 +368,38 @@ func (gc *GoroutineCollector) setLastGoroutineStacksAndCleanupNames(stacks map[i
 	defer gc.lock.Unlock()
 
 	gc.lastGoroutineStacks = stacks
-	// Remove declarations for goroutines that no longer exist
+
+	// Map to track goroutines we want to keep (active ones and their ancestors)
+	keepMap := make(map[int64]bool)
+	var keepStack []int64 // for DFS processing	of ancestors
+	// seed the stack with all active goroutines
+	for id := range stacks {
+		keepMap[id] = true
+		keepStack = append(keepStack, id)
+	}
+
+	// Process the stack to find all ancestors
+	for len(keepStack) > 0 {
+		// Pop from stack
+		n := len(keepStack) - 1
+		currentID := keepStack[n]
+		keepStack = keepStack[:n]
+
+		// Get the parent ID if available
+		decl, ok := gc.goroutineDecls[currentID]
+		if ok && decl.ParentGoId != 0 {
+			parentID := decl.ParentGoId
+			// If we haven't processed this parent yet, add it to keep map and stack
+			if !keepMap[parentID] {
+				keepMap[parentID] = true
+				keepStack = append(keepStack, parentID)
+			}
+		}
+	}
+
+	// Remove declarations for goroutines that are not in the keep map
 	for id := range gc.goroutineDecls {
-		if _, found := stacks[id]; !found {
+		if !keepMap[id] {
 			delete(gc.goroutineDecls, id)
 		}
 	}
