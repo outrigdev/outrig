@@ -6,7 +6,6 @@ package apppeer
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strconv"
 	"sync"
 
@@ -184,31 +183,8 @@ func (wp *WatchesPeer) GetTotalWatchCount() int {
 
 // GetAllWatches returns all watches with their most recent values as combined samples
 func (wp *WatchesPeer) GetAllWatches() []rpctypes.CombinedWatchSample {
-	wp.lock.RLock()
-	defer wp.lock.RUnlock()
-
 	watchNums := wp.watches.Keys()
-	result := make([]rpctypes.CombinedWatchSample, 0, len(watchNums))
-
-	for _, num := range watchNums {
-		watch, exists := wp.watches.GetEx(num)
-		if !exists {
-			continue
-		}
-
-		latestSample, _, exists := watch.WatchVals.GetLast()
-		if !exists {
-			continue
-		}
-
-		result = append(result, rpctypes.CombinedWatchSample{
-			WatchNum: watch.WatchNum,
-			Decl:     watch.Decl,
-			Sample:   latestSample,
-		})
-	}
-
-	return result
+	return wp.GetWatchesByIds(watchNums)
 }
 
 // getNumericVal returns a float64 representation of a WatchSample value
@@ -240,46 +216,22 @@ func getNumericVal(sample ds.WatchSample) float64 {
 }
 
 // GetWatchesByIds returns watches for specific watch IDs
-func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) ds.WatchInfo {
-	// Get watches by their IDs directly
-	samples := make([]ds.WatchSample, 0, len(watchIds))
-	decls := make([]ds.WatchDecl, 0, len(watchIds))
-
+func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) []rpctypes.CombinedWatchSample {
+	result := make([]rpctypes.CombinedWatchSample, 0, len(watchIds))
 	for _, watchId := range watchIds {
 		watch, exists := wp.watches.GetEx(watchId)
 		if !exists {
 			continue
 		}
-
-		latestWatch, _, exists := watch.WatchVals.GetLast()
+		latestSample, _, exists := watch.WatchVals.GetLast()
 		if !exists {
 			continue
 		}
-
-		samples = append(samples, latestWatch)
-		decls = append(decls, watch.Decl)
+		result = append(result, rpctypes.CombinedWatchSample{
+			WatchNum: watch.WatchNum,
+			Decl:     watch.Decl,
+			Sample:   latestSample,
+		})
 	}
-
-	// Sort watches by name for consistent ordering
-	sort.Slice(samples, func(i, j int) bool {
-		return samples[i].Name < samples[j].Name
-	})
-
-	// Sort declarations to match
-	sort.Slice(decls, func(i, j int) bool {
-		return decls[i].Name < decls[j].Name
-	})
-
-	// If no watches found, return empty WatchInfo
-	if len(samples) == 0 {
-		return ds.WatchInfo{}
-	}
-
-	// Create a WatchInfo with the requested watches
-	return ds.WatchInfo{
-		Ts:      samples[0].Ts, // Use timestamp from first watch
-		Delta:   false,
-		Decls:   decls,
-		Watches: samples,
-	}
+	return result
 }
