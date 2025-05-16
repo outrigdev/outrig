@@ -96,6 +96,16 @@ func (gc *GoroutineCollector) setGoRoutineDecl(decl *ds.GoDecl) {
 	gc.goroutineDecls[decl.GoId] = decl
 }
 
+// incrementParentSpawnCount increments the NumSpawned counter for a parent goroutine
+func (gc *GoroutineCollector) incrementParentSpawnCount(parentGoId int64) {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+
+	if parentDecl, ok := gc.goroutineDecls[parentGoId]; ok {
+		atomic.AddInt64(&parentDecl.NumSpawned, 1)
+	}
+}
+
 func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl) {
 	stack := gc.dumpSingleStack()
 	if stack == nil {
@@ -109,6 +119,17 @@ func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl) {
 			decl.GoId = goId
 		}
 	}
+
+	// Extract the parent goroutine ID from the stack trace
+	parentMatches := parentGoRe.FindSubmatch(stack)
+	if len(parentMatches) >= 2 {
+		parentGoId, err := strconv.ParseInt(string(parentMatches[1]), 10, 64)
+		if err == nil {
+			decl.ParentGoId = parentGoId
+			gc.incrementParentSpawnCount(parentGoId)
+		}
+	}
+
 	gc.setGoRoutineDecl(decl)
 }
 

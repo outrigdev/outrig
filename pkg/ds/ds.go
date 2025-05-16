@@ -106,9 +106,11 @@ type GoDecl struct {
 	RunLine     string   `json:"runline,omitempty"`
 	NoRecover   bool     `json:"norecover,omitempty"`
 	GoId        int64    `json:"goid,omitempty"`
-	State       int32    `json:"state,omitempty"`   // 0 = running, 1 = waiting, 2 = dead
-	StartTs     int64    `json:"startts,omitempty"` // exact start time (from .Run() API)
-	EndTs       int64    `json:"endts,omitempty"`   // exact end time (from .Run() API)
+	ParentGoId  int64    `json:"parentgoid,omitempty"` // ID of the parent goroutine that created this one
+	NumSpawned  int64    `json:"numspawned,omitempty"` // Number of goroutines spawned by this one
+	State       int32    `json:"state,omitempty"`      // 0 = running, 1 = waiting, 2 = dead
+	StartTs     int64    `json:"startts,omitempty"`    // exact start time (from .Run() API)
+	EndTs       int64    `json:"endts,omitempty"`      // exact end time (from .Run() API)
 	FirstPollTs int64    `json:"firstpollts,omitempty"`
 	LastPollTs  int64    `json:"lastpollts,omitempty"`
 }
