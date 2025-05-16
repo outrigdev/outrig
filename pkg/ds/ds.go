@@ -151,23 +151,6 @@ type WatchSample struct {
 	PollDur int64    `json:"polldur,omitempty"`
 }
 
-type WatchSampleOld struct {
-	WatchNum int64    `json:"watchnum,omitempty"`
-	Name     string   `json:"name"`
-	Tags     []string `json:"tags,omitempty"`
-	Ts       int64    `json:"ts"`
-	Flags    int      `json:"flags,omitempty"`
-	StrVal   string   `json:"strval,omitempty"`
-	GoFmtVal string   `json:"gofmtval,omitempty"`
-	JsonVal  string   `json:"jsonval,omitempty"`
-	Type     string   `json:"type,omitempty"`
-	Error    string   `json:"error,omitempty"`
-	Addr     []string `json:"addr,omitempty"`
-	Cap      int      `json:"cap,omitempty"`
-	Len      int      `json:"len,omitempty"`
-	WaitTime int64    `json:"waittime,omitempty"`
-}
-
 type MemoryStatsInfo struct {
 	Alloc            uint64 `json:"alloc"`
 	TotalAlloc       uint64 `json:"totalalloc"`

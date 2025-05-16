@@ -27,7 +27,6 @@ class WatchesModel {
     searchTerm: PrimitiveAtom<string>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     autoRefresh: PrimitiveAtom<boolean> = atom(true); // Default to on
-    preferJson: PrimitiveAtom<boolean> = atom(true); // Default to prefer JSON format
     autoRefreshIntervalId: number | null = null;
     contentRef: React.RefObject<HTMLDivElement> = null;
     currentSearchId: string = "";

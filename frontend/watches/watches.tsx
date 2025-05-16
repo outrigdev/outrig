@@ -77,123 +77,92 @@ function kindToString(kind: Kind): string {
 
 // Individual watch view component
 interface WatchViewProps {
-    watch: WatchSample;
+    watch: CombinedWatchSample;
     model: WatchesModel;
 }
 
 const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
-    const preferJson = useAtomValue(model.preferJson);
-
     // Format the watch value for display
-    const formatValue = ({ error, strval, jsonval, gofmtval }: WatchSample) => {
-        if (error) {
-            return <WatchVal content={error} className="text-error" tooltipText="Copy error message" />;
+    const formatValue = (sample: WatchSample) => {
+        if (sample.error) {
+            return <WatchVal content={sample.error} className="text-error" tooltipText="Copy error message" />;
         }
 
-        const out: React.ReactNode[] = [];
-
-        if (strval) {
-            out.push(
-                <WatchVal key="strval" content={strval} className="mb-2" tooltipText="Copy string representation" />
-            );
-        }
-
-        if (preferJson) {
-            // Prefer JSON format if available, fallback to GoFmt
-            if (jsonval) {
-                out.push(
-                    <WatchVal
-                        key="jsonval"
-                        content={prettyPrintJson(jsonval)}
-                        tooltipText="Copy JSON representation"
-                        tag="json:"
-                    />
-                );
-            } else if (gofmtval) {
-                const ppVal = prettyPrintGoFmt(gofmtval);
-                out.push(
-                    <WatchVal
-                        key="gofmtval"
-                        content={ppVal}
-                        tooltipText="Copy Go formatted representation"
-                        tag="gofmt:"
-                    />
-                );
-            }
-        } else {
-            // Prefer GoFmt format, don't fallback to JSON
-            if (gofmtval) {
-                const ppVal = prettyPrintGoFmt(gofmtval);
-                out.push(
-                    <WatchVal
-                        key="gofmtval"
-                        content={ppVal}
-                        tooltipText="Copy Go formatted representation"
-                        tag="gofmt:"
-                    />
-                );
+        if (sample.val) {
+            // Format based on the watch type
+            if (watch.decl.format === "json") {
+                return <WatchVal
+                    content={prettyPrintJson(sample.val)}
+                    tooltipText="Copy value"
+                />;
+            } else if (watch.decl.format === "gofmt") {
+                return <WatchVal
+                    content={prettyPrintGoFmt(sample.val)}
+                    tooltipText="Copy value"
+                />;
+            } else {
+                return <WatchVal
+                    content={sample.val}
+                    tooltipText="Copy value"
+                />;
             }
         }
 
-        if (out.length == 0) {
-            return <WatchVal content="(no value)" className="text-error" />;
-        }
-
-        return <>{out}</>;
+        return <WatchVal content="(no value)" className="text-error" />;
     };
 
-    // Get flag tags based on the watch flags
-    const getFlagTags = (flags?: number) => {
-        if (!flags) return null;
-
+    // Get tags based on the watch declaration
+    const getWatchTags = (decl: WatchDecl) => {
         const tags = [];
 
-        if (flags & WatchFlag_Push) tags.push({ label: "Push", variant: "info" });
-        if (flags & WatchFlag_Counter) tags.push({ label: "Counter", variant: "success" });
-        if (flags & WatchFlag_Atomic) tags.push({ label: "Atomic", variant: "warning" });
-        if (flags & WatchFlag_Sync) tags.push({ label: "Sync", variant: "primary" });
-        if (flags & WatchFlag_Func) tags.push({ label: "Func", variant: "secondary" });
-        if (flags & WatchFlag_Hook) tags.push({ label: "Hook", variant: "link" });
-        // if (flags & WatchFlag_Settable) tags.push({ label: "Settable", variant: "info" });
-        if (flags & WatchFlag_JSON) tags.push({ label: "JSON", variant: "success" });
-        if (flags & WatchFlag_GoFmt) tags.push({ label: "GoFmt", variant: "warning" });
-
+        if (decl.counter) tags.push({ label: "Counter", variant: "success" });
+        if (decl.invalid) tags.push({ label: "Invalid", variant: "error" });
+        if (decl.unregistered) tags.push({ label: "Unregistered", variant: "warning" });
+        
+        // Add watchtype as a tag
+        if (decl.watchtype) tags.push({ label: decl.watchtype, variant: "info" });
+        
         return tags;
     };
 
-    const flagTags = getFlagTags(watch.flags) ?? [];
+    const watchTags = getWatchTags(watch.decl);
 
     return (
         <div className="pl-4 pr-2">
             <div className="flex justify-between items-center py-2">
                 <div className="flex items-center gap-2">
                     <div className="relative flex items-center gap-2">
-                        <TimestampDot timestamp={watch.ts} />
-                        <div className="font-semibold text-primary flex-grow">{watch.name}</div>
+                        <TimestampDot timestamp={watch.sample.ts} />
+                        <div className="font-semibold text-primary flex-grow">{watch.decl.name}</div>
                     </div>
                     <div className="text-sm px-2 py-0.5 rounded-md bg-secondary/10 text-secondary font-mono">
-                        {watch.type}
+                        {watch.sample.type}
                     </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                     {/* Display tags with # prefix if they exist */}
-                    {watch.tags &&
-                        watch.tags.length > 0 &&
-                        watch.tags.map((tag, index) => (
+                    {watch.decl.tags &&
+                        watch.decl.tags.length > 0 &&
+                        watch.decl.tags.map((tag, index) => (
                             <Tag key={`tag-${index}`} label={`#${tag}`} isSelected={false} variant="accent" />
                         ))}
-                    {flagTags.map((tag, index) => (
-                        <Tag label={tag.label} isSelected={false} variant="secondary" />
+                    {watchTags.map((tag, index) => (
+                        <Tag
+                            key={`flag-${index}`}
+                            label={tag.label}
+                            isSelected={false}
+                            variant={tag.variant as "primary" | "secondary" | "link" | "info" | "success" | "warning" | "danger" | "accent"}
+                        />
                     ))}
                 </div>
             </div>
-            <div className="text-sm text-primary pb-2">{formatValue(watch)}</div>
-            {(watch.len != null || watch.cap != null || (watch.waittime != null && watch.waittime > 0)) && (
+            <div className="text-sm text-primary pb-2">{formatValue(watch.sample)}</div>
+            {(watch.sample.len != null || watch.sample.cap != null || (watch.sample.polldur != null && watch.sample.polldur > 0)) && (
                 <div className="pb-2 flex gap-3">
-                    {watch.len != null && <span className="text-xs text-muted">Length: {watch.len}</span>}
-                    {watch.cap != null && <span className="text-xs text-muted">Capacity: {watch.cap}</span>}
-                    {watch.waittime != null && watch.waittime > 0 && (
-                        <span className="text-xs text-warning">Wait time: {watch.waittime}μs</span>
+                    {watch.sample.len != null && <span className="text-xs text-muted">Length: {watch.sample.len}</span>}
+                    {watch.sample.cap != null && <span className="text-xs text-muted">Capacity: {watch.sample.cap}</span>}
+                    {watch.sample.polldur != null && watch.sample.polldur > 0 && (
+                        <span className="text-xs text-warning">Poll duration: {watch.sample.polldur}μs</span>
                     )}
                 </div>
             )}
@@ -208,7 +177,6 @@ interface WatchesFiltersProps {
 
 const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
     const [search, setSearch] = useAtom(model.searchTerm);
-    const [preferJson, setPreferJson] = useAtom(model.preferJson);
     const searchResultInfo = useAtomValue(model.searchResultInfo);
     const resultCount = useAtomValue(model.resultCount);
     const errorSpans = searchResultInfo.errorSpans || [];
@@ -244,21 +212,6 @@ const WatchesFilters: React.FC<WatchesFiltersProps> = ({ model }) => {
                         {resultCount}/{searchResultInfo.totalCount}
                     </span>
                 </div>
-
-                <Tooltip
-                    content={
-                        preferJson
-                            ? "Prefer JSON display if available (click to toggle to GoFmt)"
-                            : "Prefer GoFmt (%#v) display (click to toggle to JSON)"
-                    }
-                >
-                    <button
-                        onClick={() => setPreferJson(!preferJson)}
-                        className="flex items-center justify-center h-6 px-2 mr-2 text-xs text-primary bg-primary/20 hover:bg-primary/30 rounded-md cursor-pointer"
-                    >
-                        {preferJson ? "json" : "gofmt"}
-                    </button>
-                </Tooltip>
 
                 <AutoRefreshButton autoRefreshAtom={model.autoRefresh} onToggle={() => model.toggleAutoRefresh()} />
                 <RefreshButton
@@ -323,7 +276,7 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
             ) : (
                 <div>
                     {filteredWatches.map((watch, index) => (
-                        <React.Fragment key={watch.name}>
+                        <React.Fragment key={watch.decl.name}>
                             <WatchView watch={watch} model={model} />
                             {/* Add divider after each watch */}
                             <div className="h-px bg-border my-2 w-full"></div>
