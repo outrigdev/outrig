@@ -82,7 +82,6 @@ brews:
       test: |
           system "#{bin}/outrig", "version"
       service: |
-          sockets "tcp://127.0.0.1:5005"
           run [opt_bin/"outrig", "server"]
           keep_alive false
           log_path var/"log/outrig.log"
