@@ -229,9 +229,9 @@ type AppRunGoRoutinesData struct {
 }
 
 type AppRunWatchesData struct {
-	AppRunId string              `json:"apprunid"`
-	AppName  string              `json:"appname"`
-	Watches  []ds.WatchSampleOld `json:"watches"`
+	AppRunId string                `json:"apprunid"`
+	AppName  string                `json:"appname"`
+	Watches  []CombinedWatchSample `json:"watches"`
 }
 
 type RuntimeStatData struct {
