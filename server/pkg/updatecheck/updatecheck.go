@@ -44,6 +44,9 @@ var (
 
 	// lastCheckTime is the time of the last update check
 	lastCheckTime int64
+	
+	// Global Watch variable for update check results
+	latestReleaseWatch = outrig.NewWatch("updatecheck.latestreleasecheck").ForPush()
 )
 
 // GitHubRelease represents the GitHub release API response
@@ -104,12 +107,12 @@ func checkForUpdates() {
 	if err != nil {
 		log.Printf("Error checking for updates: %v", err)
 		// Track the error
-		outrig.TrackValue("updatecheck.latestreleasecheck", fmt.Sprintf("error: %v", err))
+		latestReleaseWatch.Push(fmt.Sprintf("error: %v", err))
 		return
 	}
 
 	// Track the successful result
-	outrig.TrackValue("updatecheck.latestreleasecheck", latestVersion)
+	latestReleaseWatch.Push(latestVersion)
 
 	// Compare versions
 	newer, err := isNewerVersion(currentVersion, latestVersion)

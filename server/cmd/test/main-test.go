@@ -169,8 +169,8 @@ func main() {
 			panic("Intentional crash triggered by --crash flag")
 		}()
 	}
-	outrig.WatchSync("test-count", LogCounterLock, &LogCounter)
-	outrig.WatchAtomicCounter("test-count-atomic", &LogCounterAtomic)
+	outrig.NewWatch("test-count").PollSync(LogCounterLock, &LogCounter)
+	outrig.NewWatch("test-count-atomic").AsCounter().PollAtomic(&LogCounterAtomic)
 	fmt.Printf("hello outrig!\n")
 	time.Sleep(200 * time.Millisecond)
 	outrig.Disable(false)
@@ -180,8 +180,11 @@ func main() {
 	fmt.Printf("after enable\n")
 	fmt.Printf("again\n")
 
-	outrig.TrackValue("push1 #tag1 #push", "hello world!")
-	outrig.TrackValue("push2 #push", 55.23)
+	p1 := outrig.NewWatch("push1").WithTags("#tag1", "#push").ForPush()
+	p1.Push("hello world!")
+
+	p2 := outrig.NewWatch("push2").WithTags("#push").ForPush()
+	p2.Push(55.23)
 
 	// Output some initial structured logs for testing
 	fmt.Printf("--- Starting log generation ---\n")

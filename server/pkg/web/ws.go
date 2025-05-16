@@ -27,7 +27,7 @@ type WSInfo struct {
 
 func init() {
 	// Register a watch function that returns a map of connection ID to WSInfo
-	outrig.WatchFunc("websockets", func() map[string]WSInfo {
+	outrig.NewWatch("websockets").PollFunc(func() map[string]WSInfo {
 		return GetAllWSInfo()
 	})
 }

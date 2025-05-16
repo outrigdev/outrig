@@ -23,12 +23,15 @@ var (
 	eventsUploaded atomic.Int64
 	uploadAttempts atomic.Int64
 	lastErrorTime  atomic.Int64
+	
+	// Global Watch variable for status
+	statusWatch = outrig.NewWatch("tevent:status").ForPush()
 )
 
 func init() {
 	// Register counters with Outrig
-	outrig.WatchAtomicCounter("tevent:eventsUploaded", &eventsUploaded)
-	outrig.WatchAtomicCounter("tevent:uploadAttempts", &uploadAttempts)
+	outrig.NewWatch("tevent:eventsUploaded").AsCounter().PollAtomic(&eventsUploaded)
+	outrig.NewWatch("tevent:uploadAttempts").AsCounter().PollAtomic(&uploadAttempts)
 }
 
 const TEventsBatchSize = 200
@@ -255,5 +258,5 @@ func updateTelemetryStatus(uploadTime time.Time, eventCount int, err error) {
 	}
 
 	// Track the status value
-	outrig.TrackValue("tevent:status", status)
+	statusWatch.Push(status)
 }

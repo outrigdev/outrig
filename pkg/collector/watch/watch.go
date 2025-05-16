@@ -33,73 +33,19 @@ const (
 	WatchType_Push   = "push"
 )
 
-type AtomicLoader[T any] interface {
-	Load() T
-}
-
-type AtomicStorer[T any] interface {
-	Store(val T)
-}
-
 // WatchCollector implements the collector.Collector interface for watch collection
 type WatchCollector struct {
-	lock            sync.Mutex
-	executor        *collector.PeriodicExecutor
-	controller      ds.Controller
-	config          config.WatchConfig
-	watchDecls2     map[string]*ds.WatchDecl
-	watchDecls      map[string]*WatchDecl
-	watchVals       []ds.WatchSample
-	lastWatchValues map[string]ds.WatchSample // last set of watch values for delta calculation
-	nextSendFull    bool                      // true for full update, false for delta update
-	regErrors       []ds.ErrWithContext       // errors encountered during watch registration
-}
-
-type WatchDecl struct {
-	Name      string
-	Tags      []string
-	Flags     int           // denotes the type of watch (Sync, Func, Atomic)
-	Lock      sync.Locker   // for Sync
-	PtrVal    reflect.Value // for Sync
-	GetFn     any           // for Func
-	SetFn     any           // for Func
-	HookFn    any           // for Hook
-	AtomicVal any           // for Atomic (AtomicLoader)
-	HookSent  atomic.Bool
-}
-
-func (d *WatchDecl) IsSync() bool {
-	return d.Flags&ds.WatchFlag_Sync != 0
-}
-
-func (d *WatchDecl) IsFunc() bool {
-	return d.Flags&ds.WatchFlag_Func != 0
-}
-
-func (d *WatchDecl) IsAtomic() bool {
-	return d.Flags&ds.WatchFlag_Atomic != 0
-}
-
-func (d *WatchDecl) IsHook() bool {
-	return d.Flags&ds.WatchFlag_Hook != 0
-}
-
-func (d *WatchDecl) IsNumeric() bool {
-	kind := reflect.Kind(d.Flags & ds.KindMask)
-	switch kind {
-	case reflect.Bool:
-		return true
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return true
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return true
-	case reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
-		return true
-	case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan:
-		return true
-	default:
-		return false
-	}
+	lock              sync.Mutex
+	executor          *collector.PeriodicExecutor
+	controller        ds.Controller
+	config            config.WatchConfig
+	watchDecls2       map[string]*ds.WatchDecl
+	pushSamples       []ds.WatchSample2
+	lastWatchSamples  map[string]ds.WatchSample2 // last set of watch values for delta calculation
+	nextSendFull      bool                       // true for full update, false for delta update
+	regErrors         []ds.ErrWithContext        // errors encountered during watch registration
+	regErrorsDeltaIdx int
+	newDecls          []ds.WatchDecl // new declarations added since last delta
 }
 
 // CollectorName returns the unique name of the collector
@@ -115,72 +61,31 @@ var instanceOnce sync.Once
 func GetInstance() *WatchCollector {
 	instanceOnce.Do(func() {
 		instance = &WatchCollector{
-			watchDecls:      make(map[string]*WatchDecl),
-			watchDecls2:     make(map[string]*ds.WatchDecl),
-			lastWatchValues: make(map[string]ds.WatchSample),
-			nextSendFull:    true, // First send is always a full update
-			regErrors:       make([]ds.ErrWithContext, 0),
+			watchDecls2:      make(map[string]*ds.WatchDecl),
+			lastWatchSamples: make(map[string]ds.WatchSample2),
+			nextSendFull:     true, // First send is always a full update
+			regErrors:        make([]ds.ErrWithContext, 0),
 		}
 		instance.executor = collector.MakePeriodicExecutor("WatchCollector", 1*time.Second, instance.CollectWatches)
 	})
 	return instance
 }
 
-func (wc *WatchCollector) RegisterWatchSync(name string, lock sync.Locker, rval reflect.Value, flags int) {
+func (wc *WatchCollector) UnregisterWatch(decl *ds.WatchDecl) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
-	cleanName, tags := utilfn.ParseNameAndTags(name)
-	wc.watchDecls[cleanName] = &WatchDecl{
-		Name:   cleanName,
-		Tags:   tags,
-		Lock:   lock,
-		PtrVal: rval,
-		Flags:  flags,
-	}
-}
 
-func (wc *WatchCollector) RegisterWatchFunc(name string, getFn any, setFn any, flags int) {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
-	cleanName, tags := utilfn.ParseNameAndTags(name)
-	wc.watchDecls[cleanName] = &WatchDecl{
-		Name:  cleanName,
-		Tags:  tags,
-		GetFn: getFn,
-		SetFn: setFn,
-		Flags: flags,
+	// Create a new decl with just the name and Unregistered set to true
+	unregDecl := ds.WatchDecl{
+		Name:         decl.Name,
+		Unregistered: true,
 	}
-}
 
-func (wc *WatchCollector) RegisterWatchAtomic(name string, atomicVal any, flags int) {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
-	cleanName, tags := utilfn.ParseNameAndTags(name)
-	wc.watchDecls[cleanName] = &WatchDecl{
-		Name:      cleanName,
-		Tags:      tags,
-		AtomicVal: atomicVal,
-		Flags:     flags,
-	}
-}
+	// Add to newDecls to track the unregistration
+	wc.newDecls = append(wc.newDecls, unregDecl)
 
-func (wc *WatchCollector) RegisterHook(name string, hook any, flags int) {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
-	cleanName, tags := utilfn.ParseNameAndTags(name)
-	wc.watchDecls[cleanName] = &WatchDecl{
-		Name:   cleanName,
-		Tags:   tags,
-		HookFn: hook,
-		Flags:  flags,
-	}
-}
-
-func (wc *WatchCollector) UnregisterWatch(name string) {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
-	cleanName, _ := utilfn.ParseNameAndTags(name)
-	delete(wc.watchDecls, cleanName)
+	// Remove from watchDecls2 map
+	delete(wc.watchDecls2, decl.Name)
 }
 
 // RegisterWatchDecl registers a watch declaration in the watchDecls2 map
@@ -269,122 +174,115 @@ func (wc *WatchCollector) Disable() {
 func (wc *WatchCollector) GetWatchNames() []string {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
-	names := make([]string, 0, len(wc.watchDecls))
-	for name := range wc.watchDecls {
+	names := make([]string, 0, len(wc.watchDecls2))
+	for name := range wc.watchDecls2 {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	return names
 }
 
-func (wc *WatchCollector) getWatchDecl(name string) *WatchDecl {
+func (wc *WatchCollector) getWatchDecl(name string) *ds.WatchDecl {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
-	return wc.watchDecls[name]
+	return wc.watchDecls2[name]
 }
 
-func (wc *WatchCollector) PushWatchValue(w *ds.WatchSample) {
+func (wc *WatchCollector) PushWatchSample(name string, val any) {
+	decl := wc.getWatchDecl(name)
+	if decl == nil {
+		return
+	}
+	sample := wc.newWatchSample(decl, reflect.ValueOf(val), 0)
+	if sample == nil {
+		return
+	}
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
-	wc.watchVals = append(wc.watchVals, *w)
+	wc.pushSamples = append(wc.pushSamples, *sample)
 }
 
-func (wc *WatchCollector) getAndClearWatchVals() []ds.WatchSample {
+func (wc *WatchCollector) getAndClearPushSamples() []ds.WatchSample2 {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
-	watchVals := wc.watchVals
-	wc.watchVals = nil
+	watchVals := wc.pushSamples
+	wc.pushSamples = nil
 	return watchVals
+}
+
+func (wc *WatchCollector) getLastSample(name string) (ds.WatchSample2, bool) {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+	lastSample, exists := wc.lastWatchSamples[name]
+	return lastSample, exists
 }
 
 // computeDeltaWatch compares current and last watch sample and returns a delta sample
 // For delta updates, we start with a full copy of current and clear fields that haven't changed
-func (wc *WatchCollector) computeDeltaWatch(name string, current ds.WatchSample) (ds.WatchSample, bool) {
+func (wc *WatchCollector) computeDeltaWatch(name string, current ds.WatchSample2) (ds.WatchSample2, bool) {
 	// For push values, we always include all fields and don't compute deltas
-	if current.IsPush() {
+	decl := wc.getWatchDecl(name)
+	if decl.WatchType == WatchType_Push {
 		return current, false
 	}
-	wc.lock.Lock()
-	lastSample, exists := wc.lastWatchValues[name]
-	wc.lock.Unlock()
+	lastSample, exists := wc.getLastSample(name)
 	if !exists {
 		// New watch, include all fields
 		return current, false
 	}
 	deltaSample := current
-	sameValue := true
-	// delta only operates for flags, type, strval, gofmtval, jsonval, addr, tags
-	if lastSample.Flags == current.Flags {
-		deltaSample.Flags = 0
-	}
-	if lastSample.Type == current.Type {
+
+	// Check if all the fields that should be compared are the same
+	sameKind := current.Kind == lastSample.Kind
+	sameType := current.Type == lastSample.Type
+	sameVal := current.Val == lastSample.Val
+	sameError := current.Error == lastSample.Error
+	sameAddr := slices.Equal(current.Addr, lastSample.Addr)
+	sameCap := current.Cap == lastSample.Cap
+	sameLen := current.Len == lastSample.Len
+
+	// If all fields are the same, set Same to true and clear the fields
+	sameValue := sameKind && sameType && sameVal && sameError && sameAddr && sameCap && sameLen
+	if sameValue {
+		deltaSample.Same = true
+		// Clear the fields that are the same as the previous sample
+		deltaSample.Kind = 0
 		deltaSample.Type = ""
-	}
-	if lastSample.StrVal == current.StrVal {
-		deltaSample.StrVal = ""
-	} else {
-		sameValue = false
-	}
-	if lastSample.GoFmtVal == current.GoFmtVal {
-		deltaSample.GoFmtVal = ""
-	} else {
-		sameValue = false
-	}
-	if lastSample.JsonVal == current.JsonVal {
-		deltaSample.JsonVal = ""
-	} else {
-		sameValue = false
-	}
-	if slices.Equal(lastSample.Addr, current.Addr) {
+		deltaSample.Val = ""
+		deltaSample.Error = ""
 		deltaSample.Addr = nil
-	}
-	if slices.Equal(lastSample.Tags, current.Tags) {
-		deltaSample.Tags = nil
+		deltaSample.Cap = 0
+		deltaSample.Len = 0
 	}
 	return deltaSample, sameValue
 }
 
-func (wc *WatchCollector) collectWatch(decl *WatchDecl) {
-	if decl.IsSync() {
-		typeStr := decl.PtrVal.Elem().Type().String()
-		wc.RecordWatchValue(decl.Name, decl.Tags, decl.Lock, decl.PtrVal, typeStr, decl.Flags)
-		return
-	}
-	if decl.IsFunc() {
-		getFnValue := reflect.ValueOf(decl.GetFn)
-		results := getFnValue.Call(nil)
-		typeStr := getFnValue.Type().Out(0).String()
-		value := results[0]
-		wc.RecordWatchValue(decl.Name, decl.Tags, nil, value, typeStr, decl.Flags)
-		return
-	}
-	if decl.IsAtomic() {
-		typeStr := reflect.TypeOf(decl.AtomicVal).String()
-		atomicValue := reflect.ValueOf(decl.AtomicVal)
-		loadMethod := atomicValue.MethodByName("Load")
-		results := loadMethod.Call(nil)
-		value := results[0]
-		wc.RecordWatchValue(decl.Name, decl.Tags, nil, value, typeStr, decl.Flags)
-		return
-	}
-	if decl.IsHook() {
-		if decl.HookSent.Load() {
-			return
+func (wc *WatchCollector) getDeclList(delta bool) []ds.WatchDecl {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+	if !delta {
+		wc.newDecls = nil
+		declList := make([]ds.WatchDecl, 0, len(wc.watchDecls2))
+		for _, decl := range wc.watchDecls2 {
+			declList = append(declList, *decl)
 		}
-		decl.HookSent.Store(true)
-		watch := ds.WatchSample{
-			Name:  decl.Name,
-			Tags:  decl.Tags,
-			Ts:    time.Now().UnixMilli(),
-			Flags: decl.Flags,
-			Type:  reflect.TypeOf(decl.HookFn).String(),
-			Addr:  []string{fmt.Sprintf("%p", decl.HookFn)},
-		}
-		// Set the kind to Func for hooks
-		watch.SetKind(uint(reflect.Func))
-		wc.PushWatchValue(&watch)
-		return
+		return declList
 	}
+	// Return only the new declarations since the last delta
+	declList := wc.newDecls
+	wc.newDecls = nil
+	return declList
+}
+
+func (wc *WatchCollector) getRegErrors(delta bool) []ds.ErrWithContext {
+	wc.lock.Lock()
+	defer wc.lock.Unlock()
+	if !delta {
+		wc.regErrorsDeltaIdx = len(wc.regErrors)
+		return wc.regErrors
+	}
+	// Return only the new errors since the last delta
+	return wc.regErrors[wc.regErrorsDeltaIdx:]
 }
 
 // CollectWatches collects watch information and sends it to the controller
@@ -393,49 +291,46 @@ func (wc *WatchCollector) CollectWatches() {
 	if !global.OutrigEnabled.Load() || wc.controller == nil {
 		return
 	}
-
+	var samples []ds.WatchSample2
 	sendFull := wc.getSendFullAndReset()
-	currentWatchValues := make(map[string]ds.WatchSample)
-
 	watchNames := wc.GetWatchNames()
 	for _, name := range watchNames {
 		watchDecl := wc.getWatchDecl(name)
 		if watchDecl == nil {
 			continue
 		}
-		wc.collectWatch(watchDecl)
+		sample := wc.collectWatch2(watchDecl)
+		if sample == nil {
+			continue
+		}
+		samples = append(samples, *sample)
 	}
-
-	// Get all collected watch values
-	allWatchVals := wc.getAndClearWatchVals()
-	deltaWatchVals := make([]ds.WatchSample, 0, len(allWatchVals))
 	numSameValue := 0
-
+	currentWatchValues := make(map[string]ds.WatchSample2)
 	// Process each watch value for delta calculation
-	for _, watch := range allWatchVals {
+	for idx, watch := range samples {
 		// Store current watch value for next delta calculation
 		currentWatchValues[watch.Name] = watch
-
-		// For delta updates, only include changed fields
-		if !sendFull {
-			deltaWatch, sameValue := wc.computeDeltaWatch(watch.Name, watch)
-			if sameValue {
-				numSameValue++
-			}
-			deltaWatchVals = append(deltaWatchVals, deltaWatch)
-		} else {
-			// Full update, include all fields
-			deltaWatchVals = append(deltaWatchVals, watch)
+		if sendFull {
+			continue
 		}
+		deltaWatch, sameValue := wc.computeDeltaWatch(watch.Name, watch)
+		if sameValue {
+			numSameValue++
+		}
+		samples[idx] = deltaWatch
 	}
-
 	// Update the last watch values for next delta calculation
-	wc.setLastWatchValues(currentWatchValues)
+	wc.setLastWatchSamples(currentWatchValues)
+	pushWatchVals := wc.getAndClearPushSamples()
+	samples = append(samples, pushWatchVals...)
 
 	watchInfo := &ds.WatchInfo{
-		Ts:      time.Now().UnixMilli(),
-		Delta:   !sendFull,
-		Watches: deltaWatchVals,
+		Ts:        time.Now().UnixMilli(),
+		Delta:     !sendFull,
+		Decls:     wc.getDeclList(!sendFull),
+		Watches:   samples,
+		RegErrors: wc.getRegErrors(!sendFull),
 	}
 
 	// Send the watch packet
@@ -445,15 +340,6 @@ func (wc *WatchCollector) CollectWatches() {
 	}
 
 	wc.controller.SendPacket(pk)
-}
-
-func (wc *WatchCollector) recordWatch(watch ds.WatchSample) {
-	wc.lock.Lock()
-	defer wc.lock.Unlock()
-	if len(wc.watchVals) > MaxWatchVals {
-		return
-	}
-	wc.watchVals = append(wc.watchVals, watch)
 }
 
 const MaxWatchWaitTime = 10 * time.Millisecond
@@ -472,12 +358,12 @@ func watchSampleErr(decl *ds.WatchDecl, startTime time.Time, errMsg string) *ds.
 // getAtomicValue extracts the value from an atomic variable
 func getAtomicValue(atomicVal any) (reflect.Value, error) {
 	atomicValue := reflect.ValueOf(atomicVal)
-	
+
 	// Check if it's a pointer
 	if atomicValue.Kind() != reflect.Ptr {
 		return reflect.Value{}, fmt.Errorf("atomic value must be a pointer")
 	}
-	
+
 	// First try to use the Load() method (for atomic package types)
 	loadMethod := atomicValue.MethodByName("Load")
 	if loadMethod.IsValid() {
@@ -487,11 +373,11 @@ func getAtomicValue(atomicVal any) (reflect.Value, error) {
 		}
 		return reflect.Value{}, fmt.Errorf("atomic Load method returned no values")
 	}
-	
+
 	// If no Load() method, check if it's a primitive type that supports atomic operations
 	elemType := atomicValue.Type().Elem()
 	elemKind := elemType.Kind()
-	
+
 	switch elemKind {
 	case reflect.Int32:
 		if ptr, ok := atomicVal.(*int32); ok {
@@ -519,11 +405,11 @@ func getAtomicValue(atomicVal any) (reflect.Value, error) {
 			return reflect.ValueOf(val), nil
 		}
 	}
-	
+
 	return reflect.Value{}, fmt.Errorf("unsupported atomic type: %s", elemType.String())
 }
 
-func (wc *WatchCollector) CollectWatch(decl *ds.WatchDecl) *ds.WatchSample2 {
+func (wc *WatchCollector) collectWatch2(decl *ds.WatchDecl) *ds.WatchSample2 {
 	startTime := time.Now()
 
 	if decl == nil || decl.Invalid {
@@ -562,12 +448,12 @@ func (wc *WatchCollector) CollectWatch(decl *ds.WatchDecl) *ds.WatchSample2 {
 	default:
 		return nil
 	}
-	
+
 	pollDur := time.Since(startTime).Microseconds()
-	return wc.NewWatchSample2(decl, rval, pollDur)
+	return wc.newWatchSample(decl, rval, pollDur)
 }
 
-func (wc *WatchCollector) NewWatchSample2(decl *ds.WatchDecl, rval reflect.Value, pollDur int64) *ds.WatchSample2 {
+func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value, pollDur int64) *ds.WatchSample2 {
 	sample := ds.WatchSample2{
 		Name:    decl.Name,
 		Ts:      time.Now().UnixMilli(),
@@ -660,94 +546,19 @@ func formatWatchValue(decl *ds.WatchDecl, rval reflect.Value) (string, error) {
 	}
 }
 
-func (wc *WatchCollector) RecordWatchValue(name string, tags []string, lock sync.Locker, rval reflect.Value, typeStr string, flags int) {
-	watch := ds.WatchSample{Name: name, Tags: tags, Flags: flags}
-	watch.Type = typeStr
-	if lock != nil {
-		locked, waitDuration := utilfn.TryLockWithTimeout(lock, MaxWatchWaitTime)
-		watch.WaitTime = int64(waitDuration / time.Microsecond)
-		if !locked {
-			watch.Error = "timeout waiting for lock"
-			wc.recordWatch(watch)
-			return
-		}
-		defer lock.Unlock()
-	}
-	watch.Ts = time.Now().UnixMilli()
-	const maxPtrDepth = 10
-	for depth := 0; rval.Kind() == reflect.Ptr && depth < maxPtrDepth; depth++ {
-		if rval.IsNil() {
-			watch.StrVal = "nil"
-			wc.recordWatch(watch)
-			return
-		}
-		watch.Addr = append(watch.Addr, fmt.Sprintf("%p", rval.Interface()))
-		rval = rval.Elem()
-	}
-	// Store the kind in the lower 5 bits of the flags
-	watch.SetKind(uint(rval.Kind()))
-	switch rval.Kind() {
-	case reflect.String:
-		watch.StrVal = rval.String()
-	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
-		watch.StrVal = fmt.Sprint(rval.Interface())
-	case reflect.Slice, reflect.Array, reflect.Map, reflect.Struct, reflect.Interface:
-		if (rval.Kind() == reflect.Interface || rval.Kind() == reflect.Slice || rval.Kind() == reflect.Map) && rval.IsNil() {
-			watch.StrVal = "nil"
-			wc.recordWatch(watch)
-			return
-		}
-		watch.GoFmtVal = fmt.Sprintf("%#v", rval.Interface())
-		barr, err := json.Marshal(rval.Interface())
-		if err == nil {
-			watch.JsonVal = string(barr)
-		}
-		if strer, ok := rval.Interface().(fmt.Stringer); ok {
-			watch.StrVal = strer.String()
-		}
-		if rval.Kind() == reflect.Slice || rval.Kind() == reflect.Array || rval.Kind() == reflect.Map {
-			watch.Len = rval.Len()
-		}
-		if rval.Kind() == reflect.Slice {
-			watch.Cap = rval.Cap()
-		}
-	case reflect.Chan:
-		if rval.IsNil() {
-			watch.StrVal = "nil"
-		} else {
-			watch.StrVal = fmt.Sprintf("(chan:%p)", rval.Interface())
-		}
-		watch.Len = rval.Len()
-		watch.Cap = rval.Cap()
-	case reflect.Func:
-		if rval.IsNil() {
-			watch.StrVal = "nil"
-		} else {
-			watch.StrVal = fmt.Sprintf("(func:%p)", rval.Interface())
-		}
-	case reflect.UnsafePointer, reflect.Ptr:
-		watch.StrVal = fmt.Sprintf("%p", rval.Interface())
-	default:
-		watch.Error = fmt.Sprintf("unsupported kind: %s", rval.Kind())
-	}
-	wc.recordWatch(watch)
-}
-
-func (wc *WatchCollector) setLastWatchValues(watches map[string]ds.WatchSample) {
+func (wc *WatchCollector) setLastWatchSamples(watches map[string]ds.WatchSample2) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 
 	// Update last watch values with current ones
 	for name, watch := range watches {
-		wc.lastWatchValues[name] = watch
+		wc.lastWatchSamples[name] = watch
 	}
 
 	// Remove watches that no longer exist
-	for name := range wc.lastWatchValues {
+	for name := range wc.lastWatchSamples {
 		if _, found := watches[name]; !found {
-			delete(wc.lastWatchValues, name)
+			delete(wc.lastWatchSamples, name)
 		}
 	}
 }

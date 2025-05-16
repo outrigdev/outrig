@@ -34,8 +34,8 @@ func initEventBuffer() {
 	eventBufferLock.Unlock()
 
 	// Register counters with Outrig
-	outrig.WatchAtomicCounter("tevent:eventsWritten", &eventsWritten)
-	outrig.WatchAtomicCounter("tevent:eventsInBuffer", &eventsInBuffer)
+	outrig.NewWatch("tevent:eventsWritten").AsCounter().PollAtomic(&eventsWritten)
+	outrig.NewWatch("tevent:eventsInBuffer").AsCounter().PollAtomic(&eventsInBuffer)
 }
 
 // GrabEvents takes the lock, gets up to maxSize events from the buffer, and returns them

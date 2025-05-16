@@ -42,7 +42,7 @@ export const NoWatchesMessage: React.FC<NoWatchesMessageProps> = ({ hideTitle = 
                             </p>
                             <div className="space-y-3 pl-4">
                                 <div>
-                                    <div className="font-mono text-accent">WatchFunc(name, getFn)</div>
+                                    <div className="font-mono text-accent">NewWatch(name).PollFunc(getFn)</div>
                                     <div className="text-sm text-secondary">
                                         Poll any value w/ custom synchronization
                                     </div>
@@ -100,7 +100,7 @@ export const NoWatchesMessage: React.FC<NoWatchesMessageProps> = ({ hideTitle = 
                             <br />
                             <span className="text-accent">// Watch a value with a function</span>
                             <br />
-                            outrig.WatchFunc("cache.size", func() int {"{"}
+                            outrig.NewWatch("cache.size").PollFunc(func() int {"{"}
                             <br />
                             {"    "}return len(myCache)
                             <br />

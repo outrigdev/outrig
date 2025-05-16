@@ -204,7 +204,7 @@ func init() {
 	}()
 
 	// Register a watch function that returns a map of widget ID to SearchManagerInfo
-	outrig.WatchFunc("searchmanagers", func() map[string]SearchManagerInfo {
+	outrig.NewWatch("searchmanagers").PollFunc(func() map[string]SearchManagerInfo {
 		return GetAllSearchManagerInfos()
 	})
 }

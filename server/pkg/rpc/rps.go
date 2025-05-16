@@ -26,7 +26,7 @@ var Broker = &BrokerType{
 }
 
 func init() {
-	outrig.WatchSync("rpc-brokersubs", Broker.Lock, &Broker.SubMap)
+	outrig.NewWatch("rpc-brokersubs").PollSync(Broker.Lock, &Broker.SubMap)
 }
 
 func InitBroker() {

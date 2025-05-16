@@ -57,7 +57,7 @@ func Initialize() {
 		}
 	})
 
-	outrig.WatchSync("browsertabs", &browserTabsMutex, &browserTabs)
+	outrig.NewWatch("browsertabs").PollSync(&browserTabsMutex, &browserTabs)
 }
 
 // UpdateBrowserTab updates or adds a browser tab in the tracking map

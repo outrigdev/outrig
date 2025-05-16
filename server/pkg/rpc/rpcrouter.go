@@ -92,7 +92,7 @@ func GetDefaultRouter() *WshRouter {
 
 func init() {
 	// Register a watch function that returns a sorted list of RouteMap keys
-	outrig.WatchFunc("rpcroutes", func() []string {
+	outrig.NewWatch("rpcroutes").PollFunc(func() []string {
 		return GetDefaultRouter().GetRouteKeys()
 	})
 }

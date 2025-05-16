@@ -60,7 +60,7 @@ type AppRunPeer struct {
 var appRunPeers = utilds.MakeSyncMap[string, *AppRunPeer]()
 
 func init() {
-	outrig.WatchFunc("apppeer.keys", func() []string {
+	outrig.NewWatch("apppeer.keys").PollFunc(func() []string {
 		keys := appRunPeers.Keys()
 		sort.Strings(keys)
 		return keys

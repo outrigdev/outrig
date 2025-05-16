@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -152,90 +152,6 @@ func AppDone() {
 	}
 }
 
-type AtomicLoader[T any] interface {
-	Load() T
-}
-
-type AtomicStorer[T any] interface {
-	Store(val T)
-}
-
-func WatchCounterSync[T Number](name string, lock sync.Locker, val *T) {
-	if val == nil {
-		return
-	}
-	wc := watch.GetInstance()
-	rval := reflect.ValueOf(val)
-	wc.RegisterWatchSync(name, lock, rval, ds.WatchFlag_Sync|ds.WatchFlag_Settable|ds.WatchFlag_Counter)
-}
-
-func WatchSync[T any](name string, lock sync.Locker, val *T) {
-	if val == nil {
-		return
-	}
-	wc := watch.GetInstance()
-	rval := reflect.ValueOf(val)
-	wc.RegisterWatchSync(name, lock, rval, ds.WatchFlag_Sync|ds.WatchFlag_Settable)
-}
-
-func WatchAtomicCounter[T Number](name string, val AtomicLoader[T]) {
-	if val == nil {
-		return
-	}
-	wc := watch.GetInstance()
-	wc.RegisterWatchAtomic(name, val, ds.WatchFlag_Atomic|ds.WatchFlag_Counter)
-}
-
-func WatchAtomic[T any](name string, val AtomicLoader[T]) {
-	if val == nil {
-		return
-	}
-	wc := watch.GetInstance()
-	wc.RegisterWatchAtomic(name, val, ds.WatchFlag_Atomic|ds.WatchFlag_Settable)
-}
-
-func WatchCounterFunc[T Number](name string, getFn func() T) {
-	if getFn == nil {
-		return
-	}
-	wc := watch.GetInstance()
-	wc.RegisterWatchFunc(name, getFn, nil, ds.WatchFlag_Func|ds.WatchFlag_Counter)
-}
-
-func WatchFunc[T any](name string, getFn func() T) {
-	if getFn == nil {
-		return
-	}
-	wc := watch.GetInstance()
-	flags := ds.WatchFlag_Func
-	wc.RegisterWatchFunc(name, getFn, nil, flags)
-}
-
-func TrackValue(name string, val any) {
-	if !global.OutrigEnabled.Load() {
-		return
-	}
-	wc := watch.GetInstance()
-	var rval reflect.Value
-	if val == nil {
-		rval = reflect.Zero(reflect.TypeOf((*any)(nil)).Elem())
-	} else {
-		rval = reflect.ValueOf(val)
-	}
-	cleanName, tags := utilfn.ParseNameAndTags(name)
-	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), ds.WatchFlag_Push)
-}
-
-func TrackCounter[T Number](name string, val T) {
-	if !global.OutrigEnabled.Load() {
-		return
-	}
-	wc := watch.GetInstance()
-	rval := reflect.ValueOf(val)
-	cleanName, tags := utilfn.ParseNameAndTags(name)
-	wc.RecordWatchValue(cleanName, tags, nil, rval, rval.Type().String(), ds.WatchFlag_Push|ds.WatchFlag_Counter)
-}
-
 // SetGoRoutineName sets a name for the current goroutine
 func SetGoRoutineName(name string) {
 	goId := utilfn.GetGoroutineID()
@@ -327,8 +243,31 @@ func NewWatch(name string) *Watch {
 	return w
 }
 
+// WithTags adds tags to the watch. Tags can be specified with or without a "#" prefix,
+// which will be stripped if present. Empty, duplicate tags are removed, and all tags are trimmed.
 func (w *Watch) WithTags(tags ...string) *Watch {
-	w.decl.Tags = tags
+	var processedTags []string
+	seen := make(map[string]bool)
+
+	for _, tag := range tags {
+		// Process the tag (strip # if present and trim whitespace)
+		processed := tag
+		if len(tag) > 0 && tag[0] == '#' {
+			processed = tag[1:]
+		}
+		processed = strings.TrimSpace(processed)
+
+		// Skip empty tags and duplicates
+		if processed == "" || seen[processed] {
+			continue
+		}
+
+		// Add to result and mark as seen
+		processedTags = append(processedTags, processed)
+		seen[processed] = true
+	}
+
+	w.decl.Tags = processedTags
 	// tags are validated when registering with the collector
 	return w
 }
@@ -392,7 +331,14 @@ func (p *Pusher) Push(val any) {
 	if p.disabled {
 		return
 	}
-	// todo send push value
+	wc := watch.GetInstance()
+	wc.PushWatchSample(p.decl.Name, val)
+}
+
+// Unregister unregisters the pusher's watch from the watch collector
+func (p *Pusher) Unregister() {
+	wc := watch.GetInstance()
+	wc.UnregisterWatch(p.decl)
 }
 
 // PollFunc sets up a function-based watch that periodically calls the provided function
@@ -407,10 +353,10 @@ func (p *Pusher) Push(val any) {
 // Example:
 //
 //	outrig.NewWatch("counter").PollFunc(func() int { return myCounter })
-func (w *Watch) PollFunc(fn any) {
+func (w *Watch) PollFunc(fn any) *Watch {
 	if !w.setType(watch.WatchType_Func) {
 		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watch.WatchType_Func), false)
-		return
+		return w
 	}
 	err := watch.ValidatePollFunc(fn)
 	if err != nil {
@@ -419,6 +365,7 @@ func (w *Watch) PollFunc(fn any) {
 		w.decl.PollObj = fn
 	}
 	w.registerWatch()
+	return w
 }
 
 // PollAtomic sets up an atomic-based watch that reads values from atomic variables.
@@ -435,10 +382,10 @@ func (w *Watch) PollFunc(fn any) {
 //
 //	var counter atomic.Int64
 //	outrig.NewWatch("atomic-counter").PollAtomic(&counter)
-func (w *Watch) PollAtomic(val any) {
+func (w *Watch) PollAtomic(val any) *Watch {
 	if !w.setType(watch.WatchType_Atomic) {
 		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watch.WatchType_Atomic), false)
-		return
+		return w
 	}
 	err := watch.ValidatePollAtomic(val)
 	if err != nil {
@@ -447,6 +394,7 @@ func (w *Watch) PollAtomic(val any) {
 		w.decl.PollObj = val
 	}
 	w.registerWatch()
+	return w
 }
 
 // PollSync sets up a synchronization-based watch to monitor values protected by a mutex or other locker.
@@ -461,10 +409,10 @@ func (w *Watch) PollAtomic(val any) {
 //	var mu sync.Mutex
 //	var counter int
 //	outrig.NewWatch("sync-counter").PollSync(&mu, &counter)
-func (w *Watch) PollSync(lock sync.Locker, val any) {
+func (w *Watch) PollSync(lock sync.Locker, val any) *Watch {
 	if !w.setType(watch.WatchType_Sync) {
 		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watch.WatchType_Sync), false)
-		return
+		return w
 	}
 	err := watch.ValidatePollSync(lock, val)
 	if err != nil {
@@ -474,6 +422,13 @@ func (w *Watch) PollSync(lock sync.Locker, val any) {
 		w.decl.PollObj = val
 	}
 	w.registerWatch()
+	return w
+}
+
+// Unregister unregisters the watch from the watch collector
+func (w *Watch) Unregister() {
+	wc := watch.GetInstance()
+	wc.UnregisterWatch(w.decl)
 }
 
 // getCallerInfo returns the file and line number of the caller.

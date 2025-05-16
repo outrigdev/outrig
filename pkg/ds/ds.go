@@ -121,18 +121,19 @@ type WatchInfo struct {
 	Ts        int64            `json:"ts"`
 	Delta     bool             `json:"delta,omitempty"`
 	Decls     []WatchDecl      `json:"decls,omitempty"`
-	Watches   []WatchSample    `json:"watches"`
+	Watches   []WatchSample2   `json:"watches"`
 	RegErrors []ErrWithContext `json:"regerrors,omitempty"`
 }
 
 type WatchDecl struct {
-	Name      string   `json:"name"`
-	Tags      []string `json:"tags,omitempty"`
-	NewLine   string   `json:"newline,omitempty"`
-	WatchType string   `json:"watchtype"`
-	Format    string   `json:"format"`
-	Counter   bool     `json:"counter,omitempty"`
-	Invalid   bool     `json:"invalid,omitempty"`
+	Name         string   `json:"name"`
+	Tags         []string `json:"tags,omitempty"`
+	NewLine      string   `json:"newline,omitempty"`
+	WatchType    string   `json:"watchtype"`
+	Format       string   `json:"format"`
+	Counter      bool     `json:"counter,omitempty"`
+	Invalid      bool     `json:"invalid,omitempty"`
+	Unregistered bool     `json:"unregistered,omitempty"`
 
 	SyncLock sync.Locker `json:"-"`
 	PollObj  any         `json:"-"`
@@ -140,14 +141,15 @@ type WatchDecl struct {
 
 type WatchSample2 struct {
 	Name    string   `json:"name"`
-	Ts      int64    `json:"ts"` // timestamp in milliseconds
-	Kind    int      `json:"kind,omitempty"`
-	Type    string   `json:"type,omitempty"`
-	Val     string   `json:"val,omitempty"`
-	Error   string   `json:"error,omitempty"`
-	Addr    []string `json:"addr,omitempty"`
-	Cap     int      `json:"cap,omitempty"`
-	Len     int      `json:"len,omitempty"`
+	Ts      int64    `json:"ts"`              // timestamp in milliseconds
+	Same    bool     `json:"same,omitempty"`  // true if kind, type, val, addr, and error are the same as the previous sample (for delta collection)
+	Kind    int      `json:"kind,omitempty"`  // same
+	Type    string   `json:"type,omitempty"`  // same
+	Val     string   `json:"val,omitempty"`   // same
+	Error   string   `json:"error,omitempty"` // same
+	Addr    []string `json:"addr,omitempty"`  // same
+	Cap     int      `json:"cap,omitempty"`   // same
+	Len     int      `json:"len,omitempty"`   // same
 	PollDur int64    `json:"polldur,omitempty"`
 }
 

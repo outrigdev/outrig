@@ -14,6 +14,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Global Watch variables initialized at package level
+var nilWatch = outrig.NewWatch("test-nil").WithTags("test").ForPush()
+var fooWatch = outrig.NewWatch("foo").WithTags("test").ForPush()
+var mapWatch = outrig.NewWatch("map").WithTags("test").ForPush()
+
 type Point struct {
 	X    int
 	Y    int
@@ -41,18 +46,20 @@ func main() {
 	outrig.Init("test-small", config)
 	defer outrig.AppDone()
 
-	outrig.TrackValue("test-nil #test", nil)
+	// Push nil value using global watch
+	nilWatch.Push(nil)
 
+	// Create and push foo value using global watch
 	foo := &Foo{5, make(chan int, 2), Point{1, 2, "test{[()]}"}}
-	outrig.TrackValue("foo #test", foo)
+	fooWatch.Push(foo)
 
+	// Create and push map value using global watch
 	m := make(map[string]any)
 	m["test"] = 1
 	m["foo"] = 55
 	m["struct"] = Point{1, 2, "point-struct"}
 	m["arr"] = []int{1, 2, 3}
-
-	outrig.TrackValue("map #test", m)
+	mapWatch.Push(m)
 
 	outrig.Logf("#test: this is a log line from outrig :warning: logger :apple: :pizza:")
 	outrig.Logf("#test: another log line")
