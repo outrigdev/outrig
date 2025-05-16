@@ -234,7 +234,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		if err := json.Unmarshal(packetData, &watchInfo); err != nil {
 			return fmt.Errorf("failed to unmarshal WatchInfo: %w", err)
 		}
-		p.Watches.ProcessWatchValues(watchInfo.Watches, watchInfo.Delta)
+		p.Watches.ProcessWatchInfo(watchInfo)
 		log.Printf("Processed %d watches for app run ID: %s (delta: %v)", len(watchInfo.Watches), p.AppRunId, watchInfo.Delta)
 
 	case ds.PacketTypeAppDone:

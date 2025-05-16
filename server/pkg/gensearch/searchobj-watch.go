@@ -110,7 +110,7 @@ func (wso *WatchSearchObject) GetField(fieldName string, fieldMods int) string {
 	return ""
 }
 
-func makeCombinedVal(w ds.WatchSample) string {
+func makeCombinedVal(w ds.WatchSampleOld) string {
 	vals := make([]string, 0, 3) // pre-alloc cap 3
 	if w.StrVal != "" {
 		vals = append(vals, w.StrVal)
@@ -125,7 +125,7 @@ func makeCombinedVal(w ds.WatchSample) string {
 }
 
 // WatchSampleToSearchObject converts a WatchSample to a WatchSearchObject
-func WatchSampleToSearchObject(watch ds.WatchSample) SearchObject {
+func WatchSampleToSearchObject(watch ds.WatchSampleOld) SearchObject {
 	// Collect non-empty values with pre-allocated capacity
 	combinedVal := makeCombinedVal(watch)
 	return &WatchSearchObject{

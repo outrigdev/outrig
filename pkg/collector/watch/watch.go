@@ -39,11 +39,11 @@ type WatchCollector struct {
 	executor          *collector.PeriodicExecutor
 	controller        ds.Controller
 	config            config.WatchConfig
-	watchDecls2       map[string]*ds.WatchDecl
-	pushSamples       []ds.WatchSample2
-	lastWatchSamples  map[string]ds.WatchSample2 // last set of watch values for delta calculation
-	nextSendFull      bool                       // true for full update, false for delta update
-	regErrors         []ds.ErrWithContext        // errors encountered during watch registration
+	watchDecls        map[string]*ds.WatchDecl
+	pushSamples       []ds.WatchSample
+	lastWatchSamples  map[string]ds.WatchSample // last set of watch values for delta calculation
+	nextSendFull      bool                      // true for full update, false for delta update
+	regErrors         []ds.ErrWithContext       // errors encountered during watch registration
 	regErrorsDeltaIdx int
 	newDecls          []ds.WatchDecl // new declarations added since last delta
 }
@@ -61,8 +61,8 @@ var instanceOnce sync.Once
 func GetInstance() *WatchCollector {
 	instanceOnce.Do(func() {
 		instance = &WatchCollector{
-			watchDecls2:      make(map[string]*ds.WatchDecl),
-			lastWatchSamples: make(map[string]ds.WatchSample2),
+			watchDecls:       make(map[string]*ds.WatchDecl),
+			lastWatchSamples: make(map[string]ds.WatchSample),
 			nextSendFull:     true, // First send is always a full update
 			regErrors:        make([]ds.ErrWithContext, 0),
 		}
@@ -84,11 +84,11 @@ func (wc *WatchCollector) UnregisterWatch(decl *ds.WatchDecl) {
 	// Add to newDecls to track the unregistration
 	wc.newDecls = append(wc.newDecls, unregDecl)
 
-	// Remove from watchDecls2 map
-	delete(wc.watchDecls2, decl.Name)
+	// Remove from watchDecls map
+	delete(wc.watchDecls, decl.Name)
 }
 
-// RegisterWatchDecl registers a watch declaration in the watchDecls2 map
+// RegisterWatchDecl registers a watch declaration in the watchDecls map
 // Returns an error if a watch with the same name already exists
 func (wc *WatchCollector) RegisterWatchDecl(decl *ds.WatchDecl) {
 	wc.lock.Lock()
@@ -104,7 +104,7 @@ func (wc *WatchCollector) RegisterWatchDecl(decl *ds.WatchDecl) {
 	}
 
 	// Check if a watch with this name already exists
-	if _, exists := wc.watchDecls2[decl.Name]; exists {
+	if _, exists := wc.watchDecls[decl.Name]; exists {
 		err := fmt.Errorf("cannot register watch with duplicate name %q", decl.Name)
 		wc.regErrors = append(wc.regErrors, ds.ErrWithContext{
 			Error: err.Error(),
@@ -114,7 +114,7 @@ func (wc *WatchCollector) RegisterWatchDecl(decl *ds.WatchDecl) {
 	}
 
 	// Register the watch declaration
-	wc.watchDecls2[decl.Name] = decl
+	wc.watchDecls[decl.Name] = decl
 }
 
 func (wc *WatchCollector) AddRegError(err ds.ErrWithContext) {
@@ -174,8 +174,8 @@ func (wc *WatchCollector) Disable() {
 func (wc *WatchCollector) GetWatchNames() []string {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
-	names := make([]string, 0, len(wc.watchDecls2))
-	for name := range wc.watchDecls2 {
+	names := make([]string, 0, len(wc.watchDecls))
+	for name := range wc.watchDecls {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -185,7 +185,7 @@ func (wc *WatchCollector) GetWatchNames() []string {
 func (wc *WatchCollector) getWatchDecl(name string) *ds.WatchDecl {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
-	return wc.watchDecls2[name]
+	return wc.watchDecls[name]
 }
 
 func (wc *WatchCollector) PushWatchSample(name string, val any) {
@@ -202,7 +202,7 @@ func (wc *WatchCollector) PushWatchSample(name string, val any) {
 	wc.pushSamples = append(wc.pushSamples, *sample)
 }
 
-func (wc *WatchCollector) getAndClearPushSamples() []ds.WatchSample2 {
+func (wc *WatchCollector) getAndClearPushSamples() []ds.WatchSample {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 	watchVals := wc.pushSamples
@@ -210,7 +210,7 @@ func (wc *WatchCollector) getAndClearPushSamples() []ds.WatchSample2 {
 	return watchVals
 }
 
-func (wc *WatchCollector) getLastSample(name string) (ds.WatchSample2, bool) {
+func (wc *WatchCollector) getLastSample(name string) (ds.WatchSample, bool) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 	lastSample, exists := wc.lastWatchSamples[name]
@@ -219,7 +219,7 @@ func (wc *WatchCollector) getLastSample(name string) (ds.WatchSample2, bool) {
 
 // computeDeltaWatch compares current and last watch sample and returns a delta sample
 // For delta updates, we start with a full copy of current and clear fields that haven't changed
-func (wc *WatchCollector) computeDeltaWatch(name string, current ds.WatchSample2) (ds.WatchSample2, bool) {
+func (wc *WatchCollector) computeDeltaWatch(name string, current ds.WatchSample) (ds.WatchSample, bool) {
 	// For push values, we always include all fields and don't compute deltas
 	decl := wc.getWatchDecl(name)
 	if decl.WatchType == WatchType_Push {
@@ -262,8 +262,8 @@ func (wc *WatchCollector) getDeclList(delta bool) []ds.WatchDecl {
 	defer wc.lock.Unlock()
 	if !delta {
 		wc.newDecls = nil
-		declList := make([]ds.WatchDecl, 0, len(wc.watchDecls2))
-		for _, decl := range wc.watchDecls2 {
+		declList := make([]ds.WatchDecl, 0, len(wc.watchDecls))
+		for _, decl := range wc.watchDecls {
 			declList = append(declList, *decl)
 		}
 		return declList
@@ -291,7 +291,7 @@ func (wc *WatchCollector) CollectWatches() {
 	if !global.OutrigEnabled.Load() || wc.controller == nil {
 		return
 	}
-	var samples []ds.WatchSample2
+	var samples []ds.WatchSample
 	sendFull := wc.getSendFullAndReset()
 	watchNames := wc.GetWatchNames()
 	for _, name := range watchNames {
@@ -306,7 +306,7 @@ func (wc *WatchCollector) CollectWatches() {
 		samples = append(samples, *sample)
 	}
 	numSameValue := 0
-	currentWatchValues := make(map[string]ds.WatchSample2)
+	currentWatchValues := make(map[string]ds.WatchSample)
 	// Process each watch value for delta calculation
 	for idx, watch := range samples {
 		// Store current watch value for next delta calculation
@@ -344,10 +344,10 @@ func (wc *WatchCollector) CollectWatches() {
 
 const MaxWatchWaitTime = 10 * time.Millisecond
 
-// watchSampleErr creates a WatchSample2 with an error message
-func watchSampleErr(decl *ds.WatchDecl, startTime time.Time, errMsg string) *ds.WatchSample2 {
+// watchSampleErr creates a WatchSample with an error message
+func watchSampleErr(decl *ds.WatchDecl, startTime time.Time, errMsg string) *ds.WatchSample {
 	pollDur := time.Since(startTime).Microseconds()
-	return &ds.WatchSample2{
+	return &ds.WatchSample{
 		Name:    decl.Name,
 		Ts:      time.Now().UnixMilli(),
 		PollDur: pollDur,
@@ -409,7 +409,7 @@ func getAtomicValue(atomicVal any) (reflect.Value, error) {
 	return reflect.Value{}, fmt.Errorf("unsupported atomic type: %s", elemType.String())
 }
 
-func (wc *WatchCollector) collectWatch2(decl *ds.WatchDecl) *ds.WatchSample2 {
+func (wc *WatchCollector) collectWatch2(decl *ds.WatchDecl) *ds.WatchSample {
 	startTime := time.Now()
 
 	if decl == nil || decl.Invalid {
@@ -453,8 +453,8 @@ func (wc *WatchCollector) collectWatch2(decl *ds.WatchDecl) *ds.WatchSample2 {
 	return wc.newWatchSample(decl, rval, pollDur)
 }
 
-func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value, pollDur int64) *ds.WatchSample2 {
-	sample := ds.WatchSample2{
+func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value, pollDur int64) *ds.WatchSample {
+	sample := ds.WatchSample{
 		Name:    decl.Name,
 		Ts:      time.Now().UnixMilli(),
 		PollDur: pollDur,
@@ -546,7 +546,7 @@ func formatWatchValue(decl *ds.WatchDecl, rval reflect.Value) (string, error) {
 	}
 }
 
-func (wc *WatchCollector) setLastWatchSamples(watches map[string]ds.WatchSample2) {
+func (wc *WatchCollector) setLastWatchSamples(watches map[string]ds.WatchSample) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
 

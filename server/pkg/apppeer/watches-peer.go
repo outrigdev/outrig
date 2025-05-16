@@ -6,6 +6,7 @@ package apppeer
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -19,8 +20,7 @@ const WatchBufferSize = 600 // 10 minutes of 1-second samples
 // Watch represents a single watch with its values
 type Watch struct {
 	WatchNum  int64
-	Name      string
-	Tags      []string
+	Decl      ds.WatchDecl
 	WatchVals *utilds.CirBuf[ds.WatchSample]
 }
 
@@ -48,40 +48,36 @@ func MakeWatchesPeer(appRunId string) *WatchesPeer {
 }
 
 // mergeWatchSamples combines a base watch sample with a delta sample to create a complete sample
-// It starts with the delta sample and fills in missing fields from the base sample
+// When a sample is marked as "same", it means all fields are the same as the previous sample
+// and were cleared in the delta to save bandwidth
 func mergeWatchSamples(baseSample, deltaSample ds.WatchSample) ds.WatchSample {
-	// Start with the delta sample
-	completeSample := deltaSample
-
-	// Fill in fields from base sample if they're empty in the delta
-	if completeSample.Flags == 0 {
-		completeSample.Flags = baseSample.Flags
-	}
-	if completeSample.Type == "" {
-		completeSample.Type = baseSample.Type
-	}
-	if completeSample.StrVal == "" {
-		completeSample.StrVal = baseSample.StrVal
-	}
-	if completeSample.GoFmtVal == "" {
-		completeSample.GoFmtVal = baseSample.GoFmtVal
-	}
-	if completeSample.JsonVal == "" {
-		completeSample.JsonVal = baseSample.JsonVal
-	}
-	if len(completeSample.Addr) == 0 {
-		completeSample.Addr = baseSample.Addr
-	}
-	if len(completeSample.Tags) == 0 {
-		completeSample.Tags = baseSample.Tags
+	// If the sample is marked as "same", copy all fields from the base sample
+	if deltaSample.Same {
+		// Create a new sample with the name and timestamp from the delta
+		// but all other fields from the base sample
+		return ds.WatchSample{
+			Name:    deltaSample.Name,
+			Ts:      deltaSample.Ts,
+			PollDur: deltaSample.PollDur,
+			Same:    false, // Reset Same flag as this is now a complete sample
+			Kind:    baseSample.Kind,
+			Type:    baseSample.Type,
+			Val:     baseSample.Val,
+			Error:   baseSample.Error,
+			Addr:    baseSample.Addr,
+			Cap:     baseSample.Cap,
+			Len:     baseSample.Len,
+		}
 	}
 
-	return completeSample
+	// Not marked as same, so the delta sample already contains all necessary fields
+	return deltaSample
 }
 
 // getOrCreateWatch_nolock gets or creates a watch by name
 // Assumes the lock is already held
-func (wp *WatchesPeer) getOrCreateWatch_nolock(watchName string, tags []string) (Watch, int64) {
+func (wp *WatchesPeer) getOrCreateWatch_nolock(watchDecl ds.WatchDecl) (Watch, int64) {
+	watchName := watchDecl.Name
 	watchNum, exists := wp.nameToWatchNum[watchName]
 	if !exists {
 		// Create a new watch with a new number
@@ -91,10 +87,14 @@ func (wp *WatchesPeer) getOrCreateWatch_nolock(watchName string, tags []string) 
 
 		wp.watches.Set(watchNum, Watch{
 			WatchNum:  watchNum,
-			Name:      watchName,
-			Tags:      tags,
+			Decl:      watchDecl,
 			WatchVals: utilds.MakeCirBuf[ds.WatchSample](WatchBufferSize),
 		})
+	} else {
+		// Update the declaration for existing watch
+		watch, _ := wp.watches.GetEx(watchNum)
+		watch.Decl = watchDecl
+		wp.watches.Set(watchNum, watch)
 	}
 
 	// Get the watch (it must exist now)
@@ -102,48 +102,73 @@ func (wp *WatchesPeer) getOrCreateWatch_nolock(watchName string, tags []string) 
 	return watch, watchNum
 }
 
-// ProcessWatchValues processes watch values from a packet
-func (wp *WatchesPeer) ProcessWatchValues(watchValues []ds.WatchSample, isDelta bool) {
+// ProcessWatchInfo processes watch information from a packet
+func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 	wp.lock.Lock()
 	defer wp.lock.Unlock()
 
 	activeWatches := make(map[int64]bool)
 
 	// If this is a delta update but we haven't seen a full update yet, ignore it
-	if isDelta && !wp.hasSeenFullUpdate {
+	if watchInfo.Delta && !wp.hasSeenFullUpdate {
 		fmt.Printf("WARNING: [AppRun: %s] Ignoring delta update because no full update has been seen yet\n", wp.appRunId)
 		return
 	}
 
 	// If this is a full update, mark that we've seen one
-	if !isDelta {
+	if !watchInfo.Delta {
 		wp.hasSeenFullUpdate = true
 	}
 
-	// Process watch values
-	for _, watchVal := range watchValues {
-		// Get or create the watch
-		watch, watchNum := wp.getOrCreateWatch_nolock(watchVal.Name, watchVal.Tags)
-		watchVal.WatchNum = watchNum
-		if len(watchVal.Tags) > 0 {
-			watch.Tags = watchVal.Tags
+	// Process watch declarations first
+	declMap := make(map[string]ds.WatchDecl)
+	for _, decl := range watchInfo.Decls {
+		declMap[decl.Name] = decl
+	}
+
+	// Process watch samples
+	for _, sample := range watchInfo.Watches {
+		// Get the declaration for this watch
+		decl, declExists := declMap[sample.Name]
+		if !declExists {
+			// If we don't have a declaration in this update, try to get it from existing watches
+			if watchNum, exists := wp.nameToWatchNum[sample.Name]; exists {
+				watch, watchExists := wp.watches.GetEx(watchNum)
+				if watchExists {
+					decl = watch.Decl
+					declExists = true
+				}
+			}
+
+			// If we still don't have a declaration, create a minimal one
+			if !declExists {
+				decl = ds.WatchDecl{
+					Name:      sample.Name,
+					WatchType: sample.Type,
+				}
+			}
 		}
+
+		// Get or create the watch
+		watch, watchNum := wp.getOrCreateWatch_nolock(decl)
 		activeWatches[watchNum] = true
 
 		// Handle watch value updates based on whether it's a delta update
-		if isDelta && !watchVal.IsPush() { // Push watches are always full updates
+		isPush := decl.Format == "push" // Equivalent to the old IsPush() check
+
+		if watchInfo.Delta && !isPush { // Push watches are always full updates
 			// Delta updates need a base sample to merge with
 			lastSample, _, lastExists := watch.WatchVals.GetLast()
 			if lastExists {
-				completeSample := mergeWatchSamples(lastSample, watchVal)
+				completeSample := mergeWatchSamples(lastSample, sample)
 				watch.WatchVals.Write(completeSample)
 			} else {
 				logKey := fmt.Sprintf("watches-nodeltaupdate-%s", wp.appRunId)
-				logutil.LogfOnce(logKey, "WARNING: [AppRun: %s] Delta update received for watch %s with no last sample\n", wp.appRunId, watchVal.Name)
+				logutil.LogfOnce(logKey, "WARNING: [AppRun: %s] Delta update received for watch %s with no last sample\n", wp.appRunId, sample.Name)
 			}
 		} else {
 			// Full update, write the sample directly
-			watch.WatchVals.Write(watchVal)
+			watch.WatchVals.Write(sample)
 		}
 
 		wp.watches.Set(watchNum, watch)
@@ -165,9 +190,13 @@ func (wp *WatchesPeer) GetTotalWatchCount() int {
 }
 
 // GetAllWatches returns all watches with their most recent values
-func (wp *WatchesPeer) GetAllWatches() []ds.WatchSample {
+func (wp *WatchesPeer) GetAllWatches() []ds.WatchInfo {
 	watchNums := wp.watches.Keys()
-	watches := make([]ds.WatchSample, 0, len(watchNums))
+
+	// Group watches by active status
+	activeWatches := make([]ds.WatchSample, 0, len(wp.activeWatches))
+	activeDecls := make([]ds.WatchDecl, 0, len(wp.activeWatches))
+
 	for _, num := range watchNums {
 		watch, exists := wp.watches.GetEx(num)
 		if !exists {
@@ -179,10 +208,22 @@ func (wp *WatchesPeer) GetAllWatches() []ds.WatchSample {
 			continue
 		}
 
-		watches = append(watches, latestWatch)
+		// Only include active watches
+		if _, isActive := wp.activeWatches[num]; isActive {
+			activeWatches = append(activeWatches, latestWatch)
+			activeDecls = append(activeDecls, watch.Decl)
+		}
 	}
 
-	return watches
+	// Create a single WatchInfo with all watches
+	return []ds.WatchInfo{
+		{
+			Ts:      activeWatches[0].Ts, // Use timestamp from first watch
+			Delta:   false,
+			Decls:   activeDecls,
+			Watches: activeWatches,
+		},
+	}
 }
 
 // GetWatchNumeric returns an array of numeric values for a specific watch
@@ -203,12 +244,28 @@ func (wp *WatchesPeer) GetWatchNumeric(watchNum int64) []float64 {
 	// Convert each sample to a numeric value
 	numericValues := make([]float64, 0, len(samples))
 	for _, sample := range samples {
-		numericValues = append(numericValues, sample.GetNumericVal())
+		// Extract numeric value based on the kind
+		var val float64
+		if sample.Error != "" {
+			val = 0
+		} else if sample.Kind >= 1 && sample.Kind <= 16 { // Numeric kinds in reflect package
+			// Parse the value string to float64
+			if v, err := strconv.ParseFloat(sample.Val, 64); err == nil {
+				val = v
+			}
+		} else if sample.Kind == 24 || sample.Kind == 17 || sample.Kind == 18 { // Array, Slice, Map
+			val = float64(sample.Len)
+		} else if sample.Val == "true" {
+			val = 1
+		} else {
+			val = 0
+		}
+
+		numericValues = append(numericValues, val)
 	}
 
-	// Check if this is a counter by examining the flags of the first sample
-	// (assuming all samples have the same flags)
-	if len(samples) > 0 && (samples[0].Flags&ds.WatchFlag_Counter) != 0 {
+	// Check if this is a counter
+	if watch.Decl.Counter {
 		// For counters, convert to deltas
 		return utilfn.CalculateDeltas(numericValues)
 	}
@@ -217,9 +274,11 @@ func (wp *WatchesPeer) GetWatchNumeric(watchNum int64) []float64 {
 }
 
 // GetWatchesByIds returns watches for specific watch IDs
-func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) []ds.WatchSample {
+func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) ds.WatchInfo {
 	// Get watches by their IDs directly
-	watches := make([]ds.WatchSample, 0, len(watchIds))
+	samples := make([]ds.WatchSample, 0, len(watchIds))
+	decls := make([]ds.WatchDecl, 0, len(watchIds))
+
 	for _, watchId := range watchIds {
 		watch, exists := wp.watches.GetEx(watchId)
 		if !exists {
@@ -231,30 +290,53 @@ func (wp *WatchesPeer) GetWatchesByIds(watchIds []int64) []ds.WatchSample {
 			continue
 		}
 
-		watches = append(watches, latestWatch)
+		samples = append(samples, latestWatch)
+		decls = append(decls, watch.Decl)
 	}
 
 	// Sort watches by name for consistent ordering
-	sort.Slice(watches, func(i, j int) bool {
-		return watches[i].Name < watches[j].Name
+	sort.Slice(samples, func(i, j int) bool {
+		return samples[i].Name < samples[j].Name
 	})
 
-	return watches
+	// Sort declarations to match
+	sort.Slice(decls, func(i, j int) bool {
+		return decls[i].Name < decls[j].Name
+	})
+
+	// If no watches found, return empty WatchInfo
+	if len(samples) == 0 {
+		return ds.WatchInfo{}
+	}
+
+	// Create a WatchInfo with the requested watches
+	return ds.WatchInfo{
+		Ts:      samples[0].Ts, // Use timestamp from first watch
+		Delta:   false,
+		Decls:   decls,
+		Watches: samples,
+	}
 }
 
 // GetWatchHistory returns the full history of samples for a specific watch
-func (wp *WatchesPeer) GetWatchHistory(watchNum int64) []ds.WatchSample {
+func (wp *WatchesPeer) GetWatchHistory(watchNum int64) ds.WatchInfo {
 	// Get the watch directly by its number
 	watch, exists := wp.watches.GetEx(watchNum)
 	if !exists {
-		return nil
+		return ds.WatchInfo{}
 	}
 
 	// Get all samples from the circular buffer
 	samples, _ := watch.WatchVals.GetAll()
 	if len(samples) == 0 {
-		return nil
+		return ds.WatchInfo{}
 	}
 
-	return samples
+	// Create a WatchInfo with the watch history
+	return ds.WatchInfo{
+		Ts:      samples[0].Ts, // Use timestamp from first sample
+		Delta:   false,
+		Decls:   []ds.WatchDecl{watch.Decl},
+		Watches: samples,
+	}
 }

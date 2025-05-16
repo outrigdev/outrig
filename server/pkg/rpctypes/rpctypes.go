@@ -233,9 +233,9 @@ type AppRunGoRoutinesData struct {
 }
 
 type AppRunWatchesData struct {
-	AppRunId string           `json:"apprunid"`
-	AppName  string           `json:"appname"`
-	Watches  []ds.WatchSample `json:"watches"`
+	AppRunId string              `json:"apprunid"`
+	AppName  string              `json:"appname"`
+	Watches  []ds.WatchSampleOld `json:"watches"`
 }
 
 type RuntimeStatData struct {
@@ -333,9 +333,9 @@ type WatchHistoryRequest struct {
 
 // WatchHistoryData defines the response for watch history
 type WatchHistoryData struct {
-	AppRunId     string           `json:"apprunid"`
-	AppName      string           `json:"appname"`
-	WatchHistory []ds.WatchSample `json:"watchhistory"`
+	AppRunId     string              `json:"apprunid"`
+	AppName      string              `json:"appname"`
+	WatchHistory []ds.WatchSampleOld `json:"watchhistory"`
 }
 
 // WatchNumericRequest defines the request for getting numeric watch values

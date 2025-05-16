@@ -121,7 +121,7 @@ type WatchInfo struct {
 	Ts        int64            `json:"ts"`
 	Delta     bool             `json:"delta,omitempty"`
 	Decls     []WatchDecl      `json:"decls,omitempty"`
-	Watches   []WatchSample2   `json:"watches"`
+	Watches   []WatchSample    `json:"watches"`
 	RegErrors []ErrWithContext `json:"regerrors,omitempty"`
 }
 
@@ -139,7 +139,7 @@ type WatchDecl struct {
 	PollObj  any         `json:"-"`
 }
 
-type WatchSample2 struct {
+type WatchSample struct {
 	Name    string   `json:"name"`
 	Ts      int64    `json:"ts"`              // timestamp in milliseconds
 	Same    bool     `json:"same,omitempty"`  // true if kind, type, val, addr, and error are the same as the previous sample (for delta collection)
@@ -153,7 +153,7 @@ type WatchSample2 struct {
 	PollDur int64    `json:"polldur,omitempty"`
 }
 
-type WatchSample struct {
+type WatchSampleOld struct {
 	WatchNum int64    `json:"watchnum,omitempty"`
 	Name     string   `json:"name"`
 	Tags     []string `json:"tags,omitempty"`
@@ -208,24 +208,24 @@ type RuntimeStatsInfo struct {
 }
 
 // GetKind extracts the reflect.Kind from the flags
-func (w *WatchSample) GetKind() uint {
+func (w *WatchSampleOld) GetKind() uint {
 	return uint(w.Flags & KindMask)
 }
 
 // SetKind sets the reflect.Kind in the flags
-func (w *WatchSample) SetKind(kind uint) {
+func (w *WatchSampleOld) SetKind(kind uint) {
 	// Clear the current kind bits
 	w.Flags &= ^KindMask
 	// Set the new kind bits
 	w.Flags |= int(kind) & KindMask
 }
 
-func (w *WatchSample) IsPush() bool {
+func (w *WatchSampleOld) IsPush() bool {
 	return (w.Flags & WatchFlag_Push) != 0
 }
 
 // IsNumeric checks if the value is numeric based on its Kind
-func (w *WatchSample) IsNumeric() bool {
+func (w *WatchSampleOld) IsNumeric() bool {
 	kind := reflect.Kind(w.GetKind())
 	switch kind {
 	case reflect.Bool:
@@ -244,7 +244,7 @@ func (w *WatchSample) IsNumeric() bool {
 }
 
 // GetNumericVal returns a float64 representation of the value
-func (w *WatchSample) GetNumericVal() float64 {
+func (w *WatchSampleOld) GetNumericVal() float64 {
 	if !w.IsNumeric() {
 		return 0
 	}
