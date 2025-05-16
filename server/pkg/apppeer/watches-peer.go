@@ -14,6 +14,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/server/pkg/logutil"
+	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
 const WatchBufferSize = 600 // 10 minutes of 1-second samples
@@ -33,11 +34,6 @@ type WatchesPeer struct {
 	lock              sync.RWMutex     // Lock for synchronizing watch operations
 	hasSeenFullUpdate bool             // Flag to track if we've seen a full update
 	appRunId          string           // ID of the app run this peer belongs to
-}
-
-type CombinedWatchSample struct {
-	Decl   ds.WatchDecl
-	Sample ds.WatchSample
 }
 
 // MakeWatchesPeer creates a new WatchesPeer instance
@@ -187,12 +183,12 @@ func (wp *WatchesPeer) GetTotalWatchCount() int {
 }
 
 // GetAllWatches returns all watches with their most recent values as combined samples
-func (wp *WatchesPeer) GetAllWatches() []CombinedWatchSample {
+func (wp *WatchesPeer) GetAllWatches() []rpctypes.CombinedWatchSample {
 	wp.lock.RLock()
 	defer wp.lock.RUnlock()
 
 	watchNums := wp.watches.Keys()
-	result := make([]CombinedWatchSample, 0, len(watchNums))
+	result := make([]rpctypes.CombinedWatchSample, 0, len(watchNums))
 
 	for _, num := range watchNums {
 		watch, exists := wp.watches.GetEx(num)
@@ -205,9 +201,10 @@ func (wp *WatchesPeer) GetAllWatches() []CombinedWatchSample {
 			continue
 		}
 
-		result = append(result, CombinedWatchSample{
-			Decl:   watch.Decl,
-			Sample: latestSample,
+		result = append(result, rpctypes.CombinedWatchSample{
+			WatchNum: watch.WatchNum,
+			Decl:     watch.Decl,
+			Sample:   latestSample,
 		})
 	}
 

@@ -225,6 +225,27 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	}, nil
 }
 
+// combinedWatchSampleToSearchObject converts a CombinedWatchSample to a WatchSearchObject
+func combinedWatchSampleToSearchObject(combined rpctypes.CombinedWatchSample) gensearch.SearchObject {
+	// Extract data from both the declaration and sample
+	decl := combined.Decl
+	sample := combined.Sample
+
+	// Use the WatchNum from the CombinedWatchSample
+	watchNum := combined.WatchNum
+
+	// Get the value from the sample
+	val := sample.Val
+
+	return &gensearch.WatchSearchObject{
+		WatchNum: watchNum,
+		Name:     sample.Name,
+		Val:      val,
+		Tags:     decl.Tags,
+		Type:     sample.Type,
+	}
+}
+
 // WatchSearchRequestCommand handles search requests for watches
 func (*RpcServerImpl) WatchSearchRequestCommand(ctx context.Context, data rpctypes.WatchSearchRequestData) (rpctypes.WatchSearchResultData, error) {
 	// Get the app run peer
@@ -265,7 +286,7 @@ func (*RpcServerImpl) WatchSearchRequestCommand(ctx context.Context, data rpctyp
 	filteredWatches, stats, err := gensearch.PerformSearch(
 		allWatches,
 		totalCount,
-		gensearch.WatchSampleToSearchObject,
+		combinedWatchSampleToSearchObject,
 		effectiveSearcher,
 		sctx,
 	)

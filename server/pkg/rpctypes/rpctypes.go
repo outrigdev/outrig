@@ -321,7 +321,6 @@ type BrowserTabUrlData struct {
 	AutoFollow bool   `json:"autofollow"`
 }
 
-
 // StackFrame represents a single frame in a goroutine stack trace
 type StackFrame struct {
 	// Function information
@@ -372,4 +371,10 @@ type TEventFeProps struct {
 type TEventFeData struct {
 	Event string        `json:"event"`
 	Props TEventFeProps `json:"props"`
+}
+
+type CombinedWatchSample struct {
+	WatchNum int64          `json:"watchnum"`
+	Decl     ds.WatchDecl   `json:"decl"`
+	Sample   ds.WatchSample `json:"sample"`
 }
