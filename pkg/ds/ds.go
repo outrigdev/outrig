@@ -6,8 +6,6 @@ package ds
 
 import (
 	"net"
-	"reflect"
-	"strconv"
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/config"
@@ -205,70 +203,6 @@ type RuntimeStatsInfo struct {
 	Pid            int             `json:"pid"`
 	Cwd            string          `json:"cwd"`
 	MemStats       MemoryStatsInfo `json:"memstats"`
-}
-
-// GetKind extracts the reflect.Kind from the flags
-func (w *WatchSampleOld) GetKind() uint {
-	return uint(w.Flags & KindMask)
-}
-
-// SetKind sets the reflect.Kind in the flags
-func (w *WatchSampleOld) SetKind(kind uint) {
-	// Clear the current kind bits
-	w.Flags &= ^KindMask
-	// Set the new kind bits
-	w.Flags |= int(kind) & KindMask
-}
-
-func (w *WatchSampleOld) IsPush() bool {
-	return (w.Flags & WatchFlag_Push) != 0
-}
-
-// IsNumeric checks if the value is numeric based on its Kind
-func (w *WatchSampleOld) IsNumeric() bool {
-	kind := reflect.Kind(w.GetKind())
-	switch kind {
-	case reflect.Bool:
-		return true
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return true
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return true
-	case reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
-		return true
-	case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan:
-		return true
-	default:
-		return false
-	}
-}
-
-// GetNumericVal returns a float64 representation of the value
-func (w *WatchSampleOld) GetNumericVal() float64 {
-	if !w.IsNumeric() {
-		return 0
-	}
-
-	kind := reflect.Kind(w.GetKind())
-	switch kind {
-	case reflect.Bool:
-		if w.StrVal == "true" {
-			return 1
-		}
-		return 0
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
-		reflect.Float32, reflect.Float64:
-		val, err := strconv.ParseFloat(w.StrVal, 64)
-		if err != nil {
-			return 0
-		}
-		return val
-	case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan:
-		return float64(w.Len)
-	default:
-		return 0
-	}
 }
 
 // for internal use (import cycles)

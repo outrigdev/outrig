@@ -5,10 +5,12 @@ package apppeer
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"sync"
 
+	watchcollector "github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -154,7 +156,7 @@ func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 		activeWatches[watchNum] = true
 
 		// Handle watch value updates based on whether it's a delta update
-		isPush := decl.Format == "push" // Equivalent to the old IsPush() check
+		isPush := decl.Format == watchcollector.WatchType_Push // Equivalent to the old IsPush() check
 
 		if watchInfo.Delta && !isPush { // Push watches are always full updates
 			// Delta updates need a base sample to merge with
@@ -226,6 +228,34 @@ func (wp *WatchesPeer) GetAllWatches() []ds.WatchInfo {
 	}
 }
 
+// getNumericVal returns a float64 representation of a WatchSample value
+func getNumericVal(sample ds.WatchSample) float64 {
+	if sample.Error != "" {
+		return 0
+	}
+
+	kind := reflect.Kind(sample.Kind)
+	switch kind {
+	case reflect.Bool:
+		if sample.Val == "true" {
+			return 1
+		}
+		return 0
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
+		val, err := strconv.ParseFloat(sample.Val, 64)
+		if err != nil {
+			return 0
+		}
+		return val
+	case reflect.Array, reflect.Slice, reflect.Map, reflect.Chan:
+		return float64(sample.Len)
+	default:
+		return 0
+	}
+}
+
 // GetWatchNumeric returns an array of numeric values for a specific watch
 // If the watch is a counter, it returns deltas between consecutive values
 func (wp *WatchesPeer) GetWatchNumeric(watchNum int64) []float64 {
@@ -244,24 +274,7 @@ func (wp *WatchesPeer) GetWatchNumeric(watchNum int64) []float64 {
 	// Convert each sample to a numeric value
 	numericValues := make([]float64, 0, len(samples))
 	for _, sample := range samples {
-		// Extract numeric value based on the kind
-		var val float64
-		if sample.Error != "" {
-			val = 0
-		} else if sample.Kind >= 1 && sample.Kind <= 16 { // Numeric kinds in reflect package
-			// Parse the value string to float64
-			if v, err := strconv.ParseFloat(sample.Val, 64); err == nil {
-				val = v
-			}
-		} else if sample.Kind == 24 || sample.Kind == 17 || sample.Kind == 18 { // Array, Slice, Map
-			val = float64(sample.Len)
-		} else if sample.Val == "true" {
-			val = 1
-		} else {
-			val = 0
-		}
-
-		numericValues = append(numericValues, val)
+		numericValues = append(numericValues, getNumericVal(sample))
 	}
 
 	// Check if this is a counter
