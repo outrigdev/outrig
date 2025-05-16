@@ -81,27 +81,53 @@ interface WatchViewProps {
     model: WatchesModel;
 }
 
-const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
+// Component to display watch value and related information
+interface WatchValueDisplayProps {
+    sample: WatchSample;
+}
+
+const WatchValueDisplay: React.FC<WatchValueDisplayProps> = ({ sample }) => {
     // Format the watch value for display
-    const formatValue = (sample: WatchSample) => {
+    const formatValue = () => {
         if (sample.error) {
             return <WatchVal content={sample.error} className="text-error" tooltipText="Copy error message" />;
         }
 
         if (sample.val) {
-            // Format based on the watch type
-            if (watch.decl.format === "json") {
-                return <WatchVal content={prettyPrintJson(sample.val)} tooltipText="Copy value" />;
-            } else if (watch.decl.format === "gofmt") {
-                return <WatchVal content={prettyPrintGoFmt(sample.val)} tooltipText="Copy value" />;
+            // Format based on the sample fmt field
+            if (sample.fmt === "json") {
+                return <WatchVal content={prettyPrintJson(sample.val)} tooltipText="Copy value" tag={sample.fmt} />;
+            } else if (sample.fmt === "gofmt") {
+                return <WatchVal content={prettyPrintGoFmt(sample.val)} tooltipText="Copy value" tag={sample.fmt} />;
             } else {
-                return <WatchVal content={sample.val} tooltipText="Copy value" />;
+                return <WatchVal content={sample.val} tooltipText="Copy value" tag={sample.fmt} />;
             }
         }
 
         return <WatchVal content="(no value)" className="text-error" />;
     };
 
+    return (
+        <>
+            <div className="text-sm text-primary pb-2">
+                {formatValue()}
+            </div>
+            {(sample.len != null || sample.cap != null || (sample.polldur != null && sample.polldur > 2000)) && (
+                <div className="pb-2 flex gap-3">
+                    {sample.len != null && <span className="text-xs text-muted">Length: {sample.len}</span>}
+                    {sample.cap != null && <span className="text-xs text-muted">Capacity: {sample.cap}</span>}
+                    {sample.polldur != null && sample.polldur > 2000 && (
+                        <span className="text-xs text-warning">
+                            Long poll duration: {(sample.polldur / 1000).toFixed(2)}ms
+                        </span>
+                    )}
+                </div>
+            )}
+        </>
+    );
+};
+
+const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
     // Get tags based on the watch declaration
     const getWatchTags = (decl: WatchDecl) => {
         const tags = [];
@@ -157,22 +183,7 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
                     ))}
                 </div>
             </div>
-            <div className="text-sm text-primary pb-2">{formatValue(watch.sample)}</div>
-            {(watch.sample.len != null ||
-                watch.sample.cap != null ||
-                (watch.sample.polldur != null && watch.sample.polldur > 2000)) && (
-                <div className="pb-2 flex gap-3">
-                    {watch.sample.len != null && <span className="text-xs text-muted">Length: {watch.sample.len}</span>}
-                    {watch.sample.cap != null && (
-                        <span className="text-xs text-muted">Capacity: {watch.sample.cap}</span>
-                    )}
-                    {watch.sample.polldur != null && watch.sample.polldur > 2000 && (
-                        <span className="text-xs text-warning">
-                            Long poll duration: {(watch.sample.polldur / 1000).toFixed(2)}ms
-                        </span>
-                    )}
-                </div>
-            )}
+            <WatchValueDisplay sample={watch.sample} />
         </div>
     );
 };

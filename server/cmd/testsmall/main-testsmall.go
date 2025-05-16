@@ -15,9 +15,10 @@ import (
 )
 
 // Global Watch variables initialized at package level
-var nilWatch = outrig.NewWatch("test-nil").WithTags("test").ForPush()
+var nilWatch = outrig.NewWatch("test-nil").WithTags("test").AsJSON().ForPush()
 var fooWatch = outrig.NewWatch("foo").WithTags("test").ForPush()
 var mapWatch = outrig.NewWatch("map").WithTags("test").ForPush()
+var strWatch = outrig.NewWatch("str").WithTags("test").AsJSON().ForPush()
 
 type Point struct {
 	X    int
@@ -52,6 +53,8 @@ func main() {
 	// Create and push foo value using global watch
 	foo := &Foo{5, make(chan int, 2), Point{1, 2, "test{[()]}"}}
 	fooWatch.Push(foo)
+
+	strWatch.Push("test string :pizza:")
 
 	// Create and push map value using global watch
 	m := make(map[string]any)
