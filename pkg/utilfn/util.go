@@ -297,7 +297,7 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 	}
 }
 
-const SimpleTagRegexStr = `[a-zA-Z][a-zA-Z0-9/_.-]*`
+const SimpleTagRegexStr = `[a-zA-Z0-9][a-zA-Z0-9/_.:-]*`
 
 // must have whitespace or EOL on either side
 var TagRegex = regexp.MustCompile(`(?:^|\s)(#` + SimpleTagRegexStr + `)(?:\s|$)`)
