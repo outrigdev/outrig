@@ -29,22 +29,6 @@ const (
 	NoTelemetryEnvName  = "OUTRIG_NOTELEMETRY"
 )
 
-const (
-	// Preserve lower 5 bits for reflect.Kind (0-31)
-	KindMask = 0x1F // 00000000_00011111
-
-	// Shift existing flags up by 5 bits
-	WatchFlag_Push     = 1 << 5  // 00000000_00100000
-	WatchFlag_Counter  = 1 << 6  // 00000000_01000000
-	WatchFlag_Atomic   = 1 << 7  // 00000000_10000000
-	WatchFlag_Sync     = 1 << 8  // 00000001_00000000
-	WatchFlag_Func     = 1 << 9  // 00000010_00000000
-	WatchFlag_Hook     = 1 << 10 // 00000100_00000000
-	WatchFlag_Settable = 1 << 11 // 00001000_00000000
-	WatchFlag_JSON     = 1 << 12 // 00010000_00000000
-	WatchFlag_GoFmt    = 1 << 13 // 00100000_00000000
-)
-
 type PacketType struct {
 	Type string `json:"type"`
 	Data any    `json:"data"`
@@ -113,6 +97,20 @@ type GoRoutineStack struct {
 	Name       string   `json:"name,omitempty"`
 	Tags       []string `json:"tags,omitempty"`
 	StackTrace string   `json:"stacktrace,omitempty"` // does not include the goroutine header (goid + state)
+}
+
+type GoDecl struct {
+	Name        string   `json:"name"`
+	Tags        []string `json:"tags,omitempty"`
+	NewLine     string   `json:"newline,omitempty"`
+	RunLine     string   `json:"runline,omitempty"`
+	NoRecover   bool     `json:"norecover,omitempty"`
+	GoId        int64    `json:"goid,omitempty"`
+	State       int32    `json:"state,omitempty"`   // 0 = running, 1 = waiting, 2 = dead
+	StartTs     int64    `json:"startts,omitempty"` // exact start time (from .Run() API)
+	EndTs       int64    `json:"endts,omitempty"`   // exact end time (from .Run() API)
+	FirstPollTs int64    `json:"firstpollts,omitempty"`
+	LastPollTs  int64    `json:"lastpollts,omitempty"`
 }
 
 type WatchInfo struct {

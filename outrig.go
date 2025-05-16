@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/base"
@@ -44,6 +45,10 @@ type Watch struct {
 type Pusher struct {
 	decl     *ds.WatchDecl
 	disabled bool
+}
+
+type GoRoutine struct {
+	decl *ds.GoDecl
 }
 
 func init() {
@@ -438,4 +443,57 @@ func getCallerInfo(skip int) string {
 		return ""
 	}
 	return fmt.Sprintf("%s:%d", file, line)
+}
+
+func Go(name string) *GoRoutine {
+	return &GoRoutine{
+		decl: &ds.GoDecl{
+			Name: name,
+		},
+	}
+}
+
+func (g *GoRoutine) WithTags(tags ...string) *GoRoutine {
+	if atomic.LoadInt32(&g.decl.State) != goroutine.GoState_Init {
+		return g
+	}
+	g.decl.Tags = tags
+	return g
+}
+
+func (g *GoRoutine) WithoutRecover() *GoRoutine {
+	if atomic.LoadInt32(&g.decl.State) != goroutine.GoState_Init {
+		return g
+	}
+	g.decl.NoRecover = true
+	return g
+}
+
+func (g *GoRoutine) Run(fn func()) {
+	if atomic.LoadInt32(&g.decl.State) != goroutine.GoState_Init {
+		return
+	}
+	atomic.StoreInt32(&g.decl.State, goroutine.GoState_Running)
+	gc := goroutine.GetInstance()
+	g.decl.StartTs = time.Now().UnixMilli()
+	go func() {
+		gc.RecordGoRoutineStart(g.decl)
+		if g.decl.NoRecover {
+			defer func() {
+				r := recover()
+				if r == nil {
+					gc.RecordGoRoutineEnd(g.decl, nil, false)
+					return
+				}
+				gc.RecordGoRoutineEnd(g.decl, r, true)
+				panic(r)
+			}()
+		} else {
+			defer func() {
+				// the recover will stop the panic
+				gc.RecordGoRoutineEnd(g.decl, recover(), false)
+			}()
+		}
+		fn()
+	}()
 }

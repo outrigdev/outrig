@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/collector"
@@ -21,6 +22,13 @@ import (
 
 // MinStackBufferSize is the minimum buffer size for goroutine stack dumps (1MB)
 const MinStackBufferSize = 1 << 20
+const SingleStackBufferSize = 8 * 1024
+
+const (
+	GoState_Init    = 0
+	GoState_Running = 1
+	GoState_Done    = 2
+)
 
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
 type GoroutineCollector struct {
@@ -28,7 +36,7 @@ type GoroutineCollector struct {
 	executor            *collector.PeriodicExecutor
 	controller          ds.Controller
 	config              config.GoRoutineConfig
-	goroutineNames      map[int64]string            // map from goroutine ID to name
+	goroutineDecls      map[int64]*ds.GoDecl        // map from goroutine ID to GoDecl
 	lastGoroutineStacks map[int64]ds.GoRoutineStack // last set of goroutine stacks for delta calculation
 	nextSendFull        bool                        // true for full update, false for delta update
 	lastStackSize       int                         // last actual stack size (not buffer size)
@@ -47,7 +55,7 @@ var instanceOnce sync.Once
 func GetInstance() *GoroutineCollector {
 	instanceOnce.Do(func() {
 		instance = &GoroutineCollector{
-			goroutineNames:      make(map[int64]string),
+			goroutineDecls:      make(map[int64]*ds.GoDecl),
 			lastGoroutineStacks: make(map[int64]ds.GoRoutineStack),
 			nextSendFull:        true,               // First send is always a full update
 			lastStackSize:       MinStackBufferSize, // Start with minimum stack size estimate
@@ -73,6 +81,41 @@ func (gc *GoroutineCollector) Enable() {
 
 func (gc *GoroutineCollector) Disable() {
 	gc.executor.Disable()
+}
+
+func (gc *GoroutineCollector) setGoRoutineDecl(decl *ds.GoDecl) {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	if decl.GoId == 0 {
+		return
+	}
+	if gc.goroutineDecls[decl.GoId] != nil {
+		// this is weird and should never happen
+		return
+	}
+	gc.goroutineDecls[decl.GoId] = decl
+}
+
+func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl) {
+	stack := gc.dumpSingleStack()
+	if stack == nil {
+		return
+	}
+	// Extract the goroutine ID from the stack trace
+	goMatches := goCreationRe.FindSubmatch(stack)
+	if len(goMatches) >= 2 {
+		goId, err := strconv.ParseInt(string(goMatches[1]), 10, 64)
+		if err == nil {
+			decl.GoId = goId
+		}
+	}
+	gc.setGoRoutineDecl(decl)
+}
+
+func (gc *GoroutineCollector) RecordGoRoutineEnd(decl *ds.GoDecl, panicVal any, flush bool) {
+	atomic.StoreInt32(&decl.State, GoState_Done)
+	endTs := time.Now().UnixMilli()
+	atomic.StoreInt64(&decl.EndTs, endTs)
 }
 
 // getSendFullAndReset returns the current sendFull value and always sets it to false
@@ -126,6 +169,16 @@ func (gc *GoroutineCollector) dumpAllStacks() []byte {
 	}
 }
 
+func (gc *GoroutineCollector) dumpSingleStack() []byte {
+	buf := make([]byte, SingleStackBufferSize)
+	stackLen := runtime.Stack(buf, false)
+	if stackLen == SingleStackBufferSize {
+		// truncated, return nil
+		return nil
+	}
+	return buf[:stackLen]
+}
+
 // DumpGoroutines dumps all goroutines and sends the information
 func (gc *GoroutineCollector) DumpGoroutines() {
 	if !global.OutrigEnabled.Load() || gc.controller == nil {
@@ -145,19 +198,35 @@ func (gc *GoroutineCollector) DumpGoroutines() {
 func (gc *GoroutineCollector) SetGoRoutineName(goId int64, name string) {
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
-	gc.goroutineNames[goId] = name
+	if name == "" {
+		return
+	}
+	if gc.goroutineDecls[goId] != nil {
+		return
+	}
+	name, tags := utilfn.ParseNameAndTags(name)
+	gc.goroutineDecls[goId] = &ds.GoDecl{
+		GoId: goId,
+		Name: name,
+		Tags: tags,
+	}
 }
 
 // GetGoRoutineName gets the name for a goroutine
 func (gc *GoroutineCollector) GetGoRoutineName(goId int64) (string, bool) {
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
-	name, ok := gc.goroutineNames[goId]
-	return name, ok
+	decl, ok := gc.goroutineDecls[goId]
+	if !ok || decl.Name == "" {
+		return "", false
+	}
+	return decl.Name, true
 }
 
 var startRe = regexp.MustCompile(`(?m)^goroutine\s+\d+`)
 var stackRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\].*\n((?s).*)`)
+var goCreationRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\]`)
+var parentGoRe = regexp.MustCompile(`created by .* in goroutine (\d+)`)
 
 // computeDeltaStack compares current and last goroutine stack and returns a delta stack
 // For delta updates, we start with a full copy of current and clear fields that haven't changed
@@ -217,8 +286,9 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool)
 			StackTrace: stackTrace,
 		}
 
-		if name, ok := gc.GetGoRoutineName(id); ok {
-			grStack.Name, grStack.Tags = utilfn.ParseNameAndTags(name)
+		if decl, ok := gc.goroutineDecls[id]; ok && decl.Name != "" {
+			grStack.Name = decl.Name
+			grStack.Tags = decl.Tags
 		}
 
 		currentStacks[id] = grStack
@@ -251,10 +321,10 @@ func (gc *GoroutineCollector) setLastGoroutineStacksAndCleanupNames(stacks map[i
 	defer gc.lock.Unlock()
 
 	gc.lastGoroutineStacks = stacks
-	// Remove names for goroutines that no longer exist
-	for id := range gc.goroutineNames {
+	// Remove declarations for goroutines that no longer exist
+	for id := range gc.goroutineDecls {
 		if _, found := stacks[id]; !found {
-			delete(gc.goroutineNames, id)
+			delete(gc.goroutineDecls, id)
 		}
 	}
 }
