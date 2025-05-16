@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 )
 
@@ -21,30 +22,15 @@ const (
 	NoTelemetryEnvName  = ds.NoTelemetryEnvName
 )
 
-// Optionally re-export ds.Config so callers can do "outrig.Config" if you prefer:
-type Config = ds.Config
+// Re-export config.Config so callers can use "outrig.Config"
+type Config = config.Config
 
-// Integer is a constraint that permits any integer type.
-type Integer interface {
-	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+type Watch struct {
+	// No actual implementation needed for no_outrig build
 }
 
-// Float is a constraint that permits any floating-point type.
-type Float interface {
-	~float32 | ~float64
-}
-
-// Number is a constraint that permits any numeric type.
-type Number interface {
-	Integer | Float
-}
-
-type AtomicLoader[T any] interface {
-	Load() T
-}
-
-type AtomicStorer[T any] interface {
-	Store(val T)
+type Pusher struct {
+	// No actual implementation needed for no_outrig build
 }
 
 // Disable is a no-op when no_outrig is set
@@ -59,18 +45,13 @@ func Enabled() bool {
 }
 
 // DefaultConfig returns an empty config when no_outrig is set
-func DefaultConfig() *ds.Config {
-	return &ds.Config{
-		// Empty but valid config to avoid nil pointer exceptions
-		LogProcessorConfig: ds.LogProcessorConfig{
-			WrapStdout: false,
-			WrapStderr: false,
-		},
-	}
+func DefaultConfig() *config.Config {
+	// Empty but valid config to avoid nil pointer exceptions
+	return &config.Config{}
 }
 
 // Init is a no-op when no_outrig is set
-func Init(appName string, cfgParam *ds.Config) (bool, error) {
+func Init(appName string, cfgParam *config.Config) (bool, error) {
 	return false, nil
 }
 
@@ -85,31 +66,83 @@ func GetAppRunId() string {
 // AppDone is a no-op when no_outrig is set
 func AppDone() {}
 
-// WatchCounterSync is a no-op when no_outrig is set
-func WatchCounterSync[T Number](name string, lock sync.Locker, val *T) {
+// NewWatch creates a new Watch with the given name
+// This is a no-op implementation for no_outrig build
+func NewWatch(name string) *Watch {
+	return &Watch{}
 }
 
-// WatchSync is a no-op when no_outrig is set
-func WatchSync[T any](name string, lock sync.Locker, val *T) {}
-
-// WatchAtomicCounter is a no-op when no_outrig is set
-func WatchAtomicCounter[T Number](name string, val AtomicLoader[T]) {
+// WithTags adds tags to the watch
+// This is a no-op implementation for no_outrig build
+func (w *Watch) WithTags(tags ...string) *Watch {
+	return w
 }
 
-// WatchAtomic is a no-op when no_outrig is set
-func WatchAtomic[T any](name string, val AtomicLoader[T]) {}
+// AsCounter marks the watch as a counter
+// This is a no-op implementation for no_outrig build
+func (w *Watch) AsCounter() *Watch {
+	return w
+}
 
-// WatchCounterFunc is a no-op when no_outrig is set
-func WatchCounterFunc[T Number](name string, getFn func() T) {}
+// AsJSON sets the watch format to JSON
+// This is a no-op implementation for no_outrig build
+func (w *Watch) AsJSON() *Watch {
+	return w
+}
 
-// WatchFunc is a no-op when no_outrig is set
-func WatchFunc[T any](name string, getFn func() T, setFn func(T)) {}
+// AsStringer sets the watch format to use the String() method
+// This is a no-op implementation for no_outrig build
+func (w *Watch) AsStringer() *Watch {
+	return w
+}
 
-// TrackValue is a no-op when no_outrig is set
-func TrackValue(name string, val any) {}
+// AsGoFmt sets the watch format to use Go's %#v format
+// This is a no-op implementation for no_outrig build
+func (w *Watch) AsGoFmt() *Watch {
+	return w
+}
 
-// TrackCounter is a no-op when no_outrig is set
-func TrackCounter[T Number](name string, val T) {}
+// ForPush creates a pusher for this watch
+// This is a no-op implementation for no_outrig build
+func (w *Watch) ForPush() *Pusher {
+	return &Pusher{}
+}
+
+// PollFunc sets up a function-based watch
+// This is a no-op implementation for no_outrig build
+func (w *Watch) PollFunc(fn any) *Watch {
+	return w
+}
+
+// PollAtomic sets up an atomic-based watch
+// This is a no-op implementation for no_outrig build
+func (w *Watch) PollAtomic(val any) *Watch {
+	return w
+}
+
+// PollSync sets up a synchronization-based watch
+// This is a no-op implementation for no_outrig build
+func (w *Watch) PollSync(lock sync.Locker, val any) *Watch {
+	return w
+}
+
+// Unregister unregisters the watch
+// This is a no-op implementation for no_outrig build
+func (w *Watch) Unregister() {
+	// No-op
+}
+
+// Push pushes a value to the watch
+// This is a no-op implementation for no_outrig build
+func (p *Pusher) Push(val any) {
+	// No-op
+}
+
+// Unregister unregisters the pusher's watch
+// This is a no-op implementation for no_outrig build
+func (p *Pusher) Unregister() {
+	// No-op
+}
 
 // SetGoRoutineName is a no-op when no_outrig is set
 func SetGoRoutineName(name string) {}

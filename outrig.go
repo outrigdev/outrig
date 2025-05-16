@@ -34,13 +34,8 @@ const (
 	NoTelemetryEnvName  = ds.NoTelemetryEnvName
 )
 
-// Re-export ds.Config so callers can do "outrig.Config" if you prefer:
+// Re-export ds.Config so callers can use "outrig.Config"
 type Config = config.Config
-
-// Number is a constraint that permits any numeric type.
-type Number interface {
-	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr | ~float32 | ~float64
-}
 
 type Watch struct {
 	decl *ds.WatchDecl
