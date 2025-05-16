@@ -109,9 +109,7 @@ const WatchValueDisplay: React.FC<WatchValueDisplayProps> = ({ sample }) => {
 
     return (
         <>
-            <div className="text-sm text-primary pb-2">
-                {formatValue()}
-            </div>
+            <div className="text-sm text-primary pb-2">{formatValue()}</div>
             {(sample.len != null || sample.cap != null || (sample.polldur != null && sample.polldur > 2000)) && (
                 <div className="pb-2 flex gap-3">
                     {sample.len != null && <span className="text-xs text-muted">Length: {sample.len}</span>}
@@ -273,10 +271,8 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
         }
     }, [filteredWatches.length, isRefreshing]);
 
-    const [isAddWatchModalOpen, setIsAddWatchModalOpen] = useState(false);
-
     return (
-        <div ref={contentRef} className="w-full h-full overflow-auto flex-1 px-0 py-2">
+        <div ref={contentRef} className="w-full h-full overflow-auto flex-1 px-0 py-2 pb-14">
             {isRefreshing ? (
                 <div className="flex items-center justify-center h-full">
                     <div className="flex items-center gap-2 text-primary">
@@ -300,34 +296,8 @@ const WatchesContent: React.FC<WatchesContentProps> = ({ model }) => {
                             <div className="h-px bg-border my-2 w-full"></div>
                         </React.Fragment>
                     ))}
-
-                    {/* Add Watch button - only shown when no search is active */}
-                    {!search && (
-                        <div className="flex justify-center mt-6">
-                            <Tooltip content="Add a new watch">
-                                <button
-                                    onClick={() => {
-                                        setIsAddWatchModalOpen(true);
-                                        sendClickEvent("addwatch");
-                                    }}
-                                    className="flex items-center justify-center h-8 px-3 text-sm text-primary/80 bg-primary/10 border border-primary/20 hover:bg-primary/20 rounded-md cursor-pointer"
-                                >
-                                    + Add Watch
-                                </button>
-                            </Tooltip>
-                        </div>
-                    )}
                 </div>
             )}
-
-            <Modal
-                isOpen={isAddWatchModalOpen}
-                onClose={() => setIsAddWatchModalOpen(false)}
-                title="Add Watch"
-                className="w-[750px]"
-            >
-                <NoWatchesMessage hideTitle={true} />
-            </Modal>
         </div>
     );
 };
@@ -337,6 +307,47 @@ interface WatchesProps {
     appRunId: string;
 }
 
+// Floating Add Watch button component
+interface AddWatchButtonProps {
+    model: WatchesModel;
+}
+
+const AddWatchButton: React.FC<AddWatchButtonProps> = ({ model }) => {
+    const [isAddWatchModalOpen, setIsAddWatchModalOpen] = useState(false);
+    const search = useAtomValue(model.searchTerm);
+
+    if (search) {
+        return null;
+    }
+
+    return (
+        <>
+            <div className="fixed bottom-10 right-4 z-10">
+                <Tooltip content="Add a new watch">
+                    <button
+                        onClick={() => {
+                            setIsAddWatchModalOpen(true);
+                            sendClickEvent("addwatch");
+                        }}
+                        className="flex items-center justify-center h-8 px-3 text-sm text-primary bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md cursor-pointer shadow-shadow shadow-lg"
+                    >
+                        + Add Watch
+                    </button>
+                </Tooltip>
+            </div>
+
+            <Modal
+                isOpen={isAddWatchModalOpen}
+                onClose={() => setIsAddWatchModalOpen(false)}
+                title="Add Watch"
+                className="w-[750px]"
+            >
+                <NoWatchesMessage hideTitle={true} />
+            </Modal>
+        </>
+    );
+};
+
 export const Watches: React.FC<WatchesProps> = ({ appRunId }) => {
     const model = useOutrigModel(WatchesModel, appRunId);
 
@@ -345,9 +356,10 @@ export const Watches: React.FC<WatchesProps> = ({ appRunId }) => {
     }
 
     return (
-        <div className="w-full h-full flex flex-col">
+        <div className="w-full h-full flex flex-col relative">
             <WatchesFilters model={model} />
             <WatchesContent model={model} />
+            <AddWatchButton model={model} />
         </div>
     );
 };
