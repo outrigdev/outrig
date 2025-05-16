@@ -91,20 +91,11 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
         if (sample.val) {
             // Format based on the watch type
             if (watch.decl.format === "json") {
-                return <WatchVal
-                    content={prettyPrintJson(sample.val)}
-                    tooltipText="Copy value"
-                />;
+                return <WatchVal content={prettyPrintJson(sample.val)} tooltipText="Copy value" />;
             } else if (watch.decl.format === "gofmt") {
-                return <WatchVal
-                    content={prettyPrintGoFmt(sample.val)}
-                    tooltipText="Copy value"
-                />;
+                return <WatchVal content={prettyPrintGoFmt(sample.val)} tooltipText="Copy value" />;
             } else {
-                return <WatchVal
-                    content={sample.val}
-                    tooltipText="Copy value"
-                />;
+                return <WatchVal content={sample.val} tooltipText="Copy value" />;
             }
         }
 
@@ -118,10 +109,10 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
         if (decl.counter) tags.push({ label: "Counter", variant: "success" });
         if (decl.invalid) tags.push({ label: "Invalid", variant: "error" });
         if (decl.unregistered) tags.push({ label: "Unregistered", variant: "warning" });
-        
+
         // Add watchtype as a tag
         if (decl.watchtype) tags.push({ label: decl.watchtype, variant: "info" });
-        
+
         return tags;
     };
 
@@ -151,18 +142,34 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
                             key={`flag-${index}`}
                             label={tag.label}
                             isSelected={false}
-                            variant={tag.variant as "primary" | "secondary" | "link" | "info" | "success" | "warning" | "danger" | "accent"}
+                            variant={
+                                tag.variant as
+                                    | "primary"
+                                    | "secondary"
+                                    | "link"
+                                    | "info"
+                                    | "success"
+                                    | "warning"
+                                    | "danger"
+                                    | "accent"
+                            }
                         />
                     ))}
                 </div>
             </div>
             <div className="text-sm text-primary pb-2">{formatValue(watch.sample)}</div>
-            {(watch.sample.len != null || watch.sample.cap != null || (watch.sample.polldur != null && watch.sample.polldur > 0)) && (
+            {(watch.sample.len != null ||
+                watch.sample.cap != null ||
+                (watch.sample.polldur != null && watch.sample.polldur > 2000)) && (
                 <div className="pb-2 flex gap-3">
                     {watch.sample.len != null && <span className="text-xs text-muted">Length: {watch.sample.len}</span>}
-                    {watch.sample.cap != null && <span className="text-xs text-muted">Capacity: {watch.sample.cap}</span>}
-                    {watch.sample.polldur != null && watch.sample.polldur > 0 && (
-                        <span className="text-xs text-warning">Poll duration: {watch.sample.polldur}μs</span>
+                    {watch.sample.cap != null && (
+                        <span className="text-xs text-muted">Capacity: {watch.sample.cap}</span>
+                    )}
+                    {watch.sample.polldur != null && watch.sample.polldur > 2000 && (
+                        <span className="text-xs text-warning">
+                            Long poll duration: {(watch.sample.polldur / 1000).toFixed(2)}ms
+                        </span>
                     )}
                 </div>
             )}

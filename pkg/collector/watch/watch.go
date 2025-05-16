@@ -296,10 +296,10 @@ func (wc *WatchCollector) CollectWatches() {
 	watchNames := wc.GetWatchNames()
 	for _, name := range watchNames {
 		watchDecl := wc.getWatchDecl(name)
-		if watchDecl == nil {
+		if watchDecl == nil || watchDecl.WatchType == WatchType_Push {
 			continue
 		}
-		sample := wc.collectWatch2(watchDecl)
+		sample := wc.collectWatch(watchDecl)
 		if sample == nil {
 			continue
 		}
@@ -409,7 +409,7 @@ func getAtomicValue(atomicVal any) (reflect.Value, error) {
 	return reflect.Value{}, fmt.Errorf("unsupported atomic type: %s", elemType.String())
 }
 
-func (wc *WatchCollector) collectWatch2(decl *ds.WatchDecl) *ds.WatchSample {
+func (wc *WatchCollector) collectWatch(decl *ds.WatchDecl) *ds.WatchSample {
 	startTime := time.Now()
 
 	if decl == nil || decl.Invalid {
