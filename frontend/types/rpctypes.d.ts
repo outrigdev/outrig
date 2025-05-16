@@ -69,7 +69,7 @@ declare global {
     type AppRunWatchesData = {
         apprunid: string;
         appname: string;
-        watches: WatchSampleOld[];
+        watches: CombinedWatchSample[];
     };
 
     // rpctypes.AppRunsData
@@ -91,6 +91,13 @@ declare global {
         path: string;
         version?: string;
         settings?: {[key: string]: string};
+    };
+
+    // rpctypes.CombinedWatchSample
+    type CombinedWatchSample = {
+        watchnum: number;
+        decl: WatchDecl;
+        sample: WatchSample;
     };
 
     // rpctypes.CommandMessageData
@@ -345,22 +352,31 @@ declare global {
         newerversion: string;
     };
 
-    // ds.WatchSampleOld
-    type WatchSampleOld = {
-        watchnum?: number;
+    // ds.WatchDecl
+    type WatchDecl = {
         name: string;
         tags?: string[];
+        newline?: string;
+        watchtype: string;
+        format: string;
+        counter?: boolean;
+        invalid?: boolean;
+        unregistered?: boolean;
+    };
+
+    // ds.WatchSample
+    type WatchSample = {
+        name: string;
         ts: number;
-        flags?: number;
-        strval?: string;
-        gofmtval?: string;
-        jsonval?: string;
+        same?: boolean;
+        kind?: number;
         type?: string;
+        val?: string;
         error?: string;
         addr?: string[];
         cap?: number;
         len?: number;
-        waittime?: number;
+        polldur?: number;
     };
 
     // rpctypes.WatchSearchRequestData

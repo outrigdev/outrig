@@ -17,12 +17,12 @@ export type SearchResultInfo = {
 class WatchesModel {
     widgetId: string;
     appRunId: string;
-    appRunWatches: PrimitiveAtom<WatchSample[]> = atom<WatchSample[]>([]);
+    appRunWatches: PrimitiveAtom<CombinedWatchSample[]> = atom<CombinedWatchSample[]>([]);
     matchedWatchIds: PrimitiveAtom<number[]> = atom<number[]>([]);
-    searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({ 
-        searchedCount: 0, 
+    searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({
+        searchedCount: 0,
         totalCount: 0,
-        errorSpans: [] 
+        errorSpans: [],
     });
     searchTerm: PrimitiveAtom<string>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
@@ -53,7 +53,7 @@ class WatchesModel {
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();
         this.appRunId = appRunId;
-        
+
         // Get app name from AppModel using the appRunId
         const appRunInfoAtom = AppModel.getAppRunInfoAtom(appRunId);
         const appRunInfo = getDefaultStore().get(appRunInfoAtom);
@@ -134,14 +134,14 @@ class WatchesModel {
     }
 
     // Filtered watches - now just returns the watches loaded from search results
-    filteredWatches: Atom<WatchSample[]> = atom((get): WatchSample[] => {
+    filteredWatches: Atom<CombinedWatchSample[]> = atom((get): CombinedWatchSample[] => {
         const watches = get(this.appRunWatches);
-        
+
         // Filter out null watches
-        const validWatches = watches.filter(watch => watch != null);
-        
+        const validWatches = watches.filter((watch) => watch != null);
+
         // Sort by watch name
-        return [...validWatches].sort((a, b) => a.name.localeCompare(b.name));
+        return [...validWatches].sort((a, b) => a.decl.name.localeCompare(b.decl.name));
     });
 
     // Search for watches matching the search term
@@ -166,7 +166,7 @@ class WatchesModel {
             store.set(this.searchResultInfo, {
                 searchedCount: searchResult.searchedcount,
                 totalCount: searchResult.totalcount,
-                errorSpans: searchResult.errorspans || []
+                errorSpans: searchResult.errorspans || [],
             });
 
             // Store the matched watch IDs
@@ -194,7 +194,7 @@ class WatchesModel {
     // Fetch watch details by IDs
     async fetchWatchesByIds(watchIds: number[]) {
         const searchId = this.currentSearchId;
-        
+
         try {
             if (watchIds.length === 0) {
                 getDefaultStore().set(this.appRunWatches, []);
@@ -278,7 +278,7 @@ class WatchesModel {
         if (!force && appRunInfo.status !== "running") {
             return;
         }
-        
+
         try {
             // Use the current search term to refresh
             const searchTerm = store.get(this.searchTerm);
