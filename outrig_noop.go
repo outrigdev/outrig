@@ -147,12 +147,10 @@ func (p *Pusher) Unregister() {
 // SetGoRoutineName is a no-op when no_outrig is set
 func SetGoRoutineName(name string) {}
 
-// OrigStdout returns nil when no_outrig is set
 func OrigStdout() *os.File {
 	return os.Stdout
 }
 
-// OrigStderr returns nil when no_outrig is set
 func OrigStderr() *os.File {
 	return os.Stderr
 }
