@@ -140,7 +140,7 @@ type WatchDecl struct {
 type WatchSample struct {
 	Name    string   `json:"name"`
 	Ts      int64    `json:"ts"`              // timestamp in milliseconds
-	Same    bool     `json:"same,omitempty"`  // true if kind, type, val, addr, and error are the same as the previous sample (for delta collection)
+	Same    bool     `json:"same,omitempty"`  // true if kind, type, val, addr, error, cap, len, and fmt are the same as the previous sample (for delta collection)
 	Kind    int      `json:"kind,omitempty"`  // same
 	Type    string   `json:"type,omitempty"`  // same
 	Val     string   `json:"val,omitempty"`   // same
@@ -148,6 +148,7 @@ type WatchSample struct {
 	Addr    []string `json:"addr,omitempty"`  // same
 	Cap     int      `json:"cap,omitempty"`   // same
 	Len     int      `json:"len,omitempty"`   // same
+	Fmt     string   `json:"fmt,omitempty"`   // same
 	PollDur int64    `json:"polldur,omitempty"`
 }
 

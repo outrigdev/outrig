@@ -66,6 +66,7 @@ func mergeWatchSamples(baseSample, deltaSample ds.WatchSample) ds.WatchSample {
 			Addr:    baseSample.Addr,
 			Cap:     baseSample.Cap,
 			Len:     baseSample.Len,
+			Fmt:     baseSample.Fmt,
 		}
 	}
 

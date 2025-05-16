@@ -376,6 +376,7 @@ declare global {
         addr?: string[];
         cap?: number;
         len?: number;
+        fmt?: string;
         polldur?: number;
     };
 

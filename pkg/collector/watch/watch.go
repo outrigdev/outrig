@@ -240,9 +240,10 @@ func (wc *WatchCollector) computeDeltaWatch(name string, current ds.WatchSample)
 	sameAddr := slices.Equal(current.Addr, lastSample.Addr)
 	sameCap := current.Cap == lastSample.Cap
 	sameLen := current.Len == lastSample.Len
+	sameFmt := current.Fmt == lastSample.Fmt
 
 	// If all fields are the same, set Same to true and clear the fields
-	sameValue := sameKind && sameType && sameVal && sameError && sameAddr && sameCap && sameLen
+	sameValue := sameKind && sameType && sameVal && sameError && sameAddr && sameCap && sameLen && sameFmt
 	if sameValue {
 		deltaSample.Same = true
 		// Clear the fields that are the same as the previous sample
@@ -253,6 +254,7 @@ func (wc *WatchCollector) computeDeltaWatch(name string, current ds.WatchSample)
 		deltaSample.Addr = nil
 		deltaSample.Cap = 0
 		deltaSample.Len = 0
+		deltaSample.Fmt = ""
 	}
 	return deltaSample, sameValue
 }
@@ -460,7 +462,7 @@ func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value,
 		PollDur: pollDur,
 	}
 	if !rval.IsValid() {
-		sample.Val = "nil"
+		sample.Val, sample.Fmt = formatNil(decl.Format)
 		sample.Kind = int(reflect.Invalid)
 		sample.Type = "nil"
 		return &sample
@@ -469,7 +471,7 @@ func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value,
 	const maxPtrDepth = 10
 	for depth := 0; rval.Kind() == reflect.Ptr && depth < maxPtrDepth; depth++ {
 		if rval.IsNil() {
-			sample.Val = "nil"
+			sample.Val, sample.Fmt = formatNil(decl.Format)
 			sample.Kind = int(reflect.Invalid)
 			return &sample
 		}
@@ -479,18 +481,23 @@ func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value,
 	sample.Kind = int(rval.Kind())
 	switch rval.Kind() {
 	case reflect.String:
-		sample.Val = rval.String()
+		strVal := rval.String()
+		var err error
+		sample.Val, sample.Fmt, err = formatStringValue(strVal, decl.Format)
+		if err != nil {
+			sample.Error = err.Error()
+		}
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
 		sample.Val = fmt.Sprint(rval.Interface())
 	case reflect.Slice, reflect.Array, reflect.Map, reflect.Struct, reflect.Interface:
 		if (rval.Kind() == reflect.Interface || rval.Kind() == reflect.Slice || rval.Kind() == reflect.Map) && rval.IsNil() {
-			sample.Val = "nil"
+			sample.Val, sample.Fmt = formatNil(decl.Format)
 			return &sample
 		}
 		var err error
-		sample.Val, err = formatWatchValue(decl, rval)
+		sample.Val, sample.Fmt, err = formatWatchValue(decl, rval)
 		if err != nil {
 			sample.Error = err.Error()
 		}
@@ -502,7 +509,7 @@ func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value,
 		}
 	case reflect.Chan:
 		if rval.IsNil() {
-			sample.Val = "nil"
+			sample.Val, sample.Fmt = formatNil(decl.Format)
 		} else {
 			sample.Val = fmt.Sprintf("(chan:%p)", rval.Interface())
 		}
@@ -510,7 +517,7 @@ func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value,
 		sample.Cap = rval.Cap()
 	case reflect.Func:
 		if rval.IsNil() {
-			sample.Val = "nil"
+			sample.Val, sample.Fmt = formatNil(decl.Format)
 		} else {
 			sample.Val = fmt.Sprintf("(func:%p)", rval.Interface())
 		}
@@ -522,27 +529,53 @@ func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value,
 	return &sample
 }
 
-func formatWatchValue(decl *ds.WatchDecl, rval reflect.Value) (string, error) {
+// formatStringValue formats a string value according to the specified format
+func formatStringValue(strVal string, format string) (string, string, error) {
+	if format == WatchFormat_Json {
+		// For JSON format, use json.Marshal to ensure proper JSON encoding
+		jsonBytes, err := json.Marshal(strVal)
+		if err == nil {
+			return string(jsonBytes), WatchFormat_Json, nil
+		}
+		return strVal, "", fmt.Errorf("json.Marshal error: %v", err)
+	} else if format == WatchFormat_Gofmt {
+		// For GoFmt format, use %#v which adds quotes and escapes
+		return fmt.Sprintf("%#v", strVal), WatchFormat_Gofmt, nil
+	} else {
+		// Default to plain string
+		return strVal, "", nil
+	}
+}
+
+// formatNil returns the appropriate nil representation and format based on the format specification
+func formatNil(format string) (string, string) {
+	if format == WatchFormat_Json {
+		return "null", WatchFormat_Json
+	}
+	return "nil", ""
+}
+
+func formatWatchValue(decl *ds.WatchDecl, rval reflect.Value) (string, string, error) {
 	if decl.Format == "" {
 		// default to JSON, but fallback to %#v if JSON fails
 		barr, err := json.Marshal(rval.Interface())
 		if err == nil {
-			return string(barr), nil
+			return string(barr), WatchFormat_Json, nil
 		}
-		return fmt.Sprintf("%#v", rval.Interface()), nil
+		return fmt.Sprintf("%#v", rval.Interface()), WatchFormat_Gofmt, nil
 	}
 	if decl.Format == WatchFormat_Json {
 		barr, err := json.Marshal(rval.Interface())
 		if err == nil {
-			return string(barr), nil
+			return string(barr), WatchFormat_Json, nil
 		}
-		return "", fmt.Errorf("json.Marshal: %w", err)
+		return "", "", fmt.Errorf("json.Marshal: %w", err)
 	} else if decl.Format == WatchFormat_Stringer {
-		return fmt.Sprint(rval.Interface()), nil
+		return fmt.Sprint(rval.Interface()), "", nil
 	} else if decl.Format == WatchFormat_Gofmt {
-		return fmt.Sprintf("%#v", rval.Interface()), nil
+		return fmt.Sprintf("%#v", rval.Interface()), WatchFormat_Gofmt, nil
 	} else {
-		return "", fmt.Errorf("unsupported format: %s", decl.Format)
+		return "", "", fmt.Errorf("unsupported format: %s", decl.Format)
 	}
 }
 
