@@ -5,7 +5,6 @@ package goroutine
 
 import (
 	"bytes"
-	"log"
 	"regexp"
 	"runtime"
 	"slices"
@@ -339,8 +338,6 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool)
 			goroutineStacks = append(goroutineStacks, grStack)
 		}
 	}
-
-	log.Printf("GoroutineCollector: %d goroutines, %d same stacks", len(activeGoroutines), numSameStack)
 
 	// Store current stacks for next delta calculation
 	gc.setLastGoroutineStacksAndCleanupNames(currentStacks)
