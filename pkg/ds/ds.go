@@ -89,6 +89,7 @@ type GoroutineInfo struct {
 	Count  int              `json:"count"`
 	Delta  bool             `json:"delta,omitempty"`
 	Stacks []GoRoutineStack `json:"stacks"`
+	Decls  []GoDecl         `json:"decls,omitempty"`
 }
 
 type GoRoutineStack struct {

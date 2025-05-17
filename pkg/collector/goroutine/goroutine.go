@@ -39,6 +39,7 @@ type GoroutineCollector struct {
 	lastGoroutineStacks map[int64]ds.GoRoutineStack // last set of goroutine stacks for delta calculation
 	nextSendFull        bool                        // true for full update, false for delta update
 	lastStackSize       int                         // last actual stack size (not buffer size)
+	updatedDecls        []ds.GoDecl                 // declarations updated since last send
 }
 
 // CollectorName returns the unique name of the collector
@@ -93,6 +94,10 @@ func (gc *GoroutineCollector) setGoRoutineDecl(decl *ds.GoDecl) {
 		return
 	}
 	gc.goroutineDecls[decl.GoId] = decl
+	
+	// Add to updated declarations (make a copy to avoid reference issues)
+	declCopy := *decl
+	gc.updatedDecls = append(gc.updatedDecls, declCopy)
 }
 
 // incrementParentSpawnCount increments the NumSpawned counter for a parent goroutine
@@ -102,6 +107,10 @@ func (gc *GoroutineCollector) incrementParentSpawnCount(parentGoId int64) {
 
 	if parentDecl, ok := gc.goroutineDecls[parentGoId]; ok {
 		atomic.AddInt64(&parentDecl.NumSpawned, 1)
+		
+		// Add to updated declarations (make a copy to avoid reference issues)
+		declCopy := *parentDecl
+		gc.updatedDecls = append(gc.updatedDecls, declCopy)
 	}
 }
 
@@ -110,6 +119,10 @@ func (gc *GoroutineCollector) UpdateGoRoutineName(decl *ds.GoDecl, newName strin
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
 	decl.Name = newName
+	
+	// Add to updated declarations (make a copy to avoid reference issues)
+	declCopy := *decl
+	gc.updatedDecls = append(gc.updatedDecls, declCopy)
 }
 
 func (gc *GoroutineCollector) UpdateGoRoutineTags(decl *ds.GoDecl, newTags []string) {
@@ -117,6 +130,10 @@ func (gc *GoroutineCollector) UpdateGoRoutineTags(decl *ds.GoDecl, newTags []str
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
 	decl.Tags = newTags
+	
+	// Add to updated declarations (make a copy to avoid reference issues)
+	declCopy := *decl
+	gc.updatedDecls = append(gc.updatedDecls, declCopy)
 }
 
 func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl, stack []byte) {
@@ -152,6 +169,12 @@ func (gc *GoroutineCollector) RecordGoRoutineEnd(decl *ds.GoDecl, panicVal any, 
 	atomic.StoreInt32(&decl.State, GoState_Done)
 	endTs := time.Now().UnixMilli()
 	atomic.StoreInt64(&decl.EndTs, endTs)
+	
+	// Add to updated declarations (make a copy to avoid reference issues)
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	declCopy := *decl
+	gc.updatedDecls = append(gc.updatedDecls, declCopy)
 }
 
 // getSendFullAndReset returns the current sendFull value and always sets it to false
@@ -182,6 +205,30 @@ func (gc *GoroutineCollector) setLastStackSize(size int) {
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
 	gc.lastStackSize = size
+}
+
+// getDeclList returns the list of declarations to send
+// For full updates, it returns all declarations
+// For delta updates, it returns only the updated declarations
+func (gc *GoroutineCollector) getDeclList(delta bool) []ds.GoDecl {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	
+	if !delta {
+		// For full updates, return all declarations
+		declList := make([]ds.GoDecl, 0, len(gc.goroutineDecls))
+		for _, decl := range gc.goroutineDecls {
+			declList = append(declList, *decl)
+		}
+		// Clear updated declarations after a full update
+		gc.updatedDecls = nil
+		return declList
+	}
+	
+	// For delta updates, return only the updated declarations
+	declList := gc.updatedDecls
+	gc.updatedDecls = nil
+	return declList
 }
 
 // dumpAllStacks gets all goroutine stacks, automatically increasing buffer size if needed
@@ -346,6 +393,7 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool)
 		Count:  len(currentStacks), // Always report the total count
 		Stacks: goroutineStacks,
 		Delta:  delta,
+		Decls:  gc.getDeclList(delta),
 	}
 }
 
@@ -398,10 +446,22 @@ func (gc *GoroutineCollector) recordPolledGoroutine(goId int64, goroutineData []
 	now := time.Now().UnixMilli()
 	decl := gc.GetGoRoutineDecl(goId)
 	if decl != nil {
-		atomic.CompareAndSwapInt64(&decl.FirstPollTs, 0, now)
+		// Check if FirstPollTs was updated (was 0 before)
+		wasFirstPollUpdated := atomic.CompareAndSwapInt64(&decl.FirstPollTs, 0, now)
+		
+		// Always update LastPollTs
 		atomic.StoreInt64(&decl.LastPollTs, now)
+		
+		// Only add to updated declarations if something other than LastPollTs changed
+		if wasFirstPollUpdated {
+			gc.lock.Lock()
+			declCopy := *decl
+			gc.updatedDecls = append(gc.updatedDecls, declCopy)
+			gc.lock.Unlock()
+		}
 		return
 	}
+	
 	// First time we've seen this goroutine
 	decl = &ds.GoDecl{
 		GoId:        goId,
