@@ -5,6 +5,7 @@ package goroutine
 
 import (
 	"bytes"
+	"log"
 	"regexp"
 	"runtime"
 	"slices"
@@ -17,7 +18,6 @@ import (
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
-	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 // MinStackBufferSize is the minimum buffer size for goroutine stack dumps (1MB)
@@ -120,10 +120,12 @@ func (gc *GoroutineCollector) UpdateGoRoutineTags(decl *ds.GoDecl, newTags []str
 	decl.Tags = newTags
 }
 
-func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl) {
-	stack := gc.dumpSingleStack()
-	if stack == nil {
-		return
+func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl, stack []byte) {
+	if len(stack) == 0 {
+		stack = gc.dumpSingleStack()
+		if len(stack) == 0 {
+			return
+		}
 	}
 	// Extract the goroutine ID from the stack trace
 	goMatches := goCreationRe.FindSubmatch(stack)
@@ -229,24 +231,6 @@ func (gc *GoroutineCollector) DumpGoroutines() {
 	gc.controller.SendPacket(pk)
 }
 
-// SetGoRoutineName sets a name for a goroutine
-func (gc *GoroutineCollector) SetGoRoutineName(goId int64, name string) {
-	gc.lock.Lock()
-	defer gc.lock.Unlock()
-	if name == "" {
-		return
-	}
-	if gc.goroutineDecls[goId] != nil {
-		return
-	}
-	name, tags := utilfn.ParseNameAndTags(name)
-	gc.goroutineDecls[goId] = &ds.GoDecl{
-		GoId: goId,
-		Name: name,
-		Tags: tags,
-	}
-}
-
 // GetGoRoutineName gets the name for a goroutine
 func (gc *GoroutineCollector) GetGoRoutineName(goId int64) (string, bool) {
 	gc.lock.Lock()
@@ -327,6 +311,9 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool)
 		state := string(matches[2])
 		stackTrace := string(bytes.TrimSpace(matches[3]))
 
+		// Record this goroutine if we haven't seen it before or update its poll timestamps
+		gc.recordPolledGoroutine(id, goroutineData)
+
 		grStack := ds.GoRoutineStack{
 			GoId:       id,
 			State:      state,
@@ -352,6 +339,8 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool)
 			goroutineStacks = append(goroutineStacks, grStack)
 		}
 	}
+
+	log.Printf("GoroutineCollector: %d goroutines, %d same stacks", len(activeGoroutines), numSameStack)
 
 	// Store current stacks for next delta calculation
 	gc.setLastGoroutineStacksAndCleanupNames(currentStacks)
@@ -403,4 +392,25 @@ func (gc *GoroutineCollector) setLastGoroutineStacksAndCleanupNames(stacks map[i
 			delete(gc.goroutineDecls, id)
 		}
 	}
+}
+
+// recordPolledGoroutine records information about a goroutine discovered during polling
+// It sets the parent goroutine ID if it's the first time we see the goroutine
+// and updates FirstPollTs and LastPollTs appropriately
+func (gc *GoroutineCollector) recordPolledGoroutine(goId int64, goroutineData []byte) {
+	now := time.Now().UnixMilli()
+	decl := gc.GetGoRoutineDecl(goId)
+	if decl != nil {
+		atomic.CompareAndSwapInt64(&decl.FirstPollTs, 0, now)
+		atomic.StoreInt64(&decl.LastPollTs, now)
+		return
+	}
+	// First time we've seen this goroutine
+	decl = &ds.GoDecl{
+		GoId:        goId,
+		State:       GoState_Running,
+		FirstPollTs: now,
+		LastPollTs:  now,
+	}
+	gc.RecordGoRoutineStart(decl, goroutineData)
 }

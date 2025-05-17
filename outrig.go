@@ -153,12 +153,9 @@ func AppDone() {
 }
 
 // SetGoRoutineName sets a name for the current goroutine
-func SetGoRoutineName(name string) {
-	goId := utilfn.GetGoroutineID()
-	if goId > 0 {
-		gc := goroutine.GetInstance()
-		gc.SetGoRoutineName(goId, name)
-	}
+func SetGoRoutineName(name string) *GoRoutine {
+	name, tags := utilfn.ParseNameAndTags(name)
+	return CurrentGR().WithName(name).WithTags(tags...)
 }
 
 // to avoid circular references, when calling internal outrig functions from the SDK
@@ -472,7 +469,7 @@ func CurrentGR() *GoRoutine {
 		State:   goroutine.GoState_Running,
 		StartTs: time.Now().UnixMilli(),
 	}
-	gc.RecordGoRoutineStart(decl)
+	gc.RecordGoRoutineStart(decl, nil)
 	return &GoRoutine{decl: decl}
 }
 
@@ -518,7 +515,7 @@ func (g *GoRoutine) Run(fn func()) {
 	gc := goroutine.GetInstance()
 	g.decl.StartTs = time.Now().UnixMilli()
 	go func() {
-		gc.RecordGoRoutineStart(g.decl)
+		gc.RecordGoRoutineStart(g.decl, nil)
 		if g.decl.NoRecover {
 			defer func() {
 				r := recover()
