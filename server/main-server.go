@@ -135,12 +135,14 @@ func main() {
 				updatecheck.Disabled.Store(true)
 			}
 
-			// Get the port flag value
+			// Get the flag values
 			port, _ := cmd.Flags().GetInt("port")
+			closeOnStdin, _ := cmd.Flags().GetBool("close-on-stdin")
 
 			// Create CLI config
 			config := boot.CLIConfig{
-				Port: port,
+				Port:         port,
+				CloseOnStdin: closeOnStdin,
 			}
 
 			return boot.RunServer(config)
@@ -150,6 +152,7 @@ func main() {
 	serverCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
 	serverCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
 	serverCmd.Flags().Int("port", 0, "Override the default web server port (default: 5005 for production, 6005 for development)")
+	serverCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
 
 	versionCmd := &cobra.Command{
 		Use:   "version",

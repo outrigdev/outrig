@@ -45,6 +45,8 @@ var (
 type CLIConfig struct {
 	// Port overrides the default web server port if non-zero
 	Port int
+	// CloseOnStdin indicates whether the server should shut down when stdin is closed
+	CloseOnStdin bool
 }
 
 // RunServer initializes and runs the Outrig server
@@ -81,6 +83,27 @@ func RunServer(config CLIConfig) error {
 		// Give processes a moment to clean up
 		signal.Stop(signalChan)
 	}()
+	
+	// Set up stdin monitoring if requested
+	if config.CloseOnStdin {
+		log.Printf("Server will shut down when stdin is closed\n")
+		go func() {
+			outrig.SetGoRoutineName("boot.StdinMonitor")
+			// Read from stdin until EOF
+			buffer := make([]byte, 4096)
+			for {
+				_, err := os.Stdin.Read(buffer)
+				if err != nil {
+					// EOF or other error, shut down the server
+					log.Printf("Stdin closed, shutting down server\n")
+					
+					// Perform graceful shutdown
+					gracefulShutdown(cancelFn, &wg)
+					return
+				}
+			}
+		}()
+	}
 
 	if serverbase.IsDev() {
 		log.Printf("Starting Outrig server %s (dev mode)\n", serverbase.OutrigServerVersion)
