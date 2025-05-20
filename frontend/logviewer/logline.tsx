@@ -193,7 +193,10 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
     return (
         <div
             data-linenum={line.linenum}
-            className={cn("flex text-muted select-none pl-1", isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover")}
+            className={cn(
+                "flex text-muted select-none pl-1 pr-2",
+                isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover"
+            )}
         >
             {formatMarkedLineNumber(
                 line.linenum,
