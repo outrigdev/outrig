@@ -17,9 +17,11 @@ import (
 // performs the handshake with the specified mode, submode, and appRunId,
 // and returns a new ConnWrap if successful.
 //
-// If domainSocketPath is not empty, it will first try to connect to the domain socket.
+// If domainSocketPath is not empty, it will first try to connect to the domain
+// socket.
 // If that fails and serverAddr is not empty, it will fall back to TCP.
-// If both are empty or "-", it will return nil and an error.
+// When both domainSocketPath and serverAddr are empty or "-", the function
+// returns (nil, nil, nil) without error.
 //
 // The function returns (ConnWrap, PermanentError, TransientError)
 func Connect(mode string, submode string, appRunId string, domainSocketPath string, serverAddr string) (*ConnWrap, error, error) {
