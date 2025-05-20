@@ -69,6 +69,7 @@ func main() {
 	for i := 0; i < 5; i++ {
 		outrig.Logf("#test: log line %d", i)
 	}
+	outrig.Logf("#test: long log line that has more text than the default length of 80 characters. This is a test to see how the log line is shown and displayed in the output if it exceeds the maximum length.")
 
 	ow, _ := outrig.MakeLogStream("hellohello")
 	bow := bufio.NewWriter(ow)
