@@ -125,13 +125,11 @@ tasks:
         desc: Build the macOS systray app
         cmds:
             - mkdir -p bin/
-            - cd macosapp && go build -ldflags "-X main.OutrigVersion={{.VERSION}} -X main.OutrigBuildTime=$(date +%Y%m%d%H%M%S) -X main.OutrigCommit=$(git rev-parse --short HEAD)" -o ../bin/outrigapp main-outrigapp.go
+            - cd macosapp && go build -o ../bin/outrigapp main-outrigapp.go
 
     build:app-bundle:
         desc: Create a macOS .app bundle
         deps: [build:server, build:outrigapp]
-        vars:
-            VERSION: '{{default "dev" .VERSION}}'
         cmds:
             - mkdir -p dist/Outrig.app/Contents/{MacOS,Resources}
             - cp bin/outrigapp dist/Outrig.app/Contents/MacOS/
