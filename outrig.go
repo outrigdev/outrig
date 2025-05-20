@@ -297,8 +297,8 @@ func (w *Watch) setType(typ string) bool {
 	return true
 }
 
-func (w *Watch) addConfigErr(err error, invalide bool) {
-	if invalide {
+func (w *Watch) addConfigErr(err error, invalid bool) {
+	if invalid {
 		w.decl.Invalid = true
 	}
 	errCtx := ds.ErrWithContext{
