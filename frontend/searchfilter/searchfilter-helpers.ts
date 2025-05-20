@@ -270,11 +270,18 @@ export const handleDelimiter = (
             return true;
         }
 
-        // Don't auto-close if we're inside a word
-        const isInsideWord =
-            cursorPos > 0 && /\w/.test(text[cursorPos - 1]) && cursorPos < text.length && /\w/.test(text[cursorPos]);
-
-        if (isInsideWord) return false;
+        // Don't auto-close if we're inside a word or at the end of a word
+        // Only auto-close if:
+        // 1. We're at the beginning of a line (cursorPos == 0), OR
+        // 2. The preceding character is whitespace, "(", ")", or "|"
+        if (cursorPos > 0) {
+            const prevChar = text[cursorPos - 1];
+            const isValidPrecedingChar = /[\s()|]/.test(prevChar);
+            
+            if (!isValidPrecedingChar) {
+                return false;
+            }
+        }
 
         // Check if we're between a pair of delimiters (e.g., cursor is between quotes)
         if (isCursorInsideDelimiters(text, cursorPos, openChar, closeChar)) {
