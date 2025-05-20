@@ -44,6 +44,14 @@ tasks:
         desc: Build everything for production
         cmds:
             - task: build:server
+            
+    build:macos-app:
+        desc: Build the complete macOS app bundle
+        cmds:
+            - task: build:server
+            - task: build:outrigapp
+            - task: build:app-bundle
+            - echo "✅ macOS app bundle built successfully at dist/Outrig.app"
 
     prod:
         desc: Run the production server
@@ -106,11 +114,50 @@ tasks:
             - echo "Setting Outrig version to {{.VERSION}}"
             - sed -i.bak 's/var OutrigServerVersion = ".*"/var OutrigServerVersion = "{{.VERSION}}"/' server/pkg/serverbase/serverbase.go && rm server/pkg/serverbase/serverbase.go.bak
             - sed -i.bak 's/const OutrigSDKVersion = ".*"/const OutrigSDKVersion = "{{.VERSION}}"/' pkg/base/base.go && rm pkg/base/base.go.bak
-            # Update version in package.json (strip the 'v' prefix if present)
+            # Update version in package.json and Info.plist (strip the 'v' prefix if present)
             - |
                 VERSION_NO_V=$(echo "{{.VERSION}}" | sed 's/^v//')
                 sed -i.bak 's/"version": ".*"/"version": "'$VERSION_NO_V'"/' package.json && rm package.json.bak
-            - echo "✅ Version updated to {{.VERSION}} in server, SDK, and package.json"
+                sed 's/VERSION_PLACEHOLDER/'$VERSION_NO_V'/g' macosapp/assets/Info.plist.template > macosapp/assets/Info.plist
+            - echo "✅ Version updated to {{.VERSION}} in server, SDK, package.json, and Info.plist"
+
+    build:outrigapp:
+        desc: Build the macOS systray app
+        cmds:
+            - mkdir -p bin/
+            - cd macosapp && go build -ldflags "-X main.OutrigVersion={{.VERSION}} -X main.OutrigBuildTime=$(date +%Y%m%d%H%M%S) -X main.OutrigCommit=$(git rev-parse --short HEAD)" -o ../bin/outrigapp main-outrigapp.go
+
+    build:app-bundle:
+        desc: Create a macOS .app bundle
+        deps: [build:server, build:outrigapp]
+        vars:
+            VERSION: '{{default "dev" .VERSION}}'
+        cmds:
+            - mkdir -p dist/Outrig.app/Contents/{MacOS,Resources}
+            - cp bin/outrigapp dist/Outrig.app/Contents/MacOS/
+            - cp bin/outrig dist/Outrig.app/Contents/MacOS/
+            - chmod +x dist/Outrig.app/Contents/MacOS/outrigapp
+            - chmod +x dist/Outrig.app/Contents/MacOS/outrig
+            - cp macosapp/assets/Info.plist dist/Outrig.app/Contents/
+            - cp macosapp/assets/outrig.icns dist/Outrig.app/Contents/Resources/AppIcon.icns
+            - echo "✅ Created app bundle at dist/Outrig.app"
+
+    create:icns:
+        desc: Create an .icns file from the PNG icon
+        cmds:
+            - cd macosapp && rm -rf outrig.iconset && mkdir -p outrig.iconset
+            - cd macosapp && sips -z 16 16     assets/outrigapp-iconbase.png --out outrig.iconset/icon_16x16.png
+            - cd macosapp && sips -z 32 32     assets/outrigapp-iconbase.png --out outrig.iconset/icon_16x16@2x.png
+            - cd macosapp && sips -z 32 32     assets/outrigapp-iconbase.png --out outrig.iconset/icon_32x32.png
+            - cd macosapp && sips -z 64 64     assets/outrigapp-iconbase.png --out outrig.iconset/icon_32x32@2x.png
+            - cd macosapp && sips -z 128 128   assets/outrigapp-iconbase.png --out outrig.iconset/icon_128x128.png
+            - cd macosapp && sips -z 256 256   assets/outrigapp-iconbase.png --out outrig.iconset/icon_128x128@2x.png
+            - cd macosapp && sips -z 256 256   assets/outrigapp-iconbase.png --out outrig.iconset/icon_256x256.png
+            - cd macosapp && sips -z 512 512   assets/outrigapp-iconbase.png --out outrig.iconset/icon_256x256@2x.png
+            - cd macosapp && sips -z 512 512   assets/outrigapp-iconbase.png --out outrig.iconset/icon_512x512.png
+            - cd macosapp && sips -z 1024 1024 assets/outrigapp-iconbase.png --out outrig.iconset/icon_512x512@2x.png
+            - cd macosapp && iconutil -c icns outrig.iconset -o assets/outrig.icns
+            - echo "✅ Created outrig.icns"
 
     release:tag:git:
         desc: Create a git tag after verifying versions match and git directory is clean
