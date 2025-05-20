@@ -17,3 +17,19 @@ updates:
       schedule:
           interval: "daily"
       open-pull-requests-limit: 10
+      groups:
+          react-dependencies:
+              patterns:
+                  - "react"
+                  - "react-dom"
+                  - "@types/react"
+                  - "@types/react-dom"
+          eslint-dependencies:
+              patterns:
+                  - "eslint"
+                  - "@eslint/*"
+                  - typescript-eslint
+          vite-dependencies:
+              patterns:
+                  - "vite"
+                  - "@vitejs/*"
