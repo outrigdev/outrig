@@ -1,0 +1,86 @@
+name: Build & Notarize macOS App
+
+on:
+    push:
+        tags:
+            - "v*.*.*"
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "Tag to release (e.g., v0.1.0)"
+                required: true
+                type: string
+
+jobs:
+    notarize:
+        runs-on: macos-latest
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ inputs.tag || github.ref }}
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "stable"
+
+            - name: Install Go Task
+              uses: arduino/setup-task@v2
+
+            - name: Install create-dmg
+              run: brew install create-dmg
+
+            - name: Import Codesign Certificate
+              uses: apple-actions/import-codesign-certs@v3
+              with:
+                  p12-file-base64: ${{ secrets.MACOS_SIGN_P12 }}
+                  p12-password: ${{ secrets.MACOS_SIGN_PASSWORD }}
+
+            - name: Build macOS App Bundle
+              run: task build:app-bundle
+
+            - name: Sign App Bundle
+              run: |
+                  codesign --deep --force --options runtime --sign - ./dist/Outrig.app
+
+            - name: Create DMG
+              run: |
+                  create-dmg \
+                    --volname "Outrig" \
+                    --window-pos 200 120 \
+                    --window-size 600 400 \
+                    --icon-size 100 \
+                    --icon "Outrig.app" 175 190 \
+                    --hide-extension "Outrig.app" \
+                    --app-drop-link 425 190 \
+                    Outrig.dmg \
+                    ./dist
+
+            - name: Decode and Write Notary API Key
+              env:
+                  MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+                  MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+              run: |
+                  echo "$MACOS_NOTARY_KEY" | base64 --decode > AuthKey_${MACOS_NOTARY_KEY_ID}.p8
+
+            - name: Submit DMG for Notarization
+              env:
+                  MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+                  MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+              run: |
+                  xcrun notarytool submit Outrig.dmg \
+                    --key AuthKey_${MACOS_NOTARY_KEY_ID}.p8 \
+                    --key-id "$MACOS_NOTARY_KEY_ID" \
+                    --issuer "$MACOS_NOTARY_ISSUER_ID" \
+                    --wait
+
+            - name: Staple Notarization Ticket
+              run: |
+                  xcrun stapler staple Outrig.dmg
+
+            - name: Upload Notarized DMG
+              uses: actions/upload-artifact@v4
+              with:
+                  name: Outrig-${{ inputs.tag || github.ref_name }}.dmg
+                  path: Outrig.dmg
