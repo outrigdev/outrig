@@ -61,3 +61,123 @@ jobs:
                   MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
                   MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
                   MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+
+    build-macos-app:
+        needs: goreleaser
+        strategy:
+            matrix:
+                include:
+                    - arch: amd64
+                      runner: macos-14
+                    - arch: arm64
+                      runner: macos-latest
+        runs-on: ${{ matrix.runner }}
+        env:
+            GOARCH: ${{ matrix.arch }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.24"
+                  cache: true
+                  cache-dependency-path: server/go.sum
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+                  cache: "npm"
+
+            - name: Install Node.js Dependencies
+              run: npm ci
+
+            - name: Install Go Task
+              uses: arduino/setup-task@v2
+              with:
+                  version: 3.43.3
+                  repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Install create-dmg
+              run: brew install create-dmg
+
+            - name: Import Codesign Certificate
+              uses: apple-actions/import-codesign-certs@v3
+              with:
+                  p12-file-base64: ${{ secrets.MACOS_SIGN_P12 }}
+                  p12-password: ${{ secrets.MACOS_SIGN_PASSWORD }}
+
+            - name: Build macOS App Bundle
+              run: task build:app-bundle
+
+            - name: Sign App Bundle
+              run: |
+                  codesign --deep --force --options runtime \
+                    --sign "Developer ID Application: Command Line Inc (M4LA8V687Y)" \
+                    --timestamp \
+                    ./dist/Outrig.app
+
+            - name: Create DMG
+              run: |
+                  create-dmg \
+                    --volname "Outrig" \
+                    --window-pos 200 120 \
+                    --window-size 600 400 \
+                    --icon-size 100 \
+                    --icon "Outrig.app" 175 190 \
+                    --hide-extension "Outrig.app" \
+                    --app-drop-link 425 190 \
+                    Outrig-${{ matrix.arch }}.dmg \
+                    ./dist
+
+            - name: Decode and Write Notary API Key
+              env:
+                  MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+                  MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+              run: |
+                  echo "$MACOS_NOTARY_KEY" | base64 --decode > AuthKey_${MACOS_NOTARY_KEY_ID}.p8
+
+            - name: Submit DMG for Notarization
+              env:
+                  MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+                  MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+              run: |
+                  set +e
+                  submission_id=$(xcrun notarytool submit Outrig-${{ matrix.arch }}.dmg \
+                      --key AuthKey_${MACOS_NOTARY_KEY_ID}.p8 \
+                      --key-id "$MACOS_NOTARY_KEY_ID" \
+                      --issuer "$MACOS_NOTARY_ISSUER_ID" \
+                      --wait --output-format json | jq -r '.id')
+                  NOTARY_EXIT_CODE=$?
+
+                  xcrun notarytool log "$submission_id" \
+                      --key AuthKey_${MACOS_NOTARY_KEY_ID}.p8 \
+                      --key-id "$MACOS_NOTARY_KEY_ID" \
+                      --issuer "$MACOS_NOTARY_ISSUER_ID"
+
+                  exit $NOTARY_EXIT_CODE
+
+            - name: Staple Notarization Ticket
+              run: |
+                  xcrun stapler staple Outrig-${{ matrix.arch }}.dmg
+
+            # Get the release ID for the current tag
+            - name: Get Release
+              id: get_release
+              uses: bruceadams/get-release@v1.3.2
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            # Upload DMG to the GitHub Release
+            - name: Upload DMG to Release
+              uses: actions/upload-release-asset@v1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  upload_url: ${{ steps.get_release.outputs.upload_url }}
+                  asset_path: ./Outrig-${{ matrix.arch }}.dmg
+                  asset_name: Outrig-darwin-${{ matrix.arch }}-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}.dmg
+                  asset_content_type: application/x-apple-diskimage
