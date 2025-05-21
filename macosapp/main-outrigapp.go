@@ -21,6 +21,9 @@ import (
 )
 
 var (
+	// Version information
+	OutrigAppVersion = "v0.5.1"
+
 	// Server process
 	serverCmd          *exec.Cmd
 	serverLock         sync.Mutex
@@ -33,12 +36,17 @@ var (
 	lastIconType     string
 
 	isQuitting atomic.Bool
+
+	// CLI installation status
+	isCliInstalled   atomic.Bool
+	cliInstallFailed atomic.Bool
 )
 
 const (
-	IconTypeNormal = "normal"
-	IconTypeError  = "error"
-	IconTypeConn   = "conn"
+	IconTypeTemplate = "template"
+	IconTypeNormal   = "normal"
+	IconTypeError    = "error"
+	IconTypeConn     = "conn"
 
 	// App status icon types
 	IconTypeAppRunning = "app-running"
@@ -62,7 +70,11 @@ var wifiIconData []byte
 //go:embed assets/wifioff-template.png
 var wifiOffIconData []byte
 
+//go:embed assets/outrigapp-trayicon-template.png
+var trayIconTemplateData []byte
+
 func init() {
+	iconDataMap[IconTypeTemplate] = trayIconTemplateData
 	iconDataMap[IconTypeNormal] = baseIconData
 	iconDataMap[IconTypeError] = errorIconData
 	iconDataMap[IconTypeConn] = connIconData
@@ -158,7 +170,7 @@ func updateIcon(iconType string) {
 	if iconType == lastIconType {
 		return
 	}
-	systray.SetIcon(iconDataMap[iconType])
+	systray.SetTemplateIcon(iconDataMap[IconTypeTemplate], iconDataMap[IconTypeTemplate])
 	var statusMsg string
 	switch iconType {
 	case IconTypeNormal:
@@ -237,8 +249,8 @@ func updateServerStatus(serverStatus ServerStatus) {
 		})
 	}
 
-	if !reflect.DeepEqual(lastServerStatus.AppRuns, serverStatus.AppRuns) {
-		rebuildMenu(serverStatus.AppRuns)
+	if !reflect.DeepEqual(lastServerStatus, serverStatus) {
+		rebuildMenu(serverStatus)
 	}
 }
 
@@ -343,18 +355,6 @@ func restartServer() {
 	log.Printf("Outrig server restarted\n")
 }
 
-func main() {
-	logFile, err := os.OpenFile(filepath.Join(os.TempDir(), "outrigapp.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		log.SetOutput(logFile)
-		defer logFile.Close()
-	}
-
-	log.Printf("Starting OutrigApp")
-
-	systray.Run(onReady, onExit)
-}
-
 func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 	// Group app runs by app name
 	groupMap := make(map[string][]TrayAppRunInfo)
@@ -393,18 +393,24 @@ func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 	return groups
 }
 
-func rebuildMenu(appRuns []TrayAppRunInfo) {
+func rebuildMenu(status ServerStatus) {
+	appRuns := status.AppRuns
 
 	// Reset the entire menu
 	systray.ResetMenu()
 
 	// Add the main menu items
-	mOpen := systray.AddMenuItem("Open Outrig", "Open the Outrig web interface")
-	go func() {
-		for range mOpen.ClickedCh {
-			openBrowser("http://localhost:5005")
-		}
-	}()
+	if status.Running {
+		mOpen := systray.AddMenuItem("Open Outrig", "Open the Outrig web interface @ http://localhost:5005")
+		go func() {
+			for range mOpen.ClickedCh {
+				openBrowser("http://localhost:5005")
+			}
+		}()
+	} else {
+		mNotRunning := systray.AddMenuItem("Outrig Server Not Running", "")
+		mNotRunning.Disable()
+	}
 
 	systray.AddSeparator()
 
@@ -434,7 +440,7 @@ func rebuildMenu(appRuns []TrayAppRunInfo) {
 			}
 
 			// Add menu item
-			menuItem := systray.AddMenuItem(menuText, fmt.Sprintf("Open %s logs", group.AppName))
+			menuItem := systray.AddMenuItem(menuText, fmt.Sprintf("Open '%s' App Run in the Outrig web interface", group.AppName))
 
 			// Set the icon for the menu item
 			menuItem.SetTemplateIcon(iconDataMap[iconType], iconDataMap[iconType])
@@ -451,20 +457,44 @@ func rebuildMenu(appRuns []TrayAppRunInfo) {
 
 	systray.AddSeparator()
 
+	// Add CLI installation menu item if needed
+	if !isCliInstalled.Load() {
+		if cliInstallFailed.Load() {
+			mInstallFailed := systray.AddMenuItem("Outrig CLI Installation Failed", "")
+			mInstallFailed.Disable()
+			systray.AddSeparator()
+		} else {
+			mInstallCli := systray.AddMenuItem("Install 'outrig' CLI Command...", "Install the outrig CLI command for system-wide use")
+			go func() {
+				for range mInstallCli.ClickedCh {
+					err := InstallOutrigCLI()
+					if err == nil {
+						isCliInstalled.Store(true)
+						rebuildMenu(status)
+					} else {
+						cliInstallFailed.Store(true)
+						rebuildMenu(status)
+					}
+				}
+			}()
+			systray.AddSeparator()
+		}
+	}
+
 	// Add version info
-	if lastServerStatus.Version != "" {
-		versionItem := systray.AddMenuItem("Outrig "+lastServerStatus.Version, "Outrig Version")
+	if OutrigAppVersion != "" {
+		versionItem := systray.AddMenuItem("Outrig "+OutrigAppVersion, "")
 		versionItem.Disable() // Make it non-clickable
 	}
 
-	mRestart := systray.AddMenuItem("Restart Server", "Restart the Outrig server")
+	mRestart := systray.AddMenuItem("Restart Outrig Server", "")
 	go func() {
 		for range mRestart.ClickedCh {
 			restartServer()
 		}
 	}()
 
-	mQuit := systray.AddMenuItem("Quit Completely", "Quit the Application and Stop the Outrig Server")
+	mQuit := systray.AddMenuItem("Quit Outrig Completely", "")
 	go func() {
 		for range mQuit.ClickedCh {
 			isQuitting.Store(true)
@@ -476,7 +506,7 @@ func rebuildMenu(appRuns []TrayAppRunInfo) {
 
 func onReady() {
 	updateIcon(IconTypeError)
-	rebuildMenu(nil)
+	rebuildMenu(ServerStatus{})
 
 	startServer()
 
@@ -519,6 +549,62 @@ func onExit() {
 	log.Printf("OutrigApp exited\n")
 }
 
+func InstallOutrigCLI() error {
+	appPath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	cliName := "outrig"
+	cliSource := filepath.Join(filepath.Dir(appPath), cliName)
+
+	targets := []string{"/opt/homebrew/bin", "/usr/local/bin"}
+	var targetPath string
+	for _, dir := range targets {
+		if isDirectoryWriteable(dir) {
+			targetPath = filepath.Join(dir, cliName)
+			return os.Symlink(cliSource, targetPath)
+		}
+	}
+
+	// Fall back to osascript (GUI admin prompt)
+	targetPath = filepath.Join("/usr/local/bin", cliName)
+	script := fmt.Sprintf(`do shell script "ln -sf '%s' '%s'" with administrator privileges`, cliSource, targetPath)
+	cmd := exec.Command("osascript", "-e", script)
+	return cmd.Run()
+}
+
+func isDirectoryWriteable(path string) bool {
+	testFile := filepath.Join(path, ".tmp_test_write")
+	if err := os.WriteFile(testFile, []byte(""), 0644); err != nil {
+		return false
+	}
+	os.Remove(testFile)
+	return true
+}
+
+// IsOutrigCLIInstalled checks if the outrig CLI is installed in the system
+func IsOutrigCLIInstalled() bool {
+	// First try LookPath to check if it's in PATH
+	_, err := exec.LookPath("outrig")
+	if err == nil {
+		return true
+	}
+
+	// If LookPath fails, check common installation paths
+	cliPaths := []string{
+		"/opt/homebrew/bin/outrig",
+		"/usr/local/bin/outrig",
+	}
+
+	for _, path := range cliPaths {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
 func openBrowser(url string) {
 	var err error
 	switch runtime.GOOS {
@@ -534,4 +620,23 @@ func openBrowser(url string) {
 	if err != nil {
 		fmt.Printf("Error opening browser: %v\n", err)
 	}
+}
+
+func main() {
+	logFile, err := os.OpenFile(filepath.Join(os.TempDir(), "outrigapp.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.SetOutput(logFile)
+		defer logFile.Close()
+	}
+
+	// Check if CLI is installed
+	if IsOutrigCLIInstalled() {
+		isCliInstalled.Store(true)
+	}
+
+	log.Printf("Starting OutrigApp")
+	log.Printf("PATH: %s\n", os.Getenv("PATH"))
+	log.Printf("CLI installed: %v\n", isCliInstalled.Load())
+
+	systray.Run(onReady, onExit)
 }

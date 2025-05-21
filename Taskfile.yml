@@ -111,9 +111,16 @@ tasks:
         vars:
             VERSION: "{{.CLI_ARGS}}"
         cmds:
+            # Check if version starts with v0.
+            - |
+                if [[ ! "{{.VERSION}}" =~ ^v0\. ]]; then
+                  echo "❌ Error: Version must start with 'v0.' but got '{{.VERSION}}'"
+                  exit 1
+                fi
             - echo "Setting Outrig version to {{.VERSION}}"
             - sed -i.bak 's/var OutrigServerVersion = ".*"/var OutrigServerVersion = "{{.VERSION}}"/' server/pkg/serverbase/serverbase.go && rm server/pkg/serverbase/serverbase.go.bak
             - sed -i.bak 's/const OutrigSDKVersion = ".*"/const OutrigSDKVersion = "{{.VERSION}}"/' pkg/base/base.go && rm pkg/base/base.go.bak
+            - sed -i.bak 's/OutrigAppVersion = ".*"/OutrigAppVersion = "{{.VERSION}}"/' macosapp/main-outrigapp.go && rm macosapp/main-outrigapp.go.bak
             # Update version in package.json and Info.plist (strip the 'v' prefix if present)
             - |
                 VERSION_NO_V=$(echo "{{.VERSION}}" | sed 's/^v//')
@@ -184,6 +191,14 @@ tasks:
                   echo "Run 'task updateversions {{.VERSION}}' first to update versions"
                   exit 1
                 fi
+            # Check if macOS app version matches
+            - |
+                APP_VERSION=$(grep 'OutrigAppVersion = ' macosapp/main-outrigapp.go | cut -d'"' -f2)
+                if [ "$APP_VERSION" != "{{.VERSION}}" ]; then
+                  echo "❌ Error: macOS app version ($APP_VERSION) does not match requested tag version ({{.VERSION}})"
+                  echo "Run 'task updateversions {{.VERSION}}' first to update versions"
+                  exit 1
+                fi
             # Check if package.json version matches (without 'v' prefix)
             - |
                 VERSION_NO_V=$(echo "{{.VERSION}}" | sed 's/^v//')
@@ -213,7 +228,7 @@ tasks:
             - task: updateversions
               vars: { VERSION: "{{.VERSION}}" }
             # Commit the version changes
-            - git add server/pkg/serverbase/serverbase.go pkg/base/base.go package.json
+            - git add server/pkg/serverbase/serverbase.go pkg/base/base.go package.json macosapp/main-outrigapp.go
             - git commit -m "Bump version to {{.VERSION}}"
             # Create the git tag
             - task: release:tag:git
