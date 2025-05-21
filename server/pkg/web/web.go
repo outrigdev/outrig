@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/outrigdev/outrig"
+	"github.com/outrigdev/outrig/server/pkg/apppeer"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
 
@@ -42,6 +43,14 @@ type WebFnType = func(http.ResponseWriter, *http.Request)
 type WebFnOpts struct {
 	AllowCaching bool
 	JsonErrors   bool
+}
+
+// TrayAppRunInfo contains minimal app run information for the tray app
+type TrayAppRunInfo struct {
+	AppRunId  string `json:"apprunid"`
+	AppName   string `json:"appname"`
+	IsRunning bool   `json:"isrunning"`
+	StartTime int64  `json:"starttime"`
 }
 
 func WriteJsonError(w http.ResponseWriter, errVal error) {
@@ -74,6 +83,38 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	WriteJsonSuccess(w, map[string]interface{}{
 		"status": "ok",
 		"time":   time.Now().UnixMilli(),
+	})
+}
+
+// Status endpoint for checking server status
+func handleStatus(w http.ResponseWriter, r *http.Request) {
+	// Get all app run infos (passing 0 to get all regardless of modification time)
+	appRunInfos := apppeer.GetAllAppRunPeerInfos(0)
+	
+	// Check if there are any active connections
+	hasConnections := false
+	trayAppRuns := []TrayAppRunInfo{}
+	
+	for _, info := range appRunInfos {
+		// If any app is running, we have active connections
+		if info.IsRunning {
+			hasConnections = true
+		}
+		
+		// Add app run info to the array
+		trayAppRuns = append(trayAppRuns, TrayAppRunInfo{
+			AppRunId:  info.AppRunId,
+			AppName:   info.AppName,
+			IsRunning: info.IsRunning,
+			StartTime: info.StartTime,
+		})
+	}
+	
+	WriteJsonSuccess(w, map[string]interface{}{
+		"status":         "ok",
+		"time":           time.Now().UnixMilli(),
+		"hasconnections": hasConnections,
+		"appruns":        trayAppRuns,
 	})
 }
 
@@ -116,6 +157,7 @@ func runWebServerInternal(ctx context.Context, listener net.Listener) {
 
 	apiRouter := gr.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/health", WebFnWrap(WebFnOpts{AllowCaching: false, JsonErrors: true}, handleHealth))
+	apiRouter.HandleFunc("/status", WebFnWrap(WebFnOpts{AllowCaching: false, JsonErrors: true}, handleStatus))
 
 	// Add more API endpoints here as needed
 
