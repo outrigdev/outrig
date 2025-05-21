@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/getlantern/systray"
+	"fyne.io/systray"
 )
 
 var (
@@ -350,77 +350,108 @@ func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 	return groups
 }
 
-// updateAppMenuItems updates the app menu items based on the current app runs
-func updateAppMenuItems(appGroups []AppGroup, appMenuItems []*systray.MenuItem, mAppsHeader *systray.MenuItem) []*systray.MenuItem {
-	// Remove existing app menu items
-	for _, item := range appMenuItems {
-		item.Hide()
-	}
+
+// Global variables to track menu state
+var (
+	currentAppRuns []TrayAppRunInfo
+	menuLock       sync.Mutex
+)
+
+// rebuildMenu completely rebuilds the systray menu
+func rebuildMenu() {
+	menuLock.Lock()
+	defer menuLock.Unlock()
 	
-	// Create new app menu items
-	newAppMenuItems := make([]*systray.MenuItem, 0, len(appGroups))
+	// Reset the entire menu
+	systray.ResetMenu()
 	
-	for _, group := range appGroups {
-		topRun := group.GetTopAppRun()
-		
-		// Create menu item text
-		var menuText string
-		if topRun.IsRunning {
-			menuText = fmt.Sprintf("▶ %s", group.AppName)
-		} else {
-			menuText = fmt.Sprintf("⏹ %s", group.AppName)
+	// Add the main menu items
+	mOpen := systray.AddMenuItem("Open Outrig", "Open the Outrig web interface")
+	go func() {
+		for range mOpen.ClickedCh {
+			openBrowser("http://localhost:5005")
 		}
+	}()
+	
+	systray.AddSeparator()
+	
+	// Add the apps header
+	mAppsHeader := systray.AddMenuItem("Recent Applications", "")
+	mAppsHeader.Disable()
+	
+	// Add app run menu items if there are any
+	if len(currentAppRuns) > 0 {
+		// Group and sort app runs
+		appGroups := groupAppRuns(currentAppRuns)
 		
-		// Add menu item right after the header
-		menuItem := mAppsHeader.AddSubMenuItem(menuText, fmt.Sprintf("Open %s logs", group.AppName))
-		
-		// Set up click handler
-		go func(appRunId string) {
-			for range menuItem.ClickedCh {
-				url := fmt.Sprintf("http://localhost:5005/?appRunId=%s&tab=logs", appRunId)
-				openBrowser(url)
+		// Add menu items for each app group
+		for _, group := range appGroups {
+			topRun := group.GetTopAppRun()
+			
+			// Create menu item text
+			var menuText string
+			if topRun.IsRunning {
+				menuText = fmt.Sprintf("▶ %s", group.AppName)
+			} else {
+				menuText = fmt.Sprintf("⏹ %s", group.AppName)
 			}
-		}(topRun.AppRunId)
-		
-		newAppMenuItems = append(newAppMenuItems, menuItem)
+			
+			// Add menu item
+			menuItem := systray.AddMenuItem(menuText, fmt.Sprintf("Open %s logs", group.AppName))
+			
+			// Set up click handler
+			go func(appRunId string) {
+				for range menuItem.ClickedCh {
+					url := fmt.Sprintf("http://localhost:5005/?appRunId=%s&tab=logs", appRunId)
+					openBrowser(url)
+				}
+			}(topRun.AppRunId)
+		}
 	}
 	
-	return newAppMenuItems
+	systray.AddSeparator()
+	
+	// Add the control menu items
+	mRestart := systray.AddMenuItem("Restart Server", "Restart the Outrig server")
+	go func() {
+		for range mRestart.ClickedCh {
+			restartServer()
+		}
+	}()
+	
+	mQuit := systray.AddMenuItem("Quit Completely", "Quit the Application and Stop the Outrig Server")
+	go func() {
+		for range mQuit.ClickedCh {
+			systray.Quit()
+		}
+	}()
 }
 
-// Global variable to track app menu items
-var appMenuItems []*systray.MenuItem
+// updateMenuWithAppRuns updates the menu with the current app runs
+func updateMenuWithAppRuns(appRuns []TrayAppRunInfo) {
+	// Only update if app runs have changed
+	if !reflect.DeepEqual(currentAppRuns, appRuns) {
+		currentAppRuns = appRuns
+		rebuildMenu()
+	}
+}
 
 func onReady() {
 	// Set up the systray icon and tooltip - start with error icon
 	systray.SetIcon(errorIconData)
 	systray.SetTooltip("Outrig")
-
-	// Create menu items
-	mOpen := systray.AddMenuItem("Open Outrig", "Open the Outrig web interface")
-	systray.AddSeparator()
 	
-	// App runs section header
-	mAppsHeader := systray.AddMenuItem("Recent Applications", "")
-	mAppsHeader.Disable()
+	// Build the initial menu
+	rebuildMenu()
 	
-	// Placeholder for app menu items
-	appMenuItems = make([]*systray.MenuItem, 0)
-	
-	systray.AddSeparator()
-	mRestart := systray.AddMenuItem("Restart Server", "Restart the Outrig server")
-	mQuit := systray.AddMenuItem("Quit Completely", "Quit the Application and Stop the Outrig Server")
-
 	// Start the server immediately
 	startServer()
-
-	// Start a goroutine to monitor server status and update app menu items
+	
+	// Start a goroutine to monitor server status and update menu
 	go func() {
 		// Check server status every second
 		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
-
-		var lastStatus ServerStatus
 		
 		for range ticker.C {
 			updateServerStatus()
@@ -428,26 +459,11 @@ func onReady() {
 			// Get current server status
 			serverStatus, _ := isServerRunning()
 			
-			// Update app menu items if app runs have changed
-			if len(serverStatus.AppRuns) > 0 {
-				// Group and sort app runs
-				appGroups := groupAppRuns(serverStatus.AppRuns)
-				
-				// Only update menu items if app runs have changed
-				if !reflect.DeepEqual(lastStatus.AppRuns, serverStatus.AppRuns) {
-					appMenuItems = updateAppMenuItems(appGroups, appMenuItems, mAppsHeader)
-					lastStatus = serverStatus
-				}
-			} else {
-				// Clear app menu items if no apps
-				for _, item := range appMenuItems {
-					item.Hide()
-				}
-				appMenuItems = make([]*systray.MenuItem, 0)
-			}
+			// Update menu with current app runs
+			updateMenuWithAppRuns(serverStatus.AppRuns)
 		}
 	}()
-
+	
 	// Handle first start browser opening
 	if isFirstStart {
 		go func() {
@@ -464,26 +480,11 @@ func onReady() {
 				// Timeout if server doesn't start
 				log.Printf("Timeout waiting for server to start on first launch\n")
 			}
-
+			
 			// No longer first start
 			isFirstStart = false
 		}()
 	}
-
-	// Handle menu item clicks
-	go func() {
-		for {
-			select {
-			case <-mOpen.ClickedCh:
-				openBrowser("http://localhost:5005")
-			case <-mRestart.ClickedCh:
-				restartServer()
-			case <-mQuit.ClickedCh:
-				systray.Quit()
-				return
-			}
-		}
-	}()
 }
 
 func onExit() {
