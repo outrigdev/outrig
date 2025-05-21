@@ -192,8 +192,10 @@ func updateServerStatus(serverStatus ServerStatus) {
 		}
 	}
 
-	// Update menu with current app runs
-	updateMenuWithAppRuns(serverStatus.AppRuns)
+	if !reflect.DeepEqual(currentAppRuns, serverStatus.AppRuns) {
+		currentAppRuns = serverStatus.AppRuns
+		rebuildMenu(serverStatus.AppRuns)
+	}
 }
 
 // startServer starts the Outrig server
@@ -360,7 +362,7 @@ func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 }
 
 // rebuildMenu completely rebuilds the systray menu
-func rebuildMenu() {
+func rebuildMenu(appRuns []TrayAppRunInfo) {
 
 	// Reset the entire menu
 	systray.ResetMenu()
@@ -380,9 +382,9 @@ func rebuildMenu() {
 	mAppsHeader.Disable()
 
 	// Add app run menu items if there are any
-	if len(currentAppRuns) > 0 {
+	if appRuns != nil && len(appRuns) > 0 {
 		// Group and sort app runs
-		appGroups := groupAppRuns(currentAppRuns)
+		appGroups := groupAppRuns(appRuns)
 
 		// Add menu items for each app group
 		for _, group := range appGroups {
@@ -427,22 +429,13 @@ func rebuildMenu() {
 	}()
 }
 
-// updateMenuWithAppRuns updates the menu with the current app runs
-func updateMenuWithAppRuns(appRuns []TrayAppRunInfo) {
-	// Only update if app runs have changed
-	if !reflect.DeepEqual(currentAppRuns, appRuns) {
-		currentAppRuns = appRuns
-		rebuildMenu()
-	}
-}
-
 func onReady() {
 	// Set up the systray icon and tooltip - start with error icon
 	systray.SetIcon(errorIconData)
 	systray.SetTooltip("Outrig")
 
 	// Build the initial menu
-	rebuildMenu()
+	rebuildMenu(nil)
 
 	// Start the server immediately
 	startServer()
@@ -465,12 +458,10 @@ func onReady() {
 			// Wait for server to be running
 			select {
 			case <-serverFirstStartCh:
-				// Wait a bit more for the server to be fully ready
+				// Wait a bit more to make sure the server is ready to accept connections
 				time.Sleep(200 * time.Millisecond)
-				if serverRunning {
-					log.Printf("First start: opening browser\n")
-					openBrowser("http://localhost:5005")
-				}
+				log.Printf("First start: opening browser\n")
+				openBrowser("http://localhost:5005")
 			case <-time.After(10 * time.Second):
 				// Timeout if server doesn't start
 				log.Printf("Timeout waiting for server to start on first launch\n")
