@@ -1,4 +1,4 @@
-name: Build & Notarize macOS App
+name: Build MacOS App Bundle
 
 on:
     push:
@@ -32,6 +32,9 @@ jobs:
               with:
                   node-version: "22"
                   cache: "npm"
+
+            - name: Install Node.js Dependencies
+              run: npm ci
 
             - name: Install Go Task
               uses: arduino/setup-task@v2
