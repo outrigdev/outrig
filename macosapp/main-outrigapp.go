@@ -24,9 +24,12 @@ var (
 	serverCmd          *exec.Cmd
 	serverLock         sync.Mutex
 	isFirstStart       = true
-	serverRunning      = false
 	serverFirstStartCh = make(chan bool)
 	serverStartOnce    sync.Once
+
+	statusUpdateLock sync.Mutex
+	serverRunning    = false
+	currentAppRuns   []TrayAppRunInfo
 )
 
 //go:embed assets/outrigapp-trayicon.png
@@ -82,10 +85,10 @@ func (g *AppGroup) GetTopAppRun() TrayAppRunInfo {
 	if len(g.AppRuns) == 0 {
 		return TrayAppRunInfo{}
 	}
-	
+
 	// Sort the app runs
 	sortAppRuns(g.AppRuns)
-	
+
 	// Return the first (highest ranked) app run
 	return g.AppRuns[0]
 }
@@ -97,7 +100,7 @@ func sortAppRuns(appRuns []TrayAppRunInfo) {
 		if appRuns[i].IsRunning != appRuns[j].IsRunning {
 			return appRuns[i].IsRunning
 		}
-		
+
 		// Secondary sort: StartTime (newest first)
 		return appRuns[i].StartTime > appRuns[j].StartTime
 	})
@@ -110,9 +113,9 @@ type ServerStatus struct {
 	AppRuns        []TrayAppRunInfo
 }
 
-// isServerRunning checks if the server is running and responding
+// getServerStatus checks if the server is running and responding
 // Returns a ServerStatus struct with information about the server
-func isServerRunning() (ServerStatus, bool) {
+func getServerStatus() ServerStatus {
 	status := ServerStatus{
 		Running:        false,
 		HasConnections: false,
@@ -121,7 +124,7 @@ func isServerRunning() (ServerStatus, bool) {
 
 	// Check if the server process exists
 	if serverCmd == nil || serverCmd.Process == nil {
-		return status, false
+		return status
 	}
 
 	// Try to connect to the server
@@ -130,12 +133,12 @@ func isServerRunning() (ServerStatus, bool) {
 	}
 	resp, err := client.Get("http://localhost:5005/api/status")
 	if err != nil {
-		return status, false
+		return status
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return status, false
+		return status
 	}
 
 	// Server is running
@@ -149,14 +152,16 @@ func isServerRunning() (ServerStatus, bool) {
 		status.AppRuns = statusResp.Data.AppRuns
 	}
 
-	return status, true
+	return status
 }
 
-// updateServerStatus checks if the server is running and updates the icon
-func updateServerStatus() {
+// updateServerStatus updates the icon and menu based on the server status
+func updateServerStatus(serverStatus ServerStatus) {
+	statusUpdateLock.Lock()
+	defer statusUpdateLock.Unlock()
+
 	wasRunning := serverRunning
-	serverStatus, isRunning := isServerRunning()
-	serverRunning = isRunning
+	serverRunning = serverStatus.Running
 
 	// Update icon if status changed
 	if wasRunning != serverRunning {
@@ -186,6 +191,9 @@ func updateServerStatus() {
 			systray.SetIcon(baseIconData)
 		}
 	}
+
+	// Update menu with current app runs
+	updateMenuWithAppRuns(serverStatus.AppRuns)
 }
 
 // startServer starts the Outrig server
@@ -239,7 +247,8 @@ func startServer() {
 		stdinPipe.Close()
 
 		// Update server status when process exits
-		updateServerStatus()
+		status := getServerStatus()
+		updateServerStatus(status)
 	}(serverCmd, stdin)
 }
 
@@ -318,7 +327,7 @@ func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 	for _, appRun := range appRuns {
 		groupMap[appRun.AppName] = append(groupMap[appRun.AppName], appRun)
 	}
-	
+
 	// Convert map to slice of AppGroup
 	groups := make([]AppGroup, 0, len(groupMap))
 	for appName, runs := range groupMap {
@@ -327,44 +336,35 @@ func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 			AppRuns: runs,
 		})
 	}
-	
+
 	// Sort each group internally
 	for i := range groups {
 		sortAppRuns(groups[i].AppRuns)
 	}
-	
+
 	// Sort the groups by their top app run
 	sort.Slice(groups, func(i, j int) bool {
 		topI := groups[i].GetTopAppRun()
 		topJ := groups[j].GetTopAppRun()
-		
+
 		// Primary sort: IsRunning (true first)
 		if topI.IsRunning != topJ.IsRunning {
 			return topI.IsRunning
 		}
-		
+
 		// Secondary sort: StartTime (newest first)
 		return topI.StartTime > topJ.StartTime
 	})
-	
+
 	return groups
 }
 
-
-// Global variables to track menu state
-var (
-	currentAppRuns []TrayAppRunInfo
-	menuLock       sync.Mutex
-)
-
 // rebuildMenu completely rebuilds the systray menu
 func rebuildMenu() {
-	menuLock.Lock()
-	defer menuLock.Unlock()
-	
+
 	// Reset the entire menu
 	systray.ResetMenu()
-	
+
 	// Add the main menu items
 	mOpen := systray.AddMenuItem("Open Outrig", "Open the Outrig web interface")
 	go func() {
@@ -372,22 +372,22 @@ func rebuildMenu() {
 			openBrowser("http://localhost:5005")
 		}
 	}()
-	
+
 	systray.AddSeparator()
-	
+
 	// Add the apps header
 	mAppsHeader := systray.AddMenuItem("Recent Applications", "")
 	mAppsHeader.Disable()
-	
+
 	// Add app run menu items if there are any
 	if len(currentAppRuns) > 0 {
 		// Group and sort app runs
 		appGroups := groupAppRuns(currentAppRuns)
-		
+
 		// Add menu items for each app group
 		for _, group := range appGroups {
 			topRun := group.GetTopAppRun()
-			
+
 			// Create menu item text
 			var menuText string
 			if topRun.IsRunning {
@@ -395,10 +395,10 @@ func rebuildMenu() {
 			} else {
 				menuText = fmt.Sprintf("⏹ %s", group.AppName)
 			}
-			
+
 			// Add menu item
 			menuItem := systray.AddMenuItem(menuText, fmt.Sprintf("Open %s logs", group.AppName))
-			
+
 			// Set up click handler
 			go func(appRunId string) {
 				for range menuItem.ClickedCh {
@@ -408,9 +408,9 @@ func rebuildMenu() {
 			}(topRun.AppRunId)
 		}
 	}
-	
+
 	systray.AddSeparator()
-	
+
 	// Add the control menu items
 	mRestart := systray.AddMenuItem("Restart Server", "Restart the Outrig server")
 	go func() {
@@ -418,7 +418,7 @@ func rebuildMenu() {
 			restartServer()
 		}
 	}()
-	
+
 	mQuit := systray.AddMenuItem("Quit Completely", "Quit the Application and Stop the Outrig Server")
 	go func() {
 		for range mQuit.ClickedCh {
@@ -440,30 +440,25 @@ func onReady() {
 	// Set up the systray icon and tooltip - start with error icon
 	systray.SetIcon(errorIconData)
 	systray.SetTooltip("Outrig")
-	
+
 	// Build the initial menu
 	rebuildMenu()
-	
+
 	// Start the server immediately
 	startServer()
-	
+
 	// Start a goroutine to monitor server status and update menu
 	go func() {
 		// Check server status every second
 		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
-		
+
 		for range ticker.C {
-			updateServerStatus()
-			
-			// Get current server status
-			serverStatus, _ := isServerRunning()
-			
-			// Update menu with current app runs
-			updateMenuWithAppRuns(serverStatus.AppRuns)
+			serverStatus := getServerStatus()
+			updateServerStatus(serverStatus)
 		}
 	}()
-	
+
 	// Handle first start browser opening
 	if isFirstStart {
 		go func() {
@@ -480,7 +475,7 @@ func onReady() {
 				// Timeout if server doesn't start
 				log.Printf("Timeout waiting for server to start on first launch\n")
 			}
-			
+
 			// No longer first start
 			isFirstStart = false
 		}()
