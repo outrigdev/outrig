@@ -73,6 +73,12 @@ brews:
           owner: outrigdev
           name: homebrew-outrig
           token: "{{ .Env.HOMEBREW_GITHUB_TOKEN }}"
+          pull_request:
+              enabled: true
+              base:
+                  owner: outrigdev
+                  name: homebrew-outrig
+                  branch: main
       homepage: "https://github.com/outrigdev/outrig"
       description: "Observability monitor for Go programs during development time"
       license: "Apache-2.0"
