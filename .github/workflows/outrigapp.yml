@@ -56,7 +56,10 @@ jobs:
 
             - name: Sign App Bundle
               run: |
-                  codesign --deep --force --options runtime --sign - ./dist/Outrig.app
+                  codesign --deep --force --options runtime \
+                    --sign "Developer ID Application: Command Line Inc (M4LA8V687Y)" \
+                    --timestamp \
+                    ./dist/Outrig.app
 
             - name: Create DMG
               run: |
