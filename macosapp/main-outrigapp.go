@@ -28,9 +28,21 @@ var (
 	serverStartOnce    sync.Once
 
 	statusUpdateLock sync.Mutex
-	serverRunning    = false
-	currentAppRuns   []TrayAppRunInfo
+	lastServerStatus ServerStatus
+	lastIconType     string
 )
+
+const (
+	IconTypeNormal = "normal"
+	IconTypeError  = "error"
+	IconTypeConn   = "conn"
+
+	// App status icon types
+	IconTypeAppRunning = "app-running"
+	IconTypeAppStopped = "app-stopped"
+)
+
+var iconDataMap = make(map[string][]byte)
 
 //go:embed assets/outrigapp-trayicon.png
 var baseIconData []byte
@@ -40,6 +52,20 @@ var errorIconData []byte
 
 //go:embed assets/outrigapp-trayicon-conn.png
 var connIconData []byte
+
+//go:embed assets/wifi-template.png
+var wifiIconData []byte
+
+//go:embed assets/wifioff-template.png
+var wifiOffIconData []byte
+
+func init() {
+	iconDataMap[IconTypeNormal] = baseIconData
+	iconDataMap[IconTypeError] = errorIconData
+	iconDataMap[IconTypeConn] = connIconData
+	iconDataMap[IconTypeAppRunning] = wifiIconData
+	iconDataMap[IconTypeAppStopped] = wifiOffIconData
+}
 
 // getOutrigPath returns the path to the outrig executable
 func getOutrigPath() string {
@@ -113,8 +139,34 @@ type ServerStatus struct {
 	AppRuns        []TrayAppRunInfo
 }
 
-// getServerStatus checks if the server is running and responding
-// Returns a ServerStatus struct with information about the server
+func getIconTypeForStatus(status ServerStatus) string {
+	if !status.Running {
+		return IconTypeError
+	}
+	if status.HasConnections {
+		return IconTypeConn
+	}
+	return IconTypeNormal
+}
+
+func updateIcon(iconType string) {
+	if iconType == lastIconType {
+		return
+	}
+	systray.SetIcon(iconDataMap[iconType])
+	var statusMsg string
+	switch iconType {
+	case IconTypeNormal:
+		statusMsg = "Outrig Server is Running"
+	case IconTypeConn:
+		statusMsg = "Outrig Server is running with Active Connections"
+	case IconTypeError:
+		statusMsg = "Server is Not Running"
+	}
+	systray.SetTooltip(statusMsg)
+	lastIconType = iconType
+}
+
 func getServerStatus() ServerStatus {
 	status := ServerStatus{
 		Running:        false,
@@ -126,7 +178,6 @@ func getServerStatus() ServerStatus {
 	if serverCmd == nil || serverCmd.Process == nil {
 		return status
 	}
-
 	// Try to connect to the server
 	client := http.Client{
 		Timeout: 500 * time.Millisecond,
@@ -136,14 +187,11 @@ func getServerStatus() ServerStatus {
 		return status
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != 200 {
 		return status
 	}
 
-	// Server is running
 	status.Running = true
-
 	// Try to parse the response
 	var statusResp StatusResponse
 	decoder := json.NewDecoder(resp.Body)
@@ -155,60 +203,34 @@ func getServerStatus() ServerStatus {
 	return status
 }
 
-// updateServerStatus updates the icon and menu based on the server status
 func updateServerStatus(serverStatus ServerStatus) {
 	statusUpdateLock.Lock()
 	defer statusUpdateLock.Unlock()
 
-	wasRunning := serverRunning
-	serverRunning = serverStatus.Running
+	defer func() {
+		lastServerStatus = serverStatus
+	}()
 
-	// Update icon if status changed
-	if wasRunning != serverRunning {
-		if serverRunning {
-			// If there are active connections, use the connection icon
-			if serverStatus.HasConnections {
-				systray.SetIcon(connIconData)
-				log.Printf("Server is running with connections, updated icon to connection\n")
-			} else {
-				systray.SetIcon(baseIconData)
-				log.Printf("Server is running, updated icon to normal\n")
-			}
+	iconType := getIconTypeForStatus(serverStatus)
+	updateIcon(iconType)
 
-			// Signal first start exactly once when server is running
-			serverStartOnce.Do(func() {
-				close(serverFirstStartCh)
-			})
-		} else {
-			systray.SetIcon(errorIconData)
-			log.Printf("Server is not running, updated icon to error\n")
-		}
-	} else if serverRunning {
-		// Even if running status didn't change, update the icon based on connections
-		if serverStatus.HasConnections {
-			systray.SetIcon(connIconData)
-		} else {
-			systray.SetIcon(baseIconData)
-		}
+	if serverStatus.Running {
+		serverStartOnce.Do(func() {
+			close(serverFirstStartCh)
+		})
 	}
 
-	if !reflect.DeepEqual(currentAppRuns, serverStatus.AppRuns) {
-		currentAppRuns = serverStatus.AppRuns
+	if !reflect.DeepEqual(lastServerStatus.AppRuns, serverStatus.AppRuns) {
 		rebuildMenu(serverStatus.AppRuns)
 	}
 }
 
-// startServer starts the Outrig server
 func startServer() {
 	serverLock.Lock()
 	defer serverLock.Unlock()
 
 	log.Printf("Starting Outrig server...\n")
-
-	// Get the path to the outrig executable
 	outrigPath := getOutrigPath()
-
-	// Start the server with close-on-stdin flag
 	serverCmd = exec.Command(outrigPath, "server", "--close-on-stdin")
 
 	// Create a pipe for stdin
@@ -221,7 +243,6 @@ func startServer() {
 	// We keep stdin open, but if outrigapp crashes, it will close automatically
 	// causing the server to shut down due to the --close-on-stdin flag
 
-	// Set up stdout and stderr
 	serverCmd.Stdout = os.Stdout
 	serverCmd.Stderr = os.Stderr
 
@@ -254,7 +275,6 @@ func startServer() {
 	}(serverCmd, stdin)
 }
 
-// stopServer stops the Outrig server
 func stopServer() {
 	serverLock.Lock()
 	defer serverLock.Unlock()
@@ -297,11 +317,9 @@ func stopServer() {
 	log.Printf("Outrig server stopped\n")
 }
 
-// restartServer restarts the Outrig server
 func restartServer() {
 	log.Printf("Restarting Outrig server...\n")
 
-	// Stop and start the server
 	stopServer()
 	startServer()
 
@@ -309,7 +327,6 @@ func restartServer() {
 }
 
 func main() {
-	// Set up logging
 	logFile, err := os.OpenFile(filepath.Join(os.TempDir(), "outrigapp.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err == nil {
 		log.SetOutput(logFile)
@@ -318,11 +335,9 @@ func main() {
 
 	log.Printf("Starting OutrigApp")
 
-	// Start the systray
 	systray.Run(onReady, onExit)
 }
 
-// groupAppRuns groups app runs by app name and sorts each group
 func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 	// Group app runs by app name
 	groupMap := make(map[string][]TrayAppRunInfo)
@@ -361,7 +376,6 @@ func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 	return groups
 }
 
-// rebuildMenu completely rebuilds the systray menu
 func rebuildMenu(appRuns []TrayAppRunInfo) {
 
 	// Reset the entire menu
@@ -382,7 +396,7 @@ func rebuildMenu(appRuns []TrayAppRunInfo) {
 	mAppsHeader.Disable()
 
 	// Add app run menu items if there are any
-	if appRuns != nil && len(appRuns) > 0 {
+	if len(appRuns) > 0 {
 		// Group and sort app runs
 		appGroups := groupAppRuns(appRuns)
 
@@ -392,14 +406,21 @@ func rebuildMenu(appRuns []TrayAppRunInfo) {
 
 			// Create menu item text
 			var menuText string
+			var iconType string
+
 			if topRun.IsRunning {
-				menuText = fmt.Sprintf("▶ %s", group.AppName)
+				menuText = group.AppName
+				iconType = IconTypeAppRunning
 			} else {
-				menuText = fmt.Sprintf("⏹ %s", group.AppName)
+				menuText = group.AppName
+				iconType = IconTypeAppStopped
 			}
 
 			// Add menu item
 			menuItem := systray.AddMenuItem(menuText, fmt.Sprintf("Open %s logs", group.AppName))
+
+			// Set the icon for the menu item
+			menuItem.SetTemplateIcon(iconDataMap[iconType], iconDataMap[iconType])
 
 			// Set up click handler
 			go func(appRunId string) {
@@ -413,7 +434,6 @@ func rebuildMenu(appRuns []TrayAppRunInfo) {
 
 	systray.AddSeparator()
 
-	// Add the control menu items
 	mRestart := systray.AddMenuItem("Restart Server", "Restart the Outrig server")
 	go func() {
 		for range mRestart.ClickedCh {
@@ -430,14 +450,9 @@ func rebuildMenu(appRuns []TrayAppRunInfo) {
 }
 
 func onReady() {
-	// Set up the systray icon and tooltip - start with error icon
-	systray.SetIcon(errorIconData)
-	systray.SetTooltip("Outrig")
-
-	// Build the initial menu
+	updateIcon(IconTypeError)
 	rebuildMenu(nil)
 
-	// Start the server immediately
 	startServer()
 
 	// Start a goroutine to monitor server status and update menu
@@ -445,7 +460,6 @@ func onReady() {
 		// Check server status every second
 		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
-
 		for range ticker.C {
 			serverStatus := getServerStatus()
 			updateServerStatus(serverStatus)
@@ -466,7 +480,6 @@ func onReady() {
 				// Timeout if server doesn't start
 				log.Printf("Timeout waiting for server to start on first launch\n")
 			}
-
 			// No longer first start
 			isFirstStart = false
 		}()
@@ -476,13 +489,11 @@ func onReady() {
 func onExit() {
 	log.Printf("Exiting OutrigApp...\n")
 
-	// Stop the server
 	stopServer()
 
 	log.Printf("OutrigApp exited\n")
 }
 
-// openBrowser opens the default browser to the specified URL
 func openBrowser(url string) {
 	var err error
 	switch runtime.GOOS {
