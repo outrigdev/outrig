@@ -18,12 +18,20 @@ jobs:
         steps:
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ inputs.tag || github.ref }}
+                  ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
 
             - name: Set up Go
               uses: actions/setup-go@v5
               with:
-                  go-version: "stable"
+                  go-version: "1.24"
+                  cache: true
+                  cache-dependency-path: server/go.sum
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+                  cache: "npm"
 
             - name: Install Go Task
               uses: arduino/setup-task@v2
