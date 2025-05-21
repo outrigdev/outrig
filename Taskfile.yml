@@ -44,7 +44,7 @@ tasks:
         desc: Build everything for production
         cmds:
             - task: build:server
-            
+
     build:macos-app:
         desc: Build the complete macOS app bundle
         cmds:
@@ -132,7 +132,7 @@ tasks:
         desc: Build the macOS systray app
         cmds:
             - mkdir -p bin/
-            - cd macosapp && go build -o ../bin/outrigapp main-outrigapp.go
+            - cd macosapp && CGO_ENABLED=1 go build -o ../bin/outrigapp main-outrigapp.go
 
     build:app-bundle:
         desc: Create a macOS .app bundle
