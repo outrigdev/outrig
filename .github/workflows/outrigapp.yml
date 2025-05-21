@@ -83,11 +83,20 @@ jobs:
                   MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
                   MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
               run: |
+                  set +e
                   xcrun notarytool submit Outrig.dmg \
                     --key AuthKey_${MACOS_NOTARY_KEY_ID}.p8 \
                     --key-id "$MACOS_NOTARY_KEY_ID" \
                     --issuer "$MACOS_NOTARY_ISSUER_ID" \
                     --wait
+                  NOTARY_EXIT_CODE=$?
+
+                  xcrun notarytool log Outrig.dmg \
+                    --key AuthKey_${MACOS_NOTARY_KEY_ID}.p8 \
+                    --key-id "$MACOS_NOTARY_KEY_ID" \
+                    --issuer "$MACOS_NOTARY_ISSUER_ID"
+
+                  exit $NOTARY_EXIT_CODE
 
             - name: Staple Notarization Ticket
               run: |
