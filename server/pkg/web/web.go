@@ -115,6 +115,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 		"time":           time.Now().UnixMilli(),
 		"hasconnections": hasConnections,
 		"appruns":        trayAppRuns,
+		"version":        serverbase.OutrigServerVersion,
 	})
 }
 

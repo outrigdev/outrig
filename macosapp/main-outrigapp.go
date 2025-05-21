@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/systray"
@@ -30,6 +31,8 @@ var (
 	statusUpdateLock sync.Mutex
 	lastServerStatus ServerStatus
 	lastIconType     string
+
+	isQuitting atomic.Bool
 )
 
 const (
@@ -90,6 +93,7 @@ type StatusData struct {
 	Time           int64            `json:"time"`
 	HasConnections bool             `json:"hasconnections"`
 	AppRuns        []TrayAppRunInfo `json:"appruns"`
+	Version        string           `json:"version"`
 }
 
 type TrayAppRunInfo struct {
@@ -137,6 +141,7 @@ type ServerStatus struct {
 	Running        bool
 	HasConnections bool
 	AppRuns        []TrayAppRunInfo
+	Version        string
 }
 
 func getIconTypeForStatus(status ServerStatus) string {
@@ -172,6 +177,7 @@ func getServerStatus() ServerStatus {
 		Running:        false,
 		HasConnections: false,
 		AppRuns:        []TrayAppRunInfo{},
+		Version:        "",
 	}
 
 	// Check if the server process exists
@@ -198,6 +204,12 @@ func getServerStatus() ServerStatus {
 	if err := decoder.Decode(&statusResp); err == nil {
 		status.HasConnections = statusResp.Data.HasConnections
 		status.AppRuns = statusResp.Data.AppRuns
+		status.Version = statusResp.Data.Version
+
+		// Sort AppRuns by apprunid to ensure consistent ordering
+		sort.Slice(status.AppRuns, func(i, j int) bool {
+			return status.AppRuns[i].AppRunId < status.AppRuns[j].AppRunId
+		})
 	}
 
 	return status
@@ -206,6 +218,11 @@ func getServerStatus() ServerStatus {
 func updateServerStatus(serverStatus ServerStatus) {
 	statusUpdateLock.Lock()
 	defer statusUpdateLock.Unlock()
+
+	if isQuitting.Load() {
+		updateIcon(IconTypeError)
+		return
+	}
 
 	defer func() {
 		lastServerStatus = serverStatus
@@ -434,6 +451,12 @@ func rebuildMenu(appRuns []TrayAppRunInfo) {
 
 	systray.AddSeparator()
 
+	// Add version info
+	if lastServerStatus.Version != "" {
+		versionItem := systray.AddMenuItem("Outrig "+lastServerStatus.Version, "Outrig Version")
+		versionItem.Disable() // Make it non-clickable
+	}
+
 	mRestart := systray.AddMenuItem("Restart Server", "Restart the Outrig server")
 	go func() {
 		for range mRestart.ClickedCh {
@@ -444,6 +467,8 @@ func rebuildMenu(appRuns []TrayAppRunInfo) {
 	mQuit := systray.AddMenuItem("Quit Completely", "Quit the Application and Stop the Outrig Server")
 	go func() {
 		for range mQuit.ClickedCh {
+			isQuitting.Store(true)
+			updateServerStatus(ServerStatus{})
 			systray.Quit()
 		}
 	}()
