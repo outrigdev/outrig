@@ -12,8 +12,18 @@ on:
                 type: string
 
 jobs:
-    notarize:
-        runs-on: macos-latest
+    build-and-notarize:
+        strategy:
+            matrix:
+                include:
+                    - arch: amd64
+                      runner: macos-14
+                    - arch: arm64
+                      runner: macos-latest
+
+        runs-on: ${{ matrix.runner }}
+        env:
+            GOARCH: ${{ matrix.arch }}
 
         steps:
             - uses: actions/checkout@v4
@@ -71,7 +81,7 @@ jobs:
                     --icon "Outrig.app" 175 190 \
                     --hide-extension "Outrig.app" \
                     --app-drop-link 425 190 \
-                    Outrig.dmg \
+                    Outrig-${{ matrix.arch }}.dmg \
                     ./dist
 
             - name: Decode and Write Notary API Key
@@ -87,7 +97,7 @@ jobs:
                   MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
               run: |
                   set +e
-                  submission_id=$(xcrun notarytool submit Outrig.dmg \
+                  submission_id=$(xcrun notarytool submit Outrig-${{ matrix.arch }}.dmg \
                       --key AuthKey_${MACOS_NOTARY_KEY_ID}.p8 \
                       --key-id "$MACOS_NOTARY_KEY_ID" \
                       --issuer "$MACOS_NOTARY_ISSUER_ID" \
@@ -103,10 +113,10 @@ jobs:
 
             - name: Staple Notarization Ticket
               run: |
-                  xcrun stapler staple Outrig.dmg
+                  xcrun stapler staple Outrig-${{ matrix.arch }}.dmg
 
             - name: Upload Notarized DMG
               uses: actions/upload-artifact@v4
               with:
-                  name: Outrig-${{ inputs.tag || github.ref_name }}.dmg
-                  path: Outrig.dmg
+                  name: Outrig-${{ matrix.arch }}-${{ inputs.tag || github.ref_name }}.dmg
+                  path: Outrig-${{ matrix.arch }}.dmg
