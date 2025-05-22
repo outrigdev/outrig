@@ -13,7 +13,6 @@ on:
 
 permissions:
     contents: write
-    packages: write
 
 jobs:
     goreleaser:
@@ -164,20 +163,22 @@ jobs:
               run: |
                   xcrun stapler staple Outrig-${{ matrix.arch }}.dmg
 
-            # Get the release ID for the current tag
-            - name: Get Release
-              id: get_release
-              uses: bruceadams/get-release@v1.3.2
+            - name: Get Draft Release ID
+              id: get_draft_release
+              run: |
+                  release_id=$(gh release list --repo outrigdev/outrig --draft --json tagName,id,uploadUrl -q '.[] | select(.tagName=="${{ github.ref_name }}").id')
+                  upload_url=$(gh release view $release_id --repo outrigdev/outrig --json uploadUrl -q '.uploadUrl')
+                  echo "release_id=$release_id" >> $GITHUB_OUTPUT
+                  echo "upload_url=$upload_url" >> $GITHUB_OUTPUT
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            # Upload DMG to the GitHub Release
-            - name: Upload DMG to Release
+            - name: Upload Asset to Draft Release
               uses: actions/upload-release-asset@v1
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
-                  upload_url: ${{ steps.get_release.outputs.upload_url }}
+                  upload_url: ${{ steps.get_draft_release.outputs.upload_url }}
                   asset_path: ./Outrig-${{ matrix.arch }}.dmg
-                  asset_name: Outrig-darwin-${{ matrix.arch }}-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}.dmg
+                  asset_name: Outrig-darwin-${{ matrix.arch }}-${{ github.ref_name }}.dmg
                   asset_content_type: application/x-apple-diskimage
