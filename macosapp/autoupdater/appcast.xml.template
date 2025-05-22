@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Outrig Stable</title>
+        <description>Most recent changes with links to updates.</description>
+        <language>en</language>
+        <item>
+            <title>Outrig Version VERSION_PLACEHOLDER</title>
+            <description>
+                <![CDATA[
+    				<h2>Version VERSION_PLACEHOLDER</h2>
+                    RELEASENOTES_PLACEHOLDER
+                ]]>
+            </description>
+            <pubDate>PUBDATE_PLACEHOLDER</pubDate>
+			ENCLOSURE_PLACEHOLDER
+            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+        </item>
+    </channel>
+</rss>

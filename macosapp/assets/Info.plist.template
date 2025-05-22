@@ -26,5 +26,20 @@
     <true/>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2025 Command Line Inc. All rights reserved.</string>
+    
+    <!-- Sparkle configuration -->
+    <key>SUFeedURL</key>
+    <string>https://updates.outrig.run/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>t+86xwdhs+T1MCSXXRmMJD5DVR/ZgaE1bFaZa/C6Jyg=</string>
+    <key>SUAutomaticallyUpdate</key>
+    <true/>
+    
+    <!-- Allow Sparkle to update the app bundle -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
 </dict>
 </plist>

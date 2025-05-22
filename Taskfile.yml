@@ -135,7 +135,7 @@ tasks:
             - cd macosapp && CGO_ENABLED=1 go build -o ../bin/outrigapp main-outrigapp.go
 
     build:app-bundle:
-        desc: Create a macOS .app bundle
+        desc: Create a macOS .app bundle with autoupdater
         deps: [build:server, build:outrigapp]
         cmds:
             - mkdir -p dist/Outrig.app/Contents/{MacOS,Resources}
@@ -145,7 +145,32 @@ tasks:
             - chmod +x dist/Outrig.app/Contents/MacOS/outrig
             - cp macosapp/assets/Info.plist dist/Outrig.app/Contents/
             - cp macosapp/assets/outrig.icns dist/Outrig.app/Contents/Resources/AppIcon.icns
+            - task: build:autoupdater
             - echo "✅ Created app bundle at dist/Outrig.app"
+
+    build:autoupdater:
+        desc: Build the Swift-based autoupdater for macOS and install to app bundle
+        cmds:
+            - cd macosapp/autoupdater && swift build -c release
+            - |
+                BINARY_PATH=$(cd macosapp/autoupdater && swift build -c release --show-bin-path)/OutrigUpdater
+                SPARKLE_PATH=$(cd macosapp/autoupdater && swift build -c release --show-bin-path)/Sparkle.framework
+                if [ -d "dist/Outrig.app/Contents/MacOS" ]; then
+                  # Copy the updater binary
+                  cp "$BINARY_PATH" dist/Outrig.app/Contents/MacOS/OutrigUpdater
+                  chmod +x dist/Outrig.app/Contents/MacOS/OutrigUpdater
+                  
+                  # Create Frameworks directory and copy Sparkle.framework
+                  mkdir -p dist/Outrig.app/Contents/Frameworks
+                  cp -R "$SPARKLE_PATH" dist/Outrig.app/Contents/Frameworks/
+                  
+                  echo "✅ Built and installed autoupdater to dist/Outrig.app/Contents/MacOS/OutrigUpdater"
+                  echo "✅ Copied Sparkle.framework to dist/Outrig.app/Contents/Frameworks/"
+                else
+                  echo "✅ Built autoupdater at: $BINARY_PATH"
+                  echo "✅ Built Sparkle.framework at: $SPARKLE_PATH"
+                  echo "Note: App bundle not found. Run 'task build:app-bundle' to create a complete app bundle."
+                fi
 
     create:icns:
         desc: Create an .icns file from the PNG icon
