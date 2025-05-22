@@ -222,7 +222,7 @@ jobs:
             - name: Generate Appcast
               env:
                   SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-                  DMG_FILES_PATH: ./dmg-files
+                  DMG_FILES_PATH: ../../../dmg-files
               run: |
                   task generate:appcast -- ${{ github.ref_name }}
 
