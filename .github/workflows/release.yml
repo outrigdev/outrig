@@ -163,16 +163,13 @@ jobs:
               run: |
                   xcrun stapler staple Outrig-${{ matrix.arch }}.dmg
 
-            - name: Get Draft Release ID
+            - name: Get Draft Release Upload URL
               id: get_draft_release
               run: |
-                  release_id=$(gh release list --repo outrigdev/outrig --draft --json tagName,id,uploadUrl -q '.[] | select(.tagName=="${{ github.ref_name }}").id')
-                  upload_url=$(gh release view $release_id --repo outrigdev/outrig --json uploadUrl -q '.uploadUrl')
-                  echo "release_id=$release_id" >> $GITHUB_OUTPUT
+                  upload_url=$(gh release view ${{ github.ref_name }} --repo outrigdev/outrig --json uploadUrl -q '.uploadUrl')
                   echo "upload_url=$upload_url" >> $GITHUB_OUTPUT
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
             - name: Upload Asset to Draft Release
               uses: actions/upload-release-asset@v1
               env:
