@@ -463,22 +463,15 @@ func rebuildMenu(status ServerStatus) {
 			mInstallFailed := systray.AddMenuItem("Outrig CLI Installation Failed", "")
 			mInstallFailed.Disable()
 			systray.AddSeparator()
-		} else {
-			mInstallCli := systray.AddMenuItem("Install 'outrig' CLI Command...", "Install the outrig CLI command for system-wide use")
-			go func() {
-				for range mInstallCli.ClickedCh {
-					err := InstallOutrigCLI()
-					if err == nil {
-						isCliInstalled.Store(true)
-						rebuildMenu(status)
-					} else {
-						cliInstallFailed.Store(true)
-						rebuildMenu(status)
-					}
-				}
-			}()
-			systray.AddSeparator()
 		}
+		mInstallCli := systray.AddMenuItem("Install 'outrig' CLI Command...", "Install the outrig CLI command for system-wide use")
+		go func() {
+			for range mInstallCli.ClickedCh {
+				InstallOutrigCLI()
+				rebuildMenu(status)
+			}
+		}()
+		systray.AddSeparator()
 	}
 
 	// Add version info
@@ -486,6 +479,16 @@ func rebuildMenu(status ServerStatus) {
 		versionItem := systray.AddMenuItem("Outrig "+OutrigAppVersion, "")
 		versionItem.Disable() // Make it non-clickable
 	}
+
+	// Add check for updates menu item
+	mCheckUpdates := systray.AddMenuItem("Check for Updates...", "")
+	go func() {
+		for range mCheckUpdates.ClickedCh {
+			checkForUpdates()
+		}
+	}()
+
+	systray.AddSeparator()
 
 	mRestart := systray.AddMenuItem("Restart Outrig Server", "")
 	go func() {
@@ -549,7 +552,17 @@ func onExit() {
 	log.Printf("OutrigApp exited\n")
 }
 
-func InstallOutrigCLI() error {
+func InstallOutrigCLI() {
+	err := installOutrigCLIInternal()
+	if err != nil {
+		log.Printf("Error installing Outrig CLI: %v", err)
+		cliInstallFailed.Store(true)
+		return
+	}
+	isCliInstalled.Store(true)
+}
+
+func installOutrigCLIInternal() error {
 	appPath, err := os.Executable()
 	if err != nil {
 		return err
@@ -568,7 +581,8 @@ func InstallOutrigCLI() error {
 
 	// Fall back to osascript (GUI admin prompt)
 	targetPath = filepath.Join("/usr/local/bin", cliName)
-	script := fmt.Sprintf(`do shell script "ln -sf '%s' '%s'" with administrator privileges`, cliSource, targetPath)
+	msgStr := "Outrig needs to link its CLI command (outrig) to /usr/local/bin to enable automatic log capturing."
+	script := fmt.Sprintf(`do shell script "ln -sf '%s' '%s'" with administrator privileges with prompt "%s"`, cliSource, targetPath, msgStr)
 	cmd := exec.Command("osascript", "-e", script)
 	return cmd.Run()
 }
@@ -622,6 +636,38 @@ func openBrowser(url string) {
 	}
 }
 
+// checkForUpdates launches the OutrigUpdater to check for updates
+func checkForUpdates() {
+	log.Printf("Checking for updates...\n")
+
+	// Get the path to the OutrigUpdater
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Printf("Error getting executable path: %v", err)
+		return
+	}
+
+	// Construct the path to the updater
+	// For a macOS app bundle, the updater should be in the same directory as the main executable
+	updaterPath := filepath.Join(filepath.Dir(execPath), "OutrigUpdater")
+
+	// Check if the updater exists
+	if _, err := os.Stat(updaterPath); os.IsNotExist(err) {
+		log.Printf("Updater not found at %s: %v", updaterPath, err)
+		return
+	}
+
+	// Launch the updater
+	cmd := exec.Command(updaterPath)
+	err = cmd.Start()
+	if err != nil {
+		log.Printf("Error launching updater: %v", err)
+		return
+	}
+
+	log.Printf("Update checker launched\n")
+}
+
 func main() {
 	logFile, err := os.OpenFile(filepath.Join(os.TempDir(), "outrigapp.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err == nil {
@@ -632,6 +678,8 @@ func main() {
 	// Check if CLI is installed
 	if IsOutrigCLIInstalled() {
 		isCliInstalled.Store(true)
+	} else {
+		InstallOutrigCLI()
 	}
 
 	log.Printf("Starting OutrigApp")
