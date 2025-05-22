@@ -265,3 +265,24 @@ tasks:
             - task: release:tag:git
               vars: { VERSION: "{{.VERSION}}" }
             - echo "✅ Version {{.VERSION}} released successfully"
+
+    generate:appcast:
+        desc: Generate appcast.xml file for a specific version
+        vars:
+            VERSION: "{{.CLI_ARGS}}"
+        cmds:
+            - |
+                if [ -z "{{.VERSION}}" ]; then
+                  echo "❌ Error: Version is required"
+                  echo "Usage: task generate:appcast -- v0.6.0"
+                  exit 1
+                fi
+            - |
+                if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+                  echo "❌ Error: SPARKLE_PRIVATE_KEY environment variable not set"
+                  echo "Set it with: export SPARKLE_PRIVATE_KEY=your_base64_key"
+                  exit 1
+                fi
+            - mkdir -p dist
+            - cd server/cmd/generateappcast && go run main-generateappcast.go {{.VERSION}}
+            - echo "✅ Generated appcast.xml for version {{.VERSION}}"

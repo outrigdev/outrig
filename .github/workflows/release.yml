@@ -179,3 +179,67 @@ jobs:
                   asset_path: ./Outrig-${{ matrix.arch }}.dmg
                   asset_name: Outrig-darwin-${{ matrix.arch }}-${{ github.ref_name }}.dmg
                   asset_content_type: application/x-apple-diskimage
+
+            - name: Upload DMG as Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: dmg-${{ matrix.arch }}
+                  path: ./Outrig-${{ matrix.arch }}.dmg
+
+    generate-appcast:
+        needs: build-macos-app
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.24"
+
+            - name: Install Task
+              uses: arduino/setup-task@v2
+              with:
+                  version: 3.43.3
+                  repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Download DMG Artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: dmg-*
+                  path: ./dmg-artifacts
+
+            - name: Organize DMG Files
+              run: |
+                  mkdir -p ./dmg-files
+                  echo "Moving DMG files from artifact directories..."
+                  find ./dmg-artifacts -name "*.dmg" -exec mv {} ./dmg-files/ \;
+                  echo "Available DMG files:"
+                  ls -la ./dmg-files/
+
+            - name: Generate Appcast
+              env:
+                  SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+                  DMG_FILES_PATH: ./dmg-files
+              run: |
+                  task generate:appcast -- ${{ github.ref_name }}
+
+            - name: Get Draft Release Upload URL
+              id: get_draft_release
+              run: |
+                  upload_url=$(gh release view ${{ github.ref_name }} --repo outrigdev/outrig --json uploadUrl -q '.uploadUrl')
+                  echo "upload_url=$upload_url" >> $GITHUB_OUTPUT
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Upload Appcast to Draft Release
+              uses: actions/upload-release-asset@v1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  upload_url: ${{ steps.get_draft_release.outputs.upload_url }}
+                  asset_path: ./dist/appcast.xml
+                  asset_name: appcast.xml
+                  asset_content_type: application/xml
