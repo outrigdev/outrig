@@ -72,6 +72,7 @@ brews:
     - repository:
           owner: outrigdev
           name: homebrew-outrig
+          branch: outrig-release
           token: "{{ .Env.HOMEBREW_GITHUB_TOKEN }}"
           pull_request:
               enabled: true
