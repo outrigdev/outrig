@@ -228,7 +228,7 @@ tasks:
             - task: updateversions
               vars: { VERSION: "{{.VERSION}}" }
             # Commit the version changes
-            - git add server/pkg/serverbase/serverbase.go pkg/base/base.go package.json macosapp/main-outrigapp.go
+            - git add server/pkg/serverbase/serverbase.go pkg/base/base.go package.json macosapp/main-outrigapp.go macosapp/assets/Info.plist
             - git commit -m "Bump version to {{.VERSION}}"
             # Create the git tag
             - task: release:tag:git
