@@ -22,7 +22,7 @@ import (
 
 var (
 	// Version information
-	OutrigAppVersion = "v0.5.11"
+	OutrigAppVersion = "v0.5.12"
 
 	// Server process
 	serverCmd          *exec.Cmd
