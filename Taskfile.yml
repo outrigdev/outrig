@@ -164,8 +164,12 @@ tasks:
                   mkdir -p dist/Outrig.app/Contents/Frameworks
                   cp -R "$SPARKLE_PATH" dist/Outrig.app/Contents/Frameworks/
                   
+                  # Fix the rpath in the OutrigUpdater binary to point to the Frameworks directory
+                  install_name_tool -add_rpath "@executable_path/../Frameworks" dist/Outrig.app/Contents/MacOS/OutrigUpdater
+                  
                   echo "✅ Built and installed autoupdater to dist/Outrig.app/Contents/MacOS/OutrigUpdater"
                   echo "✅ Copied Sparkle.framework to dist/Outrig.app/Contents/Frameworks/"
+                  echo "✅ Fixed rpath for OutrigUpdater to find Sparkle.framework"
                 else
                   echo "✅ Built autoupdater at: $BINARY_PATH"
                   echo "✅ Built Sparkle.framework at: $SPARKLE_PATH"
