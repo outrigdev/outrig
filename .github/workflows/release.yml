@@ -277,3 +277,86 @@ jobs:
                       --title "Update appcast.xml for ${{ github.ref_name }} Release" \
                       --body "Automated update of appcast.xml for release ${{ github.ref_name }}" \
                       || echo "PR already exists or no changes detected."
+
+    update-homebrew-cask:
+        needs: build-macos-app
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.24"
+
+            - name: Install Task
+              uses: arduino/setup-task@v2
+              with:
+                  version: 3.43.3
+                  repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Download DMG Artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: dmg-*
+                  path: ./dmg-artifacts
+
+            - name: Organize DMG Files
+              run: |
+                  mkdir -p ./dmg-files
+                  echo "Moving DMG files from artifact directories..."
+                  find ./dmg-artifacts -name "*.dmg" -exec mv {} ./dmg-files/ \;
+                  echo "Available DMG files:"
+                  ls -la ./dmg-files/
+
+            - name: Generate Homebrew Cask
+              env:
+                  DMG_FILES_PATH: ../../../dmg-files
+              run: |
+                  task generate:cask -- ${{ github.ref_name }}
+
+            - name: Create PR for Homebrew Cask Update
+              env:
+                  GH_TOKEN: ${{ secrets.HOMEBREW_SECRET }}
+              run: |
+                  set -e
+                  
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+                  BRANCH_NAME="update-cask-${{ github.ref_name }}"
+
+                  # Clone the homebrew-outrig repository
+                  git clone https://github.com/outrigdev/homebrew-outrig.git homebrew-repo
+                  cd homebrew-repo
+
+                  # Create new branch
+                  git checkout -B "$BRANCH_NAME"
+
+                  # Create Casks directory if it doesn't exist
+                  mkdir -p Casks
+
+                  # Copy the generated cask file
+                  cp ../dist/outrig.rb Casks/outrig.rb
+
+                  # Check if there are changes
+                  if [[ -z $(git status --porcelain) ]]; then
+                      echo "No changes to Homebrew cask; skipping PR."
+                      exit 0
+                  fi
+
+                  # Commit and push changes
+                  git add Casks/outrig.rb
+                  git commit -m "Update Outrig cask for ${{ github.ref_name }} release"
+                  git push origin "$BRANCH_NAME" -f
+
+                  # Create PR
+                  gh pr create \
+                      --repo outrigdev/homebrew-outrig \
+                      --base main \
+                      --head "$BRANCH_NAME" \
+                      --title "Update Outrig Cask for ${{ github.ref_name }} Release" \
+                      --body "Automated update of Outrig cask for release ${{ github.ref_name }}" \
+                      || echo "PR already exists or no changes detected."
