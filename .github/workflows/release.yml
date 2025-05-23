@@ -247,7 +247,7 @@ jobs:
 
             - name: Create PR for Appcast Update
               env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GH_TOKEN: ${{ secrets.OUTRIG_PRS_TOKEN }}
               run: |
                   set -e
 
