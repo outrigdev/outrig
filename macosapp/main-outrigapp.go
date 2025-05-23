@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"fyne.io/systray"
@@ -51,6 +53,10 @@ const (
 	// App status icon types
 	IconTypeAppRunning = "app-running"
 	IconTypeAppStopped = "app-stopped"
+
+	// Log file names
+	OutrigAppLogFile    = "outrigapp.log"
+	OutrigServerLogFile = "outrigserver.log"
 )
 
 var iconDataMap = make(map[string][]byte)
@@ -272,8 +278,18 @@ func startServer() {
 	// We keep stdin open, but if outrigapp crashes, it will close automatically
 	// causing the server to shut down due to the --close-on-stdin flag
 
-	serverCmd.Stdout = os.Stdout
-	serverCmd.Stderr = os.Stderr
+	// Redirect server output to log file instead of console
+	logPath := filepath.Join(os.TempDir(), OutrigServerLogFile)
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Printf("Error opening log file for server output: %v", err)
+		// Fall back to discarding output if we can't open log file
+		serverCmd.Stdout = nil
+		serverCmd.Stderr = nil
+	} else {
+		serverCmd.Stdout = logFile
+		serverCmd.Stderr = logFile
+	}
 
 	err = serverCmd.Start()
 	if err != nil {
@@ -672,7 +688,7 @@ func checkForUpdates(background bool) {
 	}
 
 	// Redirect updater output to the same log file as OutrigApp
-	logPath := filepath.Join(os.TempDir(), "outrigapp.log")
+	logPath := filepath.Join(os.TempDir(), OutrigAppLogFile)
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err == nil {
 		cmd.Stdout = logFile
@@ -707,11 +723,21 @@ func checkForUpdates(background bool) {
 }
 
 func main() {
-	logFile, err := os.OpenFile(filepath.Join(os.TempDir(), "outrigapp.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(filepath.Join(os.TempDir(), OutrigAppLogFile), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err == nil {
 		log.SetOutput(logFile)
 		defer logFile.Close()
 	}
+
+	// Set up signal handler for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
+	go func() {
+		sig := <-sigChan
+		log.Printf("Received signal %v, shutting down gracefully", sig)
+		isQuitting.Store(true)
+		systray.Quit()
+	}()
 
 	// Check if CLI is installed
 	if IsOutrigCLIInstalled() {

@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -16,9 +14,7 @@ import (
 	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilds"
-	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
-	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/tevent"
 )
 
@@ -79,25 +75,12 @@ func init() {
 	}()
 }
 
-// getAppRunDir returns the directory for storing app run data
-func getAppRunDir(appRunId string) string {
-	dataDir := utilfn.ExpandHomeDir(serverbase.GetOutrigDataDir())
-	return filepath.Join(dataDir, appRunId)
-}
-
 // These functions have been moved to the logwriter package
 
 // GetAppRunPeer gets an existing AppRunPeer by ID or creates a new one if it doesn't exist
 // If incRefCount is true, increments the reference counter
 func GetAppRunPeer(appRunId string, incRefCount bool) *AppRunPeer {
 	peer, _ := appRunPeers.GetOrCreate(appRunId, func() *AppRunPeer {
-		// Create a directory for this app run
-		appRunDir := getAppRunDir(appRunId)
-		err := os.MkdirAll(appRunDir, 0755)
-		if err != nil {
-			log.Printf("Failed to create directory for app run %s: %v", appRunId, err)
-		}
-
 		return &AppRunPeer{
 			AppRunId:      appRunId,
 			Logs:          MakeLogLinePeer(),
