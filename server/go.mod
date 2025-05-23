@@ -1,6 +1,6 @@
 module github.com/outrigdev/outrig/server
 
-go 1.24.2
+go 1.24.3
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
