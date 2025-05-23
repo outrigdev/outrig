@@ -32,7 +32,7 @@ export const SearchTipsPopup: React.FC<SearchTipsPopupProps> = ({ referenceEleme
         whileElementsMounted: autoUpdate,
     });
 
-    if (!isOpen) {
+    if (!isOpen || !referenceElement) {
         return null;
     }
 
