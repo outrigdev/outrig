@@ -243,3 +243,37 @@ jobs:
                   asset_path: ./dist/appcast.xml
                   asset_name: appcast.xml
                   asset_content_type: application/xml
+
+            - name: Create PR for Appcast Update
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  set -e
+                  
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+                  BRANCH_NAME="update-appcast-${{ github.ref_name }}"
+
+                  git fetch origin gh-pages:gh-pages
+                  git checkout gh-pages
+
+                  git checkout -B "$BRANCH_NAME"
+
+                  cp ./dist/appcast.xml ./appcast.xml
+
+                  if [[ -z $(git status --porcelain) ]]; then
+                      echo "No changes to appcast.xml; skipping PR."
+                      exit 0
+                  fi
+
+                  git add appcast.xml
+                  git commit -m "Update appcast.xml for ${{ github.ref_name }} release"
+                  git push origin "$BRANCH_NAME" -f
+
+                  gh pr create \
+                      --base gh-pages \
+                      --head "$BRANCH_NAME" \
+                      --title "Update appcast.xml for ${{ github.ref_name }} Release" \
+                      --body "Automated update of appcast.xml for release ${{ github.ref_name }}" \
+                      || echo "PR already exists or no changes detected."
