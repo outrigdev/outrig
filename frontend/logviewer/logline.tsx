@@ -39,6 +39,9 @@ getDefaultStore().sub(SettingsModel.logsEmojiReplacement, () => {
     updateEmojiReplacementMode();
 });
 
+// Regex for tags, kept in sync with server-side TagRegex
+const TagRegex = /(^|\s)(#[a-zA-Z0-9][a-zA-Z0-9/_.:-]*)(?=\s|$)/g;
+
 // Interface for combined log line settings
 interface LogLineSettings {
     lineNumWidth: number;
@@ -190,6 +193,47 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
         return processMessageText(line.msg, line.source);
     }, [line.msg, line.source]);
 
+    const store = getDefaultStore();
+
+    const handleTagClick = useCallback(
+        (tag: string, e: React.MouseEvent) => {
+            const tagTerm = `#${tag}`;
+            if (e.shiftKey) {
+                const current = store.get(model.searchTerm) || "";
+                const newTerm = current.trim()
+                    ? `${current.trim()} ${tagTerm}`
+                    : tagTerm;
+                store.set(model.searchTerm, newTerm);
+            } else {
+                store.set(model.searchTerm, tagTerm);
+            }
+        },
+        [model.searchTerm, store]
+    );
+
+    const messageSegments = useMemo(() => {
+        const segments: { text: string; tag?: string }[] = [];
+        if (!processedMessage) return segments;
+        TagRegex.lastIndex = 0;
+        let lastIdx = 0;
+        let m: RegExpExecArray | null;
+        while ((m = TagRegex.exec(processedMessage)) !== null) {
+            const [full, leading, tagWithHash] = m;
+            const tagStart = m.index + leading.length;
+            if (tagStart > lastIdx) {
+                segments.push({ text: processedMessage.slice(lastIdx, tagStart) });
+            } else if (leading) {
+                segments.push({ text: leading });
+            }
+            segments.push({ text: tagWithHash, tag: tagWithHash.slice(1) });
+            lastIdx = m.index + full.length;
+        }
+        if (lastIdx < processedMessage.length) {
+            segments.push({ text: processedMessage.slice(lastIdx) });
+        }
+        return segments;
+    }, [processedMessage]);
+
     return (
         <div
             data-linenum={line.linenum}
@@ -211,10 +255,21 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
                 </div>
             )}
             {logSettings.showSource && <div className="pl-2">{formatSource(line.source)}</div>}
-            <AnsiLine
-                className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre"
-                line={processedMessage}
-            />
+            <div className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre">
+                {messageSegments.map((seg, idx) =>
+                    seg.tag ? (
+                        <span
+                            key={idx}
+                            className="text-accent hover:underline cursor-pointer"
+                            onClick={(e) => handleTagClick(seg.tag, e)}
+                        >
+                            <AnsiLine line={seg.text} className="inline" />
+                        </span>
+                    ) : (
+                        <AnsiLine key={idx} line={seg.text} className="inline" />
+                    )
+                )}
+            </div>
         </div>
     );
 });
