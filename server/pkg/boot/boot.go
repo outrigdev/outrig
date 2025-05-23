@@ -128,7 +128,7 @@ func RunServer(config CLIConfig) error {
 	defer lock.Close() // the defer statement will keep the lock alive
 
 	// Ensure we have a unique server ID
-	outrigId, isFirstRun, err := serverbase.EnsureOutrigId()
+	outrigId, isFirstRun, err := serverbase.EnsureOutrigId(true)
 	if err != nil {
 		return fmt.Errorf("error ensuring outrig ID: %w", err)
 	}

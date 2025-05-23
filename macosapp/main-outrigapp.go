@@ -484,7 +484,7 @@ func rebuildMenu(status ServerStatus) {
 	mCheckUpdates := systray.AddMenuItem("Check for Updates...", "")
 	go func() {
 		for range mCheckUpdates.ClickedCh {
-			checkForUpdates()
+			checkForUpdates(false)
 		}
 	}()
 
@@ -542,6 +542,13 @@ func onReady() {
 			isFirstStart = false
 		}()
 	}
+
+	// Check for updates in background on startup
+	go func() {
+		// Wait a bit after startup before checking for updates
+		time.Sleep(5 * time.Second)
+		checkForUpdates(true)
+	}()
 }
 
 func onExit() {
@@ -637,8 +644,12 @@ func openBrowser(url string) {
 }
 
 // checkForUpdates launches the OutrigUpdater to check for updates
-func checkForUpdates() {
-	log.Printf("Checking for updates...\n")
+func checkForUpdates(background bool) {
+	if background {
+		log.Printf("Checking for updates in background...\n")
+	} else {
+		log.Printf("Checking for updates...\n")
+	}
 
 	// Get the path to the OutrigUpdater
 	execPath, err := os.Executable()
@@ -658,7 +669,12 @@ func checkForUpdates() {
 	}
 
 	// Launch the updater
-	cmd := exec.Command(updaterPath)
+	var cmd *exec.Cmd
+	if background {
+		cmd = exec.Command(updaterPath, "--background")
+	} else {
+		cmd = exec.Command(updaterPath)
+	}
 	
 	// Redirect updater output to the same log file as OutrigApp
 	logPath := filepath.Join(os.TempDir(), "outrigapp.log")

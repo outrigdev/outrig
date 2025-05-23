@@ -75,13 +75,14 @@ func GetWebServerPort() int {
 }
 
 // EnsureOutrigId ensures that the outrig.id file exists and contains a valid UUID.
-// If the file doesn't exist, it creates it with a new UUID.
-// If the file exists but contains an invalid UUID, it overwrites it with a new UUID.
+// If the file doesn't exist and shouldCreate is true, it creates it with a new UUID.
+// If the file exists but contains an invalid UUID and shouldCreate is true, it overwrites it with a new UUID.
+// If shouldCreate is false and no valid UUID exists, it returns "", false, nil.
 // Returns:
 // - The UUID (either read from the file or newly generated)
 // - A boolean indicating if a new UUID was generated (true) or read from an existing file (false)
 // - An error if one occurred during the process
-func EnsureOutrigId() (string, bool, error) {
+func EnsureOutrigId(shouldCreate bool) (string, bool, error) {
 	// Get the path to the outrig.id file
 	idFilePath := filepath.Join(utilfn.ExpandHomeDir(GetOutrigHome()), OutrigIdFile)
 
@@ -96,6 +97,11 @@ func EnsureOutrigId() (string, bool, error) {
 			return idStr, false, nil
 		}
 		// Invalid UUID, will generate a new one
+	}
+
+	// If shouldCreate is false, don't generate a new ID
+	if !shouldCreate {
+		return "", false, nil
 	}
 
 	// Generate a new UUID (v7)
