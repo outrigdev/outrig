@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -76,6 +77,17 @@ const (
 	AppcastUpdateCheckInterval = 8 * time.Hour
 )
 
+// LinkState represents the current state of the CLI symlink
+type LinkState int8
+
+const (
+	LinkOK LinkState = iota
+	LinkMissing
+	LinkDangling
+	LinkBadDest
+	LinkClobber
+)
+
 var iconDataMap = make(map[string][]byte)
 
 //go:embed assets/outrigapp-trayicon.png
@@ -115,6 +127,66 @@ func getOutrigPath() string {
 	}
 
 	return filepath.Join(filepath.Dir(execPath), "outrig")
+}
+
+func pathExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+func getLinkState(target, cliSource string) LinkState {
+	fi, err := os.Lstat(target)
+	if os.IsNotExist(err) {
+		return LinkMissing
+	}
+	if err != nil {
+		return LinkClobber
+	}
+
+	if fi.Mode()&os.ModeSymlink != 0 {
+		dest, _ := os.Readlink(target)
+		switch {
+		case dest == cliSource:
+			return LinkOK
+		case !pathExists(dest):
+			return LinkDangling
+		default:
+			return LinkBadDest
+		}
+	}
+	return LinkClobber
+}
+
+func randString(n int) string {
+	letters := []rune("abcdefghijklmnopqrstuvwxyz0123456789")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+func atomicSymlink(src, dst string) error {
+	tmp := filepath.Join(filepath.Dir(dst), ".outrig-tmp-"+randString(6))
+	if err := os.Symlink(src, tmp); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, dst); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+func getCliPaths() (string, string) {
+	execPath, _ := os.Executable()
+	cliName := "outrig"
+	cliSource := filepath.Join(filepath.Dir(execPath), cliName)
+	target := filepath.Join("/usr/local/bin", cliName)
+	if pathExists("/opt/homebrew/bin") {
+		target = filepath.Join("/opt/homebrew/bin", cliName)
+	}
+	return cliSource, target
 }
 
 // StatusResponse represents the response from the status endpoint
@@ -190,10 +262,9 @@ func getIconTypeForStatus(status ServerStatus) string {
 }
 
 func updateIcon(iconType string) {
-	if iconType == lastIconType {
-		return
+	if iconType != lastIconType {
+		systray.SetTemplateIcon(iconDataMap[IconTypeTemplate], iconDataMap[IconTypeTemplate])
 	}
-	systray.SetTemplateIcon(iconDataMap[IconTypeTemplate], iconDataMap[IconTypeTemplate])
 	var statusMsg string
 	switch iconType {
 	case IconTypeNormal:
@@ -202,6 +273,9 @@ func updateIcon(iconType string) {
 		statusMsg = "Outrig Server is running with Active Connections"
 	case IconTypeError:
 		statusMsg = "Server is Not Running"
+	}
+	if cliInstallFailed.Load() {
+		statusMsg += " (CLI link error)"
 	}
 	systray.SetTooltip(statusMsg)
 	lastIconType = iconType
@@ -492,23 +566,7 @@ func rebuildMenu(status ServerStatus) {
 	}
 
 	systray.AddSeparator()
-
-	// Add CLI installation menu item if needed
-	if !isCliInstalled.Load() {
-		if cliInstallFailed.Load() {
-			mInstallFailed := systray.AddMenuItem("Outrig CLI Installation Failed", "")
-			mInstallFailed.Disable()
-			systray.AddSeparator()
-		}
-		mInstallCli := systray.AddMenuItem("Install 'outrig' CLI Command...", "Install the outrig CLI command for system-wide use")
-		go func() {
-			for range mInstallCli.ClickedCh {
-				InstallOutrigCLI()
-				rebuildMenu(status)
-			}
-		}()
-		systray.AddSeparator()
-	}
+	addInstallCLIMenuItems(status)
 
 	// Add version info
 	if OutrigAppVersion != "" {
@@ -643,71 +701,89 @@ func onExit() {
 	log.Printf("OutrigApp exited\n")
 }
 
+func ensureCliLinkStartup() {
+	cliSource, target := getCliPaths()
+	state := getLinkState(target, cliSource)
+	log.Printf("CLI link %s -> %s: %v", target, cliSource, state)
+	switch state {
+	case LinkMissing:
+		_ = os.Symlink(cliSource, target)
+	case LinkDangling:
+		_ = os.Remove(target)
+		_ = os.Symlink(cliSource, target)
+	case LinkBadDest, LinkClobber:
+		cliInstallFailed.Store(true)
+	}
+	newState := getLinkState(target, cliSource)
+	log.Printf("CLI link %s -> %s: %v", target, cliSource, newState)
+	isCliInstalled.Store(newState == LinkOK)
+	if newState == LinkOK {
+		cliInstallFailed.Store(false)
+	}
+}
+
 func InstallOutrigCLI() {
-	err := installOutrigCLIInternal()
+	cliSource, targetPath := getCliPaths()
+	state := getLinkState(targetPath, cliSource)
+	log.Printf("CLI link %s -> %s: %v", targetPath, cliSource, state)
+	var err error
+	switch state {
+	case LinkMissing:
+		err = os.Symlink(cliSource, targetPath)
+	case LinkDangling:
+		_ = os.Remove(targetPath)
+		err = os.Symlink(cliSource, targetPath)
+	case LinkBadDest, LinkClobber:
+		_ = os.RemoveAll(targetPath)
+		err = atomicSymlink(cliSource, targetPath)
+	}
 	if err != nil {
 		log.Printf("Error installing Outrig CLI: %v", err)
-		cliInstallFailed.Store(true)
-		return
 	}
-	isCliInstalled.Store(true)
+	newState := getLinkState(targetPath, cliSource)
+	log.Printf("CLI link %s -> %s: %v", targetPath, cliSource, newState)
+	isCliInstalled.Store(newState == LinkOK)
+	cliInstallFailed.Store(newState == LinkBadDest || newState == LinkClobber)
 }
 
-func installOutrigCLIInternal() error {
-	appPath, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	cliName := "outrig"
-	cliSource := filepath.Join(filepath.Dir(appPath), cliName)
+func addInstallCLIMenuItems(status ServerStatus) {
+	cliSource, targetPath := getCliPaths()
+	state := getLinkState(targetPath, cliSource)
+	isCliInstalled.Store(state == LinkOK)
+	cliInstallFailed.Store(state == LinkBadDest || state == LinkClobber)
 
-	targets := []string{"/opt/homebrew/bin", "/usr/local/bin"}
-	var targetPath string
-	for _, dir := range targets {
-		if isDirectoryWriteable(dir) {
-			targetPath = filepath.Join(dir, cliName)
-			return os.Symlink(cliSource, targetPath)
+	if state != LinkOK {
+		if state == LinkBadDest || state == LinkClobber {
+			info := fmt.Sprintf("A file named 'outrig' already exists at %s. Choose 'Force Reinstall' to replace it.", targetPath)
+			item := systray.AddMenuItem(info, "")
+			item.Disable()
+			systray.AddSeparator()
 		}
-	}
 
-	// Fall back to osascript (GUI admin prompt)
-	targetPath = filepath.Join("/usr/local/bin", cliName)
-	msgStr := "Outrig needs to link its CLI command (outrig) to /usr/local/bin to enable automatic log capturing."
-	script := fmt.Sprintf(`do shell script "ln -sf '%s' '%s'" with administrator privileges with prompt "%s"`, cliSource, targetPath, msgStr)
-	cmd := exec.Command("osascript", "-e", script)
-	return cmd.Run()
-}
-
-func isDirectoryWriteable(path string) bool {
-	testFile := filepath.Join(path, ".tmp_test_write")
-	if err := os.WriteFile(testFile, []byte(""), 0644); err != nil {
-		return false
+		var label string
+		switch state {
+		case LinkMissing:
+			label = "Install CLI Command"
+		case LinkDangling:
+			label = "Repair CLI Symlink"
+		default:
+			label = "Force Reinstall CLI (overwrite existing)"
+		}
+		mInstallCli := systray.AddMenuItem(label, "")
+		go func() {
+			for range mInstallCli.ClickedCh {
+				InstallOutrigCLI()
+				rebuildMenu(status)
+			}
+		}()
+		systray.AddSeparator()
 	}
-	os.Remove(testFile)
-	return true
 }
 
 // IsOutrigCLIInstalled checks if the outrig CLI is installed in the system
 func IsOutrigCLIInstalled() bool {
-	// First try LookPath to check if it's in PATH
-	_, err := exec.LookPath("outrig")
-	if err == nil {
-		return true
-	}
-
-	// If LookPath fails, check common installation paths
-	cliPaths := []string{
-		"/opt/homebrew/bin/outrig",
-		"/usr/local/bin/outrig",
-	}
-
-	for _, path := range cliPaths {
-		if _, err := os.Stat(path); err == nil {
-			return true
-		}
-	}
-
-	return false
+	cliSource, target := getCliPaths()
+	return getLinkState(target, cliSource) == LinkOK
 }
 
 func openBrowser(url string) {
@@ -879,12 +955,7 @@ func main() {
 		systray.Quit()
 	}()
 
-	// Check if CLI is installed
-	if IsOutrigCLIInstalled() {
-		isCliInstalled.Store(true)
-	} else {
-		InstallOutrigCLI()
-	}
+	ensureCliLinkStartup()
 
 	log.Printf("Starting OutrigApp")
 	log.Printf("PATH: %s\n", os.Getenv("PATH"))
