@@ -659,13 +659,40 @@ func checkForUpdates() {
 
 	// Launch the updater
 	cmd := exec.Command(updaterPath)
+	
+	// Redirect updater output to the same log file as OutrigApp
+	logPath := filepath.Join(os.TempDir(), "outrigapp.log")
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
+	}
+	
 	err = cmd.Start()
 	if err != nil {
 		log.Printf("Error launching updater: %v", err)
+		if logFile != nil {
+			logFile.Close()
+		}
 		return
 	}
 
 	log.Printf("Update checker launched\n")
+
+	// Monitor the updater process in a goroutine
+	go func(updaterCmd *exec.Cmd, logFileHandle *os.File) {
+		err := updaterCmd.Wait()
+		if err != nil {
+			log.Printf("Update checker exited with error: %v", err)
+		} else {
+			log.Printf("Update checker completed successfully")
+		}
+
+		// Close log file handle
+		if logFileHandle != nil {
+			logFileHandle.Close()
+		}
+	}(cmd, logFile)
 }
 
 func main() {
