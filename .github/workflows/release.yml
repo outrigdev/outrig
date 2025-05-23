@@ -249,7 +249,7 @@ jobs:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   set -e
-                  
+
                   git config --global user.name "github-actions[bot]"
                   git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
@@ -322,7 +322,7 @@ jobs:
                   GH_TOKEN: ${{ secrets.HOMEBREW_SECRET }}
               run: |
                   set -e
-                  
+
                   git config --global user.name "github-actions[bot]"
                   git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
@@ -350,6 +350,9 @@ jobs:
                   # Commit and push changes
                   git add Casks/outrig.rb
                   git commit -m "Update Outrig cask for ${{ github.ref_name }} release"
+
+                  # Configure git remote to use token authentication
+                  git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/outrigdev/homebrew-outrig.git
                   git push origin "$BRANCH_NAME" -f
 
                   # Create PR
