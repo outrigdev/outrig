@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Outrig Stable</title>
+        <description>Most recent changes with links to updates.</description>
+        <language>en</language>
+        <item>
+            <title>Outrig Version 0.5.9</title>
+            <description>
+                <![CDATA[
+    				<h2>Version 0.5.9</h2>
+                    
+                ]]>
+            </description>
+            <pubDate>Fri, 23 May 2025 04:59:41 +0000</pubDate>
+			            <enclosure
+                url="https://github.com/outrigdev/outrig/releases/download/v0.5.9/Outrig-darwin-amd64-v0.5.9.dmg"
+                sparkle:version="0.5.9"
+                sparkle:shortVersionString="0.5.9"
+                sparkle:os="macos"
+                sparkle:arch="x86_64"
+                length="20977642"
+                type="application/x-apple-diskimage"
+                sparkle:edSignature="/p5b9bQRIiBYngL6q4Xt72xrFg1pPrxjs3CuvFg3BDsSe/w0w7j1Etjz8KPCj3cjvyuQnpgPYuMVGe1K978SCw==" />
+            <enclosure
+                url="https://github.com/outrigdev/outrig/releases/download/v0.5.9/Outrig-darwin-arm64-v0.5.9.dmg"
+                sparkle:version="0.5.9"
+                sparkle:shortVersionString="0.5.9"
+                sparkle:os="macos"
+                sparkle:arch="arm64"
+                length="20023115"
+                type="application/x-apple-diskimage"
+                sparkle:edSignature="gLlpwnhKs6wVdKQKwNozAUeyvG2hqQ/IJcQNiNaKTm04JiLkVrE8vDo2qFV2BVvkpMjGOkcMMZzrAXGcKCkqAw==" />
+
+            <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
+        </item>
+    </channel>
+</rss>
