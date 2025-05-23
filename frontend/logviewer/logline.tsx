@@ -39,6 +39,7 @@ getDefaultStore().sub(SettingsModel.logsEmojiReplacement, () => {
     updateEmojiReplacementMode();
 });
 
+
 // Interface for combined log line settings
 interface LogLineSettings {
     lineNumWidth: number;
@@ -190,6 +191,25 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
         return processMessageText(line.msg, line.source);
     }, [line.msg, line.source]);
 
+    const store = getDefaultStore();
+
+    const handleTagClick = useCallback(
+        (tag: string, e: React.MouseEvent) => {
+            const tagTerm = `#${tag}`;
+            if (e.shiftKey) {
+                const current = store.get(model.searchTerm) || "";
+                const newTerm = current.trim()
+                    ? `${current.trim()} ${tagTerm}`
+                    : tagTerm;
+                store.set(model.searchTerm, newTerm);
+            } else {
+                store.set(model.searchTerm, tagTerm);
+            }
+        },
+        [model.searchTerm, store]
+    );
+
+
     return (
         <div
             data-linenum={line.linenum}
@@ -212,8 +232,9 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
             )}
             {logSettings.showSource && <div className="pl-2">{formatSource(line.source)}</div>}
             <AnsiLine
-                className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre"
                 line={processedMessage}
+                className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre"
+                onTagClick={handleTagClick}
             />
         </div>
     );

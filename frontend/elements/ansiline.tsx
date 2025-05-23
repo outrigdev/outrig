@@ -118,15 +118,64 @@ const stateToClasses = (state: InternalStateType): string => {
 // eslint-disable-next-line no-control-regex
 const ansiRegex = /\x1b\[([0-9;]+)m/g;
 
+// Regex for tags, kept in sync with server-side TagRegex
+const TagRegex = /(^|\s)(#[a-zA-Z0-9][a-zA-Z0-9/_.:-]*)(?=\s|$)/g;
+
 interface AnsiLineProps {
     line: string;
     className?: string;
+    onTagClick?: (tag: string, e: React.MouseEvent) => void;
 }
 
-const AnsiLine: React.FC<AnsiLineProps> = React.memo(({ line, className = "" }) => {
+const AnsiLine: React.FC<AnsiLineProps> = React.memo(({ line, className = "", onTagClick }) => {
     // Fast path: if no ANSI escapes are found, just render the text.
     if (!line.includes("\x1b[")) {
-        return <div className={className}>{line}</div>;
+        if (!onTagClick) {
+            return <div className={className}>{line}</div>;
+        }
+
+        const nodes: React.ReactNode[] = [];
+        TagRegex.lastIndex = 0;
+        let last = 0;
+        let m: RegExpExecArray | null;
+        while ((m = TagRegex.exec(line)) !== null) {
+            const [full, leading, tagWithHash] = m;
+            const tagStart = m.index + leading.length;
+            if (tagStart > last) {
+                nodes.push(
+                    <span key={nodes.length} className="">
+                        {line.slice(last, tagStart)}
+                    </span>
+                );
+            } else if (leading) {
+                nodes.push(
+                    <span key={nodes.length} className="">
+                        {leading}
+                    </span>
+                );
+            }
+            nodes.push(
+                <span
+                    key={nodes.length}
+                    className="group cursor-pointer"
+                    onClick={(e) => onTagClick(tagWithHash.slice(1), e)}
+                >
+                    <span className="group-hover:hidden">{tagWithHash}</span>
+                    <span className="hidden group-hover:inline text-accent underline">
+                        {tagWithHash}
+                    </span>
+                </span>
+            );
+            last = m.index + full.length;
+        }
+        if (last < line.length) {
+            nodes.push(
+                <span key={nodes.length} className="">
+                    {line.slice(last)}
+                </span>
+            );
+        }
+        return <div className={className}>{nodes}</div>;
     }
 
     // Reset regex lastIndex to ensure correct behavior with global regex
@@ -155,11 +204,58 @@ const AnsiLine: React.FC<AnsiLineProps> = React.memo(({ line, className = "" }) 
 
     return (
         <div className={className}>
-            {segments.map((seg, idx) => (
-                <span key={idx} className={seg.classes}>
-                    {seg.text}
-                </span>
-            ))}
+            {segments.map((seg, idx) => {
+                if (!onTagClick) {
+                    return (
+                        <span key={idx} className={seg.classes}>
+                            {seg.text}
+                        </span>
+                    );
+                }
+
+                const pieces: React.ReactNode[] = [];
+                TagRegex.lastIndex = 0;
+                let last = 0;
+                let m: RegExpExecArray | null;
+                while ((m = TagRegex.exec(seg.text)) !== null) {
+                    const [full, leading, tagWithHash] = m;
+                    const tagStart = m.index + leading.length;
+                    if (tagStart > last) {
+                        pieces.push(
+                            <span key={`${idx}-${pieces.length}`} className={seg.classes}>
+                                {seg.text.slice(last, tagStart)}
+                            </span>
+                        );
+                    } else if (leading) {
+                        pieces.push(
+                            <span key={`${idx}-${pieces.length}`} className={seg.classes}>
+                                {leading}
+                            </span>
+                        );
+                    }
+                    pieces.push(
+                        <span
+                            key={`${idx}-${pieces.length}`}
+                            className="group cursor-pointer"
+                            onClick={(e) => onTagClick(tagWithHash.slice(1), e)}
+                        >
+                            <span className={`${seg.classes} group-hover:hidden`}>{tagWithHash}</span>
+                            <span className="hidden group-hover:inline text-accent underline">
+                                {tagWithHash}
+                            </span>
+                        </span>
+                    );
+                    last = m.index + full.length;
+                }
+                if (last < seg.text.length) {
+                    pieces.push(
+                        <span key={`${idx}-${pieces.length}`} className={seg.classes}>
+                            {seg.text.slice(last)}
+                        </span>
+                    );
+                }
+                return pieces;
+            })}
         </div>
     );
 });
