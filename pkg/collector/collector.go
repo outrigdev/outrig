@@ -17,4 +17,7 @@ type Collector interface {
 
 	Enable()
 	Disable()
+
+	// GetStatus returns the current status of the collector
+	GetStatus() ds.CollectorStatus
 }

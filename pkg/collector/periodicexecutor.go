@@ -4,6 +4,8 @@
 package collector
 
 import (
+	"fmt"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,13 +14,15 @@ import (
 )
 
 type PeriodicExecutor struct {
-	lock        sync.Mutex
-	name        string
-	done        chan struct{}
-	ticker      *time.Ticker
-	duration    time.Duration
-	execFn      func()
-	isFnRunning atomic.Bool
+	lock             sync.Mutex
+	name             string
+	done             chan struct{}
+	ticker           *time.Ticker
+	duration         time.Duration
+	execFn           func()
+	isFnRunning      atomic.Bool
+	lastExecDuration atomic.Int64 // duration in milliseconds
+	lastErr          error         // protected by lock
 }
 
 func MakePeriodicExecutor(name string, dur time.Duration, execFn func()) *PeriodicExecutor {
@@ -85,5 +89,39 @@ func (p *PeriodicExecutor) runFunc() {
 		return
 	}
 	defer p.isFnRunning.Store(false)
+	
+	start := time.Now()
+	defer func() {
+		duration := time.Since(start).Milliseconds()
+		p.lastExecDuration.Store(duration)
+		
+		if r := recover(); r != nil {
+			stack := debug.Stack()
+			err := fmt.Errorf("panic in %s: %v\nStack trace:\n%s", p.name, r, string(stack))
+			p.setLastErr(err)
+		} else {
+			p.setLastErr(nil) // Clear error on successful execution
+		}
+	}()
+	
 	p.execFn()
+}
+
+// setLastErr sets the last error with proper locking
+func (p *PeriodicExecutor) setLastErr(err error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	p.lastErr = err
+}
+
+// GetLastErr returns the last error with proper locking
+func (p *PeriodicExecutor) GetLastErr() error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	return p.lastErr
+}
+
+// GetLastExecDuration returns the duration of the last execution in milliseconds
+func (p *PeriodicExecutor) GetLastExecDuration() int64 {
+	return p.lastExecDuration.Load()
 }
