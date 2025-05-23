@@ -328,8 +328,8 @@ jobs:
 
                   BRANCH_NAME="update-cask-${{ github.ref_name }}"
 
-                  # Clone the homebrew-outrig repository
-                  git clone https://github.com/outrigdev/homebrew-outrig.git homebrew-repo
+                  # Clone the homebrew-outrig repository using gh CLI for proper authentication
+                  gh repo clone outrigdev/homebrew-outrig homebrew-repo
                   cd homebrew-repo
 
                   # Create new branch
