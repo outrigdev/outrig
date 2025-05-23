@@ -543,12 +543,6 @@ func onReady() {
 		}()
 	}
 
-	// Check for updates in background on startup
-	go func() {
-		// Wait a bit after startup before checking for updates
-		time.Sleep(5 * time.Second)
-		checkForUpdates(true)
-	}()
 }
 
 func onExit() {
@@ -670,12 +664,13 @@ func checkForUpdates(background bool) {
 
 	// Launch the updater
 	var cmd *exec.Cmd
+	pidStr := fmt.Sprintf("%d", os.Getpid())
 	if background {
-		cmd = exec.Command(updaterPath, "--background")
+		cmd = exec.Command(updaterPath, "--background", "--pid", pidStr)
 	} else {
-		cmd = exec.Command(updaterPath)
+		cmd = exec.Command(updaterPath, "--pid", pidStr)
 	}
-	
+
 	// Redirect updater output to the same log file as OutrigApp
 	logPath := filepath.Join(os.TempDir(), "outrigapp.log")
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -683,7 +678,7 @@ func checkForUpdates(background bool) {
 		cmd.Stdout = logFile
 		cmd.Stderr = logFile
 	}
-	
+
 	err = cmd.Start()
 	if err != nil {
 		log.Printf("Error launching updater: %v", err)

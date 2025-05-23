@@ -1,36 +1,202 @@
 import Foundation
 import Sparkle
+import Darwin     // for kill()
+import AppKit     // for NSApplication
 
-class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
-    func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
-        print("Found valid update: \(item.displayVersionString)")
+// ── parse CLI flags ─────────────────────────────────────────────
+let args = CommandLine.arguments
+let isBackground = args.contains("--background")
+
+guard
+    let i = args.firstIndex(of: "--pid"),
+    i + 1 < args.count,
+    let trayPID = Int32(args[i + 1])
+else {
+    fputs("OutrigUpdater: missing --pid <tray-pid>\n", stderr)
+    exit(1)
+}
+
+// ── Initialize NSApplication ────────────────────────────────────
+// This is critical for Sparkle UI to work properly
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory) // Don't show in dock
+
+// ── delegate ────────────────────────────────────────────────────
+final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
+
+    private let background: Bool
+    private let trayPID: pid_t
+    private var done = false
+
+    init(background: Bool, trayPID: pid_t) {
+        self.background = background
+        self.trayPID    = trayPID
+    }
+
+    // ── Success path ────────────────────────────────────────────
+    
+    func updater(_ u: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        print("Update \(item.displayVersionString) found → downloading…")
     }
     
-    func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
-        print("No updates available")
+    func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
+        print("Update downloaded successfully")
+    }
+    
+    func updater(_ updater: SPUUpdater, willExtractUpdate item: SUAppcastItem) {
+        print("Beginning update extraction")
+    }
+    
+    func updater(_ updater: SPUUpdater, didExtractUpdate item: SUAppcastItem) {
+        print("Update extracted successfully")
+    }
+
+    func updater(_ u: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        print("Download complete, staging install")
+        if background { 
+            // In background mode, the update is staged for next launch
+            print("Background mode: Update staged for next launch")
+            // Give Sparkle time to finish staging before quitting
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                self.quitHelper()
+            }
+        }
+        // In interactive mode, continue with the update process
+    }
+    
+    func updaterShouldRelaunchApplication(_ updater: SPUUpdater) -> Bool {
+        print("Sparkle asking if should relaunch")
+        return true  // Yes, we want to relaunch
+    }
+
+    func updaterWillRelaunchApplication(_ u: SPUUpdater) {
+        print("Sparkle will relaunch – SIGTERM tray (pid \(trayPID))")
+        
+        // Kill the parent tray app
+        kill(trayPID, SIGTERM)
+        
+        // Give parent a moment to clean up before we exit
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { 
+            self.quitHelper() 
+        }
+    }
+
+    // ── Failure paths ───────────────────────────────────────────
+    
+    func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
+        // Just log the error without trying to inspect its properties
+        print("No updates found: \(error.localizedDescription)")
+        quitHelper()
+    }
+    
+    func updater(_ u: SPUUpdater, didAbortWithError error: Error) {
+        print("Update aborted with error: \(error)")
+        quitHelper()
+    }
+    
+    func updater(_ updater: SPUUpdater, failedToDownloadUpdate item: SUAppcastItem, error: Error) {
+        print("Failed to download update: \(error)")
+        quitHelper()
+    }
+    
+    func userDidCancelDownload(_ updater: SPUUpdater) {
+        print("User cancelled download")
+        quitHelper()
+    }
+    
+    func updater(_ u: SPUUpdater, userDidSkipThisVersion item: SUAppcastItem) {
+        print("User skipped version \(item.displayVersionString)")
+        quitHelper()
+    }
+    
+    // ── User choice handling ────────────────────────────────────
+    
+    func updater(_ updater: SPUUpdater,
+                 userDidMake choice: SPUUserUpdateChoice,
+                 forUpdate update: SUAppcastItem,
+                 state: SPUUserUpdateState) {
+        switch choice {
+        case .install:
+            print("User chose to install update")
+            // Don't quit - let the update process continue
+        case .skip:
+            print("User skipped this version")
+            quitHelper()
+        case .dismiss:
+            print("User dismissed update")
+            quitHelper()
+        @unknown default:
+            print("Unknown user choice")
+            quitHelper()
+        }
+    }
+    
+    // ── Optional logging methods ────────────────────────────────
+    
+    func updater(_ updater: SPUUpdater, didFinishLoading appcast: SUAppcast) {
+        print("Appcast loaded successfully")
+    }
+    
+    func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
+        if let error = error {
+            print("Update cycle finished with error: \(error)")
+        } else {
+            print("Update cycle finished successfully")
+        }
+        // This is called after the entire update cycle completes
+        // In some cases, other delegates might not be called, so this is a good fallback
+        if !background {
+            // For interactive mode, ensure we quit if we haven't already
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                self.quitHelper()
+            }
+        }
+    }
+
+    // ── Helper exit ─────────────────────────────────────────────
+    
+    func quitHelper() {
+        guard !done else { return }
+        done = true
+        
+        print("OutrigUpdater exiting")
+        NSApplication.shared.terminate(nil)
     }
 }
 
-// Parse command line arguments
-let arguments = CommandLine.arguments
-let isBackgroundMode = arguments.contains("--background")
+// ── start Sparkle ───────────────────────────────────────────────
+let delegate = OutrigUpdaterDelegate(background: isBackground, trayPID: trayPID)
 
-// Set up the delegate
-let delegate = OutrigUpdaterDelegate()
+// Create updater controller
+let updaterCtl = SPUStandardUpdaterController(
+    startingUpdater: true,
+    updaterDelegate: delegate,
+    userDriverDelegate: nil
+)
 
-// Create the updater with the delegate
-let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: delegate, userDriverDelegate: nil)
-let updater = updaterController.updater
+let updater = updaterCtl.updater
 
-if isBackgroundMode {
-    print("Running in background mode - checking for updates silently")
-    // Check for updates silently in background mode
+// Configure updater
+if isBackground {
+    // Enable automatic checks for background mode
+    updater.automaticallyChecksForUpdates = true
+}
+
+// Start update check
+if isBackground {
+    print("Background mode – silent check")
     updater.checkForUpdatesInBackground()
 } else {
-    print("Running in interactive mode - showing update UI")
-    // Show the update UI in interactive mode
+    print("Interactive mode – show Sparkle UI")
     updater.checkForUpdates()
 }
 
-// Keep the app running until update check completes
-RunLoop.main.run()
+// Set up timeout
+let timeout: TimeInterval = isBackground ? 60 : 300  // 1 min for background, 5 min for interactive
+DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+    print("Update check timed out after \(timeout) seconds")
+    delegate.quitHelper()
+}
+
+// Run the app
+app.run()
