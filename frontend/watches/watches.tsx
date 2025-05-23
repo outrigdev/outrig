@@ -340,7 +340,7 @@ const AddWatchButton: React.FC<AddWatchButtonProps> = ({ model }) => {
                 isOpen={isAddWatchModalOpen}
                 onClose={() => setIsAddWatchModalOpen(false)}
                 title="Add Watch"
-                className="w-[750px]"
+                className="w-[800px]"
             >
                 <NoWatchesMessage hideTitle={true} />
             </Modal>
