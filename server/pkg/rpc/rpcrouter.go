@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
@@ -248,12 +247,7 @@ func (router *WshRouter) sendRoutedMessage(msgBytes []byte, routeId string, comm
 			if command != "" {
 				log.Printf("[router] no rpc for route id %q (command:%s)\n", routeId, command)
 			} else {
-				msgPreview := string(msgBytes)
-				if len(msgPreview) > 200 {
-					msgPreview = msgPreview[:200] + "..."
-				}
-				stackTrace := string(debug.Stack())
-				log.Printf("[router] #router no rpc for route id %q localRouteId:%q msgBytes(first 200):%q\nStack trace:\n%s", routeId, localRouteId, msgPreview, stackTrace)
+				log.Printf("[router] no rpc for route id %q\n", routeId)
 			}
 			return false
 		}
