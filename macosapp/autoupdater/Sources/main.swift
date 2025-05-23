@@ -84,29 +84,37 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     // ── Failure paths ───────────────────────────────────────────
     
     func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
-        // Just log the error without trying to inspect its properties
         print("No updates found: \(error.localizedDescription)")
-        quitHelper()
+        // Don't quit here in interactive mode - let user see the dialog
+        if background {
+            quitHelper()
+        }
     }
     
     func updater(_ u: SPUUpdater, didAbortWithError error: Error) {
         print("Update aborted with error: \(error)")
-        quitHelper()
+        // Don't quit here in interactive mode - let user see the error
+        if background {
+            quitHelper()
+        }
     }
     
     func updater(_ updater: SPUUpdater, failedToDownloadUpdate item: SUAppcastItem, error: Error) {
         print("Failed to download update: \(error)")
-        quitHelper()
+        // Don't quit here in interactive mode - let user see the error
+        if background {
+            quitHelper()
+        }
     }
     
     func userDidCancelDownload(_ updater: SPUUpdater) {
         print("User cancelled download")
-        quitHelper()
+        quitHelper()  // User action, so we can quit
     }
     
     func updater(_ u: SPUUpdater, userDidSkipThisVersion item: SUAppcastItem) {
         print("User skipped version \(item.displayVersionString)")
-        quitHelper()
+        quitHelper()  // User action, so we can quit
     }
     
     // ── User choice handling ────────────────────────────────────
@@ -143,14 +151,10 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
         } else {
             print("Update cycle finished successfully")
         }
-        // This is called after the entire update cycle completes
-        // In some cases, other delegates might not be called, so this is a good fallback
-        if !background {
-            // For interactive mode, ensure we quit if we haven't already
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                self.quitHelper()
-            }
-        }
+        
+        // This is the right place to quit after the update cycle completes
+        // In interactive mode, this is called after the user dismisses any dialogs
+        quitHelper()
     }
 
     // ── Helper exit ─────────────────────────────────────────────
