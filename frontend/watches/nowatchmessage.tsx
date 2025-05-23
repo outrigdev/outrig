@@ -29,8 +29,9 @@ export const NoWatchesMessage: React.FC<NoWatchesMessageProps> = ({ hideTitle = 
                             <p className="text-sm text-secondary mb-2 pl-4">Push values directly from your code:</p>
                             <div className="space-y-3 pl-4">
                                 <div>
-                                    <div className="font-mono text-accent">TrackValue(name, val)</div>
-                                    <div className="text-sm text-secondary">Push any value</div>
+                                    <div className="font-mono text-accent">pusher := NewWatch(name).ForPush()</div>
+                                    <div className="font-mono text-accent">pusher.Push(val)</div>
+                                    <div className="text-sm text-secondary">Push values whenever needed</div>
                                 </div>
                             </div>
                         </div>
@@ -59,7 +60,7 @@ export const NoWatchesMessage: React.FC<NoWatchesMessageProps> = ({ hideTitle = 
                             </p>
                             <div className="space-y-3 pl-4">
                                 <div>
-                                    <div className="font-mono text-accent">WatchSync(name, lock, val)</div>
+                                    <div className="font-mono text-accent">NewWatch(name).PollSync(lock, val)</div>
                                 </div>
                             </div>
                         </div>
@@ -69,16 +70,18 @@ export const NoWatchesMessage: React.FC<NoWatchesMessageProps> = ({ hideTitle = 
                             <p className="text-sm text-secondary mb-2 pl-4">Watch atomic values directly:</p>
                             <div className="space-y-3 pl-4">
                                 <div>
-                                    <div className="font-mono text-accent">WatchAtomic(name, val)</div>
+                                    <div className="font-mono text-accent">NewWatch(name).PollAtomic(val)</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="mt-6 text-sm text-secondary italic">
-                        Note: Values are polled every second by default. Counter versions of these functions
-                        (TrackCounter, WatchCounterFunc, WatchCounterSync, WatchAtomicCounter) are also available for
-                        tracking numeric counters.
+                        Note: Values are polled every second by default. Add
+                        <span className="font-mono">.AsCounter()</span> before
+                        <span className="font-mono">ForPush()</span> or any
+                        <span className="font-mono">Poll*</span> method to track
+                        numeric counters.
                     </div>
                 </div>
 
@@ -88,14 +91,16 @@ export const NoWatchesMessage: React.FC<NoWatchesMessageProps> = ({ hideTitle = 
                         <code>
                             <span className="text-accent">// Track a value</span>
                             <br />
-                            outrig.TrackValue("user.profile", user)
+                            pusher := outrig.NewWatch("user.profile").ForPush()
+                            <br />
+                            pusher.Push(user)
                             <br />
                             <br />
                             <span className="text-accent">// Watch a counter that updates automatically</span>
                             <br />
                             counter := atomic.Int64{}
                             <br />
-                            outrig.WatchAtomic("requests.count", &counter)
+                            outrig.NewWatch("requests.count").PollAtomic(&counter)
                             <br />
                             <br />
                             <span className="text-accent">// Watch a value with a function</span>
@@ -109,7 +114,7 @@ export const NoWatchesMessage: React.FC<NoWatchesMessageProps> = ({ hideTitle = 
                             <br />
                             <span className="text-accent">// Watch a value with mutex protection</span>
                             <br />
-                            outrig.WatchSync("app.state", &mu, &appState)
+                            outrig.NewWatch("app.state").PollSync(&mu, &appState)
                         </code>
                     </pre>
                 </div>
