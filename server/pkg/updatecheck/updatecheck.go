@@ -5,6 +5,7 @@ package updatecheck
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
@@ -55,6 +56,28 @@ var (
 // GitHubRelease represents the GitHub release API response
 type GitHubRelease struct {
 	TagName string `json:"tag_name"`
+}
+
+// Appcast represents the appcast XML structure
+type Appcast struct {
+	XMLName xml.Name       `xml:"rss"`
+	Channel AppcastChannel `xml:"channel"`
+}
+
+type AppcastChannel struct {
+	Items []AppcastItem `xml:"item"`
+}
+
+type AppcastItem struct {
+	Title       string                 `xml:"title"`
+	Description string                 `xml:"description"`
+	PubDate     string                 `xml:"pubDate"`
+	Enclosures  []AppcastItemEnclosure `xml:"enclosure"`
+}
+
+type AppcastItemEnclosure struct {
+	URL     string `xml:"url,attr"`
+	Version string `xml:"http://www.andymatuschak.org/xml-namespaces/sparkle version,attr"`
 }
 
 // StartUpdateChecker starts the update checker routine
@@ -214,4 +237,55 @@ func GetUpdatedVersion() string {
 // GetFromTrayApp returns whether the server was started from the tray app
 func GetFromTrayApp() bool {
 	return fromTrayApp
+}
+
+// GetLatestAppcastRelease downloads and parses the appcast.xml file to get the latest version
+func GetLatestAppcastRelease() (string, error) {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", serverbase.AppcastURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "Outrig-UpdateChecker")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response body: %w", err)
+	}
+
+	var appcast Appcast
+	err = xml.Unmarshal(body, &appcast)
+	if err != nil {
+		return "", fmt.Errorf("error parsing XML response: %w", err)
+	}
+
+	if len(appcast.Channel.Items) == 0 {
+		return "", fmt.Errorf("no items found in appcast")
+	}
+
+	item := appcast.Channel.Items[0]
+	if len(item.Enclosures) == 0 {
+		return "", fmt.Errorf("no enclosures found in latest appcast item")
+	}
+
+	latestVersion := item.Enclosures[0].Version
+	if latestVersion == "" {
+		return "", fmt.Errorf("no version found in latest appcast item")
+	}
+
+	return latestVersion, nil
 }

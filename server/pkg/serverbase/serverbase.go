@@ -37,6 +37,7 @@ const OutrigIdFile = "outrig.id"
 const OutrigDataDir = "data"
 const OutrigDevEnvName = "OUTRIG_DEV"
 const OutrigTEventsFile = "tevents.jsonl"
+const AppcastURL = "https://updates.outrig.run/appcast.xml"
 
 // Default production port for server
 const ProdWebServerPort = 5005
