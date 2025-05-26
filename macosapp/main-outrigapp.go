@@ -34,14 +34,21 @@ var (
 	serverStartOnce    sync.Once
 
 	statusUpdateLock sync.Mutex
+	rebuildMenuLock  sync.Mutex
 	lastServerStatus ServerStatus
 	lastIconType     string
+
+	// Menu items
+	mCheckUpdatesGlobal *systray.MenuItem
 
 	isQuitting atomic.Bool
 
 	// CLI installation status
 	isCliInstalled   atomic.Bool
 	cliInstallFailed atomic.Bool
+
+	// Updater status
+	isUpdaterRunning atomic.Bool
 )
 
 const (
@@ -410,6 +417,9 @@ func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 }
 
 func rebuildMenu(status ServerStatus) {
+	rebuildMenuLock.Lock()
+	defer rebuildMenuLock.Unlock()
+
 	appRuns := status.AppRuns
 
 	// Reset the entire menu
@@ -497,10 +507,15 @@ func rebuildMenu(status ServerStatus) {
 	}
 
 	// Add check for updates menu item
-	mCheckUpdates := systray.AddMenuItem("Check for Updates...", "")
+	if isUpdaterRunning.Load() {
+		mCheckUpdatesGlobal = systray.AddMenuItem("Checking for updates...", "")
+		mCheckUpdatesGlobal.Disable()
+	} else {
+		mCheckUpdatesGlobal = systray.AddMenuItem("Check for Updates...", "")
+	}
 	go func() {
-		for range mCheckUpdates.ClickedCh {
-			checkForUpdates(false)
+		for range mCheckUpdatesGlobal.ClickedCh {
+			checkForUpdates(false, false)
 		}
 	}()
 
@@ -521,6 +536,23 @@ func rebuildMenu(status ServerStatus) {
 			systray.Quit()
 		}
 	}()
+}
+
+func updateCheckUpdatesMenuItem() {
+	rebuildMenuLock.Lock()
+	defer rebuildMenuLock.Unlock()
+
+	if mCheckUpdatesGlobal == nil {
+		return
+	}
+
+	if isUpdaterRunning.Load() {
+		mCheckUpdatesGlobal.SetTitle("Checking for updates...")
+		mCheckUpdatesGlobal.Disable()
+	} else {
+		mCheckUpdatesGlobal.SetTitle("Check for Updates...")
+		mCheckUpdatesGlobal.Enable()
+	}
 }
 
 func onReady() {
@@ -654,7 +686,15 @@ func openBrowser(url string) {
 }
 
 // checkForUpdates launches the OutrigUpdater to check for updates
-func checkForUpdates(background bool) {
+func checkForUpdates(first bool, background bool) {
+	// Test and set - only proceed if no updater is currently running
+	if !isUpdaterRunning.CompareAndSwap(false, true) {
+		log.Printf("Update check already in progress, skipping\n")
+		return
+	}
+
+	updateCheckUpdatesMenuItem()
+
 	if background {
 		log.Printf("Checking for updates in background...\n")
 	} else {
@@ -681,7 +721,9 @@ func checkForUpdates(background bool) {
 	// Launch the updater
 	var cmd *exec.Cmd
 	pidStr := fmt.Sprintf("%d", os.Getpid())
-	if background {
+	if first {
+		cmd = exec.Command(updaterPath, "--first", "--pid", pidStr)
+	} else if background {
 		cmd = exec.Command(updaterPath, "--background", "--pid", pidStr)
 	} else {
 		cmd = exec.Command(updaterPath, "--pid", pidStr)
@@ -708,6 +750,11 @@ func checkForUpdates(background bool) {
 
 	// Monitor the updater process in a goroutine
 	go func(updaterCmd *exec.Cmd, logFileHandle *os.File) {
+		defer func() {
+			isUpdaterRunning.Store(false)
+			updateCheckUpdatesMenuItem()
+		}()
+
 		err := updaterCmd.Wait()
 		if err != nil {
 			log.Printf("Update checker exited with error: %v", err)

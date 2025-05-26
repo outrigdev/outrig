@@ -6,6 +6,7 @@ import AppKit     // for NSApplication
 // ── parse CLI flags ─────────────────────────────────────────────
 let args = CommandLine.arguments
 let isBackground = args.contains("--background")
+let isFirst = args.contains("--first")
 
 guard
     let i = args.firstIndex(of: "--pid"),
@@ -66,6 +67,10 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     
     func updaterShouldRelaunchApplication(_ updater: SPUUpdater) -> Bool {
         print("Sparkle asking if should relaunch")
+        if background {
+            print("Background mode: Not relaunching application")
+            return false
+        }
         return true  // Yes, we want to relaunch
     }
 
@@ -187,7 +192,10 @@ if isBackground {
 }
 
 // Start update check
-if isBackground {
+if isFirst {
+    print("First mode – check for update information")
+    updater.checkForUpdateInformation()
+} else if isBackground {
     print("Background mode – silent check")
     updater.checkForUpdatesInBackground()
 } else {
