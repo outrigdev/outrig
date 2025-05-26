@@ -2,16 +2,22 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/outrigdev/outrig/server/pkg/updatecheck"
 )
 
 func main() {
-	version, err := updatecheck.GetLatestAppcastRelease()
+	appcastVersion, err := updatecheck.GetLatestAppcastRelease()
 	if err != nil {
-		log.Fatalf("Error getting latest appcast release: %v", err)
+		fmt.Printf("appcast: error - %v\n", err)
+	} else {
+		fmt.Printf("appcast: %s\n", appcastVersion)
 	}
-	
-	fmt.Printf("%s\n", version)
+
+	githubVersion, err := updatecheck.GetLatestRelease()
+	if err != nil {
+		fmt.Printf("github-release: error - %v\n", err)
+	} else {
+		fmt.Printf("github-release: %s\n", githubVersion)
+	}
 }

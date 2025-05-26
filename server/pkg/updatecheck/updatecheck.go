@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -131,7 +132,7 @@ func checkForUpdates() {
 	currentVersion := serverbase.OutrigServerVersion
 
 	// Get the latest release from GitHub
-	latestVersion, err := getLatestRelease()
+	latestVersion, err := GetLatestRelease()
 	if err != nil {
 		log.Printf("Error checking for updates: %v", err)
 		// Track the error
@@ -158,8 +159,8 @@ func checkForUpdates() {
 	}
 }
 
-// getLatestRelease gets the latest release from GitHub
-func getLatestRelease() (string, error) {
+// GetLatestRelease gets the latest release from GitHub
+func GetLatestRelease() (string, error) {
 	// Create a new HTTP client with a timeout
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -285,6 +286,11 @@ func GetLatestAppcastRelease() (string, error) {
 	latestVersion := item.Enclosures[0].Version
 	if latestVersion == "" {
 		return "", fmt.Errorf("no version found in latest appcast item")
+	}
+
+	// Add "v" prefix if it doesn't already start with "v"
+	if !strings.HasPrefix(latestVersion, "v") {
+		latestVersion = "v" + latestVersion
 	}
 
 	return latestVersion, nil
