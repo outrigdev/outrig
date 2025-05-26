@@ -44,7 +44,10 @@ var (
 
 	// lastCheckTime is the time of the last update check
 	lastCheckTime int64
-	
+
+	// fromTrayApp stores whether the server was started from the tray app
+	fromTrayApp bool
+
 	// Global Watch variable for update check results
 	latestReleaseWatch = outrig.NewWatch("updatecheck.latestreleasecheck").ForPush()
 )
@@ -55,7 +58,9 @@ type GitHubRelease struct {
 }
 
 // StartUpdateChecker starts the update checker routine
-func StartUpdateChecker() {
+func StartUpdateChecker(fromTray bool) {
+	// Store the fromTrayApp flag
+	fromTrayApp = fromTray
 	// Don't start the update checker if it's disabled
 	if Disabled.Load() {
 		log.Printf("Update checker is disabled, not starting")
@@ -204,4 +209,9 @@ func GetUpdatedVersion() string {
 	mutex.RLock()
 	defer mutex.RUnlock()
 	return newerVersion
+}
+
+// GetFromTrayApp returns whether the server was started from the tray app
+func GetFromTrayApp() bool {
+	return fromTrayApp
 }

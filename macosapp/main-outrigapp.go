@@ -273,7 +273,7 @@ func startServer() {
 
 	log.Printf("Starting Outrig server...\n")
 	outrigPath := getOutrigPath()
-	serverCmd = exec.Command(outrigPath, "server", "--close-on-stdin")
+	serverCmd = exec.Command(outrigPath, "server", "--close-on-stdin", "--from-trayapp")
 
 	// Create a pipe for stdin
 	stdin, err := serverCmd.StdinPipe()
@@ -558,6 +558,11 @@ func updateCheckUpdatesMenuItem() {
 func onReady() {
 	updateIcon(IconTypeError)
 	rebuildMenu(ServerStatus{})
+
+	// Check for updates on startup
+	go func() {
+		checkForUpdates(true, false)
+	}()
 
 	startServer()
 

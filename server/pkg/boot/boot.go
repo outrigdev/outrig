@@ -47,6 +47,8 @@ type CLIConfig struct {
 	Port int
 	// CloseOnStdin indicates whether the server should shut down when stdin is closed
 	CloseOnStdin bool
+	// FromTrayApp indicates whether the server was started from the tray application
+	FromTrayApp bool
 }
 
 // RunServer initializes and runs the Outrig server
@@ -158,7 +160,7 @@ func RunServer(config CLIConfig) error {
 	initializeTEventUploader()
 
 	// Initialize update checker
-	updatecheck.StartUpdateChecker()
+	updatecheck.StartUpdateChecker(config.FromTrayApp)
 
 	// Run web servers (HTTP and WebSocket)
 	webServerPort, err := web.RunWebServer(ctx, config.Port)
