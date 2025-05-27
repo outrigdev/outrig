@@ -109,6 +109,12 @@ var wifiOffIconData []byte
 //go:embed assets/outrigapp-trayicon-template.png
 var trayIconTemplateData []byte
 
+//go:embed assets/wrench-template.png
+var wrenchIconData []byte
+
+//go:embed assets/download-template.png
+var downloadIconData []byte
+
 func init() {
 	iconDataMap[IconTypeTemplate] = trayIconTemplateData
 	iconDataMap[IconTypeNormal] = baseIconData
@@ -588,6 +594,7 @@ func rebuildMenu(status ServerStatus) {
 		mCheckUpdatesGlobal.Disable()
 	} else if latestVersion != "" {
 		mCheckUpdatesGlobal = systray.AddMenuItem("Install Outrig "+latestVersion+"...", "Install the latest version of Outrig")
+		mCheckUpdatesGlobal.SetTemplateIcon(downloadIconData, downloadIconData)
 	} else {
 		mCheckUpdatesGlobal = systray.AddMenuItem("Check for Updates...", "")
 	}
@@ -630,6 +637,7 @@ func updateCheckUpdatesMenuItem() {
 		mCheckUpdatesGlobal.Disable()
 	} else if latestVersion != "" {
 		mCheckUpdatesGlobal.SetTitle("Install Outrig " + latestVersion + "...")
+		mCheckUpdatesGlobal.SetTemplateIcon(downloadIconData, downloadIconData)
 		mCheckUpdatesGlobal.Enable()
 	} else {
 		mCheckUpdatesGlobal.SetTitle("Check for Updates...")
@@ -760,25 +768,31 @@ func addInstallCLIMenuItems(status ServerStatus) {
 	cliInstallFailed.Store(state == LinkBadDest || state == LinkClobber)
 
 	if state != LinkOK {
-		if state == LinkBadDest || state == LinkClobber {
-			info := fmt.Sprintf("A file named 'outrig' already exists at %s. Choose 'Force Reinstall' to replace it.", targetPath)
-			item := systray.AddMenuItem(info, "")
-			item.Disable()
-			systray.AddSeparator()
+		var info, label string
+
+		switch state {
+		case LinkDangling:
+			info = "Broken 'outrig' CLI link"
+			label = "Repair CLI Link"
+		case LinkBadDest:
+			info = "Incorrect 'outrig' CLI link"
+			label = "Repair CLI Link"
+		case LinkClobber:
+			info = "File named 'outrig' blocks CLI"
+			label = "Overwrite with Outrig CLI"
+		default: // LinkMissing
+			label = "Install Outrig CLI"
 		}
 
-		var label string
-		switch state {
-		case LinkMissing:
-			label = "Install CLI Command"
-		case LinkDangling:
-			label = "Repair CLI Symlink"
-		default:
-			label = "Force Reinstall CLI (overwrite existing)"
+		if info != "" {
+			item := systray.AddMenuItem(info, "")
+			item.Disable()
 		}
-		mInstallCli := systray.AddMenuItem(label, "")
+
+		mInstall := systray.AddMenuItem(label, "")
+		mInstall.SetTemplateIcon(wrenchIconData, wrenchIconData)
 		go func() {
-			for range mInstallCli.ClickedCh {
+			for range mInstall.ClickedCh {
 				InstallOutrigCLI()
 				rebuildMenu(status)
 			}
