@@ -33,6 +33,7 @@ class AppModel {
     settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
     updateModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for update modal
     newerVersion: PrimitiveAtom<string> = atom(null) as PrimitiveAtom<string>; // Newer version available
+    fromTrayApp: PrimitiveAtom<boolean> = atom<boolean>(false); // Whether we're running from tray app
     isSearchTipsOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for search tips popup
 
     // Toast notifications
@@ -86,6 +87,7 @@ class AppModel {
                 } else {
                     getDefaultStore().set(this.newerVersion, updateData.newerversion);
                 }
+                getDefaultStore().set(this.fromTrayApp, updateData.fromtrayapp || false);
             }
         } catch (err) {
             console.error("Failed to check for updates:", err);

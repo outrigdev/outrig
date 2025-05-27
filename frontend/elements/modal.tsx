@@ -50,7 +50,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, title, children, onClose, 
             >
                 {/* Header */}
                 <div className="flex justify-between items-center px-4 py-3 border-b border-border">
-                    <h2 className="text-primary font-medium">{title}</h2>
+                    <h2 className="text-primary font-bold">{title}</h2>
                     <button
                         onClick={onClose}
                         className="text-muted hover:text-primary cursor-pointer"
