@@ -138,13 +138,13 @@ func main() {
 			// Get the flag values
 			port, _ := cmd.Flags().GetInt("port")
 			closeOnStdin, _ := cmd.Flags().GetBool("close-on-stdin")
-			fromTrayApp, _ := cmd.Flags().GetBool("from-trayapp")
+			trayPid, _ := cmd.Flags().GetInt("tray-pid")
 
 			// Create CLI config
 			config := boot.CLIConfig{
 				Port:         port,
 				CloseOnStdin: closeOnStdin,
-				FromTrayApp:  fromTrayApp,
+				TrayAppPid:   trayPid,
 			}
 
 			return boot.RunServer(config)
@@ -155,7 +155,9 @@ func main() {
 	serverCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
 	serverCmd.Flags().Int("port", 0, "Override the default web server port (default: 5005 for production, 6005 for development)")
 	serverCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
-	serverCmd.Flags().Bool("from-trayapp", false, "Indicates the server was started from the tray application")
+	serverCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
+	// Hide this flag since it's only used internally by the tray application
+	serverCmd.Flags().MarkHidden("tray-pid")
 
 	versionCmd := &cobra.Command{
 		Use:   "version",
