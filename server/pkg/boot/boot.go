@@ -138,6 +138,11 @@ func RunServer(config CLIConfig) error {
 	serverbase.OutrigId = outrigId
 	serverbase.OutrigFirstRun = isFirstRun
 
+	// Set tray app flag for telemetry
+	if config.FromTrayApp {
+		tevent.SetTrayApp(true)
+	}
+
 	// Send telemetry events
 	if isFirstRun {
 		// If this is the first run, send an install event
