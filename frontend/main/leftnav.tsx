@@ -48,7 +48,7 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
                 {/* Running indicator as part of the flow with visibility */}
                 <div
                     className={cn(
-                        "w-2 h-2 rounded-full bg-green-500 mr-2",
+                        "w-2 h-2 shrink-0 rounded-full bg-green-500 mr-2",
                         appRun.status === "running" ? "visible" : "invisible"
                     )}
                 ></div>
