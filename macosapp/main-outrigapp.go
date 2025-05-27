@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -136,25 +137,30 @@ func pathExists(p string) bool {
 
 func getLinkState(target, cliSource string) LinkState {
 	fi, err := os.Lstat(target)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return LinkMissing
 	}
 	if err != nil {
 		return LinkClobber
 	}
-
-	if fi.Mode()&os.ModeSymlink != 0 {
-		dest, _ := os.Readlink(target)
-		switch {
-		case dest == cliSource:
-			return LinkOK
-		case !pathExists(dest):
-			return LinkDangling
-		default:
-			return LinkBadDest
-		}
+	if fi.Mode()&os.ModeSymlink == 0 {
+		return LinkClobber
 	}
-	return LinkClobber
+
+	dest, _ := os.Readlink(target)
+	if !filepath.IsAbs(dest) { // relative → make absolute
+		dest = filepath.Join(filepath.Dir(target), dest)
+	}
+	dest = filepath.Clean(dest) // collapse “../”, “./” etc.
+
+	switch {
+	case dest == cliSource:
+		return LinkOK
+	case !pathExists(dest):
+		return LinkDangling
+	default:
+		return LinkBadDest
+	}
 }
 
 func randString(n int) string {
@@ -662,7 +668,7 @@ func onReady() {
 		for range ticker.C {
 			now := time.Now().UnixMilli()
 			lastCheck := atomic.LoadInt64(&lastAppcastCheck)
-			
+
 			// Check if the interval has passed since the last check
 			if now-lastCheck >= AppcastUpdateCheckInterval.Milliseconds() {
 				// First run the updater in background mode
@@ -951,7 +957,7 @@ func main() {
 	updateChan := make(chan os.Signal, 1)
 	signal.Notify(shutdownChan, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
 	signal.Notify(updateChan, syscall.SIGUSR1)
-	
+
 	// Handle shutdown signals
 	go func() {
 		sig := <-shutdownChan
@@ -959,7 +965,7 @@ func main() {
 		isQuitting.Store(true)
 		systray.Quit()
 	}()
-	
+
 	// Handle SIGUSR1 for update checks
 	go func() {
 		for {
