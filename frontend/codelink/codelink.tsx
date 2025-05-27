@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React from "react";
+import { useAtomValue } from "jotai";
 import { cn } from "@/util/util";
-import { generateCodeLink, parseFileString } from "./codelink-model";
+import { codeLinkModel } from "./codelink-model";
 
 interface CodeLinkProps {
     file: string;
@@ -11,9 +12,10 @@ interface CodeLinkProps {
     className?: string;
 }
 
-export const CodeLink: React.FC<CodeLinkProps> = ({ file, children, className }) => {
-    const { filePath, lineNumber, columnNumber } = parseFileString(file);
-    const codeLink = generateCodeLink(filePath, lineNumber, columnNumber, "vscode");
+export const CodeLink: React.FC<CodeLinkProps> = React.memo(({ file, children, className }) => {
+    const linkType = useAtomValue(codeLinkModel.linkTypeAtom);
+    const { filePath, lineNumber, columnNumber } = codeLinkModel.parseFileString(file);
+    const codeLink = codeLinkModel.generateCodeLink(linkType, filePath, lineNumber, columnNumber);
 
     return codeLink ? (
         <a
@@ -28,4 +30,6 @@ export const CodeLink: React.FC<CodeLinkProps> = ({ file, children, className })
             {children}
         </span>
     );
-};
+});
+
+CodeLink.displayName = "CodeLink";
