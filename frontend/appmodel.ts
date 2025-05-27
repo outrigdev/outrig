@@ -12,7 +12,7 @@ import { isBlank } from "./util/util";
 
 const AutoFollowStorageKey = "outrig:autoFollow";
 const ThemeLocalStorageKey = "outrig:theme";
-const LeftNavOpenStorageKey = "outrig:leftNavOpen";
+const LeftNavClosedStorageKey = "outrig:leftNavClosed";
 const SearchTipsViewedStorageKey = "outrig:searchtipsviewed";
 
 // Define URL state type
@@ -29,7 +29,7 @@ class AppModel {
     selectedTab: PrimitiveAtom<string> = atom("logs"); // Default to logs view
     darkMode: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(ThemeLocalStorageKey) !== "light");
     autoFollow: PrimitiveAtom<boolean> = atom<boolean>(sessionStorage.getItem(AutoFollowStorageKey) !== "false"); // Default to true if not set
-    leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(LeftNavOpenStorageKey) === "true"); // State for left navigation bar
+    leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(LeftNavClosedStorageKey) !== "true"); // State for left navigation bar
     settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
     updateModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for update modal
     newerVersion: PrimitiveAtom<string> = atom(null) as PrimitiveAtom<string>; // Newer version available
@@ -63,12 +63,12 @@ class AppModel {
         this.appRunModel = new AppRunModel();
         this.applyTheme();
         this.initFromUrl();
-        
+
         // Initialize search tips state based on localStorage
         const tipsViewed = localStorage.getItem(SearchTipsViewedStorageKey);
         // If tips haven't been viewed before, set isSearchTipsOpen to true
         getDefaultStore().set(this.isSearchTipsOpen, tipsViewed == null);
-        
+
         // Check for updates with a small delay to avoid conflicts with other calls
         setTimeout(() => this.checkForUpdates(), 1000);
         // Mark initialization as complete
@@ -325,7 +325,7 @@ class AppModel {
     }
 
     setLeftNavOpen(update: boolean): void {
-        localStorage.setItem(LeftNavOpenStorageKey, update.toString());
+        localStorage.setItem(LeftNavClosedStorageKey, (!update).toString());
         getDefaultStore().set(this.leftNavOpen, update);
     }
 
