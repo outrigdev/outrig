@@ -286,9 +286,6 @@ func updateIcon(iconType string) {
 	case IconTypeError:
 		statusMsg = "Server is Not Running"
 	}
-	if cliInstallFailed.Load() {
-		statusMsg += " (CLI link error)"
-	}
 	systray.SetTooltip(statusMsg)
 	lastIconType = iconType
 }
