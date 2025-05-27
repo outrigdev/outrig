@@ -47,8 +47,8 @@ type CLIConfig struct {
 	Port int
 	// CloseOnStdin indicates whether the server should shut down when stdin is closed
 	CloseOnStdin bool
-	// FromTrayApp indicates whether the server was started from the tray application
-	FromTrayApp bool
+	// TrayAppPid is the PID of the tray application that started the server (0 if not from tray)
+	TrayAppPid int
 }
 
 // RunServer initializes and runs the Outrig server
@@ -138,8 +138,9 @@ func RunServer(config CLIConfig) error {
 	serverbase.OutrigId = outrigId
 	serverbase.OutrigFirstRun = isFirstRun
 
-	// Set tray app flag for telemetry
-	if config.FromTrayApp {
+	// Set tray app flag for telemetry (derive boolean from PID)
+	fromTrayApp := config.TrayAppPid > 0
+	if fromTrayApp {
 		tevent.SetTrayApp(true)
 	}
 
@@ -165,7 +166,7 @@ func RunServer(config CLIConfig) error {
 	initializeTEventUploader()
 
 	// Initialize update checker
-	updatecheck.StartUpdateChecker(config.FromTrayApp)
+	updatecheck.StartUpdateChecker(fromTrayApp)
 
 	// Run web servers (HTTP and WebSocket)
 	webServerPort, err := web.RunWebServer(ctx, config.Port)

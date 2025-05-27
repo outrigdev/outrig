@@ -357,7 +357,8 @@ func startServer() {
 
 	log.Printf("Starting Outrig server...\n")
 	outrigPath := getOutrigPath()
-	serverCmd = exec.Command(outrigPath, "server", "--close-on-stdin", "--from-trayapp")
+	trayPid := os.Getpid()
+	serverCmd = exec.Command(outrigPath, "server", "--close-on-stdin", "--tray-pid", fmt.Sprintf("%d", trayPid))
 
 	// Create a pipe for stdin
 	stdin, err := serverCmd.StdinPipe()
@@ -945,14 +946,27 @@ func main() {
 		defer logFile.Close()
 	}
 
-	// Set up signal handler for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
+	// Set up signal handlers
+	shutdownChan := make(chan os.Signal, 1)
+	updateChan := make(chan os.Signal, 1)
+	signal.Notify(shutdownChan, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
+	signal.Notify(updateChan, syscall.SIGUSR1)
+	
+	// Handle shutdown signals
 	go func() {
-		sig := <-sigChan
+		sig := <-shutdownChan
 		log.Printf("Received signal %v, shutting down gracefully", sig)
 		isQuitting.Store(true)
 		systray.Quit()
+	}()
+	
+	// Handle SIGUSR1 for update checks
+	go func() {
+		for {
+			sig := <-updateChan
+			log.Printf("Received signal %v, checking for updates", sig)
+			go checkForUpdates(false, false)
+		}
 	}()
 
 	ensureCliLinkStartup()
