@@ -171,6 +171,6 @@ func Log(str string) {}
 // Logf is a no-op when no_outrig is set
 func Logf(format string, args ...any) {}
 
-func MakeLogStream(name string) (io.Writer, error) {
-	return io.Discard, nil
+func MakeLogStream(name string) io.Writer {
+	return io.Discard
 }

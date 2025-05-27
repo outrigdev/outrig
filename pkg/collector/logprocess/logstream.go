@@ -4,7 +4,6 @@
 package logprocess
 
 import (
-	"fmt"
 	"io"
 	"time"
 
@@ -31,7 +30,7 @@ func (w *LogStreamWriter) Write(p []byte) (n int, err error) {
 	// Get controller from global
 	c := global.Controller.Load()
 	if c == nil || *c == nil {
-		return 0, fmt.Errorf("controller not initialized")
+		return 0, nil
 	}
 	controller := *c
 

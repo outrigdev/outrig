@@ -6,6 +6,10 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
+	"log"
+	"os"
+	"path/filepath"
 	"runtime/debug"
 	"time"
 
@@ -47,6 +51,27 @@ func main() {
 	outrig.Init("test-small", config)
 	defer outrig.AppDone()
 
+	// Create temporary log file
+	tmpFile, err := os.CreateTemp("", "outrig-testsmall-*.log")
+	if err != nil {
+		fmt.Printf("Failed to create temp log file: %v\n", err)
+		return
+	}
+	defer tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	// Set up logger to write to both temp file and outrig stream
+	multiWriter := io.MultiWriter(tmpFile, outrig.MakeLogStream("tmplog"))
+	log.SetOutput(multiWriter)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	// Log some test messages
+	log.Printf("Starting testsmall application")
+	log.Printf("Temp log file created at: %s", tmpFile.Name())
+	log.Printf("Current working directory: %s", filepath.Dir("."))
+
+	fmt.Printf("Logging to temp file: %s\n", tmpFile.Name())
+
 	// Push nil value using global watch
 	nilWatch.Push(nil)
 
@@ -71,7 +96,7 @@ func main() {
 	}
 	outrig.Logf("#test long log line that has more text than the default length of 80 characters. This is a test to see how the log line is shown and displayed in the output if it exceeds the maximum length.")
 
-	ow, _ := outrig.MakeLogStream("hellohello")
+	ow := outrig.MakeLogStream("hellohello")
 	bow := bufio.NewWriter(ow)
 	bow.WriteString("Hello, world!\n")
 	fmt.Fprintf(bow, "This is a \033[30;43mtest log\033[0m line with a \033[3mnumber\033[0m: %d\n", 42)

@@ -224,9 +224,12 @@ func Logf(format string, args ...any) {
 
 // MakeLogStream creates an io.Writer that sends written data as log lines to Outrig
 // The name parameter specifies the source of the logs
-func MakeLogStream(name string) (io.Writer, error) {
+// This log stream will never block your code for I/O. When Outrig is disabled, it discards the data after
+// a simple atomic.Bool check (nanoseconds).  When Outrig is enabled it uses a non-blocking write to a
+// buffered channel.
+func MakeLogStream(name string) io.Writer {
 	// Create a log stream writer using the logprocess package
-	return logprocess.MakeLogStreamWriter(name), nil
+	return logprocess.MakeLogStreamWriter(name)
 }
 
 func NewWatch(name string) *Watch {
