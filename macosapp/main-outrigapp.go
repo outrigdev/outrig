@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"fyne.io/systray"
+	"github.com/Masterminds/semver/v3"
+	"github.com/outrigdev/outrig/server/pkg/updatecheck"
 )
 
 var (
@@ -49,6 +51,11 @@ var (
 
 	// Updater status
 	isUpdaterRunning atomic.Bool
+
+	// Appcast update checking
+	latestAppcastVersion string
+	appcastVersionLock   sync.RWMutex
+	lastAppcastCheck     int64
 )
 
 const (
@@ -64,6 +71,9 @@ const (
 	// Log file names
 	OutrigAppLogFile    = "outrigapp.log"
 	OutrigServerLogFile = "outrigserver.log"
+
+	// Update check interval
+	AppcastUpdateCheckInterval = 8 * time.Hour
 )
 
 var iconDataMap = make(map[string][]byte)
@@ -507,9 +517,12 @@ func rebuildMenu(status ServerStatus) {
 	}
 
 	// Add check for updates menu item
+	latestVersion := getLatestAppcastVersion()
 	if isUpdaterRunning.Load() {
 		mCheckUpdatesGlobal = systray.AddMenuItem("Checking for updates...", "")
 		mCheckUpdatesGlobal.Disable()
+	} else if latestVersion != "" {
+		mCheckUpdatesGlobal = systray.AddMenuItem("Install Outrig "+latestVersion+"...", "Install the latest version of Outrig")
 	} else {
 		mCheckUpdatesGlobal = systray.AddMenuItem("Check for Updates...", "")
 	}
@@ -546,9 +559,13 @@ func updateCheckUpdatesMenuItem() {
 		return
 	}
 
+	latestVersion := getLatestAppcastVersion()
 	if isUpdaterRunning.Load() {
 		mCheckUpdatesGlobal.SetTitle("Checking for updates...")
 		mCheckUpdatesGlobal.Disable()
+	} else if latestVersion != "" {
+		mCheckUpdatesGlobal.SetTitle("Install Outrig " + latestVersion + "...")
+		mCheckUpdatesGlobal.Enable()
 	} else {
 		mCheckUpdatesGlobal.SetTitle("Check for Updates...")
 		mCheckUpdatesGlobal.Enable()
@@ -562,6 +579,8 @@ func onReady() {
 	// Check for updates on startup
 	go func() {
 		checkForUpdates(true, false)
+		// Check appcast updates after the regular update check
+		checkAppcastUpdates()
 	}()
 
 	startServer()
@@ -574,6 +593,21 @@ func onReady() {
 		for range ticker.C {
 			serverStatus := getServerStatus()
 			updateServerStatus(serverStatus)
+		}
+	}()
+
+	// Start a goroutine for periodic appcast update checking (every 8 hours)
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			now := time.Now().UnixMilli()
+			lastCheck := atomic.LoadInt64(&lastAppcastCheck)
+			
+			// Check if the interval has passed since the last check
+			if now-lastCheck >= AppcastUpdateCheckInterval.Milliseconds() {
+				checkAppcastUpdates()
+			}
 		}
 	}()
 
@@ -772,6 +806,57 @@ func checkForUpdates(first bool, background bool) {
 			logFileHandle.Close()
 		}
 	}(cmd, logFile)
+}
+
+// checkAppcastUpdates checks for updates using the appcast and updates the menu if needed
+func checkAppcastUpdates() {
+	log.Printf("Checking appcast for updates...")
+
+	// Get the latest version from appcast
+	latestVersion, err := updatecheck.GetLatestAppcastRelease()
+	if err != nil {
+		log.Printf("Error checking appcast updates: %v", err)
+		return
+	}
+
+	log.Printf("Latest appcast version: %s, current version: %s", latestVersion, OutrigAppVersion)
+
+	// Compare versions using semver
+	current, err := semver.NewVersion(OutrigAppVersion)
+	if err != nil {
+		log.Printf("Error parsing current version: %v", err)
+		return
+	}
+
+	latest, err := semver.NewVersion(latestVersion)
+	if err != nil {
+		log.Printf("Error parsing latest version: %v", err)
+		return
+	}
+
+	// Update the stored latest version
+	appcastVersionLock.Lock()
+	if latest.GreaterThan(current) {
+		latestAppcastVersion = latestVersion
+		log.Printf("New version available: %s", latestVersion)
+	} else {
+		latestAppcastVersion = ""
+		log.Printf("No new version available")
+	}
+	appcastVersionLock.Unlock()
+
+	// Update the last check time
+	atomic.StoreInt64(&lastAppcastCheck, time.Now().UnixMilli())
+
+	// Update the menu item to reflect changes
+	updateCheckUpdatesMenuItem()
+}
+
+// getLatestAppcastVersion returns the latest appcast version if available
+func getLatestAppcastVersion() string {
+	appcastVersionLock.RLock()
+	defer appcastVersionLock.RUnlock()
+	return latestAppcastVersion
 }
 
 func main() {
