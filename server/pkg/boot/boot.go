@@ -166,7 +166,7 @@ func RunServer(config CLIConfig) error {
 	initializeTEventUploader()
 
 	// Initialize update checker
-	updatecheck.StartUpdateChecker(fromTrayApp)
+	updatecheck.StartUpdateChecker(config.TrayAppPid)
 
 	// Run web servers (HTTP and WebSocket)
 	webServerPort, err := web.RunWebServer(ctx, config.Port)

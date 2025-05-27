@@ -10,9 +10,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -24,14 +26,14 @@ const (
 	// GitHubReleasesURL is the URL to check for the latest release
 	GitHubReleasesURL = "https://api.github.com/repos/outrigdev/outrig/releases/latest"
 
-	// InitialDelay is the delay before the first update check (10 seconds)
+	// InitialDelay is the delay before the first update check
 	InitialDelay = 10 * time.Second
 
-	// CheckInterval is the interval between update checks (5 minutes)
+	// CheckInterval is the interval between update checks
 	CheckInterval = 5 * time.Minute
 
-	// UpdateCheckPeriod is how often we actually perform the check (24 hours)
-	UpdateCheckPeriod = 24 * time.Hour
+	// UpdateCheckPeriod is how often we actually perform the check
+	UpdateCheckPeriod = 8 * time.Hour
 )
 
 var (
@@ -47,8 +49,8 @@ var (
 	// lastCheckTime is the time of the last update check
 	lastCheckTime int64
 
-	// fromTrayApp stores whether the server was started from the tray app
-	fromTrayApp bool
+	// trayAppPid stores the PID of the tray app that started the server (0 if not from tray)
+	trayAppPid int
 
 	// Global Watch variable for update check results
 	latestReleaseWatch = outrig.NewWatch("updatecheck.latestreleasecheck").ForPush()
@@ -82,9 +84,9 @@ type AppcastItemEnclosure struct {
 }
 
 // StartUpdateChecker starts the update checker routine
-func StartUpdateChecker(fromTray bool) {
-	// Store the fromTrayApp flag
-	fromTrayApp = fromTray
+func StartUpdateChecker(trayPid int) {
+	// Store the tray app PID
+	trayAppPid = trayPid
 	// Don't start the update checker if it's disabled
 	if Disabled.Load() {
 		log.Printf("Update checker is disabled, not starting")
@@ -235,9 +237,14 @@ func GetUpdatedVersion() string {
 	return newerVersion
 }
 
+// GetTrayAppPid returns the PID of the tray app that started the server (0 if not from tray)
+func GetTrayAppPid() int {
+	return trayAppPid
+}
+
 // GetFromTrayApp returns whether the server was started from the tray app
 func GetFromTrayApp() bool {
-	return fromTrayApp
+	return trayAppPid > 0
 }
 
 // GetLatestAppcastRelease downloads and parses the appcast.xml file to get the latest version
@@ -294,4 +301,26 @@ func GetLatestAppcastRelease() (string, error) {
 	}
 
 	return latestVersion, nil
+}
+
+// TriggerTrayAppUpdateCheck sends a SIGUSR1 signal to the tray app to trigger update check
+func TriggerTrayAppUpdateCheck() error {
+	if trayAppPid <= 0 {
+		return fmt.Errorf("no tray app PID available")
+	}
+
+	// Check if the process exists
+	process, err := os.FindProcess(trayAppPid)
+	if err != nil {
+		return fmt.Errorf("failed to find process with PID %d: %w", trayAppPid, err)
+	}
+
+	// Send SIGUSR1 signal to trigger update check
+	err = process.Signal(syscall.SIGUSR1)
+	if err != nil {
+		return fmt.Errorf("failed to send SIGUSR1 signal to PID %d: %w", trayAppPid, err)
+	}
+
+	log.Printf("Sent SIGUSR1 signal to tray app (PID %d) to trigger update check", trayAppPid)
+	return nil
 }

@@ -419,3 +419,8 @@ func (*RpcServerImpl) UpdateCheckCommand(ctx context.Context) (rpctypes.UpdateCh
 		FromTrayApp:  fromTrayApp,
 	}, nil
 }
+
+// TriggerTrayUpdateCommand triggers an update check in the tray app
+func (*RpcServerImpl) TriggerTrayUpdateCommand(ctx context.Context) error {
+	return updatecheck.TriggerTrayAppUpdateCheck()
+}
