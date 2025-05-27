@@ -10,6 +10,8 @@ import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import { BookText, ExternalLink, Github } from "lucide-react";
 
+const OutrigVersion = "v" + import.meta.env.PACKAGE_VERSION;
+
 const GettingStartedWithOutrig: React.FC = () => {
     // Split the code into parts to apply different styling to comments
     const codeWithColorizedComments = (
@@ -106,7 +108,7 @@ const WelcomeColumn: React.FC = () => {
                 </div>
 
                 <div className="text-center mb-8">
-                    <h1 className="text-primary text-3xl font-medium mb-4">Welcome to Outrig!</h1>
+                    <h1 className="text-primary text-3xl font-medium mb-4">Welcome to Outrig {OutrigVersion}!</h1>
                     <p className="text-secondary text-sm">
                         Outrig gives you visibility into your running Go servers and applications, helping you quickly
                         identify issues and optimize performance.
