@@ -7,9 +7,6 @@ import { SearchStore } from "@/store/searchstore";
 import { Atom, atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcApi } from "../rpc/rpcclientapi";
 
-// Type for editor link options
-export type CodeLinkType = null | "vscode";
-
 // Type for search result info
 export type SearchResultInfo = {
     searchedCount: number;
@@ -36,8 +33,6 @@ class GoRoutinesModel {
     showAll: PrimitiveAtom<boolean> = atom(true);
     selectedStates: PrimitiveAtom<Set<string>> = atom(new Set<string>());
 
-    // Code link settings
-    showCodeLinks: PrimitiveAtom<CodeLinkType> = atom<CodeLinkType>("vscode");
 
     // Toggle for showing/hiding #outrig goroutines
     showOutrigGoroutines: PrimitiveAtom<boolean> = atom(false);
@@ -50,12 +45,12 @@ class GoRoutinesModel {
     effectiveSimpleStacktraceMode: Atom<string> = atom((get) => {
         const searchTerm = get(this.searchTerm);
         const userSelectedMode = get(this.simpleStacktraceMode);
-        
+
         // If there's a search term, use raw mode to make matches visible
         if (searchTerm && searchTerm.trim() !== "") {
             return "raw";
         }
-        
+
         // Otherwise use the user-selected mode
         return userSelectedMode;
     });
@@ -75,7 +70,7 @@ class GoRoutinesModel {
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();
         this.appRunId = appRunId;
-        
+
         // Get app name from AppModel using the appRunId
         const appRunInfoAtom = AppModel.getAppRunInfoAtom(appRunId);
         const appRunInfo = getDefaultStore().get(appRunInfoAtom);
@@ -83,7 +78,7 @@ class GoRoutinesModel {
 
         // Get search term atom from SearchStore
         this.searchTerm = SearchStore.getSearchTermAtom(appName, appRunId, "goroutines");
-        
+
         this.loadAppRunGoroutines();
     }
 
@@ -380,25 +375,6 @@ class GoRoutinesModel {
         return null;
     }
 
-    // Generate a VSCode link for a file path and line number
-    generateCodeLink(
-        filePath: string,
-        lineNumber: number,
-        linkType: CodeLinkType
-    ): { href: string; onClick: () => null } | null {
-        if (linkType == null) {
-            return null;
-        }
-
-        if (linkType === "vscode") {
-            return {
-                href: `vscode://file${filePath}:${lineNumber}`,
-                onClick: () => null,
-            };
-        }
-
-        return null;
-    }
 
     // Refresh goroutines with a minimum time to show the refreshing state
     async refresh() {

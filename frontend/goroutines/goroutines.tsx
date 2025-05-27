@@ -106,7 +106,6 @@ interface GoroutineViewProps {
 }
 
 const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
-    const linkType = useAtomValue(model.showCodeLinks);
     const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
     // Use the effective mode which automatically switches to "raw" when search is active
     const simpleMode = useAtomValue(model.effectiveSimpleStacktraceMode);
@@ -188,7 +187,7 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                 )}
             </div>
             <div ref={stackTraceRef} className="pb-2">
-                <StackTrace goroutine={goroutine} model={model} linkType={linkType} simpleMode={simpleMode} />
+                <StackTrace goroutine={goroutine} model={model} simpleMode={simpleMode} />
             </div>
         </div>
     );

@@ -1,14 +1,13 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { CodeLink } from "@/codelink/codelink";
 import { cn, escapeRegExp } from "@/util/util";
 import React, { useState } from "react";
-import { CodeLinkType, GoRoutinesModel } from "./goroutines-model";
+import { GoRoutinesModel } from "./goroutines-model";
 
 // Component for displaying a single frame in the simplified stack trace
 interface SimplifiedStackFrameProps {
     frame: StackFrame;
-    model: GoRoutinesModel;
-    linkType: CodeLinkType;
     createdByGoid?: number; // Optional goroutine ID for "created by" frames
     showFileLink?: boolean; // Whether to show the file link separately (true for simplified:files, false for simplified)
 }
@@ -21,14 +20,9 @@ const getBaseFileName = (filepath: string): string => {
 
 const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
     frame,
-    model,
-    linkType,
     createdByGoid,
     showFileLink = true, // Default to showing file link (for backward compatibility)
 }) => {
-    // Generate the code link if we have a valid linkType
-    const codeLink = linkType ? model.generateCodeLink(frame.filepath, frame.linenumber, linkType) : null;
-
     // Format for the tooltip - (basefilename.go:linenum)
     const fileLocationTip = `(${getBaseFileName(frame.filepath)}:${frame.linenumber})`;
 
@@ -40,17 +34,16 @@ const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
         >
             <div>
                 {/* If not showing file link separately and frame is important, make the entire line clickable */}
-                {!showFileLink && codeLink ? (
+                {!showFileLink ? (
                     <div className="group relative">
                         {createdByGoid != null && (
                             <div>
                                 <span className="text-secondary">created in goroutine {createdByGoid} by </span>
                             </div>
                         )}
-                        <a
-                            href={codeLink?.href}
-                            onClick={codeLink?.onClick}
-                            className={cn("cursor-pointer inline-block", createdByGoid != null ? "pl-4" : "")}
+                        <CodeLink
+                            file={`${frame.filepath}:${frame.linenumber}`}
+                            className={cn("inline-block", createdByGoid != null ? "pl-4" : "")}
                         >
                             <span className="text-primary group-hover:text-blue-600 dark:group-hover:text-blue-300 group-hover:font-bold">
                                 {frame.package.split("/").pop()}.{frame.funcname}()
@@ -67,7 +60,7 @@ const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
                             >
                                 {fileLocationTip}
                             </span>
-                        </a>
+                        </CodeLink>
                     </div>
                 ) : (
                     <>
@@ -86,42 +79,11 @@ const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
             </div>
             {/* Only show file line for important frames and when showFileLink is true */}
             {frame.isimportant && showFileLink && (
-                <FrameFileLink
-                    filepath={frame.filepath}
-                    linenumber={frame.linenumber}
-                    model={model}
-                    linkType={linkType}
-                />
-            )}
-        </div>
-    );
-};
-
-// Component for displaying a link to a code file and line number
-interface FrameLinkProps {
-    filepath: string;
-    linenumber: number;
-    model: GoRoutinesModel;
-    linkType: CodeLinkType;
-}
-
-const FrameFileLink: React.FC<FrameLinkProps> = ({ filepath, linenumber, model, linkType }) => {
-    const codeLink = model.generateCodeLink(filepath, linenumber, linkType);
-
-    return (
-        <div className="ml-4">
-            {codeLink ? (
-                <a
-                    href={codeLink?.href}
-                    onClick={codeLink?.onClick}
-                    className="cursor-pointer hover:text-blue-500 text-secondary transition-colors duration-150"
-                >
-                    {filepath}:{linenumber}
-                </a>
-            ) : (
-                <span>
-                    {filepath}:{linenumber}
-                </span>
+                <div className="ml-4">
+                    <CodeLink file={`${frame.filepath}:${frame.linenumber}`}>
+                        {frame.filepath}:{frame.linenumber}
+                    </CodeLink>
+                </div>
             )}
         </div>
     );
@@ -131,35 +93,33 @@ const FrameFileLink: React.FC<FrameLinkProps> = ({ filepath, linenumber, model, 
 interface StackTraceProps {
     goroutine: ParsedGoRoutine;
     model: GoRoutinesModel;
-    linkType: CodeLinkType;
     simpleMode: string;
 }
 
-export const StackTrace: React.FC<StackTraceProps> = ({ goroutine, model, linkType, simpleMode }) => {
+export const StackTrace: React.FC<StackTraceProps> = ({ goroutine, model, simpleMode }) => {
     // Check if the goroutine is properly parsed for simplified views
     const canUseSimplifiedView = goroutine.parsed && goroutine.parsedframes && goroutine.parsedframes.length > 0;
 
     // Handle the different modes
     if (simpleMode === "simplified:files" && canUseSimplifiedView) {
         // Show file links separately (original behavior)
-        return <SimplifiedStackTrace goroutine={goroutine} model={model} linkType={linkType} showFileLinks={true} />;
+        return <SimplifiedStackTrace goroutine={goroutine} model={model} showFileLinks={true} />;
     } else if (simpleMode === "simplified" && canUseSimplifiedView) {
         // Don't show file links separately, instead link the function name
-        return <SimplifiedStackTrace goroutine={goroutine} model={model} linkType={linkType} showFileLinks={false} />;
+        return <SimplifiedStackTrace goroutine={goroutine} model={model} showFileLinks={false} />;
     }
 
     // Default to raw stack trace
-    return <RawStackTrace goroutine={goroutine} model={model} linkType={linkType} />;
+    return <RawStackTrace goroutine={goroutine} model={model} />;
 };
 
 // Component for displaying raw stack trace
 interface RawStackTraceProps {
     goroutine: ParsedGoRoutine;
     model: GoRoutinesModel;
-    linkType: CodeLinkType;
 }
 
-const RawStackTrace: React.FC<RawStackTraceProps> = ({ goroutine, model, linkType }) => {
+const RawStackTrace: React.FC<RawStackTraceProps> = ({ goroutine, model }) => {
     if (!goroutine) return null;
 
     // Create the header line in the format Go would use: "goroutine X [state, X minutes]:"
@@ -175,7 +135,7 @@ const RawStackTrace: React.FC<RawStackTraceProps> = ({ goroutine, model, linkTyp
 
             {/* Then render the rest of the stack trace */}
             {stacktraceLines.map((line: string, index: number) => (
-                <StacktraceLine key={index} line={line} model={model} linkType={linkType} />
+                <StacktraceLine key={index} line={line} model={model} />
             ))}
         </pre>
     );
@@ -215,12 +175,6 @@ const simplifyPackageName = (packagePath: string, isSys?: boolean): string => {
 
     // For anything else, use the full package path
     return packagePath;
-};
-
-// Helper function to get the function display name (package.funcname)
-const getFunctionDisplayName = (frame: StackFrame): string => {
-    const packageName = simplifyPackageName(frame.package, frame.issys);
-    return `${packageName}.${frame.funcname}`;
 };
 
 // Component for displaying a collapsed section of stack frames
@@ -272,7 +226,6 @@ const CollapsedStackFrames: React.FC<CollapsedStackFramesProps> = ({ frames, onE
 interface SimplifiedStackTraceProps {
     goroutine: ParsedGoRoutine;
     model: GoRoutinesModel;
-    linkType: CodeLinkType;
     showFileLinks?: boolean; // Whether to show file links separately
 }
 
@@ -293,7 +246,6 @@ const HighlightLastPackagePart: React.FC<{ packagePath: string; indent?: boolean
 const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({
     goroutine,
     model,
-    linkType,
     showFileLinks = true, // Default to showing file links (for backward compatibility)
 }) => {
     // State to track which sections are expanded
@@ -332,8 +284,6 @@ const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({
                             <SimplifiedStackFrame
                                 key={`section-${currentSectionIndex}-frame-${frameIndex}`}
                                 frame={frame}
-                                model={model}
-                                linkType={linkType}
                                 showFileLink={showFileLinks}
                             />
                         );
@@ -365,15 +315,7 @@ const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({
                 addNonImportantSection();
 
                 // Then add this important frame
-                result.push(
-                    <SimplifiedStackFrame
-                        key={`frame-${index}`}
-                        frame={frame}
-                        model={model}
-                        linkType={linkType}
-                        showFileLink={showFileLinks}
-                    />
-                );
+                result.push(<SimplifiedStackFrame key={`frame-${index}`} frame={frame} showFileLink={showFileLinks} />);
             } else {
                 // Accumulate non-important frames
                 currentNonImportantFrames.push(frame);
@@ -393,8 +335,6 @@ const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({
             {goroutine.createdbygoid && goroutine.createdbyframe && (
                 <SimplifiedStackFrame
                     frame={goroutine.createdbyframe}
-                    model={model}
-                    linkType={linkType}
                     createdByGoid={goroutine.createdbygoid}
                     showFileLink={showFileLinks}
                 />
@@ -407,26 +347,20 @@ const SimplifiedStackTrace: React.FC<SimplifiedStackTraceProps> = ({
 interface StacktraceLineProps {
     line: string;
     model: GoRoutinesModel;
-    linkType: CodeLinkType;
 }
 
-const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }) => {
+const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model }) => {
     // Only process lines that might contain file paths
     if (!line.includes(".go:")) {
         return <div>{line}</div>;
     }
 
     const parsedLine = model.parseStacktraceLine(line);
-    if (!parsedLine || linkType == null) {
+    if (!parsedLine) {
         return <div>{line}</div>;
     }
 
     const { filePath, lineNumber } = parsedLine;
-    const link = model.generateCodeLink(filePath, lineNumber, linkType);
-
-    if (!link) {
-        return <div>{line}</div>;
-    }
 
     // Find the file:line part in the text to make it clickable
     const escapedFilePath = escapeRegExp(filePath);
@@ -444,14 +378,9 @@ const StacktraceLine: React.FC<StacktraceLineProps> = ({ line, model, linkType }
                 // If this part matches the file:line pattern, make it a link
                 if (part === `${filePath}:${lineNumber}`) {
                     return (
-                        <a
-                            key={index}
-                            href={link?.href}
-                            onClick={link?.onClick}
-                            className="cursor-pointer hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-150"
-                        >
+                        <CodeLink key={index} file={`${filePath}:${lineNumber}`}>
                             {part}
-                        </a>
+                        </CodeLink>
                     );
                 }
                 return <span key={index}>{part}</span>;
