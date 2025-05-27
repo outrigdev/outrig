@@ -606,6 +606,9 @@ func onReady() {
 			
 			// Check if the interval has passed since the last check
 			if now-lastCheck >= AppcastUpdateCheckInterval.Milliseconds() {
+				// First run the updater in background mode
+				checkForUpdates(false, true)
+				// Then check the appcast
 				checkAppcastUpdates()
 			}
 		}
