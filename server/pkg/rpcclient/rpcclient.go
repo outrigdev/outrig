@@ -112,6 +112,12 @@ func SendTEventFeCommand(w *rpc.RpcClient, data rpctypes.TEventFeData, opts *rpc
 	return err
 }
 
+// command "triggertrayupdate", rpctypes.TriggerTrayUpdateCommand
+func TriggerTrayUpdateCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "triggertrayupdate", nil, opts)
+	return err
+}
+
 // command "updatebrowsertaburl", rpctypes.UpdateBrowserTabUrlCommand
 func UpdateBrowserTabUrlCommand(w *rpc.RpcClient, data rpctypes.BrowserTabUrlData, opts *rpc.RpcOpts) error {
 	_, err := SendRpcRequestCallHelper[any](w, "updatebrowsertaburl", data, opts)

@@ -350,6 +350,7 @@ declare global {
     // rpctypes.UpdateCheckData
     type UpdateCheckData = {
         newerversion: string;
+        fromtrayapp?: boolean;
     };
 
     // ds.WatchDecl

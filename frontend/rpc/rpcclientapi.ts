@@ -91,6 +91,11 @@ class RpcApiType {
         return client.rpcCall("sendteventfe", data, opts);
     }
 
+    // command "triggertrayupdate" [call]
+    TriggerTrayUpdateCommand(client: RpcClient, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("triggertrayupdate", null, opts);
+    }
+
     // command "updatebrowsertaburl" [call]
     UpdateBrowserTabUrlCommand(client: RpcClient, data: BrowserTabUrlData, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("updatebrowsertaburl", data, opts);
