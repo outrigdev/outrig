@@ -404,21 +404,18 @@ func (*RpcServerImpl) SendTEventFeCommand(ctx context.Context, data rpctypes.TEv
 		FrontendSearchItems:    data.Props.FrontendSearchItems,
 	}
 
-	// Create the TEvent
 	event := tevent.MakeTEvent(data.Event, props)
-
-	// Write the event
 	tevent.WriteTEvent(*event)
-
 	return nil
 }
 
 // UpdateCheckCommand returns information about available updates
 func (*RpcServerImpl) UpdateCheckCommand(ctx context.Context) (rpctypes.UpdateCheckData, error) {
-	// Get the newer version from the updatecheck package
 	newerVersion := updatecheck.GetUpdatedVersion()
+	fromTrayApp := updatecheck.GetFromTrayApp()
 
 	return rpctypes.UpdateCheckData{
 		NewerVersion: newerVersion,
+		FromTrayApp:  fromTrayApp,
 	}, nil
 }

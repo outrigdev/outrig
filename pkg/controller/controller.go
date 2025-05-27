@@ -324,6 +324,15 @@ func (c *ControllerImpl) sendAppInfo() {
 	c.transport.SendPacket(appInfoPacket, true)
 }
 
+func (c *ControllerImpl) sendCollectorStatus() {
+	statuses := c.GetCollectorStatuses()
+	collectorStatusPacket := &ds.PacketType{
+		Type: ds.PacketTypeCollectorStatus,
+		Data: statuses,
+	}
+	c.transport.SendPacket(collectorStatusPacket, false)
+}
+
 // Initialization methods
 
 func (c *ControllerImpl) determineModuleName() string {
@@ -400,6 +409,8 @@ func (c *ControllerImpl) pollConn() {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 	if c.transport.HasConnections() {
+		// Send collector status when connected
+		c.sendCollectorStatus()
 		return
 	}
 	// Try to connect
@@ -489,4 +500,16 @@ func printf(format string, args ...any) {
 	}
 
 	fmt.Print(formatted)
+}
+
+// GetCollectorStatuses returns the status of all collectors
+func (c *ControllerImpl) GetCollectorStatuses() map[string]ds.CollectorStatus {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	
+	statuses := make(map[string]ds.CollectorStatus)
+	for name, collector := range c.Collectors {
+		statuses[name] = collector.GetStatus()
+	}
+	return statuses
 }

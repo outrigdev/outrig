@@ -21,11 +21,13 @@ import (
 	"time"
 
 	"fyne.io/systray"
+	"github.com/Masterminds/semver/v3"
+	"github.com/outrigdev/outrig/server/pkg/updatecheck"
 )
 
 var (
 	// Version information
-	OutrigAppVersion = "v0.5.15"
+	OutrigAppVersion = "v0.5.16"
 
 	// Server process
 	serverCmd          *exec.Cmd
@@ -35,14 +37,26 @@ var (
 	serverStartOnce    sync.Once
 
 	statusUpdateLock sync.Mutex
+	rebuildMenuLock  sync.Mutex
 	lastServerStatus ServerStatus
 	lastIconType     string
+
+	// Menu items
+	mCheckUpdatesGlobal *systray.MenuItem
 
 	isQuitting atomic.Bool
 
 	// CLI installation status
 	isCliInstalled   atomic.Bool
 	cliInstallFailed atomic.Bool
+
+	// Updater status
+	isUpdaterRunning atomic.Bool
+
+	// Appcast update checking
+	latestAppcastVersion string
+	appcastVersionLock   sync.RWMutex
+	lastAppcastCheck     int64
 )
 
 const (
@@ -58,6 +72,9 @@ const (
 	// Log file names
 	OutrigAppLogFile    = "outrigapp.log"
 	OutrigServerLogFile = "outrigserver.log"
+
+	// Update check interval
+	AppcastUpdateCheckInterval = 8 * time.Hour
 )
 
 // LinkState represents the current state of the CLI symlink
@@ -340,7 +357,7 @@ func startServer() {
 
 	log.Printf("Starting Outrig server...\n")
 	outrigPath := getOutrigPath()
-	serverCmd = exec.Command(outrigPath, "server", "--close-on-stdin")
+	serverCmd = exec.Command(outrigPath, "server", "--close-on-stdin", "--from-trayapp")
 
 	// Create a pipe for stdin
 	stdin, err := serverCmd.StdinPipe()
@@ -484,6 +501,9 @@ func groupAppRuns(appRuns []TrayAppRunInfo) []AppGroup {
 }
 
 func rebuildMenu(status ServerStatus) {
+	rebuildMenuLock.Lock()
+	defer rebuildMenuLock.Unlock()
+
 	appRuns := status.AppRuns
 
 	// Reset the entire menu
@@ -555,10 +575,18 @@ func rebuildMenu(status ServerStatus) {
 	}
 
 	// Add check for updates menu item
-	mCheckUpdates := systray.AddMenuItem("Check for Updates...", "")
+	latestVersion := getLatestAppcastVersion()
+	if isUpdaterRunning.Load() {
+		mCheckUpdatesGlobal = systray.AddMenuItem("Checking for updates...", "")
+		mCheckUpdatesGlobal.Disable()
+	} else if latestVersion != "" {
+		mCheckUpdatesGlobal = systray.AddMenuItem("Install Outrig "+latestVersion+"...", "Install the latest version of Outrig")
+	} else {
+		mCheckUpdatesGlobal = systray.AddMenuItem("Check for Updates...", "")
+	}
 	go func() {
-		for range mCheckUpdates.ClickedCh {
-			checkForUpdates(false)
+		for range mCheckUpdatesGlobal.ClickedCh {
+			checkForUpdates(false, false)
 		}
 	}()
 
@@ -581,9 +609,37 @@ func rebuildMenu(status ServerStatus) {
 	}()
 }
 
+func updateCheckUpdatesMenuItem() {
+	rebuildMenuLock.Lock()
+	defer rebuildMenuLock.Unlock()
+
+	if mCheckUpdatesGlobal == nil {
+		return
+	}
+
+	latestVersion := getLatestAppcastVersion()
+	if isUpdaterRunning.Load() {
+		mCheckUpdatesGlobal.SetTitle("Checking for updates...")
+		mCheckUpdatesGlobal.Disable()
+	} else if latestVersion != "" {
+		mCheckUpdatesGlobal.SetTitle("Install Outrig " + latestVersion + "...")
+		mCheckUpdatesGlobal.Enable()
+	} else {
+		mCheckUpdatesGlobal.SetTitle("Check for Updates...")
+		mCheckUpdatesGlobal.Enable()
+	}
+}
+
 func onReady() {
 	updateIcon(IconTypeError)
 	rebuildMenu(ServerStatus{})
+
+	// Check for updates on startup
+	go func() {
+		checkForUpdates(true, false)
+		// Check appcast updates after the regular update check
+		checkAppcastUpdates()
+	}()
 
 	startServer()
 
@@ -595,6 +651,24 @@ func onReady() {
 		for range ticker.C {
 			serverStatus := getServerStatus()
 			updateServerStatus(serverStatus)
+		}
+	}()
+
+	// Start a goroutine for periodic appcast update checking (every 8 hours)
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			now := time.Now().UnixMilli()
+			lastCheck := atomic.LoadInt64(&lastAppcastCheck)
+			
+			// Check if the interval has passed since the last check
+			if now-lastCheck >= AppcastUpdateCheckInterval.Milliseconds() {
+				// First run the updater in background mode
+				checkForUpdates(false, true)
+				// Then check the appcast
+				checkAppcastUpdates()
+			}
 		}
 	}()
 
@@ -730,7 +804,15 @@ func openBrowser(url string) {
 }
 
 // checkForUpdates launches the OutrigUpdater to check for updates
-func checkForUpdates(background bool) {
+func checkForUpdates(first bool, background bool) {
+	// Test and set - only proceed if no updater is currently running
+	if !isUpdaterRunning.CompareAndSwap(false, true) {
+		log.Printf("Update check already in progress, skipping\n")
+		return
+	}
+
+	updateCheckUpdatesMenuItem()
+
 	if background {
 		log.Printf("Checking for updates in background...\n")
 	} else {
@@ -757,7 +839,9 @@ func checkForUpdates(background bool) {
 	// Launch the updater
 	var cmd *exec.Cmd
 	pidStr := fmt.Sprintf("%d", os.Getpid())
-	if background {
+	if first {
+		cmd = exec.Command(updaterPath, "--first", "--pid", pidStr)
+	} else if background {
 		cmd = exec.Command(updaterPath, "--background", "--pid", pidStr)
 	} else {
 		cmd = exec.Command(updaterPath, "--pid", pidStr)
@@ -784,6 +868,11 @@ func checkForUpdates(background bool) {
 
 	// Monitor the updater process in a goroutine
 	go func(updaterCmd *exec.Cmd, logFileHandle *os.File) {
+		defer func() {
+			isUpdaterRunning.Store(false)
+			updateCheckUpdatesMenuItem()
+		}()
+
 		err := updaterCmd.Wait()
 		if err != nil {
 			log.Printf("Update checker exited with error: %v", err)
@@ -796,6 +885,57 @@ func checkForUpdates(background bool) {
 			logFileHandle.Close()
 		}
 	}(cmd, logFile)
+}
+
+// checkAppcastUpdates checks for updates using the appcast and updates the menu if needed
+func checkAppcastUpdates() {
+	log.Printf("Checking appcast for updates...")
+
+	// Get the latest version from appcast
+	latestVersion, err := updatecheck.GetLatestAppcastRelease()
+	if err != nil {
+		log.Printf("Error checking appcast updates: %v", err)
+		return
+	}
+
+	log.Printf("Latest appcast version: %s, current version: %s", latestVersion, OutrigAppVersion)
+
+	// Compare versions using semver
+	current, err := semver.NewVersion(OutrigAppVersion)
+	if err != nil {
+		log.Printf("Error parsing current version: %v", err)
+		return
+	}
+
+	latest, err := semver.NewVersion(latestVersion)
+	if err != nil {
+		log.Printf("Error parsing latest version: %v", err)
+		return
+	}
+
+	// Update the stored latest version
+	appcastVersionLock.Lock()
+	if latest.GreaterThan(current) {
+		latestAppcastVersion = latestVersion
+		log.Printf("New version available: %s", latestVersion)
+	} else {
+		latestAppcastVersion = ""
+		log.Printf("No new version available")
+	}
+	appcastVersionLock.Unlock()
+
+	// Update the last check time
+	atomic.StoreInt64(&lastAppcastCheck, time.Now().UnixMilli())
+
+	// Update the menu item to reflect changes
+	updateCheckUpdatesMenuItem()
+}
+
+// getLatestAppcastVersion returns the latest appcast version if available
+func getLatestAppcastVersion() string {
+	appcastVersionLock.RLock()
+	defer appcastVersionLock.RUnlock()
+	return latestAppcastVersion
 }
 
 func main() {

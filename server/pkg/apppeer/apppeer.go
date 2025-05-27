@@ -43,11 +43,13 @@ type AppRunPeer struct {
 	LastModTime int64      // Last modification time in milliseconds
 	refCount    int        // Reference counter
 	refLock     sync.Mutex // Lock for reference counter operations
+	dataLock    sync.Mutex // Lock for data fields (CollectorStatus, etc.)
 
-	Logs         *LogLinePeer
-	GoRoutines   *GoRoutinePeer
-	Watches      *WatchesPeer
-	RuntimeStats *RuntimeStatsPeer
+	Logs            *LogLinePeer
+	GoRoutines      *GoRoutinePeer
+	Watches         *WatchesPeer
+	RuntimeStats    *RuntimeStatsPeer
+	CollectorStatus map[string]ds.CollectorStatus // Collector statuses by name
 
 	lastSentStats *tevent.AppRunStats // Last stats sent in disconnected event
 }
@@ -231,6 +233,16 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		}
 		p.RuntimeStats.ProcessRuntimeStats(runtimeStats)
 		log.Printf("Received runtime stats for app run ID: %s", p.AppRunId)
+
+	case ds.PacketTypeCollectorStatus:
+		var collectorStatuses map[string]ds.CollectorStatus
+		if err := json.Unmarshal(packetData, &collectorStatuses); err != nil {
+			return fmt.Errorf("failed to unmarshal CollectorStatus: %w", err)
+		}
+		p.dataLock.Lock()
+		p.CollectorStatus = collectorStatuses
+		p.dataLock.Unlock()
+		log.Printf("Received collector statuses for app run ID: %s (%d collectors)", p.AppRunId, len(collectorStatuses))
 
 	default:
 		log.Printf("Unknown packet type: %s", packetType)

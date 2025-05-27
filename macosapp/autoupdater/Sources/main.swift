@@ -6,6 +6,7 @@ import AppKit     // for NSApplication
 // ── parse CLI flags ─────────────────────────────────────────────
 let args = CommandLine.arguments
 let isBackground = args.contains("--background")
+let isFirst = args.contains("--first")
 
 guard
     let i = args.firstIndex(of: "--pid"),
@@ -15,6 +16,9 @@ else {
     fputs("OutrigUpdater: missing --pid <tray-pid>\n", stderr)
     exit(1)
 }
+
+// ── Global state ────────────────────────────────────────────────
+var validUpdateFound = false
 
 // ── Initialize NSApplication ────────────────────────────────────
 // This is critical for Sparkle UI to work properly
@@ -37,6 +41,7 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     
     func updater(_ u: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         print("Update \(item.displayVersionString) found → downloading…")
+        validUpdateFound = true
     }
     
     func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
@@ -66,6 +71,10 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     
     func updaterShouldRelaunchApplication(_ updater: SPUUpdater) -> Bool {
         print("Sparkle asking if should relaunch")
+        if background {
+            print("Background mode: Not relaunching application")
+            return false
+        }
         return true  // Yes, we want to relaunch
     }
 
@@ -152,9 +161,17 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
             print("Update cycle finished successfully")
         }
         
-        // This is the right place to quit after the update cycle completes
-        // In interactive mode, this is called after the user dismisses any dialogs
-        quitHelper()
+        // Check if we should relaunch in interactive mode
+        if isFirst && validUpdateFound {
+            print("First mode found update - relaunching in interactive mode after 1s delay")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                updater.checkForUpdates()
+            }
+        } else {
+            // This is the right place to quit after the update cycle completes
+            // In interactive mode, this is called after the user dismisses any dialogs
+            quitHelper()
+        }
     }
 
     // ── Helper exit ─────────────────────────────────────────────
@@ -180,26 +197,16 @@ let updaterCtl = SPUStandardUpdaterController(
 
 let updater = updaterCtl.updater
 
-// Configure updater
-if isBackground {
-    // Enable automatic checks for background mode
-    updater.automaticallyChecksForUpdates = true
-}
-
 // Start update check
-if isBackground {
+if isFirst {
+    print("First mode – check for update information")
+    updater.checkForUpdateInformation()
+} else if isBackground {
     print("Background mode – silent check")
     updater.checkForUpdatesInBackground()
 } else {
     print("Interactive mode – show Sparkle UI")
     updater.checkForUpdates()
-}
-
-// Set up timeout
-let timeout: TimeInterval = isBackground ? 60 : 300  // 1 min for background, 5 min for interactive
-DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
-    print("Update check timed out after \(timeout) seconds")
-    delegate.quitHelper()
 }
 
 // Run the app

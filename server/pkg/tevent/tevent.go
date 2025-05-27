@@ -38,6 +38,7 @@ func extractMajorMinorVersion(fullVersion string) string {
 }
 
 var Disabled atomic.Bool
+var IsTrayApp atomic.Bool
 
 var ValidEventNames = map[string]bool{
 	"server:install":  true,
@@ -136,8 +137,9 @@ type TEventProps struct {
 	FrontendSearchItems    int      `json:"frontend:searchitems,omitempty"`
 	FrontendClickType      string   `json:"frontend:clicktype,omitempty"`
 
-	ServerNumAppRuns int `json:"server:numappruns,omitempty"`
-	ServerNumApps    int `json:"server:numapps,omitempty"`
+	ServerNumAppRuns int  `json:"server:numappruns,omitempty"`
+	ServerNumApps    int  `json:"server:numapps,omitempty"`
+	ServerTrayApp    bool `json:"server:trayapp,omitempty"`
 
 	// counts for app run activity
 	AppRunLogLines       int    `json:"apprun:loglines,omitempty"`
@@ -336,6 +338,11 @@ func createCommonUserProps() *TEventUserProps {
 	}
 }
 
+// SetTrayApp sets whether the server was started from the tray app
+func SetTrayApp(isTrayApp bool) {
+	IsTrayApp.Store(isTrayApp)
+}
+
 // SendInstallEvent sends an "outrig:install" telemetry event
 func SendInstallEvent() {
 	if Disabled.Load() {
@@ -343,6 +350,7 @@ func SendInstallEvent() {
 	}
 	props := TEventProps{}
 	props.UserSet = createCommonUserProps()
+	props.ServerTrayApp = IsTrayApp.Load()
 	event := MakeTEvent("server:install", props)
 	event.UserSetOnceProps().ServerInitialVersion = serverbase.OutrigServerVersion
 	WriteTEvent(*event)
@@ -355,6 +363,7 @@ func SendStartupEvent() {
 	}
 	props := TEventProps{}
 	props.UserSet = createCommonUserProps()
+	props.ServerTrayApp = IsTrayApp.Load()
 	event := MakeTEvent("server:startup", props)
 	WriteTEvent(*event)
 }
@@ -402,6 +411,7 @@ func SendServerActivityEvent(stats AppRunStats, numActiveAppRuns int) {
 	props := TEventProps{}
 	props.ApplyAppRunStats(stats)
 	props.ServerNumAppRuns = numActiveAppRuns
+	props.ServerTrayApp = IsTrayApp.Load()
 	event := MakeTEvent("server:activity", props)
 	WriteTEvent(*event)
 }

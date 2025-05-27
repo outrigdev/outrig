@@ -110,6 +110,8 @@ func generateCaskContent(data CaskData) string {
   desc "Real-time debugging for Go programs, similar to Chrome DevTools"
   homepage "https://github.com/outrigdev/outrig"
 
+  auto_updates true
+
   livecheck do
     url "https://github.com/outrigdev/outrig/releases/latest"
     strategy :github_latest

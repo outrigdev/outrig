@@ -5,6 +5,7 @@ package goroutine
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"runtime"
 	"slices"
@@ -94,7 +95,7 @@ func (gc *GoroutineCollector) setGoRoutineDecl(decl *ds.GoDecl) {
 		return
 	}
 	gc.goroutineDecls[decl.GoId] = decl
-	
+
 	// Add to updated declarations (make a copy to avoid reference issues)
 	declCopy := *decl
 	gc.updatedDecls = append(gc.updatedDecls, declCopy)
@@ -107,7 +108,7 @@ func (gc *GoroutineCollector) incrementParentSpawnCount(parentGoId int64) {
 
 	if parentDecl, ok := gc.goroutineDecls[parentGoId]; ok {
 		atomic.AddInt64(&parentDecl.NumSpawned, 1)
-		
+
 		// Add to updated declarations (make a copy to avoid reference issues)
 		declCopy := *parentDecl
 		gc.updatedDecls = append(gc.updatedDecls, declCopy)
@@ -119,7 +120,7 @@ func (gc *GoroutineCollector) UpdateGoRoutineName(decl *ds.GoDecl, newName strin
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
 	decl.Name = newName
-	
+
 	// Add to updated declarations (make a copy to avoid reference issues)
 	declCopy := *decl
 	gc.updatedDecls = append(gc.updatedDecls, declCopy)
@@ -130,7 +131,7 @@ func (gc *GoroutineCollector) UpdateGoRoutineTags(decl *ds.GoDecl, newTags []str
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
 	decl.Tags = newTags
-	
+
 	// Add to updated declarations (make a copy to avoid reference issues)
 	declCopy := *decl
 	gc.updatedDecls = append(gc.updatedDecls, declCopy)
@@ -169,7 +170,7 @@ func (gc *GoroutineCollector) RecordGoRoutineEnd(decl *ds.GoDecl, panicVal any, 
 	atomic.StoreInt32(&decl.State, GoState_Done)
 	endTs := time.Now().UnixMilli()
 	atomic.StoreInt64(&decl.EndTs, endTs)
-	
+
 	// Add to updated declarations (make a copy to avoid reference issues)
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
@@ -213,7 +214,7 @@ func (gc *GoroutineCollector) setLastStackSize(size int) {
 func (gc *GoroutineCollector) getDeclList(delta bool) []ds.GoDecl {
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
-	
+
 	if !delta {
 		// For full updates, return all declarations
 		declList := make([]ds.GoDecl, 0, len(gc.goroutineDecls))
@@ -224,7 +225,7 @@ func (gc *GoroutineCollector) getDeclList(delta bool) []ds.GoDecl {
 		gc.updatedDecls = nil
 		return declList
 	}
-	
+
 	// For delta updates, return only the updated declarations
 	declList := gc.updatedDecls
 	gc.updatedDecls = nil
@@ -448,10 +449,10 @@ func (gc *GoroutineCollector) recordPolledGoroutine(goId int64, goroutineData []
 	if decl != nil {
 		// Check if FirstPollTs was updated (was 0 before)
 		wasFirstPollUpdated := atomic.CompareAndSwapInt64(&decl.FirstPollTs, 0, now)
-		
+
 		// Always update LastPollTs
 		atomic.StoreInt64(&decl.LastPollTs, now)
-		
+
 		// Only add to updated declarations if something other than LastPollTs changed
 		if wasFirstPollUpdated {
 			gc.lock.Lock()
@@ -461,7 +462,7 @@ func (gc *GoroutineCollector) recordPolledGoroutine(goId int64, goroutineData []
 		}
 		return
 	}
-	
+
 	// First time we've seen this goroutine
 	decl = &ds.GoDecl{
 		GoId:        goId,
@@ -471,3 +472,32 @@ func (gc *GoroutineCollector) recordPolledGoroutine(goId int64, goroutineData []
 	}
 	gc.RecordGoRoutineStart(decl, goroutineData)
 }
+
+// getMonitoringCounts returns the current monitoring counts with proper locking
+func (gc *GoroutineCollector) getMonitoringCounts() (int, int) {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	return len(gc.lastGoroutineStacks), len(gc.goroutineDecls)
+}
+
+// GetStatus returns the current status of the goroutine collector
+func (gc *GoroutineCollector) GetStatus() ds.CollectorStatus {
+	status := ds.CollectorStatus{
+		Running: gc.config.Enabled,
+	}
+	
+	if !gc.config.Enabled {
+		status.Info = "Disabled in configuration"
+	} else {
+		activeGoroutines, totalDecls := gc.getMonitoringCounts()
+		status.Info = fmt.Sprintf("Monitoring %d active goroutines, %d total declarations", activeGoroutines, totalDecls)
+		status.CollectDuration = gc.executor.GetLastExecDuration()
+		
+		if lastErr := gc.executor.GetLastErr(); lastErr != nil {
+			status.Errors = append(status.Errors, lastErr.Error())
+		}
+	}
+	
+	return status
+}
+

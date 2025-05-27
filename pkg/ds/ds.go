@@ -13,13 +13,14 @@ import (
 
 // Transport packet types
 const (
-	PacketTypeLog          = "log"
-	PacketTypeMultiLog     = "multilog"
-	PacketTypeAppInfo      = "appinfo"
-	PacketTypeGoroutine    = "goroutine"
-	PacketTypeAppDone      = "appdone"
-	PacketTypeWatch        = "watch"
-	PacketTypeRuntimeStats = "runtimestats"
+	PacketTypeLog             = "log"
+	PacketTypeMultiLog        = "multilog"
+	PacketTypeAppInfo         = "appinfo"
+	PacketTypeGoroutine       = "goroutine"
+	PacketTypeAppDone         = "appdone"
+	PacketTypeWatch           = "watch"
+	PacketTypeRuntimeStats    = "runtimestats"
+	PacketTypeCollectorStatus = "collectorstatus"
 )
 
 // Environment variables
@@ -212,4 +213,12 @@ type ErrWithContext struct {
 	Ref   string `json:"ref,omitempty"` // reference to the object that caused the error (e.g. watchname, goroutine id, log source, etc.)
 	Error string `json:"error"`         // the error message
 	Line  string `json:"line"`          // file:line
+}
+
+type CollectorStatus struct {
+	Running         bool     `json:"running"`
+	Info            string   `json:"info,omitempty"`
+	Warnings        []string `json:"warnings,omitempty"`
+	Errors          []string `json:"errors,omitempty"`
+	CollectDuration int64    `json:"collectduration,omitempty"` // time in milliseconds of last collection
 }

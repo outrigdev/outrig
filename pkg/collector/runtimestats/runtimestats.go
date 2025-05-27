@@ -123,3 +123,23 @@ func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
 
 	rc.controller.SendPacket(pk)
 }
+
+// GetStatus returns the current status of the runtime stats collector
+func (rc *RuntimeStatsCollector) GetStatus() ds.CollectorStatus {
+	status := ds.CollectorStatus{
+		Running: rc.config.Enabled,
+	}
+	
+	if !rc.config.Enabled {
+		status.Info = "Disabled in configuration"
+	} else {
+		status.Info = "Runtime statistics collection active"
+		status.CollectDuration = rc.executor.GetLastExecDuration()
+		
+		if lastErr := rc.executor.GetLastErr(); lastErr != nil {
+			status.Errors = append(status.Errors, lastErr.Error())
+		}
+	}
+	
+	return status
+}

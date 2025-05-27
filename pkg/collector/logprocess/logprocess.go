@@ -13,9 +13,11 @@ import (
 
 // LogCollector implements the collector.Collector interface for log collection
 type LogCollector struct {
-	controller    ds.Controller
-	config        config.LogProcessorConfig
-	appRunContext ds.AppRunContext
+	controller           ds.Controller
+	config               config.LogProcessorConfig
+	appRunContext        ds.AppRunContext
+	dataLock             sync.RWMutex // protects externalLogWrapError
+	externalLogWrapError error        // Store any error from external log wrapping
 }
 
 // CollectorName returns the unique name of the collector
@@ -53,6 +55,8 @@ func (lc *LogCollector) Enable() {
 
 	// Use the new external log capture mechanism
 	err := loginitex.EnableExternalLogWrap(appRunId, lc.config, isDev)
+	lc.setExternalLogWrapError(err)
+	
 	if err != nil {
 		lc.controller.ILog("Failed to enable external log wrapping: %v", err)
 	} else {
@@ -67,4 +71,44 @@ func (lc *LogCollector) Disable() {
 
 	// Disable external log wrapping
 	// loginitex.DisableExternalLogWrap()
+}
+
+// GetStatus returns the current status of the log collector
+func (lc *LogCollector) GetStatus() ds.CollectorStatus {
+	status := ds.CollectorStatus{
+		Running: lc.config.Enabled,
+	}
+	
+	if !lc.config.Enabled {
+		status.Info = "Disabled in configuration"
+	} else {
+		// Check if external log wrapping is active
+		isExternalActive := loginitex.IsExternalLogWrapActive()
+		if isExternalActive {
+			status.Info = "Log processing active (external log wrapping enabled)"
+		} else {
+			status.Info = "Log processing active (external log wrapping disabled)"
+		}
+		
+		// Check for external log wrap error
+		if err := lc.getExternalLogWrapError(); err != nil {
+			status.Errors = append(status.Errors, "External log wrapping failed: "+err.Error())
+		}
+	}
+	
+	return status
+}
+
+// setExternalLogWrapError sets the external log wrap error with proper locking
+func (lc *LogCollector) setExternalLogWrapError(err error) {
+	lc.dataLock.Lock()
+	defer lc.dataLock.Unlock()
+	lc.externalLogWrapError = err
+}
+
+// getExternalLogWrapError gets the external log wrap error with proper locking
+func (lc *LogCollector) getExternalLogWrapError() error {
+	lc.dataLock.Lock()
+	defer lc.dataLock.Unlock()
+	return lc.externalLogWrapError
 }

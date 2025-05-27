@@ -16,7 +16,7 @@ import (
 
 // OutrigServerVersion is the current version of Outrig
 // This gets set from main-server.go during initialization
-var OutrigServerVersion = "v0.5.15"
+var OutrigServerVersion = "v0.5.16"
 
 // OutrigBuildTime is the build timestamp of Outrig
 // This gets set from main-server.go during initialization
@@ -37,6 +37,7 @@ const OutrigIdFile = "outrig.id"
 const OutrigDataDir = "data"
 const OutrigDevEnvName = "OUTRIG_DEV"
 const OutrigTEventsFile = "tevents.jsonl"
+const AppcastURL = "https://updates.outrig.run/appcast.xml"
 
 // Default production port for server
 const ProdWebServerPort = 5005

@@ -72,6 +72,7 @@ type FullRpcInterface interface {
 // UpdateCheckData represents the response for update check information
 type UpdateCheckData struct {
 	NewerVersion string `json:"newerversion"`
+	FromTrayApp  bool   `json:"fromtrayapp,omitempty"`
 }
 
 type RespUnion[T any] struct {
