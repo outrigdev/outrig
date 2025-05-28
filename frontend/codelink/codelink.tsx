@@ -5,6 +5,7 @@ import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import React from "react";
 import { codeLinkModel } from "./codelink-model";
+import { SettingsModel } from "../settings/settings-model";
 
 interface CodeLinkProps {
     file: string;
@@ -13,7 +14,7 @@ interface CodeLinkProps {
 }
 
 export const CodeLink: React.FC<CodeLinkProps> = React.memo(({ file, children, className }) => {
-    const linkType = useAtomValue(codeLinkModel.linkTypeAtom);
+    const linkType = useAtomValue(SettingsModel.codeLinkType);
     const parsedFile = codeLinkModel.parseFileString(file);
 
     if (!parsedFile) {

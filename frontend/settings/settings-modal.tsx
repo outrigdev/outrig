@@ -1,6 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { CodeLinkType } from "@/codelink/codelink-model";
 import { useAtom, useAtomValue } from "jotai";
 import { Moon, Sun } from "lucide-react";
 import React, { useEffect, useRef } from "react";
@@ -43,6 +44,7 @@ export const SettingsModal: React.FC = () => {
     const timeFormat = useAtomValue(SettingsModel.logsTimeFormat);
     const showLineNumbers = useAtomValue(SettingsModel.logsShowLineNumbers);
     const emojiReplacement = useAtomValue(SettingsModel.logsEmojiReplacement);
+    const codeLinkType = useAtomValue(SettingsModel.codeLinkType);
     const [darkMode, setDarkMode] = useAtom(AppModel.darkMode);
 
     return (
@@ -87,6 +89,28 @@ export const SettingsModal: React.FC = () => {
                                     },
                                 ]}
                                 label="Theme"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Code Links Section */}
+                    <div className="bg-secondary/10 rounded-lg p-4">
+                        <h2 className="text-lg font-semibold mb-4 border-b border-secondary/20 pb-2">Code Links</h2>
+                        <div className="space-y-4">
+                            <Dropdown
+                                id="code-link-type"
+                                value={codeLinkType || "picker"}
+                                onChange={(value) => SettingsModel.setCodeLinkType(value as CodeLinkType)}
+                                options={[
+                                    { value: "vscode", label: "VSCode" },
+                                    { value: "jetbrains", label: "JetBrains IDEs (GoLand)" },
+                                    { value: "cursor", label: "Cursor" },
+                                    { value: "sublime", label: "Sublime Text" },
+                                    { value: "textmate", label: "TextMate" },
+                                    { value: "copy", label: "Copy File Path" },
+                                    { value: "picker", label: "Show Picker" },
+                                ]}
+                                label="Link Type"
                             />
                         </div>
                     </div>
@@ -137,7 +161,9 @@ export const SettingsModal: React.FC = () => {
                             <Dropdown
                                 id="emoji-replacement"
                                 value={emojiReplacement}
-                                onChange={(value) => SettingsModel.setLogsEmojiReplacement(value as "never" | "outrig" | "always")}
+                                onChange={(value) =>
+                                    SettingsModel.setLogsEmojiReplacement(value as "never" | "outrig" | "always")
+                                }
                                 options={[
                                     { value: "never", label: "Never Replace Emojis" },
                                     { value: "outrig", label: "Replace Emojis in Outrig Loggers" },

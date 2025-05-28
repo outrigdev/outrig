@@ -3,11 +3,9 @@
 
 import { atom } from "jotai";
 
-export type CodeLinkType = null | "vscode" | "jetbrains" | "cursor" | "sublime" | "textmate";
+export type CodeLinkType = null | "vscode" | "jetbrains" | "cursor" | "sublime" | "textmate" | "copy" | "picker";
 
 class CodeLinkModel {
-    linkTypeAtom = atom<CodeLinkType>("vscode");
-
     parseFileString(fileStr: string): { filePath: string; lineNumber?: number; columnNumber?: number } {
         const parts = fileStr.split(":");
 
@@ -117,6 +115,20 @@ class CodeLinkModel {
                 href,
                 onClick: () => null,
             };
+        }
+
+        if (linkType === "copy") {
+            return {
+                href: "#",
+                onClick: () => {
+                    navigator.clipboard.writeText(filePath);
+                    return null;
+                },
+            };
+        }
+
+        if (linkType === "picker") {
+            return null;
         }
 
         return null;

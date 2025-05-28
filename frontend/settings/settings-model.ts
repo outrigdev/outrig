@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
+import { CodeLinkType } from "../codelink/codelink-model";
 
 export interface LogSettings {
     showSource: boolean;
@@ -12,18 +13,24 @@ export interface LogSettings {
     emojiReplacement: "never" | "outrig" | "always";
 }
 
+export interface CodeLinkSettings {
+    linkType: CodeLinkType;
+}
+
 const SETTINGS_STORAGE_KEY = "outrig:settings";
 const DEFAULT_SHOW_SOURCE = true;
 const DEFAULT_SHOW_LINE_NUMBERS = true;
 
 export interface Settings {
     logs?: Partial<LogSettings>;
+    codeLink?: Partial<CodeLinkSettings>;
 }
 
 const DEFAULT_SHOW_MILLISECONDS = true;
 const DEFAULT_TIME_FORMAT = "absolute";
 const DEFAULT_SHOW_TIMESTAMP = true;
 const DEFAULT_EMOJI_REPLACEMENT = "outrig";
+const DEFAULT_CODE_LINK_TYPE: CodeLinkType = "picker";
 
 const DEFAULT_SETTINGS: Settings = {
     logs: {
@@ -33,6 +40,9 @@ const DEFAULT_SETTINGS: Settings = {
         timeFormat: DEFAULT_TIME_FORMAT,
         showLineNumbers: DEFAULT_SHOW_LINE_NUMBERS,
         emojiReplacement: DEFAULT_EMOJI_REPLACEMENT,
+    },
+    codeLink: {
+        linkType: DEFAULT_CODE_LINK_TYPE,
     },
 };
 
@@ -179,6 +189,24 @@ class SettingsModel {
             emojiReplacement: get(this.logsEmojiReplacement),
         };
     });
+
+    codeLinkType = atom((get) => {
+        const settings = get(this.settings);
+        return settings?.codeLink?.linkType ?? DEFAULT_CODE_LINK_TYPE;
+    });
+
+    setCodeLinkType(value: CodeLinkType): void {
+        const currentSettings = getDefaultStore().get(this.settings) || {};
+        const newSettings = {
+            ...currentSettings,
+            codeLink: {
+                ...(currentSettings.codeLink || {}),
+                linkType: value,
+            },
+        };
+        getDefaultStore().set(this.settings, newSettings);
+        saveSettings(newSettings);
+    }
 }
 
 const model = new SettingsModel();
