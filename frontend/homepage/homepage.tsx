@@ -118,7 +118,7 @@ const GettingStartedWithOutrig: React.FC = () => {
                                 <div className="text-accent mr-2">
                                     <Bot size={18} />
                                 </div>
-                                <h4 className="text-primary font-medium">AI Integration</h4>
+                                <h4 className="text-primary font-medium">AI Instructions</h4>
                             </div>
                             <p className="text-secondary text-sm mb-3">
                                 Using AI? Copy these setup instructions to share with your AI assistant.
