@@ -42,32 +42,16 @@ type GoRoutinePeer struct {
 }
 
 // mergeGoRoutineStacks combines a base stack with a delta stack to create a complete stack
-// It starts with the base stack and applies changes from the delta stack
+// If deltaStack.Same is true, returns the base stack unchanged
+// Otherwise, returns the delta stack (which contains all current field values)
 func mergeGoRoutineStacks(baseStack, deltaStack ds.GoRoutineStack) ds.GoRoutineStack {
-	// Start with the base stack
-	completeStack := ds.GoRoutineStack{
-		GoId:       baseStack.GoId,
-		State:      baseStack.State,
-		Name:       baseStack.Name,
-		Tags:       baseStack.Tags,
-		StackTrace: baseStack.StackTrace,
+	if deltaStack.Same {
+		// All fields are the same, return the base stack unchanged
+		return baseStack
 	}
 
-	// Override with non-empty fields from the delta stack
-	if deltaStack.State != "" {
-		completeStack.State = deltaStack.State
-	}
-	if deltaStack.Name != "" {
-		completeStack.Name = deltaStack.Name
-	}
-	if len(deltaStack.Tags) > 0 {
-		completeStack.Tags = deltaStack.Tags
-	}
-	if deltaStack.StackTrace != "" {
-		completeStack.StackTrace = deltaStack.StackTrace
-	}
-
-	return completeStack
+	// Fields have changed, return the delta stack which contains all current values
+	return deltaStack
 }
 
 // MakeGoRoutinePeer creates a new GoRoutinePeer instance
@@ -138,7 +122,7 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		}
 
 		// Handle stack trace updates based on whether it's a delta update
-		if isDelta {
+		if isDelta && stack.Same {
 			// Delta updates need a base stack to merge with
 			var exists bool
 			var lastStack ds.GoRoutineStack

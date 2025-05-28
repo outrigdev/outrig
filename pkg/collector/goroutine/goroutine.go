@@ -307,31 +307,31 @@ var goCreationRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\]`)
 var parentGoRe = regexp.MustCompile(`created by .* in goroutine (\d+)`)
 
 // computeDeltaStack compares current and last goroutine stack and returns a delta stack
-// For delta updates, we start with a full copy of current and clear fields that haven't changed
-func (gc *GoroutineCollector) computeDeltaStack(id int64, current ds.GoRoutineStack) (ds.GoRoutineStack, bool) {
+// If all fields are the same, returns a stack with only GoId and Same=true
+// Otherwise returns the full current stack with Same=false
+func (gc *GoroutineCollector) computeDeltaStack(id int64, current ds.GoRoutineStack) ds.GoRoutineStack {
 	lastStack, exists := gc.lastGoroutineStacks[id]
 	if !exists {
 		// New goroutine, include all fields
-		return current, false
+		return current
 	}
-	// For delta updates, start with a full copy of current and clear fields that haven't changed
-	deltaStack := current
-	sameStack := true
-	if lastStack.State == current.State {
-		deltaStack.State = ""
+	
+	// Check if all fields are the same
+	allSame := lastStack.State == current.State &&
+		lastStack.StackTrace == current.StackTrace &&
+		lastStack.Name == current.Name &&
+		slices.Equal(lastStack.Tags, current.Tags)
+	
+	if allSame {
+		// All fields are the same, clear all fields and set Same
+		return ds.GoRoutineStack{
+			GoId: current.GoId,
+			Same: true,
+		}
 	}
-	if lastStack.StackTrace == current.StackTrace {
-		deltaStack.StackTrace = ""
-	} else {
-		sameStack = false
-	}
-	if lastStack.Name == current.Name {
-		deltaStack.Name = ""
-	}
-	if slices.Equal(lastStack.Tags, current.Tags) {
-		deltaStack.Tags = nil
-	}
-	return deltaStack, sameStack
+	
+	// Fields differ, send all fields and don't set Same
+	return current
 }
 
 func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool) *ds.GoroutineInfo {
@@ -376,8 +376,8 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool)
 
 		// For delta updates, only include changed fields
 		if delta {
-			deltaStack, sameStack := gc.computeDeltaStack(id, grStack)
-			if sameStack {
+			deltaStack := gc.computeDeltaStack(id, grStack)
+			if deltaStack.Same {
 				numSameStack++
 			}
 			goroutineStacks = append(goroutineStacks, deltaStack)
