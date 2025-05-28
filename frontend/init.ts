@@ -24,7 +24,7 @@ if (isDev) {
 
 // Use the same host and port that served the application
 // This ensures WebSocket connections work with tunneled ports or Vite's dev server
-const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const host = window.location.host; // Includes hostname and port
 const WebSocketEndpoint = `${protocol}//${host}/ws`;
 const RouteIdStorageKey = "outrig:routeid";
@@ -44,11 +44,7 @@ class UpstreamWshRpcProxy implements AbstractRpcClient {
 
 function initRpcSystem() {
     // Check if routeId exists in sessionStorage, otherwise create a new one
-    let routeId = sessionStorage.getItem(RouteIdStorageKey);
-    if (!routeId) {
-        routeId = "frontend:" + crypto.randomUUID();
-        sessionStorage.setItem(RouteIdStorageKey, routeId);
-    }
+    let routeId = "frontend:" + crypto.randomUUID();
     let usp = new URLSearchParams();
     usp.set("routeid", routeId);
     GlobalWS = new WebSocketController({
