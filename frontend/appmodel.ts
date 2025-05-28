@@ -32,6 +32,7 @@ class AppModel {
     leftNavOpen: PrimitiveAtom<boolean> = atom<boolean>(localStorage.getItem(LeftNavClosedStorageKey) !== "true"); // State for left navigation bar
     settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
     updateModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for update modal
+    codeLinkPickerModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for code link picker modal
     newerVersion: PrimitiveAtom<string> = atom(null) as PrimitiveAtom<string>; // Newer version available
     fromTrayApp: PrimitiveAtom<boolean> = atom<boolean>(false); // Whether we're running from tray app
     isSearchTipsOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for search tips popup
@@ -354,6 +355,20 @@ class AppModel {
 
     closeUpdateModal(): void {
         getDefaultStore().set(this.updateModalOpen, false);
+        emitter.emit("modalclose");
+    }
+
+    openCodeLinkPickerModal(): void {
+        getDefaultStore().set(this.codeLinkPickerModalOpen, true);
+
+        // Blur any active element to ensure it doesn't receive input
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+    }
+
+    closeCodeLinkPickerModal(): void {
+        getDefaultStore().set(this.codeLinkPickerModalOpen, false);
         emitter.emit("modalclose");
     }
 

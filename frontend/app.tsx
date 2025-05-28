@@ -1,6 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { CodeLinkPickerModalContainer } from "@/codelink/codelink-picker-modal";
 import { ToastContainer } from "@/elements/toast";
 import { UpdateModalContainer } from "@/elements/update-modal";
 import { HomePage } from "@/homepage/homepage";
@@ -18,6 +19,7 @@ interface AppWrapperProps {
 
 function AppWrapper({ children }: AppWrapperProps) {
     const isSettingsModalOpen = useAtomValue(AppModel.settingsModalOpen);
+    const isCodeLinkPickerModalOpen = useAtomValue(AppModel.codeLinkPickerModalOpen);
     const [toasts, setToasts] = useAtom(AppModel.toasts);
     const selectedTab = useAtomValue(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
@@ -76,12 +78,13 @@ function AppWrapper({ children }: AppWrapperProps) {
 
     return (
         <>
-            <div className="h-screen w-screen flex flex-col bg-panel" inert={isSettingsModalOpen || undefined}>
+            <div className="h-screen w-screen flex flex-col bg-panel" inert={isSettingsModalOpen || isCodeLinkPickerModalOpen || undefined}>
                 {children}
                 <ToastContainer toasts={toasts} onClose={handleToastClose} />
             </div>
             <SettingsModalContainer />
             <UpdateModalContainer />
+            <CodeLinkPickerModalContainer />
             
             {/* Portal container for highlight overlays */}
             <div id="highlight-overlay-root"></div>

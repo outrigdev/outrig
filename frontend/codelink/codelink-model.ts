@@ -1,11 +1,14 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { atom } from "jotai";
+import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
+import { AppModel } from "../appmodel";
 
 export type CodeLinkType = null | "vscode" | "jetbrains" | "cursor" | "sublime" | "textmate" | "copy" | "picker";
 
 class CodeLinkModel {
+    pendingCodeLink: PrimitiveAtom<{filePath: string; lineNumber?: number; columnNumber?: number} | null> = atom(null) as PrimitiveAtom<{filePath: string; lineNumber?: number; columnNumber?: number} | null>;
+
     parseFileString(fileStr: string): { filePath: string; lineNumber?: number; columnNumber?: number } {
         const parts = fileStr.split(":");
 
@@ -128,7 +131,19 @@ class CodeLinkModel {
         }
 
         if (linkType === "picker") {
-            return null;
+            return {
+                href: "#",
+                onClick: () => {
+                    // Store the pending link information
+                    getDefaultStore().set(this.pendingCodeLink, {
+                        filePath,
+                        lineNumber,
+                        columnNumber,
+                    });
+                    AppModel.openCodeLinkPickerModal();
+                    return null;
+                },
+            };
         }
 
         return null;
