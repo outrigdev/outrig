@@ -3,7 +3,7 @@
 
 import { atom } from "jotai";
 
-export type CodeLinkType = null | "vscode";
+export type CodeLinkType = null | "vscode" | "jetbrains" | "cursor" | "sublime" | "textmate";
 
 class CodeLinkModel {
     linkTypeAtom = atom<CodeLinkType>("vscode");
@@ -46,6 +46,70 @@ class CodeLinkModel {
                 href += `:${lineNumber}`;
                 if (columnNumber) {
                     href += `:${columnNumber}`;
+                }
+            }
+
+            return {
+                href,
+                onClick: () => null,
+            };
+        }
+
+        if (linkType === "jetbrains") {
+            let href = `jetbrains://open?file=${encodeURIComponent(filePath)}`;
+
+            if (lineNumber) {
+                href += `&line=${lineNumber}`;
+                if (columnNumber) {
+                    href += `&column=${columnNumber}`;
+                }
+            }
+
+            return {
+                href,
+                onClick: () => null,
+            };
+        }
+
+        if (linkType === "cursor") {
+            let href = `cursor://file${filePath}`;
+
+            if (lineNumber) {
+                href += `:${lineNumber}`;
+                if (columnNumber) {
+                    href += `:${columnNumber}`;
+                }
+            }
+
+            return {
+                href,
+                onClick: () => null,
+            };
+        }
+
+        if (linkType === "sublime") {
+            let href = `subl://open?url=file://${encodeURIComponent(filePath)}`;
+
+            if (lineNumber) {
+                href += `&line=${lineNumber}`;
+                if (columnNumber) {
+                    href += `&column=${columnNumber}`;
+                }
+            }
+
+            return {
+                href,
+                onClick: () => null,
+            };
+        }
+
+        if (linkType === "textmate") {
+            let href = `txmt://open?url=file://${encodeURIComponent(filePath)}`;
+
+            if (lineNumber) {
+                href += `&line=${lineNumber}`;
+                if (columnNumber) {
+                    href += `&column=${columnNumber}`;
                 }
             }
 
