@@ -19,20 +19,6 @@ import { NoWatchesMessage } from "./nowatchmessage";
 import { WatchVal } from "./watch-val";
 import { WatchesModel } from "./watches-model";
 
-// Constants for watch flags (matching the Go constants)
-const WatchFlag_Push = 1 << 5; // 32
-const WatchFlag_Counter = 1 << 6; // 64
-const WatchFlag_Atomic = 1 << 7; // 128
-const WatchFlag_Sync = 1 << 8; // 256
-const WatchFlag_Func = 1 << 9; // 512
-const WatchFlag_Hook = 1 << 10; // 1024
-const WatchFlag_Settable = 1 << 11; // 2048
-const WatchFlag_JSON = 1 << 12; // 4096
-const WatchFlag_GoFmt = 1 << 13; // 8192
-
-// Kind mask (lower 5 bits of flags)
-const KindMask = 0x1f;
-
 // Go reflect.Kind constants
 enum Kind {
     Invalid = 0,
@@ -62,12 +48,6 @@ enum Kind {
     String = 24,
     Struct = 25,
     UnsafePointer = 26,
-}
-
-// Get the kind from the flags
-function getKind(flags?: number): Kind {
-    if (!flags) return Kind.Invalid;
-    return flags & (KindMask as Kind);
 }
 
 // Get a string representation of the kind
