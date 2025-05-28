@@ -4,15 +4,66 @@
 import { AppModel } from "@/appmodel";
 import { AppRunList } from "@/apprunlist/apprunlist";
 import { SettingsButton } from "@/elements/settingsbutton";
+import { Tooltip } from "@/elements/tooltip";
 import { UpdateBadge } from "@/elements/updatebadge";
 import { StatusBar } from "@/mainapp/statusbar";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
-import { BookText, ExternalLink, Github } from "lucide-react";
+import { BookText, Bot, Check, Copy, ExternalLink, Github } from "lucide-react";
+import { useState } from "react";
 
 const OutrigVersion = "v" + import.meta.env.PACKAGE_VERSION;
 
+const AI_INSTRUCTIONS = `To set up Outrig in your Go application, follow these steps:
+
+1. **Import Outrig SDK**
+
+Add the following import statement to your Go application's main file:
+
+\`\`\`go
+import "github.com/outrigdev/outrig"
+\`\`\`
+
+2. **Initialize Outrig**
+
+Inside your \`main()\` function, initialize Outrig with your application's name:
+
+\`\`\`go
+func main() {
+    outrig.Init("your-app-name", nil)
+
+    // Optional: Ensure Outrig is signaled upon application shutdown
+    defer outrig.AppDone()
+
+    // Your application code here...
+}
+\`\`\`
+
+3. **Update Go Modules**
+
+Run the following command to automatically add the Outrig dependency to your \`go.mod\` and \`go.sum\` files:
+
+\`\`\`sh
+go mod tidy
+\`\`\`
+
+Once you start your application, it will automatically appear in your Outrig dashboard at [http://localhost:5005](http://localhost:5005).`;
+
 const GettingStartedWithOutrig: React.FC = () => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyInstructions = async () => {
+        try {
+            await navigator.clipboard.writeText(AI_INSTRUCTIONS);
+            setCopied(true);
+            setTimeout(() => {
+                setCopied(false);
+            }, 2000);
+        } catch (error) {
+            console.error("Failed to copy text:", error);
+        }
+    };
+
     // Split the code into parts to apply different styling to comments
     const codeWithColorizedComments = (
         <>
@@ -58,6 +109,40 @@ const GettingStartedWithOutrig: React.FC = () => {
                     </div>
                 </div>
                 <p className="text-secondary mt-6">Once you run your application, it will appear here automatically.</p>
+
+                {/* AI Instructions section */}
+                <div className="mt-8 w-full max-w-xl">
+                    <div className="bg-panel py-4 border-l-2 border-accentbg">
+                        <div className="px-5 text-left">
+                            <div className="flex items-center mb-2">
+                                <div className="text-accent mr-2">
+                                    <Bot size={18} />
+                                </div>
+                                <h4 className="text-primary font-medium">AI Integration</h4>
+                            </div>
+                            <p className="text-secondary text-sm mb-3">
+                                Using AI? Copy these setup instructions to share with your AI assistant.
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <Tooltip content={copied ? "Instructions copied!" : "Copy AI instructions"}>
+                                    <button
+                                        onClick={handleCopyInstructions}
+                                        className={cn(
+                                            "p-1 rounded transition-colors cursor-pointer text-primary hover:text-primary/80",
+                                            copied && "text-success hover:text-success/80"
+                                        )}
+                                        aria-label={copied ? "Copied" : "Copy to clipboard"}
+                                    >
+                                        {copied ? <Check size={16} /> : <Copy size={16} />}
+                                    </button>
+                                </Tooltip>
+                                <span className="text-accent text-sm cursor-pointer" onClick={handleCopyInstructions}>
+                                    Copy Instructions for AI
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div className="grow-2" />
         </div>
