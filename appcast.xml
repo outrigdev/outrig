@@ -5,32 +5,32 @@
         <description>Most recent changes with links to updates.</description>
         <language>en</language>
         <item>
-            <title>Outrig Version 0.6.0</title>
+            <title>Outrig Version 0.6.1</title>
             <description>
                 <![CDATA[
-    				<h2>Version 0.6.0</h2>
+    				<h2>Version 0.6.1</h2>
                     
                 ]]>
             </description>
-            <pubDate>Tue, 27 May 2025 21:33:26 +0000</pubDate>
+            <pubDate>Wed, 28 May 2025 18:18:55 +0000</pubDate>
 			            <enclosure
-                url="https://github.com/outrigdev/outrig/releases/download/v0.6.0/Outrig-darwin-amd64-v0.6.0.dmg"
-                sparkle:version="0.6.0"
-                sparkle:shortVersionString="0.6.0"
+                url="https://github.com/outrigdev/outrig/releases/download/v0.6.1/Outrig-darwin-amd64-v0.6.1.dmg"
+                sparkle:version="0.6.1"
+                sparkle:shortVersionString="0.6.1"
                 sparkle:os="macos"
                 sparkle:arch="x86_64"
-                length="21657774"
+                length="21662277"
                 type="application/x-apple-diskimage"
-                sparkle:edSignature="kJ4eVupv1Q/aLUZjTzGVTnpYcGm5C8Ar6oFmakTZyX0iw3yJNkVCBUWQ1PyQoZHxZoZ37PWv6ThyQ9YAsKKdDw==" />
+                sparkle:edSignature="fG/GLJlJiQ8ZCOVwHwjWgvWkouuSU0JXXVujhDQy/8VM/DDHEXeLg2bgTS2jDzs5p6FFype84IJEAjn/Z1UbBA==" />
             <enclosure
-                url="https://github.com/outrigdev/outrig/releases/download/v0.6.0/Outrig-darwin-arm64-v0.6.0.dmg"
-                sparkle:version="0.6.0"
-                sparkle:shortVersionString="0.6.0"
+                url="https://github.com/outrigdev/outrig/releases/download/v0.6.1/Outrig-darwin-arm64-v0.6.1.dmg"
+                sparkle:version="0.6.1"
+                sparkle:shortVersionString="0.6.1"
                 sparkle:os="macos"
                 sparkle:arch="arm64"
-                length="20646826"
+                length="20649445"
                 type="application/x-apple-diskimage"
-                sparkle:edSignature="6OmACDAJwyWqY7froEBfjpYaIwrv9aRoj5Zynir8aSM/InFOQoEFIA8o1ovZ8QW9ttO47OK4QK/G8/QtAUt4Cw==" />
+                sparkle:edSignature="526BNCtTod5CrPmrtq+DXdyksfXQGASvjgfLto9PqXkhSSQ/D1vRA6u8Gko/TMq3O8iyaTR6SiafyzZGOwXfBw==" />
 
             <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
         </item>
