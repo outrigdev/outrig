@@ -325,6 +325,11 @@ func (c *ControllerImpl) sendAppInfo() {
 }
 
 func (c *ControllerImpl) sendCollectorStatus() {
+	if !global.OutrigEnabled.Load() {
+		// Don't send collector status if Outrig is disabled
+		return
+	}
+
 	statuses := c.GetCollectorStatuses()
 	collectorStatusPacket := &ds.PacketType{
 		Type: ds.PacketTypeCollectorStatus,
@@ -400,6 +405,7 @@ func (c *ControllerImpl) runConnPoller() {
 	c.pollerOnce.Do(func() {
 		for {
 			c.pollConn()
+			c.sendCollectorStatus()
 			time.Sleep(ConnPollTime)
 		}
 	})
@@ -410,7 +416,6 @@ func (c *ControllerImpl) pollConn() {
 	defer c.Lock.Unlock()
 	if c.transport.HasConnections() {
 		// Send collector status when connected
-		c.sendCollectorStatus()
 		return
 	}
 	// Try to connect
@@ -506,7 +511,7 @@ func printf(format string, args ...any) {
 func (c *ControllerImpl) GetCollectorStatuses() map[string]ds.CollectorStatus {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
-	
+
 	statuses := make(map[string]ds.CollectorStatus)
 	for name, collector := range c.Collectors {
 		statuses[name] = collector.GetStatus()
