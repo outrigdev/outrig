@@ -23,7 +23,7 @@ It is currently available for MacOS and Linux (Windows builds coming soon).
 - **Real-time Log Viewing**: Stream and search logs from your Go application in real-time
 - **Goroutine Monitoring**: Track and inspect goroutines, including custom naming
 - **Variable Watching**: Monitor variables and counters in your application
-- **Runtime Hooks**: Execute hooks in your running application
+- **Runtime Hooks**: Execute hooks in your running application (coming soon)
 - **Minimal Integration**: Integrate into your go application in seconds
 
 ## How It Works
