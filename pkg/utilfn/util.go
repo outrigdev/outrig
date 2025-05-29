@@ -214,13 +214,13 @@ var sleepBackoffs = []time.Duration{
 	5 * time.Millisecond,
 }
 
-func TryLockWithTimeout(locker sync.Locker, timeout time.Duration) (bool, time.Duration) {
+func TryLockWithTimeout(locker sync.Locker, timeout time.Duration) (func(), time.Duration) {
 	var totalSleepTime time.Duration
 
 	switch l := locker.(type) {
 	case *sync.Mutex:
 		if l.TryLock() {
-			return true, 0
+			return l.Unlock, 0
 		}
 		iter := 0
 		for totalSleepTime < timeout {
@@ -235,14 +235,14 @@ func TryLockWithTimeout(locker sync.Locker, timeout time.Duration) (bool, time.D
 			time.Sleep(sleepTime)
 			totalSleepTime += sleepTime
 			if l.TryLock() {
-				return true, totalSleepTime
+				return l.Unlock, totalSleepTime
 			}
 		}
-		return false, totalSleepTime
+		return nil, totalSleepTime
 
 	case *sync.RWMutex:
 		if l.TryRLock() {
-			return true, 0
+			return l.RUnlock, 0
 		}
 		iter := 0
 		for totalSleepTime < timeout {
@@ -257,16 +257,16 @@ func TryLockWithTimeout(locker sync.Locker, timeout time.Duration) (bool, time.D
 			time.Sleep(sleepTime)
 			totalSleepTime += sleepTime
 			if l.TryRLock() {
-				return true, totalSleepTime
+				return l.RUnlock, totalSleepTime
 			}
 		}
-		return false, totalSleepTime
+		return nil, totalSleepTime
 
 	default:
 		// generic Locker: no timeout available
 		startTime := time.Now()
 		locker.Lock()
-		return true, time.Since(startTime)
+		return locker.Unlock, time.Since(startTime)
 	}
 }
 

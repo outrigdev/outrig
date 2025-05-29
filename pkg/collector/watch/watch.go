@@ -423,11 +423,11 @@ func (wc *WatchCollector) collectWatch(decl *ds.WatchDecl) *ds.WatchSample {
 
 	switch decl.WatchType {
 	case WatchType_Sync:
-		locked, waitDuration := utilfn.TryLockWithTimeout(decl.SyncLock, MaxWatchWaitTime)
-		if !locked {
+		unlockFn, waitDuration := utilfn.TryLockWithTimeout(decl.SyncLock, MaxWatchWaitTime)
+		if unlockFn == nil {
 			return watchSampleErr(decl, startTime, fmt.Sprintf("timeout waiting for lock after %v", waitDuration))
 		}
-		defer decl.SyncLock.Unlock()
+		defer unlockFn()
 		rval = reflect.ValueOf(decl.PollObj)
 
 	case WatchType_Atomic:
