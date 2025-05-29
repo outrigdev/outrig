@@ -41,17 +41,19 @@ Outrig consists of two main components that work together:
 For MacOS:
 
 ```bash
-brew install outrigdev/outrig/outrig
+brew install --cask outrigdev/outrig/outrig
 ```
+
+This installs a system tray application. After installation, you'll need to launch the Outrig application from your Applications folder or Spotlight to start the server.
 
 For Linux:
 
 ```bash
 # Quick installation script (installs to ~/.local/bin)
-curl -sf https://raw.githubusercontent.com/outrigdev/outrig/main/assets/install.sh | sh
+curl -sf https://outrig.run/install.sh | sh
 ```
 
-Alternatively, you can download the latest release from the [releases page](https://github.com/outrigdev/outrig/releases). We have deb, rpm, and tar.gz packages available (since outrig is a go program it is just a single binary).
+Alternatively, you can download .deb, .rpm, or .tar.gz packages directly from our [GitHub releases page](https://github.com/outrigdev/outrig/releases).
 
 For developers interested in building from source, see [BUILD.md](docs/BUILD.md). If you've already cloned the repository, you can build and install with:
 
@@ -84,10 +86,19 @@ func main() {
 
 ### Running the Outrig Server
 
+**MacOS**
+
+The Outrig server is managed through the system tray application. After installation, launch the Outrig app from your Applications folder or Spotlight. The server will start automatically and you'll see the Outrig icon in your system tray.
+
+**Linux**
+
+To start the Outrig server, run the following command in your terminal:
+
 ```bash
-# Start the Outrig server
 outrig server
 ```
+
+To stop the server, use Ctrl+C in the terminal where the server is running. Note that future versions will include systemd support to run the server as a background service.
 
 ## Key Features
 
@@ -111,25 +122,42 @@ Features:
 
 ### Watches
 
-Easily monitor variables in your application. Outrig can display structures (JSON or %v output) and numeric values (easy graphing and historical data viewing coming soon).
+Easily monitor variables in your application. Outrig can display structures (JSON or %v output) and numeric values (easy graphing and historical data viewing coming soon). Values are collected automatically every second (except for push-based watches).
 
 ```go
-// Watch a counter with mutex protection
-counter := 0
-mutex := &sync.Mutex{}
-outrig.WatchCounterSync("app.counter", mutex, &counter)
+// Basic watch using a function
+outrig.NewWatch("counter").PollFunc(func() int {
+    return myCounter
+})
+
+// Watch with mutex protection
+var mu sync.Mutex
+var counter int
+outrig.NewWatch("sync-counter").PollSync(&mu, &counter)
 
 // Watch an atomic value
 var atomicCounter atomic.Int64
-outrig.WatchAtomicCounter("app.atomic_counter", &atomicCounter)
+outrig.NewWatch("atomic-counter").PollAtomic(&atomicCounter)
 
-// Watch using a function (can use whatever synchronization method you'd like)
-outrig.WatchFunc("app.config", func() string {
-    return app.GetConfig()
-}, nil)
+// Push values directly from your code
+pusher := outrig.NewWatch("requests").ForPush()
+pusher.Push(42)
+// Later...
+pusher.Push(43)
 
-// Set up a Watch by pushing a value
-outrig.TrackValue("app.push1", myVal)
+// Chained configuration with tags and formatting
+outrig.NewWatch("api-response").
+    WithTags("api", "performance").
+    AsJSON().
+    PollFunc(func() interface{} {
+        return app.GetAPIStats()
+    })
+
+// Use as a counter (incremental values)
+outrig.NewWatch("request-count").
+    WithTags("performance").
+    AsCounter().
+    PollFunc(getRequestCount)
 ```
 
 ### Goroutine Monitoring
@@ -137,10 +165,9 @@ outrig.TrackValue("app.push1", myVal)
 Outrig dumps your goroutine stack traces every second for easy search/viewing. You can optionally name your goroutines for easier inspecting.
 
 ```go
-go func() {
-    outrig.SetGoRoutineName("worker-pool-1")
+outrig.Go("worker-pool-1").Run(func() {
     // Goroutine code...
-}()
+})
 ```
 
 ### Runtime Stats
