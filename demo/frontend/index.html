@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OutrigAcres - Idle Farming Game</title>
+    <link rel="stylesheet" href="game.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>OutrigAcres</h1>
+            <div class="controls">
+                <button id="pauseBtn" class="control-btn">⏸️ Pause</button>
+                <span id="tickCounter">Tick: 0</span>
+            </div>
+        </header>
+        
+        <main class="game-container">
+            <div id="disconnectedOverlay" class="disconnected-overlay" style="display: none;">
+                <div class="disconnected-message">
+                    <h2>⚠️ CONNECTION LOST</h2>
+                    <p>Attempting to reconnect...</p>
+                </div>
+            </div>
+            <div id="gameBoard" class="game-board"></div>
+            <div class="legend">
+                <h3>Legend</h3>
+                <div class="legend-section">
+                    <h4>Terrain</h4>
+                    <div class="legend-item">
+                        <div class="legend-cell empty"></div>
+                        <span>Empty</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-cell mountain"></div>
+                        <span>Mountain</span>
+                    </div>
+                </div>
+                
+                <div class="legend-section">
+                    <h4>Wheat</h4>
+                    <div class="legend-item">
+                        <div class="legend-cell wheat_seed"></div>
+                        <span>Seed</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-cell wheat_growing"></div>
+                        <span>Growing</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-cell wheat_mature"></div>
+                        <span>Mature</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-cell wheat_withered"></div>
+                        <span>Withered</span>
+                    </div>
+                </div>
+                
+                <div class="legend-section">
+                    <h4>Corn</h4>
+                    <div class="legend-item">
+                        <div class="legend-cell corn_seed"></div>
+                        <span>Seed</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-cell corn_growing"></div>
+                        <span>Growing</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-cell corn_mature"></div>
+                        <span>Mature</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-cell corn_withered"></div>
+                        <span>Withered</span>
+                    </div>
+                </div>
+                
+                <div class="legend-section">
+                    <h4>Agents</h4>
+                    <div class="legend-item">
+                        <div class="legend-agent">1</div>
+                        <span>Harvester Agents</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Demo game for <strong>Outrig</strong> - Real-time Go debugging</p>
+        </footer>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
