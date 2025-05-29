@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { LogListInterface, LogPageInterface } from "@/logviewer/logviewer-model";
-import { atom, Atom, PrimitiveAtom, useAtomValue } from "jotai";
+import { atom, Atom, PrimitiveAtom, useAtom, useAtomValue } from "jotai";
 import React, { JSX, useEffect, useLayoutEffect, useRef } from "react";
 
 export interface PageProps {
@@ -136,29 +136,57 @@ export interface LogVListProps {
 export const LogVList = React.memo<LogVListProps>(
     ({ listAtom, defaultItemHeight, lineComponent, containerHeight, onPageRequired, pinToBottomAtom, vlistRef }) => {
         const contentRef = useRef<HTMLDivElement>(null);
-        const isPinnedToBottom = useAtomValue(pinToBottomAtom);
+        const [isPinnedToBottom, setPinnedToBottom] = useAtom(pinToBottomAtom);
         const versionAtom = useRef(atom((get) => get(listAtom).version)).current;
         const version = useAtomValue(versionAtom);
         const prevVersionRef = useRef<number>(version);
         const { pageSize, trimmedLines } = useAtomValue(listAtom);
         const prevTrimmedLinesRef = useRef<number>(trimmedLines);
+        const lastScrollTopRef = useRef<number>(0);
+        const lastScrollHeightRef = useRef<number>(0);
+        const lastClientHeightRef = useRef<number>(0);
 
-        // Handle scroll position adjustment after version changes
-        useLayoutEffect(() => {
+        useEffect(() => {
             const container = vlistRef.current;
             if (!container) return;
 
-            // If version changed, this is a full reset
-            if (version !== prevVersionRef.current) {
-                // Determine scroll position based on pinToBottom preference
-                if (isPinnedToBottom) {
-                    container.scrollTop = container.scrollHeight;
-                } else {
-                    container.scrollTop = 0;
+            console.log("LogVList useEffect triggered", isPinnedToBottom);
+            let raf: number;
+            lastScrollTopRef.current = container.scrollTop;
+            lastScrollHeightRef.current = container.scrollHeight;
+            lastClientHeightRef.current = container.clientHeight;
+            const tick = () => {
+                const { scrollTop, scrollHeight, clientHeight } = container;
+
+                if (
+                    scrollTop < lastScrollTopRef.current && // user scrolled up
+                    clientHeight === lastClientHeightRef.current && // not just a resize
+                    scrollHeight >= lastScrollHeightRef.current // not a trim
+                ) {
+                    console.log(
+                        "User scrolled up, stopping pinning",
+                        scrollTop,
+                        lastScrollTopRef.current,
+                        clientHeight,
+                        lastClientHeightRef.current,
+                        scrollHeight,
+                        lastScrollHeightRef.current
+                    );
+                    setPinnedToBottom(false);
+                    return;
                 }
-                prevVersionRef.current = version;
-            }
-        }, [version, isPinnedToBottom, vlistRef, pageSize]);
+                if (isPinnedToBottom) {
+                    container.scrollTop = scrollHeight - clientHeight;
+                }
+                lastScrollTopRef.current = container.scrollTop;
+                lastScrollHeightRef.current = scrollHeight;
+                lastClientHeightRef.current = clientHeight;
+                raf = requestAnimationFrame(tick);
+            };
+
+            raf = requestAnimationFrame(tick);
+            return () => cancelAnimationFrame(raf);
+        }, [isPinnedToBottom, setPinnedToBottom, vlistRef]);
 
         // Handle scroll position when lines are trimmed
         useLayoutEffect(() => {
@@ -180,25 +208,6 @@ export const LogVList = React.memo<LogVListProps>(
             prevTrimmedLinesRef.current = trimmedLines;
         }, [trimmedLines, defaultItemHeight, vlistRef]);
 
-        useEffect(() => {
-            const content = contentRef.current;
-            const container = vlistRef.current;
-            if (!content || !container) return;
-
-            const resizeObserver = new ResizeObserver(() => {
-                if (isPinnedToBottom) {
-                    // Calculate the maximum possible scrollTop value
-                    const maxScrollTop = container.scrollHeight - container.clientHeight;
-                    // Check if we're already at the bottom (exact comparison)
-                    if (container.scrollTop !== maxScrollTop) {
-                        container.scrollTop = maxScrollTop;
-                    }
-                }
-            });
-
-            resizeObserver.observe(content);
-            return () => resizeObserver.disconnect();
-        }, [isPinnedToBottom, vlistRef]);
         return (
             <div ref={vlistRef} className="w-full overflow-auto" style={{ height: containerHeight }}>
                 <div ref={contentRef}>
