@@ -21,6 +21,7 @@ import (
 )
 
 const MaxWatchVals = 10000
+const MaxWatchValSize = 128 * 1024
 
 const (
 	WatchFormat_Json     = "json"
@@ -460,7 +461,18 @@ func (wc *WatchCollector) collectWatch(decl *ds.WatchDecl) *ds.WatchSample {
 	return wc.newWatchSample(decl, rval, pollDur)
 }
 
-func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value, pollDur int64) *ds.WatchSample {
+func (wc *WatchCollector) newWatchSample(decl *ds.WatchDecl, rval reflect.Value, pollDur int64) (rtnVal *ds.WatchSample) {
+	defer func() {
+		if rtnVal == nil {
+			return
+		}
+		// strip the value if it exceeds the maximum size
+		if len(rtnVal.Val) > MaxWatchValSize {
+			rtnVal.Val = ""
+			rtnVal.Error = fmt.Sprintf("value exceeded max size %d; not captured", MaxWatchValSize)
+		}
+	}()
+
 	sample := ds.WatchSample{
 		Name:    decl.Name,
 		Ts:      time.Now().UnixMilli(),
