@@ -97,14 +97,18 @@ class OutrigAcresGame {
                 const cell = document.getElementById(`cell-${row}-${col}`);
                 const cellData = board[row][col];
                 
-                // Remove all cell type classes
-                cell.className = 'cell';
-                
-                // Add the current cell type class
-                cell.classList.add(cellData.type);
-                
-                // Add age information as a data attribute for potential debugging
-                cell.dataset.age = cellData.ticksage;
+                // Check if cell type has changed
+                const currentType = cell.dataset.cellType;
+                if (currentType !== cellData.type) {
+                    // Remove all cell type classes
+                    cell.className = 'cell';
+                    
+                    // Add the current cell type class
+                    cell.classList.add(cellData.type);
+                    
+                    // Store the current type for future comparisons
+                    cell.dataset.cellType = cellData.type;
+                }
             }
         }
     }
@@ -167,10 +171,6 @@ class OutrigAcresGame {
             'wheat_growing': '#f39c12',
             'wheat_mature': '#e67e22',
             'wheat_withered': '#8b4513',
-            'corn_seed': '#9b59b6',
-            'corn_growing': '#8e44ad',
-            'corn_mature': '#663399',
-            'corn_withered': '#4a2c4a'
         };
         return colors[cellType] || '#34495e';
     }

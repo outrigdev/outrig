@@ -137,9 +137,9 @@ h1 {
 
 .game-board {
     display: grid;
-    grid-template-columns: repeat(30, 20px);
-    grid-template-rows: repeat(30, 20px);
-    gap: 1px;
+    grid-template-columns: repeat(30, 22px);
+    grid-template-rows: repeat(30, 22px);
+    gap: 0px;
     background-color: #1a252f;
     padding: 10px;
     border-radius: 8px;
@@ -182,8 +182,8 @@ h1 {
 }
 
 .legend-cell {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 2px;
     flex-shrink: 0;
@@ -210,62 +210,60 @@ h1 {
 }
 
 .cell {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Cell types */
 .cell.empty,
 .legend-cell.empty {
-    background-color: #27ae60;
+    background-image: url("assets/empty.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .cell.mountain,
 .legend-cell.mountain {
-    background-color: #7f8c8d;
+    background-image: url("assets/mountain.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .cell.wheat_seed,
 .legend-cell.wheat_seed {
-    background-color: #f1c40f;
+    background-image: url("assets/wheat_seed.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .cell.wheat_growing,
 .legend-cell.wheat_growing {
-    background-color: #f39c12;
+    background-image: url("assets/wheat_growing.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .cell.wheat_mature,
 .legend-cell.wheat_mature {
-    background-color: #e67e22;
+    background-image: url("assets/wheat_mature.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .cell.wheat_withered,
 .legend-cell.wheat_withered {
-    background-color: #8b4513;
+    background-image: url("assets/wheat_withered.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
-.cell.corn_seed,
-.legend-cell.corn_seed {
-    background-color: #9b59b6;
-}
-
-.cell.corn_growing,
-.legend-cell.corn_growing {
-    background-color: #8e44ad;
-}
-
-.cell.corn_mature,
-.legend-cell.corn_mature {
-    background-color: #663399;
-}
-
-.cell.corn_withered,
-.legend-cell.corn_withered {
-    background-color: #4a2c4a;
-}
 
 /* Agents */
 .agent {
@@ -365,7 +363,7 @@ footer strong {
     }
 
     .legend {
-        order: -1;
+        order: 1;
         max-width: none;
         width: 100%;
     }

@@ -41,10 +41,6 @@ const (
 	CellWheatGrow   = "wheat_growing"
 	CellWheatMature = "wheat_mature"
 	CellWheatWither = "wheat_withered"
-	CellCornSeed    = "corn_seed"
-	CellCornGrow    = "corn_growing"
-	CellCornMature  = "corn_mature"
-	CellCornWither  = "corn_withered"
 )
 
 type Cell struct {
@@ -53,16 +49,19 @@ type Cell struct {
 }
 
 type Agent struct {
-	ID      int `json:"id"`
-	X       int `json:"x"`
-	Y       int `json:"y"`
-	TargetX int `json:"targetx"`
-	TargetY int `json:"targety"`
+	ID      int           `json:"id"`
+	X       int           `json:"x"`
+	Y       int           `json:"y"`
+	TargetX int           `json:"targetx"`
+	TargetY int           `json:"targety"`
+	Score   int           `json:"score"`
+	mu      *sync.RWMutex `json:"-"`
+	watch   *outrig.Watch `json:"-"`
 }
 
 type GameState struct {
 	Board  [][]Cell `json:"board"`
-	Agents []Agent  `json:"agents"`
+	Agents []*Agent `json:"agents"`
 	Tick   int      `json:"tick"`
 	Paused bool     `json:"paused"`
 }
@@ -91,7 +90,7 @@ func NewGame() *Game {
 	}
 
 	g.initializeBoard()
-	g.state.Agents = make([]Agent, 0) // Initialize empty agents slice
+	g.state.Agents = make([]*Agent, 0) // Initialize empty agents slice
 
 	return g
 }
@@ -127,11 +126,8 @@ func (g *Game) addCropCluster(seedsOnly bool) {
 	centerX := 2 + rand.Intn(BoardSize-4) // Stay away from edges (reduced restriction)
 	centerY := 2 + rand.Intn(BoardSize-4)
 
-	// Pick crop type for this cluster
+	// Only use wheat crops
 	cropType := "wheat"
-	if rand.Float32() < 0.5 {
-		cropType = "corn"
-	}
 
 	// Create cluster with radius 2-4
 	radius := 2 + rand.Intn(3)
@@ -208,18 +204,24 @@ func (g *Game) initializeAgent(agentID int) {
 		}
 	}
 
-	agent := Agent{
+	agent := &Agent{
 		ID:      agentID,
 		X:       x,
 		Y:       y,
 		TargetX: -1,
 		TargetY: -1,
+		Score:   0,
+		mu:      &sync.RWMutex{},
 	}
+
+	// Set up watch for this agent
+	watchName := fmt.Sprintf("agent-%d", agentID)
+	agent.watch = outrig.NewWatch(watchName).WithTags("agent", "simulation").AsJSON().PollSync(agent.mu, agent)
 
 	// Add agent to the slice
 	g.state.Agents = append(g.state.Agents, agent)
 
-	log.Printf("Agent#%d spawned at (%d, %d)", agentID, x, y)
+	log.Printf("Agent#%d spawned at (%d, %d) with watch '%s'", agentID, x, y, watchName)
 }
 
 func (g *Game) Start() {
@@ -228,7 +230,7 @@ func (g *Game) Start() {
 	})
 
 	// Start individual agent goroutines
-	agentCount := 8 + rand.Intn(5) // 8-12 agents
+	agentCount := 9 // agents 1-9
 	for i := 0; i < agentCount; i++ {
 		agentID := i + 1
 		outrig.Go(fmt.Sprintf("agent-%d", agentID)).WithTags("agent", "simulation").Run(func() {
@@ -313,39 +315,26 @@ func (g *Game) updateBoard() {
 			case CellEmpty:
 				// Don't spawn seeds here anymore - we'll do it randomly below
 
-			case CellWheatSeed, CellCornSeed:
+			case CellWheatSeed:
 				if cell.TicksAge >= GrowTicks {
-					if cell.Type == CellWheatSeed {
-						cell.Type = CellWheatGrow
-					} else {
-						cell.Type = CellCornGrow
-					}
+					cell.Type = CellWheatGrow
 					cell.TicksAge = 0
 				}
 
-			case CellWheatGrow, CellCornGrow:
+			case CellWheatGrow:
 				if cell.TicksAge >= GrowTicks {
-					if cell.Type == CellWheatGrow {
-						cell.Type = CellWheatMature
-					} else {
-						cell.Type = CellCornMature
-					}
+					cell.Type = CellWheatMature
 					cell.TicksAge = 0
 				}
 
-			case CellWheatMature, CellCornMature:
+			case CellWheatMature:
 				if cell.TicksAge >= MatureTicks {
-					if cell.Type == CellWheatMature {
-						cell.Type = CellWheatWither
-						log.Printf("Wheat at (%d, %d) withered", x, y)
-					} else {
-						cell.Type = CellCornWither
-						log.Printf("Corn at (%d, %d) withered", x, y)
-					}
+					cell.Type = CellWheatWither
+					log.Printf("Wheat at (%d, %d) withered", x, y)
 					cell.TicksAge = 0
 				}
 
-			case CellWheatWither, CellCornWither:
+			case CellWheatWither:
 				if cell.TicksAge >= WitherTicks {
 					cell.Type = CellEmpty
 					cell.TicksAge = 0
@@ -372,7 +361,7 @@ func (g *Game) updateAgent(agentID int) {
 	var agent *Agent
 	for i := range g.state.Agents {
 		if g.state.Agents[i].ID == agentID {
-			agent = &g.state.Agents[i]
+			agent = g.state.Agents[i]
 			break
 		}
 	}
@@ -380,6 +369,10 @@ func (g *Game) updateAgent(agentID int) {
 	if agent == nil {
 		return
 	}
+
+	// Lock the agent for updates
+	agent.mu.Lock()
+	defer agent.mu.Unlock()
 
 	// Find target if we don't have one
 	if agent.TargetX == -1 || agent.TargetY == -1 {
@@ -392,14 +385,11 @@ func (g *Game) updateAgent(agentID int) {
 	// Check if we reached target and can harvest
 	if agent.X == agent.TargetX && agent.Y == agent.TargetY {
 		cell := &g.state.Board[agent.X][agent.Y]
-		if cell.Type == CellWheatMature || cell.Type == CellCornMature {
-			cropType := "Wheat"
-			if cell.Type == CellCornMature {
-				cropType = "Corn"
-			}
+		if cell.Type == CellWheatMature {
 			cell.Type = CellEmpty
 			cell.TicksAge = 0
-			log.Printf("Agent#%d harvested %s at (%d, %d)", agent.ID, cropType, agent.X, agent.Y)
+			agent.Score++
+			log.Printf("Agent#%d harvested Wheat at (%d, %d) - Score: %d", agent.ID, agent.X, agent.Y, agent.Score)
 		}
 		// Clear target
 		agent.TargetX = -1
@@ -410,28 +400,28 @@ func (g *Game) updateAgent(agentID int) {
 func (g *Game) findTarget(agent *Agent) {
 	// Search in expanding Manhattan distance rings for efficiency
 	// Priority: mature > growing > seed
-	
+
 	// Try to find mature crops first
-	if x, y := g.findCropAtDistance(agent, []string{CellWheatMature, CellCornMature}); x != -1 {
+	if x, y := g.findCropAtDistance(agent, []string{CellWheatMature}); x != -1 {
 		agent.TargetX = x
 		agent.TargetY = y
 		return
 	}
-	
+
 	// If no mature crops, try growing crops
-	if x, y := g.findCropAtDistance(agent, []string{CellWheatGrow, CellCornGrow}); x != -1 {
+	if x, y := g.findCropAtDistance(agent, []string{CellWheatGrow}); x != -1 {
 		agent.TargetX = x
 		agent.TargetY = y
 		return
 	}
-	
+
 	// If no growing crops, try seed crops
-	if x, y := g.findCropAtDistance(agent, []string{CellWheatSeed, CellCornSeed}); x != -1 {
+	if x, y := g.findCropAtDistance(agent, []string{CellWheatSeed}); x != -1 {
 		agent.TargetX = x
 		agent.TargetY = y
 		return
 	}
-	
+
 	// No crops found, move randomly
 	agent.TargetX = rand.Intn(BoardSize)
 	agent.TargetY = rand.Intn(BoardSize)
@@ -447,15 +437,15 @@ func (g *Game) findCropAtDistance(agent *Agent, cropTypes []string) (int, int) {
 				if abs(dx)+abs(dy) != dist {
 					continue
 				}
-				
+
 				x := agent.X + dx
 				y := agent.Y + dy
-				
+
 				// Check bounds
 				if x < 0 || x >= BoardSize || y < 0 || y >= BoardSize {
 					continue
 				}
-				
+
 				cell := g.state.Board[x][y]
 				for _, cropType := range cropTypes {
 					if cell.Type == cropType {
@@ -465,7 +455,7 @@ func (g *Game) findCropAtDistance(agent *Agent, cropTypes []string) (int, int) {
 			}
 		}
 	}
-	
+
 	return -1, -1
 }
 
