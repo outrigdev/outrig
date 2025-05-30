@@ -23,6 +23,10 @@ import (
 //go:embed frontend/*
 var frontendFS embed.FS
 
+var (
+	globalGame *Game
+)
+
 const (
 	BoardSize = 30
 
@@ -49,14 +53,15 @@ type Cell struct {
 }
 
 type Agent struct {
-	ID      int           `json:"id"`
-	X       int           `json:"x"`
-	Y       int           `json:"y"`
-	TargetX int           `json:"targetx"`
-	TargetY int           `json:"targety"`
-	Score   int           `json:"score"`
-	mu      *sync.RWMutex `json:"-"`
-	watch   *outrig.Watch `json:"-"`
+	ID        int           `json:"id"`
+	X         int           `json:"x"`
+	Y         int           `json:"y"`
+	TargetX   int           `json:"targetx"`
+	TargetY   int           `json:"targety"`
+	Score     int           `json:"score"`
+	MoveSpeed float64       `json:"movespeed"`
+	mu        *sync.RWMutex `json:"-"`
+	watch     *outrig.Watch `json:"-"`
 }
 
 type GameState struct {
@@ -64,6 +69,21 @@ type GameState struct {
 	Agents []*Agent `json:"agents"`
 	Tick   int      `json:"tick"`
 	Paused bool     `json:"paused"`
+}
+
+type BoardUpdate struct {
+	Type   string   `json:"type"`
+	Board  [][]Cell `json:"board"`
+	Tick   int      `json:"tick"`
+	Paused bool     `json:"paused"`
+}
+
+type AgentUpdate struct {
+	Type      string `json:"type"`
+	AgentID   int    `json:"agentid"`
+	X         int    `json:"x"`
+	Y         int    `json:"y"`
+	Harvested bool   `json:"harvested"`
 }
 
 type Game struct {
@@ -204,14 +224,21 @@ func (g *Game) initializeAgent(agentID int) {
 		}
 	}
 
+	// Set move speed - agents 1 and 2 are twice as fast
+	var moveSpeed float64 = 1.0
+	if agentID == 1 || agentID == 2 {
+		moveSpeed = 2.0
+	}
+
 	agent := &Agent{
-		ID:      agentID,
-		X:       x,
-		Y:       y,
-		TargetX: -1,
-		TargetY: -1,
-		Score:   0,
-		mu:      &sync.RWMutex{},
+		ID:        agentID,
+		X:         x,
+		Y:         y,
+		TargetX:   -1,
+		TargetY:   -1,
+		Score:     0,
+		MoveSpeed: moveSpeed,
+		mu:        &sync.RWMutex{},
 	}
 
 	// Set up watch for this agent
@@ -272,7 +299,24 @@ func (g *Game) gameLoop() {
 }
 
 func (g *Game) agentLoop(agentID int) {
-	ticker := time.NewTicker(time.Second)
+	// Find the agent to get its move speed
+	g.mu.RLock()
+	var agent *Agent
+	for i := range g.state.Agents {
+		if g.state.Agents[i].ID == agentID {
+			agent = g.state.Agents[i]
+			break
+		}
+	}
+	g.mu.RUnlock()
+
+	if agent == nil {
+		return
+	}
+
+	// Calculate tick duration: 1 second / move speed
+	tickDuration := time.Duration(float64(time.Second) / agent.MoveSpeed)
+	ticker := time.NewTicker(tickDuration)
 	defer ticker.Stop()
 
 	for {
@@ -374,27 +418,13 @@ func (g *Game) updateAgent(agentID int) {
 	agent.mu.Lock()
 	defer agent.mu.Unlock()
 
-	// Find target if we don't have one
-	if agent.TargetX == -1 || agent.TargetY == -1 {
+	// Find target if we don't have one or if current target is invalid
+	if agent.TargetX == -1 || agent.TargetY == -1 || g.isTargetInvalid(agent) {
 		g.findTarget(agent)
 	}
 
 	// Move towards target
 	g.moveAgent(agent)
-
-	// Check if we reached target and can harvest
-	if agent.X == agent.TargetX && agent.Y == agent.TargetY {
-		cell := &g.state.Board[agent.X][agent.Y]
-		if cell.Type == CellWheatMature {
-			cell.Type = CellEmpty
-			cell.TicksAge = 0
-			agent.Score++
-			log.Printf("Agent#%d harvested Wheat at (%d, %d) - Score: %d", agent.ID, agent.X, agent.Y, agent.Score)
-		}
-		// Clear target
-		agent.TargetX = -1
-		agent.TargetY = -1
-	}
 }
 
 func (g *Game) findTarget(agent *Agent) {
@@ -468,6 +498,21 @@ func (g *Game) isPositionOccupied(x, y int, excludeAgentID int) bool {
 	return false
 }
 
+func (g *Game) harvestAtPosition(agent *Agent) bool {
+	cell := &g.state.Board[agent.X][agent.Y]
+	if cell.Type == CellWheatMature {
+		cell.Type = CellEmpty
+		cell.TicksAge = 0
+		agent.Score++
+		log.Printf("Agent#%d harvested Wheat at (%d, %d) - Score: %d", agent.ID, agent.X, agent.Y, agent.Score)
+		// Clear target since we harvested something
+		agent.TargetX = -1
+		agent.TargetY = -1
+		return true
+	}
+	return false
+}
+
 func (g *Game) moveAgent(agent *Agent) {
 	oldX, oldY := agent.X, agent.Y
 
@@ -499,7 +544,7 @@ func (g *Game) moveAgent(agent *Agent) {
 
 	// Check if we hit a mountain or another agent, try alternative directions
 	if g.state.Board[newX][newY].Type == CellMountain || g.isPositionOccupied(newX, newY, agent.ID) {
-		// Try alternative directions in order: up, down, left, right
+		// Try alternative directions in random order to avoid loops
 		directions := []struct{ dx, dy int }{
 			{0, -1}, // up
 			{0, 1},  // down
@@ -508,7 +553,8 @@ func (g *Game) moveAgent(agent *Agent) {
 		}
 
 		moved := false
-		for _, dir := range directions {
+		for _, i := range rand.Perm(len(directions)) {
+			dir := directions[i]
 			altX := oldX + dir.dx
 			altY := oldY + dir.dy
 
@@ -537,30 +583,67 @@ func (g *Game) moveAgent(agent *Agent) {
 
 	if agent.X != oldX || agent.Y != oldY {
 		log.Printf("Agent#%d moved to (%d, %d)", agent.ID, agent.X, agent.Y)
+		// Check for harvest after moving
+		harvested := g.harvestAtPosition(agent)
+		// Broadcast agent update when position changes
+		g.broadcastAgentUpdate(agent, harvested)
+	}
+
+	// If we reached our target, clear it to find a new one
+	if agent.X == agent.TargetX && agent.Y == agent.TargetY {
+		agent.TargetX = -1
+		agent.TargetY = -1
 	}
 }
 
-func (g *Game) broadcastState() {
+func (g *Game) broadcastMessage(data []byte) {
 	g.clientsMu.RLock()
 	defer g.clientsMu.RUnlock()
-
-	// Update pause status in state before broadcasting
-	g.state.Paused = g.paused
-
-	data, err := json.Marshal(g.state)
-	if err != nil {
-		log.Printf("Error marshaling game state: %v", err)
-		return
-	}
 
 	for client := range g.clients {
 		err := client.WriteMessage(websocket.TextMessage, data)
 		if err != nil {
-			log.Printf("Error sending to client: %v", err)
+			log.Printf("Error sending message to client: %v", err)
 			client.Close()
 			delete(g.clients, client)
 		}
 	}
+}
+
+func (g *Game) broadcastState() {
+	// Send board update only
+	boardUpdate := BoardUpdate{
+		Type:   "board",
+		Board:  g.state.Board,
+		Tick:   g.state.Tick,
+		Paused: g.paused,
+	}
+
+	data, err := json.Marshal(boardUpdate)
+	if err != nil {
+		log.Printf("Error marshaling board update: %v", err)
+		return
+	}
+
+	g.broadcastMessage(data)
+}
+
+func (g *Game) broadcastAgentUpdate(agent *Agent, harvested bool) {
+	agentUpdate := AgentUpdate{
+		Type:      "agent",
+		AgentID:   agent.ID,
+		X:         agent.X,
+		Y:         agent.Y,
+		Harvested: harvested,
+	}
+
+	data, err := json.Marshal(agentUpdate)
+	if err != nil {
+		log.Printf("Error marshaling agent update: %v", err)
+		return
+	}
+
+	g.broadcastMessage(data)
 }
 
 func (g *Game) handleWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -575,11 +658,17 @@ func (g *Game) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	g.clients[conn] = true
 	g.clientsMu.Unlock()
 
-	// Send initial state
+	// Send initial board state
 	g.mu.RLock()
-	data, _ := json.Marshal(g.state)
+	boardUpdate := BoardUpdate{
+		Type:   "board",
+		Board:  g.state.Board,
+		Tick:   g.state.Tick,
+		Paused: g.paused,
+	}
+	boardData, _ := json.Marshal(boardUpdate)
 	g.mu.RUnlock()
-	conn.WriteMessage(websocket.TextMessage, data)
+	conn.WriteMessage(websocket.TextMessage, boardData)
 
 	// Handle incoming messages
 	for {
@@ -613,6 +702,57 @@ func (g *Game) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	g.clientsMu.Unlock()
 }
 
+func getBoardCellCounts() map[string]int {
+	if globalGame == nil {
+		return make(map[string]int)
+	}
+
+	globalGame.mu.RLock()
+	defer globalGame.mu.RUnlock()
+
+	counts := make(map[string]int)
+
+	for x := 0; x < BoardSize; x++ {
+		for y := 0; y < BoardSize; y++ {
+			cellType := globalGame.state.Board[x][y].Type
+			counts[cellType]++
+		}
+	}
+
+	return counts
+}
+
+func getTotalScore() int {
+	if globalGame == nil {
+		return 0
+	}
+
+	globalGame.mu.RLock()
+	defer globalGame.mu.RUnlock()
+
+	totalScore := 0
+	for _, agent := range globalGame.state.Agents {
+		if agent != nil {
+			agent.mu.RLock()
+			totalScore += agent.Score
+			agent.mu.RUnlock()
+		}
+	}
+
+	return totalScore
+}
+
+func (g *Game) isTargetInvalid(agent *Agent) bool {
+	// Check if target coordinates are valid
+	if agent.TargetX < 0 || agent.TargetX >= BoardSize || agent.TargetY < 0 || agent.TargetY >= BoardSize {
+		return true
+	}
+	
+	// Check if target cell is withered or empty
+	targetCell := g.state.Board[agent.TargetX][agent.TargetY]
+	return targetCell.Type == CellWheatWither || targetCell.Type == CellEmpty || targetCell.Type == CellMountain
+}
+
 func abs(x int) int {
 	if x < 0 {
 		return -x
@@ -629,8 +769,15 @@ func main() {
 	outrig.Init("OutrigAcres", nil)
 	outrig.SetGoRoutineName("main")
 
-	game := NewGame()
-	game.Start()
+	globalGame = NewGame()
+
+	// Set up global board watch to track cell type counts
+	outrig.NewWatch("gameboard-cells").WithTags("board", "simulation").AsJSON().PollFunc(getBoardCellCounts)
+
+	// Set up total score watch to track sum of all agent scores
+	outrig.NewWatch("totalscore").WithTags("score", "simulation").PollFunc(getTotalScore)
+
+	globalGame.Start()
 
 	// Serve frontend files
 	if *devMode {
@@ -649,7 +796,7 @@ func main() {
 	}
 
 	// WebSocket endpoint
-	http.HandleFunc("/ws", game.handleWebSocket)
+	http.HandleFunc("/ws", globalGame.handleWebSocket)
 
 	// Get an available port
 	listener, err := net.Listen("tcp", ":0")
