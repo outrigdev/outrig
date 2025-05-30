@@ -600,16 +600,16 @@ func (wc *WatchCollector) setLastWatchSamples(watches map[string]ds.WatchSample)
 func (wc *WatchCollector) getWatchCounts() (int, int, int) {
 	wc.lock.Lock()
 	defer wc.lock.Unlock()
-	
+
 	totalWatches := len(wc.watchDecls)
 	pollingWatches := 0
-	
+
 	for _, decl := range wc.watchDecls {
 		if decl.WatchType != WatchType_Push {
 			pollingWatches++
 		}
 	}
-	
+
 	return totalWatches, pollingWatches, len(wc.regErrors)
 }
 
@@ -618,22 +618,22 @@ func (wc *WatchCollector) GetStatus() ds.CollectorStatus {
 	status := ds.CollectorStatus{
 		Running: wc.config.Enabled,
 	}
-	
+
 	if !wc.config.Enabled {
 		status.Info = "Disabled in configuration"
 	} else {
 		totalWatches, pollingWatches, totalErrors := wc.getWatchCounts()
 		status.Info = fmt.Sprintf("Monitoring %d watches (%d polling)", totalWatches, pollingWatches)
 		status.CollectDuration = wc.executor.GetLastExecDuration()
-		
+
 		if totalErrors > 0 {
 			status.Warnings = append(status.Warnings, fmt.Sprintf("%d registration errors", totalErrors))
 		}
-		
+
 		if lastErr := wc.executor.GetLastErr(); lastErr != nil {
 			status.Errors = append(status.Errors, lastErr.Error())
 		}
 	}
-	
+
 	return status
 }

@@ -612,9 +612,7 @@ class LogViewerModel {
             const remaining = PAGESIZE - currentOffset;
             const batch = lines.slice(i, i + remaining);
             if (batch.some((line) => line !== null)) {
-                // Filter out null entries before passing to handleLogStreamUpdatePage
-                const filteredBatch = batch.filter((line) => line !== null);
-                this.handleLogStreamUpdatePage(currentPage, currentOffset, filteredBatch);
+                this.handleLogStreamUpdatePage(currentPage, currentOffset, batch);
             }
             i += batch.length;
             currentPage++;

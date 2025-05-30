@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"sync"
 
-	watchcollector "github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/server/pkg/logutil"
@@ -150,10 +149,8 @@ func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 		// Get or create the watch
 		watch, watchNum := wp.getOrCreateWatch_nolock(decl)
 
-		// Handle watch value updates based on whether it's a delta update
-		isPush := decl.Format == watchcollector.WatchType_Push // Equivalent to the old IsPush() check
-
-		if watchInfo.Delta && !isPush { // Push watches are always full updates
+		// Handle watch value updates based on whether the sample is marked as "same"
+		if watchInfo.Delta && sample.Same {
 			// Delta updates need a base sample to merge with
 			lastSample, _, lastExists := watch.WatchVals.GetLast()
 			if lastExists {
@@ -164,7 +161,7 @@ func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 				logutil.LogfOnce(logKey, "WARNING: [AppRun: %s] Delta update received for watch %s with no last sample\n", wp.appRunId, sample.Name)
 			}
 		} else {
-			// Full update, write the sample directly
+			// Full update or changed sample, write the sample directly
 			watch.WatchVals.Write(sample)
 		}
 
