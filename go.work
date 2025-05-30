@@ -4,5 +4,4 @@ use (
 	.
 	./server
 	./macosapp
-	./demo
 )

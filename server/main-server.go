@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/server/demo"
 	"github.com/outrigdev/outrig/server/pkg/boot"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
@@ -230,12 +231,25 @@ Example: outrig --dev exec ls -latrh`,
 		Run:   runPostinstall,
 	}
 
+	demoCmd := &cobra.Command{
+		Use:   "demo",
+		Short: "Run the OutrigAcres demo game",
+		Long:  `Run the OutrigAcres demo game to showcase Outrig's debugging capabilities.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			devMode, _ := cmd.Flags().GetBool("dev")
+			demo.RunOutrigAcres(devMode)
+			return nil
+		},
+	}
+	demoCmd.Flags().Bool("dev", false, "Run in development mode (serve files from disk)")
+
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(captureLogsCmd)
 	rootCmd.AddCommand(execCmd)
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(postinstallCmd)
+	rootCmd.AddCommand(demoCmd)
 
 	// Add dev flag to root command (will be inherited by all subcommands)
 	rootCmd.PersistentFlags().Bool("dev", false, "Run in development mode")

@@ -1,9 +1,8 @@
-package main
+package demo
 
 import (
 	"embed"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -747,7 +746,7 @@ func (g *Game) isTargetInvalid(agent *Agent) bool {
 	if agent.TargetX < 0 || agent.TargetX >= BoardSize || agent.TargetY < 0 || agent.TargetY >= BoardSize {
 		return true
 	}
-	
+
 	// Check if target cell is withered or empty
 	targetCell := g.state.Board[agent.TargetX][agent.TargetY]
 	return targetCell.Type == CellWheatWither || targetCell.Type == CellEmpty || targetCell.Type == CellMountain
@@ -760,10 +759,7 @@ func abs(x int) int {
 	return x
 }
 
-func main() {
-	// Parse command line flags
-	devMode := flag.Bool("dev", false, "Run in development mode (serve files from disk)")
-	flag.Parse()
+func RunOutrigAcres(devMode bool) {
 
 	// Initialize Outrig
 	outrig.Init("OutrigAcres", nil)
@@ -780,7 +776,7 @@ func main() {
 	globalGame.Start()
 
 	// Serve frontend files
-	if *devMode {
+	if devMode {
 		log.Printf("Running in development mode - serving files from disk")
 		fileServer := http.FileServer(http.Dir("./frontend/"))
 		http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
