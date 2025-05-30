@@ -70,10 +70,28 @@ func GetAppRunWatchesByIdsCommand(w *rpc.RpcClient, data rpctypes.AppRunWatchesB
 	return resp, err
 }
 
+// command "getdemoappstatus", rpctypes.GetDemoAppStatusCommand
+func GetDemoAppStatusCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) (string, error) {
+	resp, err := SendRpcRequestCallHelper[string](w, "getdemoappstatus", nil, opts)
+	return resp, err
+}
+
 // command "goroutinesearchrequest", rpctypes.GoRoutineSearchRequestCommand
 func GoRoutineSearchRequestCommand(w *rpc.RpcClient, data rpctypes.GoRoutineSearchRequestData, opts *rpc.RpcOpts) (rpctypes.GoRoutineSearchResultData, error) {
 	resp, err := SendRpcRequestCallHelper[rpctypes.GoRoutineSearchResultData](w, "goroutinesearchrequest", data, opts)
 	return resp, err
+}
+
+// command "killdemoapp", rpctypes.KillDemoAppCommand
+func KillDemoAppCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "killdemoapp", nil, opts)
+	return err
+}
+
+// command "launchdemoapp", rpctypes.LaunchDemoAppCommand
+func LaunchDemoAppCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "launchdemoapp", nil, opts)
+	return err
 }
 
 // command "loggetmarkedlines", rpctypes.LogGetMarkedLinesCommand

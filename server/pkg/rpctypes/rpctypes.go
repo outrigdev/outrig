@@ -71,6 +71,11 @@ type FullRpcInterface interface {
 
 	// app peer management commands
 	ClearNonActiveAppRunsCommand(ctx context.Context) error
+
+	// demo controller commands
+	LaunchDemoAppCommand(ctx context.Context) error
+	KillDemoAppCommand(ctx context.Context) error
+	GetDemoAppStatusCommand(ctx context.Context) (string, error)
 }
 
 // UpdateCheckData represents the response for update check information

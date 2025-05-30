@@ -11,6 +11,7 @@ import (
 
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
 	"github.com/outrigdev/outrig/server/pkg/browsertabs"
+	"github.com/outrigdev/outrig/server/pkg/democontroller"
 	"github.com/outrigdev/outrig/server/pkg/gensearch"
 	"github.com/outrigdev/outrig/server/pkg/rpc"
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
@@ -428,4 +429,23 @@ func (*RpcServerImpl) TriggerTrayUpdateCommand(ctx context.Context) error {
 // ClearNonActiveAppRunsCommand removes all AppPeers for non-connected app runs
 func (*RpcServerImpl) ClearNonActiveAppRunsCommand(ctx context.Context) error {
 	return apppeer.ClearNonActiveAppRuns()
+}
+
+// LaunchDemoAppCommand launches the demo application
+func (*RpcServerImpl) LaunchDemoAppCommand(ctx context.Context) error {
+	return democontroller.LaunchDemoApp()
+}
+
+// KillDemoAppCommand kills the demo application
+func (*RpcServerImpl) KillDemoAppCommand(ctx context.Context) error {
+	return democontroller.KillDemoApp()
+}
+
+// GetDemoAppStatusCommand returns the status of the demo application
+func (*RpcServerImpl) GetDemoAppStatusCommand(ctx context.Context) (string, error) {
+	status, err := democontroller.GetDemoAppStatus()
+	if err != nil {
+		return status, err
+	}
+	return status, nil
 }

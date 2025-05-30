@@ -56,9 +56,24 @@ class RpcApiType {
         return client.rpcCall("getapprunwatchesbyids", data, opts);
     }
 
+    // command "getdemoappstatus" [call]
+    GetDemoAppStatusCommand(client: RpcClient, opts?: RpcOpts): Promise<string> {
+        return client.rpcCall("getdemoappstatus", null, opts);
+    }
+
     // command "goroutinesearchrequest" [call]
     GoRoutineSearchRequestCommand(client: RpcClient, data: GoRoutineSearchRequestData, opts?: RpcOpts): Promise<GoRoutineSearchResultData> {
         return client.rpcCall("goroutinesearchrequest", data, opts);
+    }
+
+    // command "killdemoapp" [call]
+    KillDemoAppCommand(client: RpcClient, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("killdemoapp", null, opts);
+    }
+
+    // command "launchdemoapp" [call]
+    LaunchDemoAppCommand(client: RpcClient, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("launchdemoapp", null, opts);
     }
 
     // command "loggetmarkedlines" [call]
