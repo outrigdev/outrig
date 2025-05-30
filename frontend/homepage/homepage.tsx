@@ -96,55 +96,64 @@ const GettingStartedWithOutrig: React.FC = () => {
     );
 
     return (
-        <div className="flex flex-col items-center h-full p-6 text-center">
+        <div className="flex flex-col h-full">
             <div className="grow" />
-            <div className="flex flex-col items-center">
-                <h3 className="text-primary text-lg font-medium mb-4">Getting Started</h3>
-                <p className="text-secondary mb-6">To connect your Go server or application, follow these steps:</p>
-                <div className="bg-black/4 py-5 w-full max-w-xl border-l-2 border-accentbg">
-                    <div className="px-5">
-                        <pre className="whitespace-pre text-left text-sm text-primary overflow-auto w-full">
-                            <code>{codeWithColorizedComments}</code>
-                        </pre>
+            <div className="flex">
+                <div className="flex-grow flex-shrink min-w-0" />
+                <div className="px-6 py-6 max-w-xl w-full">
+                    <h3 className="text-primary text-lg font-medium mb-4">Getting Started</h3>
+                    <p className="text-secondary mb-6">To connect your Go server or application, follow these steps:</p>
+                    <div className="bg-black/4 py-5 w-full border-l-2 border-accentbg">
+                        <div className="px-5">
+                            <pre className="whitespace-pre text-left text-sm text-primary overflow-auto w-full">
+                                <code>{codeWithColorizedComments}</code>
+                            </pre>
+                        </div>
                     </div>
-                </div>
-                <p className="text-secondary mt-6">Once you run your application, it will appear here automatically.</p>
+                    <p className="text-secondary mt-6">
+                        Once you run your application, it will appear here automatically.
+                    </p>
 
-                {/* AI Instructions section */}
-                <div className="mt-8 w-full max-w-xl">
-                    <div className="bg-panel py-4 border-l-2 border-accentbg">
-                        <div className="px-5 text-left">
-                            <div className="flex items-center mb-2">
-                                <div className="text-accent mr-2">
-                                    <Bot size={18} />
+                    {/* AI Instructions section */}
+                    <div className="mt-8 w-full">
+                        <div className="bg-panel py-4 border-l-2 border-accentbg">
+                            <div className="px-5 text-left">
+                                <div className="flex items-center mb-2">
+                                    <div className="text-accent mr-2">
+                                        <Bot size={18} />
+                                    </div>
+                                    <h4 className="text-primary font-medium">AI Instructions</h4>
                                 </div>
-                                <h4 className="text-primary font-medium">AI Instructions</h4>
-                            </div>
-                            <p className="text-secondary text-sm mb-3">
-                                Using AI? Copy these setup instructions to share with your AI assistant.
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <Tooltip content={copied ? "Instructions copied!" : "Copy AI instructions"}>
-                                    <button
+                                <p className="text-secondary text-sm mb-3">
+                                    Using AI? Copy these setup instructions to share with your AI assistant.
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Tooltip content={copied ? "Instructions copied!" : "Copy AI instructions"}>
+                                        <button
+                                            onClick={handleCopyInstructions}
+                                            className={cn(
+                                                "p-1 rounded transition-colors cursor-pointer text-primary hover:text-primary/80",
+                                                copied && "text-success hover:text-success/80"
+                                            )}
+                                            aria-label={copied ? "Copied" : "Copy to clipboard"}
+                                        >
+                                            {copied ? <Check size={16} /> : <Copy size={16} />}
+                                        </button>
+                                    </Tooltip>
+                                    <span
+                                        className="text-accent text-sm cursor-pointer"
                                         onClick={handleCopyInstructions}
-                                        className={cn(
-                                            "p-1 rounded transition-colors cursor-pointer text-primary hover:text-primary/80",
-                                            copied && "text-success hover:text-success/80"
-                                        )}
-                                        aria-label={copied ? "Copied" : "Copy to clipboard"}
                                     >
-                                        {copied ? <Check size={16} /> : <Copy size={16} />}
-                                    </button>
-                                </Tooltip>
-                                <span className="text-accent text-sm cursor-pointer" onClick={handleCopyInstructions}>
-                                    Copy Instructions for AI
-                                </span>
+                                        Copy Instructions for AI
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                <div className="flex-grow flex-shrink min-w-0" />
             </div>
-            <div className="grow-2" />
+            <div className="grow-[2]" />
         </div>
     );
 };
@@ -153,9 +162,9 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
     return (
         <div
             className={cn(
-                "border-t md:border-t-0 border-border",
+                "border-border",
                 "flex flex-col h-full overflow-hidden",
-                hasAppRuns ? "md:w-[500px]" : "md:flex-grow"
+                hasAppRuns ? "w-[500px]" : "flex-grow"
             )}
         >
             <div className={cn("p-4 bg-panel border-b border-border", !hasAppRuns ? "pl-6" : null)}>
@@ -184,7 +193,7 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
 
 const WelcomeColumn: React.FC = () => {
     return (
-        <div className="md:flex-grow flex flex-col md:border-l border-border">
+        <div className="flex-grow flex flex-col border-l border-border">
             <div className="grow"></div>
             <div className="max-w-xl mx-auto p-8 flex flex-col items-center">
                 {/* Logo */}
@@ -267,9 +276,7 @@ export const HomePage: React.FC = () => {
     return (
         <div className="flex h-screen w-full">
             {/* Left accent column - only shown when there are app runs */}
-            {hasAppRuns && (
-                <div className="hidden md:block w-[50px] h-full bg-gradient-to-b from-accent/20 to-accent/5" />
-            )}
+            {hasAppRuns && <div className="w-[50px] h-full bg-gradient-to-b from-accent/20 to-accent/5" />}
 
             {/* Main content container */}
             <div className="flex flex-col flex-grow h-full overflow-hidden">
@@ -289,9 +296,11 @@ export const HomePage: React.FC = () => {
                 </header>
 
                 {/* Main content */}
-                <main className="flex-grow flex flex-col md:flex-row overflow-hidden w-full">
-                    <AppRunSelectionColumn hasAppRuns={hasAppRuns} />
-                    <WelcomeColumn />
+                <main className="flex-grow overflow-x-auto w-full">
+                    <div className="flex flex-row min-w-[1000px] h-full">
+                        <AppRunSelectionColumn hasAppRuns={hasAppRuns} />
+                        <WelcomeColumn />
+                    </div>
                 </main>
 
                 {/* Status Bar */}
