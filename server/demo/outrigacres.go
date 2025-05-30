@@ -10,13 +10,12 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"os/exec"
-	"runtime"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/outrigdev/outrig"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 //go:embed frontend/*
@@ -762,7 +761,7 @@ func abs(x int) int {
 	return x
 }
 
-func RunOutrigAcres(devMode bool) {
+func RunOutrigAcres(devMode bool, noBrowserLaunch bool) {
 
 	// Initialize Outrig
 	outrig.Init("OutrigAcres", nil)
@@ -816,16 +815,12 @@ func RunOutrigAcres(devMode bool) {
 	// Set up watch for the game URL
 	outrig.NewWatch("game-url").Static(url)
 
-	log.Printf("OutrigAcres demo server starting on port %d", port)
-	log.Printf("Game available at: %s", url)
-
-	// Open browser on macOS
-	if runtime.GOOS == "darwin" {
-		outrig.Go("browser-opener").WithTags("browser", "utility").Run(func() {
-			time.Sleep(500 * time.Millisecond) // Give server a moment to start
-			exec.Command("open", url).Start()
-		})
+	log.Printf("OutrigAcres demo launched, available at: %s", url)
+	if !noBrowserLaunch {
+		err := utilfn.LaunchUrl(url)
+		if err != nil {
+			log.Printf("Failed to open browser: %v", err)
+		}
 	}
-
 	log.Fatal(http.Serve(listener, nil))
 }

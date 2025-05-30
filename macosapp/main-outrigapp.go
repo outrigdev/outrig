@@ -14,7 +14,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -23,6 +22,7 @@ import (
 
 	"fyne.io/systray"
 	"github.com/Masterminds/semver/v3"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/updatecheck"
 )
 
@@ -524,7 +524,10 @@ func rebuildMenu(status ServerStatus) {
 		mOpen := systray.AddMenuItem("Open Outrig", "Open the Outrig web interface @ http://localhost:5005")
 		go func() {
 			for range mOpen.ClickedCh {
-				openBrowser("http://localhost:5005")
+				err := utilfn.LaunchUrl("http://localhost:5005")
+				if err != nil {
+					log.Printf("Error opening browser: %v", err)
+				}
 			}
 		}()
 	} else {
@@ -569,7 +572,10 @@ func rebuildMenu(status ServerStatus) {
 			go func(appRunId string) {
 				for range menuItem.ClickedCh {
 					url := fmt.Sprintf("http://localhost:5005/?appRunId=%s&tab=logs", appRunId)
-					openBrowser(url)
+					err := utilfn.LaunchUrl(url)
+					if err != nil {
+						log.Printf("Error opening browser: %v", err)
+					}
 				}
 			}(topRun.AppRunId)
 		}
@@ -693,7 +699,10 @@ func onReady() {
 				// Wait a bit more to make sure the server is ready to accept connections
 				time.Sleep(200 * time.Millisecond)
 				log.Printf("First start: opening browser\n")
-				openBrowser("http://localhost:5005")
+				err := utilfn.LaunchUrl("http://localhost:5005")
+				if err != nil {
+					log.Printf("Error opening browser: %v", err)
+				}
 			case <-time.After(10 * time.Second):
 				// Timeout if server doesn't start
 				log.Printf("Timeout waiting for server to start on first launch\n")
@@ -804,22 +813,6 @@ func IsOutrigCLIInstalled() bool {
 	return getLinkState(target, cliSource) == LinkOK
 }
 
-func openBrowser(url string) {
-	var err error
-	switch runtime.GOOS {
-	case "linux":
-		err = exec.Command("xdg-open", url).Start()
-	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	case "darwin":
-		err = exec.Command("open", url).Start()
-	default:
-		err = fmt.Errorf("unsupported platform")
-	}
-	if err != nil {
-		fmt.Printf("Error opening browser: %v\n", err)
-	}
-}
 
 // checkForUpdates launches the OutrigUpdater to check for updates
 func checkForUpdates(first bool, background bool) {

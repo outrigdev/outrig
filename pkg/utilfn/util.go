@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -447,4 +448,21 @@ func CompareSemVerCore(ver1, ver2 string) (int, error) {
 		}
 	}
 	return 0, nil
+}
+
+// MakeLaunchUrlCommand creates a command to open a URL in the default browser for the current operating system
+func LaunchUrl(url string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		cmd := exec.Command("open", url)
+		return cmd.Start()
+	case "linux":
+		cmd := exec.Command("xdg-open", url)
+		return cmd.Start()
+	case "windows":
+		cmd := exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		return cmd.Start()
+	default:
+		return fmt.Errorf("browser opening not supported on %s", runtime.GOOS)
+	}
 }

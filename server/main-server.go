@@ -237,11 +237,13 @@ Example: outrig --dev exec ls -latrh`,
 		Long:  `Run the OutrigAcres demo game to showcase Outrig's debugging capabilities.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			devMode, _ := cmd.Flags().GetBool("dev")
-			demo.RunOutrigAcres(devMode)
+			noBrowserLaunch, _ := cmd.Flags().GetBool("no-browser-launch")
+			demo.RunOutrigAcres(devMode, noBrowserLaunch)
 			return nil
 		},
 	}
 	demoCmd.Flags().Bool("dev", false, "Run in development mode (serve files from disk)")
+	demoCmd.Flags().Bool("no-browser-launch", false, "Don't automatically open the browser")
 
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(versionCmd)
