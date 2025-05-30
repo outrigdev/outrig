@@ -5,6 +5,7 @@ import { CodeLinkPickerModalContainer } from "@/codelink/codelink-picker-modal";
 import { ToastContainer } from "@/elements/toast";
 import { UpdateModalContainer } from "@/elements/update-modal";
 import { HomePage } from "@/homepage/homepage";
+import { GettingStartedModalContainer } from "@/homepage/gettingstarted-modal";
 import { MainApp } from "@/mainapp/mainapp";
 import { SettingsModalContainer } from "@/settings/settings-modal";
 import { keydownWrapper } from "@/util/keyutil";
@@ -20,6 +21,7 @@ interface AppWrapperProps {
 function AppWrapper({ children }: AppWrapperProps) {
     const isSettingsModalOpen = useAtomValue(AppModel.settingsModalOpen);
     const isCodeLinkPickerModalOpen = useAtomValue(AppModel.codeLinkPickerModalOpen);
+    const isGettingStartedModalOpen = useAtomValue(AppModel.gettingStartedModalOpen);
     const [toasts, setToasts] = useAtom(AppModel.toasts);
     const selectedTab = useAtomValue(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
@@ -78,13 +80,14 @@ function AppWrapper({ children }: AppWrapperProps) {
 
     return (
         <>
-            <div className="h-screen w-screen flex flex-col bg-panel" inert={isSettingsModalOpen || isCodeLinkPickerModalOpen || undefined}>
+            <div className="h-screen w-screen flex flex-col bg-panel" inert={isSettingsModalOpen || isCodeLinkPickerModalOpen || isGettingStartedModalOpen || undefined}>
                 {children}
                 <ToastContainer toasts={toasts} onClose={handleToastClose} />
             </div>
             <SettingsModalContainer />
             <UpdateModalContainer />
             <CodeLinkPickerModalContainer />
+            <GettingStartedModalContainer />
             
             {/* Portal container for highlight overlays */}
             <div id="highlight-overlay-root"></div>

@@ -33,6 +33,7 @@ class AppModel {
     settingsModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for settings modal
     updateModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for update modal
     codeLinkPickerModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for code link picker modal
+    gettingStartedModalOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for getting started modal
     newerVersion: PrimitiveAtom<string> = atom(null) as PrimitiveAtom<string>; // Newer version available
     fromTrayApp: PrimitiveAtom<boolean> = atom<boolean>(false); // Whether we're running from tray app
     isSearchTipsOpen: PrimitiveAtom<boolean> = atom<boolean>(false); // State for search tips popup
@@ -369,6 +370,15 @@ class AppModel {
 
     closeCodeLinkPickerModal(): void {
         getDefaultStore().set(this.codeLinkPickerModalOpen, false);
+        emitter.emit("modalclose");
+    }
+
+    openGettingStartedModal(): void {
+        getDefaultStore().set(this.gettingStartedModalOpen, true);
+    }
+
+    closeGettingStartedModal(): void {
+        getDefaultStore().set(this.gettingStartedModalOpen, false);
         emitter.emit("modalclose");
     }
 
