@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -761,7 +762,7 @@ func abs(x int) int {
 	return x
 }
 
-func RunOutrigAcres(devMode bool, noBrowserLaunch bool) {
+func RunOutrigAcres(devMode bool, noBrowserLaunch bool, port int) {
 
 	// Initialize Outrig
 	outrig.Init("OutrigAcres", nil)
@@ -796,20 +797,17 @@ func RunOutrigAcres(devMode bool, noBrowserLaunch bool) {
 	// WebSocket endpoint
 	http.HandleFunc("/ws", globalGame.handleWebSocket)
 
-	// Try to listen on preferred port first, fallback to random port
-	var listener net.Listener
-	var err error
-
-	listener, err = net.Listen("tcp", fmt.Sprintf(":%d", PreferredPort))
-	if err != nil {
-		log.Printf("Could not bind to preferred port %d, trying random port: %v", PreferredPort, err)
-		listener, err = net.Listen("tcp", ":0")
-		if err != nil {
-			log.Fatal(err)
-		}
+	// Use specified port (default or from flag)
+	if port == 0 {
+		port = PreferredPort
 	}
 
-	port := listener.Addr().(*net.TCPAddr).Port
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Printf("Could not bind to port %d: %v", port, err)
+		os.Exit(1)
+	}
+
 	url := fmt.Sprintf("http://localhost:%d", port)
 
 	// Set up watch for the game URL

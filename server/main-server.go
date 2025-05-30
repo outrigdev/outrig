@@ -238,12 +238,14 @@ Example: outrig --dev exec ls -latrh`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			devMode, _ := cmd.Flags().GetBool("dev")
 			noBrowserLaunch, _ := cmd.Flags().GetBool("no-browser-launch")
-			demo.RunOutrigAcres(devMode, noBrowserLaunch)
+			port, _ := cmd.Flags().GetInt("port")
+			demo.RunOutrigAcres(devMode, noBrowserLaunch, port)
 			return nil
 		},
 	}
 	demoCmd.Flags().Bool("dev", false, "Run in development mode (serve files from disk)")
 	demoCmd.Flags().Bool("no-browser-launch", false, "Don't automatically open the browser")
+	demoCmd.Flags().Int("port", 0, "Override the default demo server port (default: 22005)")
 
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(versionCmd)
