@@ -31,6 +31,7 @@ const (
 	WatchType_Atomic = "atomic"
 	WatchType_Func   = "func"
 	WatchType_Push   = "push"
+	WatchType_Static = "static"
 )
 
 // WatchCollector implements the collector.Collector interface for watch collection
@@ -298,7 +299,7 @@ func (wc *WatchCollector) CollectWatches() {
 	watchNames := wc.GetWatchNames()
 	for _, name := range watchNames {
 		watchDecl := wc.getWatchDecl(name)
-		if watchDecl == nil || watchDecl.WatchType == WatchType_Push {
+		if watchDecl == nil || watchDecl.WatchType == WatchType_Push || watchDecl.WatchType == WatchType_Static {
 			continue
 		}
 		sample := wc.collectWatch(watchDecl)
@@ -445,6 +446,9 @@ func (wc *WatchCollector) collectWatch(decl *ds.WatchDecl) *ds.WatchSample {
 		rval = results[0]
 
 	case WatchType_Push:
+		return nil
+
+	case WatchType_Static:
 		return nil
 
 	default:

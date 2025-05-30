@@ -425,6 +425,27 @@ func (w *Watch) PollSync(lock sync.Locker, val any) *Watch {
 	return w
 }
 
+// Static sets up a static watch that holds a constant value. The value is set once
+// when the watch is created and never changes. This is useful for configuration
+// values, URLs, or other constants that you want to monitor but don't need to poll.
+//
+// Example:
+//
+//	outrig.NewWatch("game-url").Static("http://localhost:8080")
+func (w *Watch) Static(val any) *Watch {
+	if !w.setType(watch.WatchType_Static) {
+		w.addConfigErr(fmt.Errorf("cannot change watch type from %s to %s", w.decl.WatchType, watch.WatchType_Static), false)
+		return w
+	}
+	w.registerWatch()
+	
+	// Immediately push the static value since it won't be polled
+	wc := watch.GetInstance()
+	wc.PushWatchSample(w.decl.Name, val)
+	
+	return w
+}
+
 // Unregister unregisters the watch from the watch collector
 func (w *Watch) Unregister() {
 	wc := watch.GetInstance()

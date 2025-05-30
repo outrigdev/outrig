@@ -29,6 +29,9 @@ var (
 const (
 	BoardSize = 30
 
+	// Server constants
+	PreferredPort = 22005 // Preferred port for the demo server
+
 	// Crop timing constants
 	GrowTicks   = 5  // Ticks for seed to grow to growing stage
 	MatureTicks = 12 // Ticks for growing to mature stage
@@ -794,14 +797,24 @@ func RunOutrigAcres(devMode bool) {
 	// WebSocket endpoint
 	http.HandleFunc("/ws", globalGame.handleWebSocket)
 
-	// Get an available port
-	listener, err := net.Listen("tcp", ":0")
+	// Try to listen on preferred port first, fallback to random port
+	var listener net.Listener
+	var err error
+
+	listener, err = net.Listen("tcp", fmt.Sprintf(":%d", PreferredPort))
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("Could not bind to preferred port %d, trying random port: %v", PreferredPort, err)
+		listener, err = net.Listen("tcp", ":0")
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	url := fmt.Sprintf("http://localhost:%d", port)
+
+	// Set up watch for the game URL
+	outrig.NewWatch("game-url").Static(url)
 
 	log.Printf("OutrigAcres demo server starting on port %d", port)
 	log.Printf("Game available at: %s", url)

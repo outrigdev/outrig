@@ -126,6 +126,12 @@ func (w *Watch) PollSync(lock sync.Locker, val any) *Watch {
 	return w
 }
 
+// Static sets up a static watch that holds a constant value
+// This is a no-op implementation for no_outrig build
+func (w *Watch) Static(val any) *Watch {
+	return w
+}
+
 // Unregister unregisters the watch
 // This is a no-op implementation for no_outrig build
 func (w *Watch) Unregister() {
