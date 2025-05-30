@@ -10,6 +10,7 @@ import { StatusBar } from "@/mainapp/statusbar";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
 import { BookText, Bot, ExternalLink, Github, HelpCircle } from "lucide-react";
+import { DemoAppController } from "./demo-app-controller";
 import { GettingStartedContent } from "./gettingstarted-content";
 
 const OutrigVersion = "v" + import.meta.env.PACKAGE_VERSION;
@@ -77,6 +78,11 @@ const WelcomeColumn: React.FC = () => {
                         Outrig gives you visibility into your running Go servers and applications, helping you quickly
                         identify issues and optimize performance.
                     </p>
+                </div>
+
+                {/* Demo App Controller */}
+                <div className="w-full mb-6">
+                    <DemoAppController />
                 </div>
 
                 {/* Cards container - stacked layout */}
