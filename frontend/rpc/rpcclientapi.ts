@@ -6,6 +6,11 @@
 import { RpcClient } from "./rpc";
 
 class RpcApiType {
+    // command "clearnonactiveappruns" [call]
+    ClearNonActiveAppRunsCommand(client: RpcClient, opts?: RpcOpts): Promise<void> {
+        return client.rpcCall("clearnonactiveappruns", null, opts);
+    }
+
     // command "eventpublish" [call]
     EventPublishCommand(client: RpcClient, data: EventType, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("eventpublish", data, opts);

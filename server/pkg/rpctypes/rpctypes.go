@@ -68,6 +68,9 @@ type FullRpcInterface interface {
 	// update check commands
 	UpdateCheckCommand(ctx context.Context) (UpdateCheckData, error)
 	TriggerTrayUpdateCommand(ctx context.Context) error
+
+	// app peer management commands
+	ClearNonActiveAppRunsCommand(ctx context.Context) error
 }
 
 // UpdateCheckData represents the response for update check information

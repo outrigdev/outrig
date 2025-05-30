@@ -283,6 +283,24 @@ func PruneAppRunPeers() int {
 	return numPruned
 }
 
+// ClearNonActiveAppRuns removes all AppPeers that are not currently running
+func ClearNonActiveAppRuns() error {
+	allPeers := GetAllAppRunPeers()
+	numCleared := 0
+	
+	for _, peer := range allPeers {
+		// Only remove peers that are not running
+		if peer.Status != AppStatusRunning {
+			appRunPeers.Delete(peer.AppRunId)
+			log.Printf("Cleared non-active app run peer: %s (status: %s)", peer.AppRunId, peer.Status)
+			numCleared++
+		}
+	}
+	
+	log.Printf("Cleared %d non-active app run peers", numCleared)
+	return nil
+}
+
 // GetAppRunInfo constructs and returns an AppRunInfo struct for this peer
 func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	if p.AppInfo == nil {

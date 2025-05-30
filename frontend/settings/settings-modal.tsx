@@ -9,6 +9,8 @@ import { AppModel } from "../appmodel";
 import { Dropdown } from "../elements/dropdown";
 import { Modal } from "../elements/modal";
 import { Toggle } from "../elements/toggle";
+import { DefaultRpcClient } from "../init";
+import { RpcApi } from "../rpc/rpcclientapi";
 import { SettingsModel } from "./settings-model";
 
 // Container component that checks isOpen state
@@ -48,7 +50,7 @@ export const SettingsModal: React.FC = () => {
     const [darkMode, setDarkMode] = useAtom(AppModel.darkMode);
 
     return (
-        <Modal isOpen={true} title="Outrig Settings" onClose={() => AppModel.closeSettingsModal()}>
+        <Modal isOpen={true} title="Outrig Settings" onClose={() => AppModel.closeSettingsModal()} className="w-[650px]">
             <div className="text-primary">
                 {/* Hidden input to capture focus */}
                 <input
@@ -171,6 +173,37 @@ export const SettingsModal: React.FC = () => {
                                 ]}
                                 label="Emoji Replacement"
                             />
+                        </div>
+                    </div>
+
+                    {/* Data Management Section */}
+                    <div className="bg-secondary/10 rounded-lg p-4">
+                        <h2 className="text-lg font-semibold mb-4 border-b border-secondary/20 pb-2">
+                            Data Management
+                        </h2>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium">Clear Non-Active App Runs</div>
+                                    <div className="text-sm text-secondary">Remove all disconnected app run data</div>
+                                </div>
+                                <button
+                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white dark:text-black rounded-md cursor-pointer transition-colors"
+                                    onClick={async () => {
+                                        try {
+                                            await RpcApi.ClearNonActiveAppRunsCommand(DefaultRpcClient);
+                                            // Trigger a full refresh of the app runs list
+                                            AppModel.appRunModel.triggerFullRefresh();
+                                            AppModel.showToast("Success", "Non-active app runs cleared", 3000);
+                                        } catch (error) {
+                                            console.error("Failed to clear non-active app runs:", error);
+                                            AppModel.showToast("Error", "Failed to clear non-active app runs", 3000);
+                                        }
+                                    }}
+                                >
+                                    Clear
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

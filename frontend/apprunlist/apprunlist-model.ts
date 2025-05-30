@@ -200,6 +200,14 @@ class AppRunModel {
 
         return `started at ${startDate.toLocaleString()}`;
     }
+
+    // Method to trigger a full refresh of app runs
+    triggerFullRefresh() {
+        this.needsFullAppRunsRefresh = true;
+        this.loadAppRuns().catch((error) => {
+            console.error("Failed to refresh app runs:", error);
+        });
+    }
 }
 
 export { AppRunModel };

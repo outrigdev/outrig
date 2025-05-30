@@ -10,6 +10,12 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 )
 
+// command "clearnonactiveappruns", rpctypes.ClearNonActiveAppRunsCommand
+func ClearNonActiveAppRunsCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) error {
+	_, err := SendRpcRequestCallHelper[any](w, "clearnonactiveappruns", nil, opts)
+	return err
+}
+
 // command "eventpublish", rpctypes.EventPublishCommand
 func EventPublishCommand(w *rpc.RpcClient, data rpctypes.EventType, opts *rpc.RpcOpts) error {
 	_, err := SendRpcRequestCallHelper[any](w, "eventpublish", data, opts)

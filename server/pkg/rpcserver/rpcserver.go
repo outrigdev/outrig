@@ -424,3 +424,8 @@ func (*RpcServerImpl) UpdateCheckCommand(ctx context.Context) (rpctypes.UpdateCh
 func (*RpcServerImpl) TriggerTrayUpdateCommand(ctx context.Context) error {
 	return updatecheck.TriggerTrayAppUpdateCheck()
 }
+
+// ClearNonActiveAppRunsCommand removes all AppPeers for non-connected app runs
+func (*RpcServerImpl) ClearNonActiveAppRunsCommand(ctx context.Context) error {
+	return apppeer.ClearNonActiveAppRuns()
+}
