@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 )
 
 const (
@@ -27,7 +28,7 @@ var globalController = &DemoController{
 	status: StatusStopped,
 }
 
-func LaunchDemoApp() error {
+func startDemoApp() error {
 	globalController.mu.Lock()
 	defer globalController.mu.Unlock()
 
@@ -69,6 +70,28 @@ func LaunchDemoApp() error {
 		}
 		globalController.cmd = nil
 	}()
+
+	return nil
+}
+
+func LaunchDemoApp() error {
+	err := startDemoApp()
+	if err != nil {
+		return err
+	}
+
+	// Wait 500ms to see if the process exits immediately (e.g., port already in use)
+	time.Sleep(500 * time.Millisecond)
+	
+	// Check if the process has already exited
+	globalController.mu.RLock()
+	status := globalController.status
+	cmdErr := globalController.err
+	globalController.mu.RUnlock()
+	
+	if status == StatusError {
+		return fmt.Errorf("demo app failed to start: %w", cmdErr)
+	}
 
 	return nil
 }
