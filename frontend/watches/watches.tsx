@@ -90,15 +90,10 @@ const WatchValueDisplay: React.FC<WatchValueDisplayProps> = ({ sample }) => {
     return (
         <>
             <div className="text-sm text-primary pb-2">{formatValue()}</div>
-            {(sample.len != null || sample.cap != null || (sample.polldur != null && sample.polldur > 2000)) && (
+            {(sample.len != null || sample.cap != null) && (
                 <div className="pb-2 flex gap-3">
                     {sample.len != null && <span className="text-xs text-muted">Length: {sample.len}</span>}
                     {sample.cap != null && <span className="text-xs text-muted">Capacity: {sample.cap}</span>}
-                    {sample.polldur != null && sample.polldur > 2000 && (
-                        <span className="text-xs text-warning">
-                            Long poll duration: {(sample.polldur / 1000).toFixed(2)}ms
-                        </span>
-                    )}
                 </div>
             )}
         </>
@@ -123,7 +118,7 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
     const watchTags = getWatchTags(watch.decl);
 
     return (
-        <div className="pl-4 pr-2">
+        <div className="pl-4 pr-2 relative">
             <div className="flex justify-between items-center py-2">
                 <div className="flex items-center gap-2">
                     <div className="relative flex items-center gap-2">
@@ -162,6 +157,11 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
                 </div>
             </div>
             <WatchValueDisplay sample={watch.sample} />
+            {watch.sample.polldur != null && watch.sample.polldur > 2000 && (
+                <div className="absolute bottom-2 right-2 text-xs text-warning/80">
+                    Long poll duration: {(watch.sample.polldur / 1000).toFixed(2)}ms
+                </div>
+            )}
         </div>
     );
 };
