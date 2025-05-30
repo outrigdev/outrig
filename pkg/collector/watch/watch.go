@@ -116,6 +116,7 @@ func (wc *WatchCollector) RegisterWatchDecl(decl *ds.WatchDecl) {
 
 	// Register the watch declaration
 	wc.watchDecls[decl.Name] = decl
+	wc.newDecls = append(wc.newDecls, *decl)
 }
 
 func (wc *WatchCollector) AddRegError(err ds.ErrWithContext) {

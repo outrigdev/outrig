@@ -101,6 +101,18 @@ func (wp *WatchesPeer) getOrCreateWatch_nolock(watchDecl ds.WatchDecl) (Watch, i
 	return watch, watchNum
 }
 
+func (wp *WatchesPeer) getWatchByName_nolock(name string) *Watch {
+	watchNum, exists := wp.nameToWatchNum[name]
+	if !exists {
+		return nil // Watch not found
+	}
+	watch, exists := wp.watches.GetEx(watchNum)
+	if !exists {
+		return nil // Watch not found
+	}
+	return &watch
+}
+
 // ProcessWatchInfo processes watch information from a packet
 func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 	wp.lock.Lock()
@@ -118,37 +130,18 @@ func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 	}
 
 	// Process watch declarations first
-	declMap := make(map[string]ds.WatchDecl)
 	for _, decl := range watchInfo.Decls {
-		declMap[decl.Name] = decl
+		wp.getOrCreateWatch_nolock(decl)
 	}
 
 	// Process watch samples
 	for _, sample := range watchInfo.Watches {
-		// Get the declaration for this watch
-		decl, declExists := declMap[sample.Name]
-		if !declExists {
-			// If we don't have a declaration in this update, try to get it from existing watches
-			if watchNum, exists := wp.nameToWatchNum[sample.Name]; exists {
-				watch, watchExists := wp.watches.GetEx(watchNum)
-				if watchExists {
-					decl = watch.Decl
-					declExists = true
-				}
-			}
-
-			// If we still don't have a declaration, create a minimal one
-			if !declExists {
-				decl = ds.WatchDecl{
-					Name:      sample.Name,
-					WatchType: sample.Type,
-				}
-			}
+		watch := wp.getWatchByName_nolock(sample.Name)
+		if watch == nil {
+			logKey := fmt.Sprintf("watches-nosample-%s", wp.appRunId)
+			logutil.LogfOnce(logKey, "WARNING: [AppRun: %s] No watch found for sample %s in watch info\n", wp.appRunId, sample.Name)
+			continue // Skip this sample if no watch is found
 		}
-
-		// Get or create the watch
-		watch, watchNum := wp.getOrCreateWatch_nolock(decl)
-
 		// Handle watch value updates based on whether the sample is marked as "same"
 		if watchInfo.Delta && sample.Same {
 			// Delta updates need a base sample to merge with
@@ -164,8 +157,6 @@ func (wp *WatchesPeer) ProcessWatchInfo(watchInfo ds.WatchInfo) {
 			// Full update or changed sample, write the sample directly
 			watch.WatchVals.Write(sample)
 		}
-
-		wp.watches.Set(watchNum, watch)
 	}
 }
 
