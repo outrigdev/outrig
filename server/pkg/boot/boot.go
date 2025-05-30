@@ -17,6 +17,7 @@ import (
 	"github.com/outrigdev/outrig"
 	"github.com/outrigdev/outrig/server/pkg/apppeer"
 	"github.com/outrigdev/outrig/server/pkg/browsertabs"
+	"github.com/outrigdev/outrig/server/pkg/democontroller"
 	"github.com/outrigdev/outrig/server/pkg/rpc"
 	"github.com/outrigdev/outrig/server/pkg/rpcserver"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
@@ -230,6 +231,16 @@ func RunServer(config CLIConfig) error {
 // It sends a shutdown event, flushes telemetry events, and sets a timeout
 // after which it will force exit if the server hasn't already shut down
 func gracefulShutdown(cancel context.CancelFunc, wg *sync.WaitGroup) {
+	// Kill demo app if it's running
+	status, _ := democontroller.GetDemoAppStatus()
+	if status == "running" {
+		log.Printf("Shutting down demo app...")
+		err := democontroller.KillDemoApp()
+		if err != nil {
+			log.Printf("Failed to kill demo app: %v", err)
+		}
+	}
+
 	// Send shutdown event
 	tevent.SendShutdownEvent()
 
