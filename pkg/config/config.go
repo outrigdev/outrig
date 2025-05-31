@@ -4,6 +4,7 @@
 package config
 
 import (
+	"log"
 	"os"
 
 	"github.com/outrigdev/outrig/pkg/base"
@@ -95,6 +96,10 @@ func getDefaultConfig(isDev bool) *Config {
 
 // DefaultConfig returns the default configuration for normal usage
 func DefaultConfig() *Config {
+	if os.Getenv("OUTRIG_DEVCONFIG") != "" {
+		log.Printf("OUTRIG_DEVCONFIG environment variable is set, switching to development configuration")
+		return getDefaultConfig(true)
+	}
 	return getDefaultConfig(false)
 }
 

@@ -28,6 +28,7 @@ const (
 	DomainSocketEnvName = "OUTRIG_DOMAINSOCKET"
 	DisabledEnvName     = "OUTRIG_DISABLED"
 	NoTelemetryEnvName  = "OUTRIG_NOTELEMETRY"
+	DevConfigEnvName    = "OUTRIG_DEVCONFIG"
 )
 
 type PacketType struct {

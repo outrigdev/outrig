@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig"
+	"github.com/outrigdev/outrig/server/pkg/serverbase"
 )
 
 const (
@@ -54,6 +55,11 @@ func startDemoApp() error {
 	}
 
 	cmd := exec.Command(executable, "demo", "--no-browser-launch", "--close-on-stdin")
+
+	// If server is in dev mode, set OUTRIG_DEVCONFIG for the demo app
+	if serverbase.IsDev() {
+		cmd.Env = append(os.Environ(), "OUTRIG_DEVCONFIG=1")
+	}
 
 	// Set up stdin pipe so the demo will exit when the server dies
 	stdin, err := cmd.StdinPipe()
