@@ -239,13 +239,23 @@ Example: outrig --dev exec ls -latrh`,
 			devMode, _ := cmd.Flags().GetBool("dev")
 			noBrowserLaunch, _ := cmd.Flags().GetBool("no-browser-launch")
 			port, _ := cmd.Flags().GetInt("port")
-			demo.RunOutrigAcres(devMode, noBrowserLaunch, port)
+			closeOnStdin, _ := cmd.Flags().GetBool("close-on-stdin")
+			
+			config := demo.Config{
+				DevMode:         devMode,
+				NoBrowserLaunch: noBrowserLaunch,
+				Port:            port,
+				CloseOnStdin:    closeOnStdin,
+			}
+			
+			demo.RunOutrigAcres(config)
 			return nil
 		},
 	}
 	demoCmd.Flags().Bool("dev", false, "Run in development mode (serve files from disk)")
 	demoCmd.Flags().Bool("no-browser-launch", false, "Don't automatically open the browser")
 	demoCmd.Flags().Int("port", 0, "Override the default demo server port (default: 22005)")
+	demoCmd.Flags().Bool("close-on-stdin", false, "Shut down the demo when stdin is closed")
 
 	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(versionCmd)

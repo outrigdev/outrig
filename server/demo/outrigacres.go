@@ -26,6 +26,14 @@ var (
 	globalGame *Game
 )
 
+// Config holds configuration options for OutrigAcres
+type Config struct {
+	DevMode         bool `json:"devmode"`
+	NoBrowserLaunch bool `json:"nobrowserlaunch"`
+	Port            int  `json:"port"`
+	CloseOnStdin    bool `json:"closeonstdin"`
+}
+
 const (
 	BoardSize = 30
 
@@ -762,11 +770,29 @@ func abs(x int) int {
 	return x
 }
 
-func RunOutrigAcres(devMode bool, noBrowserLaunch bool, port int) {
+func RunOutrigAcres(config Config) {
 
 	// Initialize Outrig
 	outrig.Init("OutrigAcres", nil)
 	outrig.SetGoRoutineName("main")
+
+	// Set up stdin monitoring if requested
+	if config.CloseOnStdin {
+		log.Printf("Demo will shut down when stdin is closed")
+		go func() {
+			outrig.SetGoRoutineName("demo.StdinMonitor")
+			// Read from stdin until EOF
+			buffer := make([]byte, 4096)
+			for {
+				_, err := os.Stdin.Read(buffer)
+				if err != nil {
+					// EOF or other error, shut down the demo
+					log.Printf("Stdin closed, shutting down demo")
+					os.Exit(0)
+				}
+			}
+		}()
+	}
 
 	globalGame = NewGame()
 
@@ -776,10 +802,13 @@ func RunOutrigAcres(devMode bool, noBrowserLaunch bool, port int) {
 	// Set up total score watch to track sum of all agent scores
 	outrig.NewWatch("totalscore").WithTags("score", "simulation").PollFunc(getTotalScore)
 
+	// Set up config watch to track demo configuration
+	outrig.NewWatch("demo-config").AsJSON().Static(config)
+
 	globalGame.Start()
 
 	// Serve frontend files
-	if devMode {
+	if config.DevMode {
 		log.Printf("Running in development mode - serving files from disk")
 		fileServer := http.FileServer(http.Dir("./frontend/"))
 		http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -798,6 +827,7 @@ func RunOutrigAcres(devMode bool, noBrowserLaunch bool, port int) {
 	http.HandleFunc("/ws", globalGame.handleWebSocket)
 
 	// Use specified port (default or from flag)
+	port := config.Port
 	if port == 0 {
 		port = PreferredPort
 	}
@@ -814,7 +844,7 @@ func RunOutrigAcres(devMode bool, noBrowserLaunch bool, port int) {
 	outrig.NewWatch("game-url").Static(url)
 
 	log.Printf("OutrigAcres demo launched, available at: %s", url)
-	if !noBrowserLaunch {
+	if !config.NoBrowserLaunch {
 		err := utilfn.LaunchUrl(url)
 		if err != nil {
 			log.Printf("Failed to open browser: %v", err)

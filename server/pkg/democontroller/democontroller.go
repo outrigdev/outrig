@@ -5,10 +5,13 @@ package democontroller
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"sync"
 	"time"
+
+	"github.com/outrigdev/outrig"
 )
 
 const (
@@ -20,6 +23,7 @@ const (
 type DemoController struct {
 	mu              sync.RWMutex
 	cmd             *exec.Cmd
+	stdin           io.WriteCloser
 	status          string
 	err             error
 	intentionalKill bool
@@ -27,6 +31,11 @@ type DemoController struct {
 
 var globalController = &DemoController{
 	status: StatusStopped,
+}
+
+func init() {
+	// Set up watch for demo controller status
+	outrig.NewWatch("demo-controller").AsJSON().PollFunc(GetDemoAppStatusForWatch)
 }
 
 func startDemoApp() error {
@@ -44,16 +53,26 @@ func startDemoApp() error {
 		return fmt.Errorf("failed to get executable path: %w", err)
 	}
 
-	cmd := exec.Command(executable, "demo", "--no-browser-launch")
+	cmd := exec.Command(executable, "demo", "--no-browser-launch", "--close-on-stdin")
+
+	// Set up stdin pipe so the demo will exit when the server dies
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		globalController.status = StatusError
+		globalController.err = err
+		return fmt.Errorf("failed to create stdin pipe: %w", err)
+	}
 
 	err = cmd.Start()
 	if err != nil {
+		stdin.Close()
 		globalController.status = StatusError
 		globalController.err = err
 		return fmt.Errorf("failed to start demo app: %w", err)
 	}
 
 	globalController.cmd = cmd
+	globalController.stdin = stdin
 	globalController.status = StatusRunning
 	globalController.err = nil
 	globalController.intentionalKill = false
@@ -71,6 +90,7 @@ func startDemoApp() error {
 			globalController.err = nil
 		}
 		globalController.cmd = nil
+		globalController.stdin = nil
 		globalController.intentionalKill = false
 	}()
 
@@ -128,4 +148,24 @@ func GetDemoAppStatus() (string, error) {
 	defer globalController.mu.RUnlock()
 
 	return globalController.status, globalController.err
+}
+
+// GetDemoAppStatusForWatch returns the demo controller status in a format suitable for Outrig watches
+func GetDemoAppStatusForWatch() map[string]interface{} {
+	globalController.mu.RLock()
+	defer globalController.mu.RUnlock()
+
+	result := map[string]interface{}{
+		"status": globalController.status,
+	}
+	
+	if globalController.err != nil {
+		result["error"] = globalController.err.Error()
+	}
+	
+	if globalController.cmd != nil && globalController.cmd.Process != nil {
+		result["pid"] = globalController.cmd.Process.Pid
+	}
+	
+	return result
 }
