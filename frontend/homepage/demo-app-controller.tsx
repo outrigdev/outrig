@@ -17,6 +17,7 @@ interface DemoAppStatus {
 export const DemoAppController: React.FC = () => {
     const [status, setStatus] = useState<DemoAppStatus>({ state: "unknown" });
     const [isLoading, setIsLoading] = useState(false);
+    const [showStoppedMessage, setShowStoppedMessage] = useState(false);
 
     const checkStatus = async () => {
         try {
@@ -55,6 +56,10 @@ export const DemoAppController: React.FC = () => {
         try {
             await RpcApi.KillDemoAppCommand(DefaultRpcClient);
             await checkStatus();
+            setShowStoppedMessage(true);
+            setTimeout(() => {
+                setShowStoppedMessage(false);
+            }, 2000);
         } catch (error) {
             console.error("Failed to kill demo app:", error);
             setStatus({ state: "error", error: String(error) });
@@ -95,6 +100,14 @@ export const DemoAppController: React.FC = () => {
                 );
 
             case "not_running":
+                if (showStoppedMessage) {
+                    return (
+                        <div className="flex items-center gap-2 text-success text-sm">
+                            <div className="w-2 h-2 bg-success rounded-full" />
+                            Demo App Stopped
+                        </div>
+                    );
+                }
                 return (
                     <button
                         onClick={launchDemo}
