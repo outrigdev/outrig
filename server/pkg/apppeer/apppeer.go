@@ -9,6 +9,7 @@ import (
 	"log"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/outrigdev/outrig"
@@ -51,7 +52,8 @@ type AppRunPeer struct {
 	RuntimeStats    *RuntimeStatsPeer
 	CollectorStatus map[string]ds.CollectorStatus // Collector statuses by name
 
-	lastSentStats *tevent.AppRunStats // Last stats sent in disconnected event
+	TotalBytesReceived atomic.Int64        // Total bytes received from client
+	lastSentStats      *tevent.AppRunStats // Last stats sent in disconnected event
 }
 
 // Global synchronized map to hold all AppRunPeers
@@ -174,6 +176,7 @@ func GetAllAppRunPeerInfos(since int64) []rpctypes.AppRunInfo {
 // HandlePacket processes a packet received from the domain socket connection
 func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage) error {
 	p.LastModTime = time.Now().UnixMilli()
+	p.TotalBytesReceived.Add(int64(len(packetData)))
 
 	switch packetType {
 	case ds.PacketTypeAppInfo:
@@ -287,7 +290,7 @@ func PruneAppRunPeers() int {
 func ClearNonActiveAppRuns() error {
 	allPeers := GetAllAppRunPeers()
 	numCleared := 0
-	
+
 	for _, peer := range allPeers {
 		// Only remove peers that are not running
 		if peer.Status != AppStatusRunning {
@@ -296,7 +299,7 @@ func ClearNonActiveAppRuns() error {
 			numCleared++
 		}
 	}
-	
+
 	log.Printf("Cleared %d non-active app run peers", numCleared)
 	return nil
 }
