@@ -4,12 +4,11 @@
 import { AppModel } from "@/appmodel";
 import { AppRunList } from "@/apprunlist/apprunlist";
 import { SettingsButton } from "@/elements/settingsbutton";
-import { Tooltip } from "@/elements/tooltip";
 import { UpdateBadge } from "@/elements/updatebadge";
 import { StatusBar } from "@/mainapp/statusbar";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
-import { BookText, Bot, ExternalLink, Github, HelpCircle } from "lucide-react";
+import { BookText, ExternalLink, Github, HelpCircle } from "lucide-react";
 import { DemoAppController } from "./demo-app-controller";
 import { GettingStartedContent } from "./gettingstarted-content";
 
