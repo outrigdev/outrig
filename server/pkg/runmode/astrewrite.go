@@ -78,7 +78,7 @@ func findMainFunction(node *ast.File) *ast.FuncDecl {
 // fileHasMainFunction checks if a Go file contains a proper main() function in package main
 func fileHasMainFunction(filename string) (bool, error) {
 	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, filename, nil, 0)
+	node, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution)
 	if err != nil {
 		return false, err
 	}
@@ -173,13 +173,32 @@ func modifyMainFunction(node *ast.File) bool {
 	return true
 }
 
+// writeASTToFile writes an AST node to a file using the provided file set
+func writeASTToFile(fset *token.FileSet, node *ast.File, fileName string) error {
+	var buf strings.Builder
+	config := &printer.Config{
+		Mode: printer.SourcePos, // Generate line directives to preserve original line numbers
+	}
+	err := config.Fprint(&buf, fset, node)
+	if err != nil {
+		return fmt.Errorf("failed to print modified code: %w", err)
+	}
+
+	err = os.WriteFile(fileName, []byte(buf.String()), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write to file %s: %w", fileName, err)
+	}
+
+	return nil
+}
+
 // RewriteAndCreateTempFile parses the given Go file, injects outrig.Init() into main(),
 // and creates a temporary file with the modified code in the provided temp directory.
 // Returns the path to the temporary file.
 func RewriteAndCreateTempFile(sourceFile string, tempDir string) (string, error) {
 	// Parse the source file
 	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, sourceFile, nil, parser.ParseComments)
+	node, err := parser.ParseFile(fset, sourceFile, nil, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse %s: %w", sourceFile, err)
 	}
@@ -192,25 +211,14 @@ func RewriteAndCreateTempFile(sourceFile string, tempDir string) (string, error)
 		return "", fmt.Errorf("unable to find main entry point. Ensure your application has a valid main()")
 	}
 
-	// Generate the modified source code with line directives
-	var buf strings.Builder
-	config := &printer.Config{
-		Mode: printer.SourcePos, // Generate line directives to preserve original line numbers
-	}
-	err = config.Fprint(&buf, fset, node)
-	if err != nil {
-		return "", fmt.Errorf("failed to print modified code: %w", err)
-	}
-
-	modifiedCode := buf.String()
-
 	// Create file with original name in temp directory
 	originalName := filepath.Base(sourceFile)
 	tempFilePath := filepath.Join(tempDir, originalName)
 
-	err = os.WriteFile(tempFilePath, []byte(modifiedCode), 0644)
+	// Write the modified AST to the temp file
+	err = writeASTToFile(fset, node, tempFilePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to write to temporary file: %w", err)
+		return "", err
 	}
 
 	return tempFilePath, nil
