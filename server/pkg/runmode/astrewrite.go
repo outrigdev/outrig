@@ -42,7 +42,40 @@ func FindMainFile(goFiles []string) (string, error) {
 	return mainFiles[0], nil
 }
 
-// fileHasMainFunction checks if a Go file contains a main() function
+// findMainFunction returns the main function declaration if it exists with proper signature in package main, nil otherwise
+func findMainFunction(node *ast.File) *ast.FuncDecl {
+	// Check that this is package main
+	if node.Name.Name != "main" {
+		return nil
+	}
+
+	for _, decl := range node.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Name.Name != "main" {
+			continue
+		}
+
+		// Check that it's not a method (no receiver)
+		if fn.Recv != nil {
+			continue
+		}
+
+		// Check that it has no parameters
+		if fn.Type.Params != nil && len(fn.Type.Params.List) > 0 {
+			continue
+		}
+
+		// Check that it has no return values
+		if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 {
+			continue
+		}
+
+		return fn
+	}
+	return nil
+}
+
+// fileHasMainFunction checks if a Go file contains a proper main() function in package main
 func fileHasMainFunction(filename string) (bool, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, filename, nil, 0)
@@ -50,26 +83,25 @@ func fileHasMainFunction(filename string) (bool, error) {
 		return false, err
 	}
 
-	hasMain := false
-	ast.Inspect(node, func(n ast.Node) bool {
-		if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.Name == "main" {
-			hasMain = true
-			return false
-		}
-		return true
-	})
+	return findMainFunction(node) != nil, nil
+}
 
-	return hasMain, nil
+// hasImport checks if the given import path exists in the AST node
+func hasImport(node *ast.File, importPath string) bool {
+	for _, imp := range node.Imports {
+		if imp.Path.Value == `"`+importPath+`"` {
+			return true
+		}
+	}
+	return false
 }
 
 // addOutrigImport checks if the outrig import exists in the AST node and adds it if not present.
 // Returns true if the import was added, false if it already existed.
 func addOutrigImport(node *ast.File) bool {
 	// Check if outrig import already exists
-	for _, imp := range node.Imports {
-		if imp.Path.Value == `"`+outrigImportPath+`"` {
-			return false
-		}
+	if hasImport(node, outrigImportPath) {
+		return false
 	}
 
 	// Add outrig import since it's not present
@@ -85,7 +117,7 @@ func addOutrigImport(node *ast.File) bool {
 		Tok:   token.IMPORT,
 		Specs: []ast.Spec{outrigImport},
 	}
-	
+
 	// Find the position to insert the new import (after existing imports if any)
 	insertPos := 0
 	for i, decl := range node.Decls {
@@ -95,7 +127,7 @@ func addOutrigImport(node *ast.File) bool {
 			break
 		}
 	}
-	
+
 	// Insert the new import declaration
 	node.Decls = append(node.Decls[:insertPos], append([]ast.Decl{importDecl}, node.Decls[insertPos:]...)...)
 	return true
@@ -104,51 +136,41 @@ func addOutrigImport(node *ast.File) bool {
 // modifyMainFunction finds the main function in the AST and injects outrig.Init() and defer outrig.AppDone() calls.
 // Returns true if the main function was found and modified, false otherwise.
 func modifyMainFunction(node *ast.File) bool {
-	mainFound := false
-	ast.Inspect(node, func(n ast.Node) bool {
-		fn, ok := n.(*ast.FuncDecl)
-		if !ok || fn.Name.Name != "main" {
-			return true
-		}
-
-		if fn.Body == nil {
-			return false
-		}
-
-		// Create the outrig.Init("", nil) call statement
-		initCall := &ast.ExprStmt{
-			X: &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   &ast.Ident{Name: "outrig"},
-					Sel: &ast.Ident{Name: "Init"},
-				},
-				Args: []ast.Expr{
-					&ast.BasicLit{
-						Kind:  token.STRING,
-						Value: `""`,
-					},
-					&ast.Ident{Name: "nil"},
-				},
-			},
-		}
-
-		// Create the defer outrig.AppDone() call statement
-		deferCall := &ast.DeferStmt{
-			Call: &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   &ast.Ident{Name: "outrig"},
-					Sel: &ast.Ident{Name: "AppDone"},
-				},
-			},
-		}
-
-		// Insert both calls at the beginning of the function body
-		fn.Body.List = append([]ast.Stmt{initCall, deferCall}, fn.Body.List...)
-		mainFound = true
+	fn := findMainFunction(node)
+	if fn == nil || fn.Body == nil {
 		return false
-	})
+	}
 
-	return mainFound
+	// Create the outrig.Init("", nil) call statement
+	initCall := &ast.ExprStmt{
+		X: &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "outrig"},
+				Sel: &ast.Ident{Name: "Init"},
+			},
+			Args: []ast.Expr{
+				&ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `""`,
+				},
+				&ast.Ident{Name: "nil"},
+			},
+		},
+	}
+
+	// Create the defer outrig.AppDone() call statement
+	deferCall := &ast.DeferStmt{
+		Call: &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "outrig"},
+				Sel: &ast.Ident{Name: "AppDone"},
+			},
+		},
+	}
+
+	// Insert both calls at the beginning of the function body
+	fn.Body.List = append([]ast.Stmt{initCall, deferCall}, fn.Body.List...)
+	return true
 }
 
 // RewriteAndCreateTempFile parses the given Go file, injects outrig.Init() into main(),
@@ -193,4 +215,3 @@ func RewriteAndCreateTempFile(sourceFile string, tempDir string) (string, error)
 
 	return tempFilePath, nil
 }
-
