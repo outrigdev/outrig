@@ -73,12 +73,73 @@ func RewriteAndCreateTempFile(sourceFile string, tempDir string) (string, error)
 		return "", fmt.Errorf("failed to parse %s: %w", sourceFile, err)
 	}
 
+	// Check if outrig import already exists
+	hasOutrigImport := false
+	var firstNonImportDeclLine int
+	for _, imp := range node.Imports {
+		if imp.Path.Value == `"`+outrigImportPath+`"` {
+			hasOutrigImport = true
+			break
+		}
+	}
+
+	// Find the line number after imports for line directive restoration
+	if len(node.Decls) > 0 {
+		for _, decl := range node.Decls {
+			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
+				continue
+			}
+			// This is the first non-import declaration
+			firstNonImportDeclLine = fset.Position(decl.Pos()).Line
+			break
+		}
+	}
+
+	// Add outrig import if not present
+	addedImport := false
+	if !hasOutrigImport {
+		outrigImport := &ast.ImportSpec{
+			Path: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: `"` + outrigImportPath + `"`,
+			},
+		}
+
+		// Always create a new import declaration for outrig to avoid formatting issues
+		importDecl := &ast.GenDecl{
+			Tok:   token.IMPORT,
+			Specs: []ast.Spec{outrigImport},
+		}
+		
+		// Find the position to insert the new import (after existing imports if any)
+		insertPos := 0
+		for i, decl := range node.Decls {
+			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
+				insertPos = i + 1
+			} else {
+				break
+			}
+		}
+		
+		// Insert the new import declaration
+		node.Decls = append(node.Decls[:insertPos], append([]ast.Decl{importDecl}, node.Decls[insertPos:]...)...)
+		addedImport = true
+	}
+
 	// Find and modify the main function
 	mainFound := false
+	var mainFuncStartLine int
 	ast.Inspect(node, func(n ast.Node) bool {
 		if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.Name == "main" {
 			if fn.Body == nil {
 				return false
+			}
+
+			// Get the line number of the first statement in main (or opening brace + 1)
+			if len(fn.Body.List) > 0 {
+				mainFuncStartLine = fset.Position(fn.Body.List[0].Pos()).Line
+			} else {
+				mainFuncStartLine = fset.Position(fn.Body.Lbrace).Line + 1
 			}
 
 			// Create the outrig.Init("", nil) call statement
@@ -120,47 +181,6 @@ func RewriteAndCreateTempFile(sourceFile string, tempDir string) (string, error)
 		return "", fmt.Errorf("unable to find main entry point. Ensure your application has a valid main()")
 	}
 
-	// Check if outrig import already exists
-	hasOutrigImport := false
-	for _, imp := range node.Imports {
-		if imp.Path.Value == `"`+outrigImportPath+`"` {
-			hasOutrigImport = true
-			break
-		}
-	}
-
-	// Add outrig import if not present
-	if !hasOutrigImport {
-		outrigImport := &ast.ImportSpec{
-			Path: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: `"` + outrigImportPath + `"`,
-			},
-		}
-
-		// Find existing import declaration or create new one
-		var importDecl *ast.GenDecl
-		for _, decl := range node.Decls {
-			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-				importDecl = genDecl
-				break
-			}
-		}
-
-		if importDecl != nil {
-			// Add to existing import declaration
-			importDecl.Specs = append(importDecl.Specs, outrigImport)
-		} else {
-			// Create new import declaration
-			importDecl = &ast.GenDecl{
-				Tok:   token.IMPORT,
-				Specs: []ast.Spec{outrigImport},
-			}
-			// Insert at the beginning of declarations (after package)
-			node.Decls = append([]ast.Decl{importDecl}, node.Decls...)
-		}
-	}
-
 	// Generate the modified source code
 	var buf strings.Builder
 	err = format.Node(&buf, fset, node)
@@ -168,14 +188,40 @@ func RewriteAndCreateTempFile(sourceFile string, tempDir string) (string, error)
 		return "", fmt.Errorf("failed to format modified code: %w", err)
 	}
 
+	// Post-process the generated code to add line directives
+	modifiedCode := buf.String()
+	modifiedCode = addLineDirectives(modifiedCode, sourceFile, addedImport, firstNonImportDeclLine, mainFuncStartLine)
+
 	// Create file with original name in temp directory
 	originalName := filepath.Base(sourceFile)
 	tempFilePath := filepath.Join(tempDir, originalName)
 
-	err = os.WriteFile(tempFilePath, []byte(buf.String()), 0644)
+	err = os.WriteFile(tempFilePath, []byte(modifiedCode), 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to write to temporary file: %w", err)
 	}
 
 	return tempFilePath, nil
+}
+
+// addLineDirectives adds //line directives to restore correct line numbers
+func addLineDirectives(code, sourceFile string, addedImport bool, firstNonImportDeclLine, mainFuncStartLine int) string {
+	lines := strings.Split(code, "\n")
+	var result []string
+	
+	for _, line := range lines {
+		result = append(result, line)
+		
+		// If we added an import, add a line directive after the import block
+		if addedImport && firstNonImportDeclLine > 0 && strings.Contains(line, outrigImportPath) {
+			result = append(result, fmt.Sprintf("//line %s:%d", sourceFile, firstNonImportDeclLine))
+		}
+		
+		// Add line directive after the injected outrig calls in main
+		if mainFuncStartLine > 0 && strings.Contains(line, "outrig.AppDone()") {
+			result = append(result, fmt.Sprintf("//line %s:%d", sourceFile, mainFuncStartLine))
+		}
+	}
+	
+	return strings.Join(result, "\n")
 }
