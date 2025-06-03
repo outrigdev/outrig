@@ -6,8 +6,8 @@ package runmode
 import (
 	"fmt"
 	"go/ast"
-	"go/format"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"os"
 	"path/filepath"
@@ -62,6 +62,95 @@ func fileHasMainFunction(filename string) (bool, error) {
 	return hasMain, nil
 }
 
+// addOutrigImport checks if the outrig import exists in the AST node and adds it if not present.
+// Returns true if the import was added, false if it already existed.
+func addOutrigImport(node *ast.File) bool {
+	// Check if outrig import already exists
+	for _, imp := range node.Imports {
+		if imp.Path.Value == `"`+outrigImportPath+`"` {
+			return false
+		}
+	}
+
+	// Add outrig import since it's not present
+	outrigImport := &ast.ImportSpec{
+		Path: &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: `"` + outrigImportPath + `"`,
+		},
+	}
+
+	// Always create a new import declaration for outrig to avoid formatting issues
+	importDecl := &ast.GenDecl{
+		Tok:   token.IMPORT,
+		Specs: []ast.Spec{outrigImport},
+	}
+	
+	// Find the position to insert the new import (after existing imports if any)
+	insertPos := 0
+	for i, decl := range node.Decls {
+		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
+			insertPos = i + 1
+		} else {
+			break
+		}
+	}
+	
+	// Insert the new import declaration
+	node.Decls = append(node.Decls[:insertPos], append([]ast.Decl{importDecl}, node.Decls[insertPos:]...)...)
+	return true
+}
+
+// modifyMainFunction finds the main function in the AST and injects outrig.Init() and defer outrig.AppDone() calls.
+// Returns true if the main function was found and modified, false otherwise.
+func modifyMainFunction(node *ast.File) bool {
+	mainFound := false
+	ast.Inspect(node, func(n ast.Node) bool {
+		fn, ok := n.(*ast.FuncDecl)
+		if !ok || fn.Name.Name != "main" {
+			return true
+		}
+
+		if fn.Body == nil {
+			return false
+		}
+
+		// Create the outrig.Init("", nil) call statement
+		initCall := &ast.ExprStmt{
+			X: &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   &ast.Ident{Name: "outrig"},
+					Sel: &ast.Ident{Name: "Init"},
+				},
+				Args: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: `""`,
+					},
+					&ast.Ident{Name: "nil"},
+				},
+			},
+		}
+
+		// Create the defer outrig.AppDone() call statement
+		deferCall := &ast.DeferStmt{
+			Call: &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   &ast.Ident{Name: "outrig"},
+					Sel: &ast.Ident{Name: "AppDone"},
+				},
+			},
+		}
+
+		// Insert both calls at the beginning of the function body
+		fn.Body.List = append([]ast.Stmt{initCall, deferCall}, fn.Body.List...)
+		mainFound = true
+		return false
+	})
+
+	return mainFound
+}
+
 // RewriteAndCreateTempFile parses the given Go file, injects outrig.Init() into main(),
 // and creates a temporary file with the modified code in the provided temp directory.
 // Returns the path to the temporary file.
@@ -73,124 +162,25 @@ func RewriteAndCreateTempFile(sourceFile string, tempDir string) (string, error)
 		return "", fmt.Errorf("failed to parse %s: %w", sourceFile, err)
 	}
 
-	// Check if outrig import already exists
-	hasOutrigImport := false
-	var firstNonImportDeclLine int
-	for _, imp := range node.Imports {
-		if imp.Path.Value == `"`+outrigImportPath+`"` {
-			hasOutrigImport = true
-			break
-		}
-	}
-
-	// Find the line number after imports for line directive restoration
-	if len(node.Decls) > 0 {
-		for _, decl := range node.Decls {
-			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-				continue
-			}
-			// This is the first non-import declaration
-			firstNonImportDeclLine = fset.Position(decl.Pos()).Line
-			break
-		}
-	}
-
-	// Add outrig import if not present
-	addedImport := false
-	if !hasOutrigImport {
-		outrigImport := &ast.ImportSpec{
-			Path: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: `"` + outrigImportPath + `"`,
-			},
-		}
-
-		// Always create a new import declaration for outrig to avoid formatting issues
-		importDecl := &ast.GenDecl{
-			Tok:   token.IMPORT,
-			Specs: []ast.Spec{outrigImport},
-		}
-		
-		// Find the position to insert the new import (after existing imports if any)
-		insertPos := 0
-		for i, decl := range node.Decls {
-			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-				insertPos = i + 1
-			} else {
-				break
-			}
-		}
-		
-		// Insert the new import declaration
-		node.Decls = append(node.Decls[:insertPos], append([]ast.Decl{importDecl}, node.Decls[insertPos:]...)...)
-		addedImport = true
-	}
+	// Add outrig import if not already present
+	addOutrigImport(node)
 
 	// Find and modify the main function
-	mainFound := false
-	var mainFuncStartLine int
-	ast.Inspect(node, func(n ast.Node) bool {
-		if fn, ok := n.(*ast.FuncDecl); ok && fn.Name.Name == "main" {
-			if fn.Body == nil {
-				return false
-			}
-
-			// Get the line number of the first statement in main (or opening brace + 1)
-			if len(fn.Body.List) > 0 {
-				mainFuncStartLine = fset.Position(fn.Body.List[0].Pos()).Line
-			} else {
-				mainFuncStartLine = fset.Position(fn.Body.Lbrace).Line + 1
-			}
-
-			// Create the outrig.Init("", nil) call statement
-			initCall := &ast.ExprStmt{
-				X: &ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   &ast.Ident{Name: "outrig"},
-						Sel: &ast.Ident{Name: "Init"},
-					},
-					Args: []ast.Expr{
-						&ast.BasicLit{
-							Kind:  token.STRING,
-							Value: `""`,
-						},
-						&ast.Ident{Name: "nil"},
-					},
-				},
-			}
-
-			// Create the defer outrig.AppDone() call statement
-			deferCall := &ast.DeferStmt{
-				Call: &ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   &ast.Ident{Name: "outrig"},
-						Sel: &ast.Ident{Name: "AppDone"},
-					},
-				},
-			}
-
-			// Insert both calls at the beginning of the function body
-			fn.Body.List = append([]ast.Stmt{initCall, deferCall}, fn.Body.List...)
-			mainFound = true
-			return false
-		}
-		return true
-	})
-
-	if !mainFound {
+	if !modifyMainFunction(node) {
 		return "", fmt.Errorf("unable to find main entry point. Ensure your application has a valid main()")
 	}
 
-	// Generate the modified source code
+	// Generate the modified source code with line directives
 	var buf strings.Builder
-	err = format.Node(&buf, fset, node)
+	config := &printer.Config{
+		Mode: printer.SourcePos, // Generate line directives to preserve original line numbers
+	}
+	err = config.Fprint(&buf, fset, node)
 	if err != nil {
-		return "", fmt.Errorf("failed to format modified code: %w", err)
+		return "", fmt.Errorf("failed to print modified code: %w", err)
 	}
 
-	// Post-process the generated code to add line directives
 	modifiedCode := buf.String()
-	modifiedCode = addLineDirectives(modifiedCode, sourceFile, addedImport, firstNonImportDeclLine, mainFuncStartLine)
 
 	// Create file with original name in temp directory
 	originalName := filepath.Base(sourceFile)
@@ -204,24 +194,3 @@ func RewriteAndCreateTempFile(sourceFile string, tempDir string) (string, error)
 	return tempFilePath, nil
 }
 
-// addLineDirectives adds //line directives to restore correct line numbers
-func addLineDirectives(code, sourceFile string, addedImport bool, firstNonImportDeclLine, mainFuncStartLine int) string {
-	lines := strings.Split(code, "\n")
-	var result []string
-	
-	for _, line := range lines {
-		result = append(result, line)
-		
-		// If we added an import, add a line directive after the import block
-		if addedImport && firstNonImportDeclLine > 0 && strings.Contains(line, outrigImportPath) {
-			result = append(result, fmt.Sprintf("//line %s:%d", sourceFile, firstNonImportDeclLine))
-		}
-		
-		// Add line directive after the injected outrig calls in main
-		if mainFuncStartLine > 0 && strings.Contains(line, "outrig.AppDone()") {
-			result = append(result, fmt.Sprintf("//line %s:%d", sourceFile, mainFuncStartLine))
-		}
-	}
-	
-	return strings.Join(result, "\n")
-}
