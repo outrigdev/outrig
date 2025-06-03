@@ -15,11 +15,52 @@ import (
 	"github.com/outrigdev/outrig/server/demo"
 	"github.com/outrigdev/outrig/server/pkg/boot"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
+	"github.com/outrigdev/outrig/server/pkg/runmode"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"github.com/outrigdev/outrig/server/pkg/tevent"
 	"github.com/outrigdev/outrig/server/pkg/updatecheck"
 	"github.com/spf13/cobra"
 )
+
+type specialArgs struct {
+	IsDev     bool
+	IsVerbose bool
+	Args      []string
+}
+
+func parseSpecialArgs(keyArg string) (specialArgs, error) {
+	result := specialArgs{}
+
+	// Find the position of keyArg in os.Args
+	keyArgIndex := -1
+	for i, arg := range os.Args {
+		if arg == keyArg {
+			keyArgIndex = i
+			break
+		}
+	}
+
+	if keyArgIndex == -1 {
+		return result, fmt.Errorf("key argument '%s' not found in command line", keyArg)
+	}
+
+	// Look for --dev and -v flags before keyArg
+	for i := 1; i < keyArgIndex; i++ {
+		arg := os.Args[i]
+		if arg == "--dev" {
+			result.IsDev = true
+		} else if arg == "-v" {
+			result.IsVerbose = true
+		}
+	}
+
+	// Everything after keyArg goes into Args
+	if keyArgIndex+1 < len(os.Args) {
+		result.Args = os.Args[keyArgIndex+1:]
+	}
+
+	return result, nil
+}
 
 var (
 	// these get set via -X during build
@@ -46,19 +87,6 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 		streams = append(streams, execlogwrap.TeeStreamDecl{Input: stderrIn, Output: os.Stderr, Source: "/dev/stderr"})
 	}
 	return execlogwrap.ProcessExistingStreams(streams, isDev)
-}
-
-func processDevFlag(args []string) ([]string, bool) {
-	isDev := false
-	filteredArgs := make([]string, 0, len(args))
-	for _, arg := range args {
-		if arg == "--dev" {
-			isDev = true
-		} else {
-			filteredArgs = append(filteredArgs, arg)
-		}
-	}
-	return filteredArgs, isDev
 }
 
 func runPostinstall(cmd *cobra.Command, args []string) {
@@ -176,26 +204,30 @@ func main() {
 		RunE:  runCaptureLogs,
 	}
 	captureLogsCmd.Flags().String("source", "", "Override the source name for stdout logs (default: /dev/stdout)")
+	captureLogsCmd.Flags().Bool("dev", false, "Run in development mode")
 
 	runCmd := &cobra.Command{
 		Use:   "run [go-args]",
 		Short: "Run a Go program with Outrig logging",
-		Long: `Run a Go program with Outrig logging. All arguments after run are passed to the go command.
-Note: The --dev flag must come before the run command to be recognized as an Outrig flag.
-Example: outrig --dev run main.go`,
-		Args: cobra.MinimumNArgs(1),
+		Long: `Run a Go program with Outrig logging. Automatically injects outrig.Init() into the main function via AST rewriting.
+The original source files are never modified - a temporary file is used for execution.
+Example: outrig --dev --verbose run main.go`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			filteredArgs, isDev := processDevFlag(args)
-			goArgs := append([]string{"go", "run"}, filteredArgs...)
-
-			if os.Getenv(base.AppRunIdEnvName) == "" {
-				appRunId := uuid.New().String()
-				os.Setenv(base.AppRunIdEnvName, appRunId)
+			specialArgs, err := parseSpecialArgs("run")
+			if err != nil {
+				return err
 			}
 
-			os.Setenv(base.ExternalLogCaptureEnvName, "1")
+			if len(specialArgs.Args) == 0 {
+				return fmt.Errorf("run command requires at least one argument")
+			}
 
-			return execlogwrap.ExecCommand(goArgs, isDev)
+			config := runmode.Config{
+				Args:      specialArgs.Args,
+				IsDev:     specialArgs.IsDev,
+				IsVerbose: specialArgs.IsVerbose,
+			}
+			return runmode.ExecRunMode(config)
 		},
 		// Disable flag parsing for this command so all flags are passed to the go command
 		DisableFlagParsing: true,
@@ -205,11 +237,16 @@ Example: outrig --dev run main.go`,
 		Use:   "exec [command]",
 		Short: "Execute a command with Outrig logging",
 		Long: `Execute a command with Outrig logging. All arguments after exec are passed to the command.
-Note: The --dev flag must come before the exec command to be recognized as an Outrig flag.
 Example: outrig --dev exec ls -latrh`,
-		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			filteredArgs, isDev := processDevFlag(args)
+			specialArgs, err := parseSpecialArgs("exec")
+			if err != nil {
+				return err
+			}
+
+			if len(specialArgs.Args) == 0 {
+				return fmt.Errorf("exec command requires at least one argument")
+			}
 
 			if os.Getenv(base.AppRunIdEnvName) == "" {
 				appRunId := uuid.New().String()
@@ -218,7 +255,7 @@ Example: outrig --dev exec ls -latrh`,
 
 			os.Setenv(base.ExternalLogCaptureEnvName, "1")
 
-			return execlogwrap.ExecCommand(filteredArgs, isDev)
+			return execlogwrap.ExecCommand(specialArgs.Args, specialArgs.IsDev)
 		},
 		// Disable flag parsing for this command so all flags are passed to the executed command
 		DisableFlagParsing: true,
@@ -240,14 +277,14 @@ Example: outrig --dev exec ls -latrh`,
 			noBrowserLaunch, _ := cmd.Flags().GetBool("no-browser-launch")
 			port, _ := cmd.Flags().GetInt("port")
 			closeOnStdin, _ := cmd.Flags().GetBool("close-on-stdin")
-			
+
 			config := demo.Config{
 				DevMode:         devMode,
 				NoBrowserLaunch: noBrowserLaunch,
 				Port:            port,
 				CloseOnStdin:    closeOnStdin,
 			}
-			
+
 			demo.RunOutrigAcres(config)
 			return nil
 		},
@@ -264,9 +301,6 @@ Example: outrig --dev exec ls -latrh`,
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(postinstallCmd)
 	rootCmd.AddCommand(demoCmd)
-
-	// Add dev flag to root command (will be inherited by all subcommands)
-	rootCmd.PersistentFlags().Bool("dev", false, "Run in development mode")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
