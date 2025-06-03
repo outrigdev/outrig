@@ -198,17 +198,18 @@ func main() {
 	}
 
 	captureLogsCmd := &cobra.Command{
-		Use:   "capturelogs",
-		Short: "Capture logs from stdin and fd 3",
-		Long:  `Capture logs from stdin (stdout of the process) and fd 3 (stderr of the process) and write them to stdout and stderr respectively.`,
-		RunE:  runCaptureLogs,
+		Use:    "capturelogs",
+		Short:  "Capture logs from stdin and fd 3",
+		Long:   `Capture logs from stdin (stdout of the process) and fd 3 (stderr of the process) and write them to stdout and stderr respectively.`,
+		RunE:   runCaptureLogs,
+		Hidden: true,
 	}
 	captureLogsCmd.Flags().String("source", "", "Override the source name for stdout logs (default: /dev/stdout)")
 	captureLogsCmd.Flags().Bool("dev", false, "Run in development mode")
 
 	runCmd := &cobra.Command{
 		Use:   "run [go-args]",
-		Short: "Run a Go program with Outrig logging",
+		Short: "Run a Go program with Outrig enabled",
 		Long: `Run a Go program with Outrig logging. Automatically injects outrig.Init() into the main function via AST rewriting.
 The original source files are never modified - a temporary file is used for execution.
 Example: outrig --dev --verbose run main.go`,
@@ -259,6 +260,7 @@ Example: outrig --dev exec ls -latrh`,
 		},
 		// Disable flag parsing for this command so all flags are passed to the executed command
 		DisableFlagParsing: true,
+		Hidden:             true,
 	}
 
 	postinstallCmd := &cobra.Command{
@@ -301,6 +303,10 @@ Example: outrig --dev exec ls -latrh`,
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(postinstallCmd)
 	rootCmd.AddCommand(demoCmd)
+	rootCmd.PersistentFlags().Bool("dev", false, "Run in dev mode")
+	rootCmd.PersistentFlags().MarkHidden("dev")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose output")
+	rootCmd.PersistentFlags().MarkHidden("verbose")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
