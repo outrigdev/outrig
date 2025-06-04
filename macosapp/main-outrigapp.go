@@ -33,7 +33,6 @@ var (
 	// Server process
 	serverCmd          *exec.Cmd
 	serverLock         sync.Mutex
-	isFirstStart       = true
 	serverFirstStartCh = make(chan bool)
 	serverStartOnce    sync.Once
 
@@ -398,9 +397,6 @@ func startServer() {
 		return
 	}
 
-	// Wait a bit for the server to start
-	time.Sleep(1 * time.Second)
-
 	log.Printf("Outrig server started\n")
 
 	// Monitor the server process in a goroutine
@@ -648,6 +644,45 @@ func updateCheckUpdatesMenuItem() {
 	}
 }
 
+func runServerStatusCheckLoop() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		serverStatus := getServerStatus()
+		updateServerStatus(serverStatus)
+	}
+}
+
+func runAppcastUpdateCheckLoop() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		now := time.Now().UnixMilli()
+		lastCheck := atomic.LoadInt64(&lastAppcastCheck)
+
+		if now-lastCheck >= AppcastUpdateCheckInterval.Milliseconds() {
+			checkForUpdates(false, true)
+			checkAppcastUpdates()
+		}
+	}
+}
+
+func startServerOnStartup() {
+	startServer()
+
+	select {
+	case <-serverFirstStartCh:
+		time.Sleep(200 * time.Millisecond)
+		log.Printf("Opening browser on startup\n")
+		err := utilfn.LaunchUrl("http://localhost:5005")
+		if err != nil {
+			log.Printf("Error opening browser: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		log.Printf("Timeout waiting for server to start on startup\n")
+	}
+}
+
 func onReady() {
 	updateIcon(IconTypeError)
 	rebuildMenu(ServerStatus{})
@@ -655,63 +690,12 @@ func onReady() {
 	// Check for updates on startup
 	go func() {
 		checkForUpdates(true, false)
-		// Check appcast updates after the regular update check
 		checkAppcastUpdates()
 	}()
 
-	startServer()
-
-	// Start a goroutine to monitor server status and update menu
-	go func() {
-		// Check server status every second
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
-		for range ticker.C {
-			serverStatus := getServerStatus()
-			updateServerStatus(serverStatus)
-		}
-	}()
-
-	// Start a goroutine for periodic appcast update checking (every 8 hours)
-	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			now := time.Now().UnixMilli()
-			lastCheck := atomic.LoadInt64(&lastAppcastCheck)
-
-			// Check if the interval has passed since the last check
-			if now-lastCheck >= AppcastUpdateCheckInterval.Milliseconds() {
-				// First run the updater in background mode
-				checkForUpdates(false, true)
-				// Then check the appcast
-				checkAppcastUpdates()
-			}
-		}
-	}()
-
-	// Handle first start browser opening
-	if isFirstStart {
-		go func() {
-			// Wait for server to be running
-			select {
-			case <-serverFirstStartCh:
-				// Wait a bit more to make sure the server is ready to accept connections
-				time.Sleep(200 * time.Millisecond)
-				log.Printf("First start: opening browser\n")
-				err := utilfn.LaunchUrl("http://localhost:5005")
-				if err != nil {
-					log.Printf("Error opening browser: %v", err)
-				}
-			case <-time.After(10 * time.Second):
-				// Timeout if server doesn't start
-				log.Printf("Timeout waiting for server to start on first launch\n")
-			}
-			// No longer first start
-			isFirstStart = false
-		}()
-	}
-
+	go runServerStatusCheckLoop()
+	go runAppcastUpdateCheckLoop()
+	go startServerOnStartup()
 }
 
 func onExit() {
@@ -812,7 +796,6 @@ func IsOutrigCLIInstalled() bool {
 	cliSource, target := getCliPaths()
 	return getLinkState(target, cliSource) == LinkOK
 }
-
 
 // checkForUpdates launches the OutrigUpdater to check for updates
 func checkForUpdates(first bool, background bool) {

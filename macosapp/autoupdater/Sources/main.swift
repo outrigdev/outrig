@@ -23,7 +23,14 @@ var validUpdateFound = false
 // ── Initialize NSApplication ────────────────────────────────────
 // This is critical for Sparkle UI to work properly
 let app = NSApplication.shared
-app.setActivationPolicy(.accessory) // Don't show in dock
+
+// Set activation policy based on mode
+if isBackground {
+    app.setActivationPolicy(.accessory) // Don't show in dock for background mode
+} else {
+    app.setActivationPolicy(.regular) // Show in dock for interactive and first modes
+    app.activate(ignoringOtherApps: true) // Bring to foreground
+}
 
 // ── delegate ────────────────────────────────────────────────────
 final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
@@ -42,6 +49,11 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     func updater(_ u: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         print("Update \(item.displayVersionString) found → downloading…")
         validUpdateFound = true
+        if !background {
+            DispatchQueue.main.async {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
+        }
     }
     
     func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
@@ -94,6 +106,9 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     
     func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
         print("No updates found: \(error.localizedDescription)")
+        if !background {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+        }
         // Don't quit here in interactive mode - let user see the dialog
         if background {
             quitHelper()
@@ -102,6 +117,9 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     
     func updater(_ u: SPUUpdater, didAbortWithError error: Error) {
         print("Update aborted with error: \(error)")
+        if !background {
+            NSApplication.shared.activate(ignoringOtherApps: true)
+        }
         // Don't quit here in interactive mode - let user see the error
         if background {
             quitHelper()
@@ -171,6 +189,14 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
             // This is the right place to quit after the update cycle completes
             // In interactive mode, this is called after the user dismisses any dialogs
             quitHelper()
+        }
+    }
+    
+    // ── UI activation methods ───────────────────────────────────
+    
+    func updater(_ updater: SPUUpdater, willShowModalAlert alert: NSAlert) {
+        if !background {
+            NSApplication.shared.activate(ignoringOtherApps: true)
         }
     }
 
