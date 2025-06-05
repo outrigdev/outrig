@@ -118,6 +118,7 @@ func generateCaskContent(data CaskData) string {
   end
 
   app "Outrig.app"
+  binary "#{appdir}/Outrig.app/Contents/MacOS/outrig"
 
   zap trash: [
     "~/Library/Application Support/Outrig",
