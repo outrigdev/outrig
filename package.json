@@ -24,14 +24,14 @@
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.27.0",
+    "@eslint/js": "^9.28.0",
     "@tailwindcss/vite": "^4.1.8",
     "@types/emoji-js": "^3.5.2",
     "@types/node": "^22.15.26",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
     "@vitejs/plugin-react": "^4.5.0",
-    "eslint": "^9.27.0",
+    "eslint": "^9.28.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.2.0",
@@ -40,7 +40,7 @@
     "prettier-plugin-organize-imports": "^4.1.0",
     "tailwindcss": "^4.1.8",
     "typescript": "~5.8.3",
-    "typescript-eslint": "^8.33.0",
+    "typescript-eslint": "^8.33.1",
     "vite": "^6.3.5"
   }
 }
