@@ -36,6 +36,10 @@ var (
 	serverFirstStartCh = make(chan bool)
 	serverStartOnce    sync.Once
 
+	// Updater process
+	globalUpdaterCmd *exec.Cmd
+	updaterLock      sync.Mutex
+
 	statusUpdateLock sync.Mutex
 	rebuildMenuLock  sync.Mutex
 	lastServerStatus ServerStatus
@@ -45,6 +49,7 @@ var (
 	mCheckUpdatesGlobal *systray.MenuItem
 
 	isQuitting atomic.Bool
+	isUserQuit atomic.Bool
 
 	// CLI installation status
 	isCliInstalled   atomic.Bool
@@ -459,6 +464,24 @@ func stopServer() {
 	log.Printf("Outrig server stopped\n")
 }
 
+func stopUpdater() {
+	updaterLock.Lock()
+	defer updaterLock.Unlock()
+
+	if globalUpdaterCmd == nil || globalUpdaterCmd.Process == nil {
+		return
+	}
+
+	// Send interrupt signal to the updater
+	err := globalUpdaterCmd.Process.Signal(os.Interrupt)
+	if err != nil {
+		// Try to kill the process if interrupt fails
+		globalUpdaterCmd.Process.Kill()
+	}
+
+	globalUpdaterCmd = nil
+}
+
 func restartServer() {
 	log.Printf("Restarting Outrig server...\n")
 
@@ -619,6 +642,7 @@ func rebuildMenu(status ServerStatus) {
 	go func() {
 		for range mQuit.ClickedCh {
 			isQuitting.Store(true)
+			isUserQuit.Store(true)
 			updateServerStatus(ServerStatus{})
 			systray.Quit()
 		}
@@ -703,6 +727,9 @@ func onExit() {
 	log.Printf("Exiting OutrigApp...\n")
 
 	stopServer()
+	if isUserQuit.Load() {
+		stopUpdater()
+	}
 
 	log.Printf("OutrigApp exited\n")
 }
@@ -822,6 +849,7 @@ func checkForUpdates(first bool) {
 	execPath, err := os.Executable()
 	if err != nil {
 		log.Printf("Error getting executable path: %v", err)
+		isUpdaterRunning.Store(false)
 		return
 	}
 
@@ -832,6 +860,7 @@ func checkForUpdates(first bool) {
 	// Check if the updater exists
 	if _, err := os.Stat(updaterPath); os.IsNotExist(err) {
 		log.Printf("Updater not found at %s: %v", updaterPath, err)
+		isUpdaterRunning.Store(false)
 		return
 	}
 
@@ -858,19 +887,30 @@ func checkForUpdates(first bool) {
 		if logFile != nil {
 			logFile.Close()
 		}
+		isUpdaterRunning.Store(false)
 		return
 	}
+
+	// Store the updater command reference
+	updaterLock.Lock()
+	globalUpdaterCmd = cmd
+	updaterLock.Unlock()
 
 	log.Printf("Update checker launched\n")
 
 	// Monitor the updater process in a goroutine
-	go func(updaterCmd *exec.Cmd, logFileHandle *os.File) {
+	go func(cmdArg *exec.Cmd, logFileHandle *os.File) {
 		defer func() {
+			// Clear the updater command reference
+			updaterLock.Lock()
+			globalUpdaterCmd = nil
+			updaterLock.Unlock()
+
 			isUpdaterRunning.Store(false)
 			updateCheckUpdatesMenuItem()
 		}()
 
-		err := updaterCmd.Wait()
+		err := cmdArg.Wait()
 		if err != nil {
 			log.Printf("Update checker exited with error: %v", err)
 		} else {
