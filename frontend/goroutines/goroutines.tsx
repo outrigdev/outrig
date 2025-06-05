@@ -117,13 +117,7 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
 
     const copyStackTrace = async () => {
         try {
-            // If we have a ref to the stack trace div, use its text content
-            if (stackTraceRef.current) {
-                await navigator.clipboard.writeText(stackTraceRef.current.innerText);
-            } else {
-                // Fallback to raw stack trace if ref is not available
-                await navigator.clipboard.writeText(goroutine.rawstacktrace);
-            }
+            await navigator.clipboard.writeText(goroutine.rawstacktrace);
             return Promise.resolve();
         } catch (error) {
             console.error("Failed to copy stack trace:", error);

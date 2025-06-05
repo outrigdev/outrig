@@ -14,6 +14,7 @@ import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
 import { prettyPrintGoFmt, prettyPrintJson } from "@/util/util";
 import { useAtom, useAtomValue } from "jotai";
+import { Pin } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { NoWatchesMessage } from "./nowatchmessage";
 import { WatchVal } from "./watch-val";
@@ -101,6 +102,8 @@ const WatchValueDisplay: React.FC<WatchValueDisplayProps> = ({ sample }) => {
 };
 
 const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
+    const isPinned = useAtomValue(model.getWatchPinnedAtom(watch.watchnum));
+
     // Get tags based on the watch declaration
     const getWatchTags = (decl: WatchDecl) => {
         const tags = [];
@@ -116,6 +119,10 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
     };
 
     const watchTags = getWatchTags(watch.decl);
+
+    const handlePinClick = () => {
+        model.toggleWatchPin(watch.watchnum);
+    };
 
     return (
         <div className="pl-4 pr-2 relative">
@@ -154,6 +161,20 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
                             }
                         />
                     ))}
+                    {/* Pin button */}
+                    <Tooltip content={isPinned ? "Unpin watch" : "Pin watch"}>
+                        <button
+                            onClick={handlePinClick}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border transition-colors ${
+                                isPinned
+                                    ? "text-warning bg-warning/10 border-warning/30"
+                                    : "text-secondary hover:text-primary border-border hover:border-primary/30 hover:bg-buttonhover"
+                            }`}
+                        >
+                            <Pin size={14} />
+                            {isPinned && <span>Pinned</span>}
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
             <WatchValueDisplay sample={watch.sample} />
