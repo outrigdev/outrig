@@ -19,7 +19,7 @@ class WatchesModel {
     appRunId: string;
     appRunWatches: PrimitiveAtom<CombinedWatchSample[]> = atom<CombinedWatchSample[]>([]);
     matchedWatchIds: PrimitiveAtom<number[]> = atom<number[]>([]);
-    pinnedWatchNums: PrimitiveAtom<Set<number>> = atom<Set<number>>(new Set<number>());
+    pinnedWatchNames: PrimitiveAtom<Set<string>> = atom<Set<string>>(new Set<string>());
     searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({
         searchedCount: 0,
         totalCount: 0,
@@ -31,7 +31,7 @@ class WatchesModel {
     autoRefreshIntervalId: number | null = null;
     contentRef: React.RefObject<HTMLDivElement> = null;
     currentSearchId: string = "";
-    pinnedAtomCache: Map<number, Atom<boolean>> = new Map();
+    pinnedAtomCache: Map<string, Atom<boolean>> = new Map();
 
     // Total count of watches (derived from appRunWatches)
     totalCount: Atom<number> = atom((get) => {
@@ -137,14 +137,14 @@ class WatchesModel {
     // Filtered watches - now just returns the watches loaded from search results
     filteredWatches: Atom<CombinedWatchSample[]> = atom((get): CombinedWatchSample[] => {
         const watches = get(this.appRunWatches);
-        const pinnedWatchNums = get(this.pinnedWatchNums);
+        const pinnedWatchNames = get(this.pinnedWatchNames);
 
         // Filter out null watches
         const validWatches = watches.filter((watch) => watch != null);
 
         // Separate pinned and unpinned watches
-        const pinnedWatches = validWatches.filter((watch) => pinnedWatchNums.has(watch.watchnum));
-        const unpinnedWatches = validWatches.filter((watch) => !pinnedWatchNums.has(watch.watchnum));
+        const pinnedWatches = validWatches.filter((watch) => pinnedWatchNames.has(watch.decl.name));
+        const unpinnedWatches = validWatches.filter((watch) => !pinnedWatchNames.has(watch.decl.name));
 
         // Sort each group by watch name
         pinnedWatches.sort((a, b) => a.decl.name.localeCompare(b.decl.name));
@@ -299,30 +299,30 @@ class WatchesModel {
     }
 
     // Toggle pin status for a watch
-    toggleWatchPin(watchNum: number) {
+    toggleWatchPin(watchName: string) {
         const store = getDefaultStore();
-        const currentPinned = store.get(this.pinnedWatchNums);
+        const currentPinned = store.get(this.pinnedWatchNames);
         const newPinned = new Set(currentPinned);
 
-        if (newPinned.has(watchNum)) {
-            newPinned.delete(watchNum);
+        if (newPinned.has(watchName)) {
+            newPinned.delete(watchName);
         } else {
-            newPinned.add(watchNum);
+            newPinned.add(watchName);
         }
 
-        store.set(this.pinnedWatchNums, newPinned);
+        store.set(this.pinnedWatchNames, newPinned);
     }
 
     // Get a derived atom for checking if a specific watch is pinned
-    getWatchPinnedAtom(watchNum: number): Atom<boolean> {
-        if (!this.pinnedAtomCache.has(watchNum)) {
+    getWatchPinnedAtom(watchName: string): Atom<boolean> {
+        if (!this.pinnedAtomCache.has(watchName)) {
             const pinnedAtom = atom((get) => {
-                const pinnedWatchNums = get(this.pinnedWatchNums);
-                return pinnedWatchNums.has(watchNum);
+                const pinnedWatchNames = get(this.pinnedWatchNames);
+                return pinnedWatchNames.has(watchName);
             });
-            this.pinnedAtomCache.set(watchNum, pinnedAtom);
+            this.pinnedAtomCache.set(watchName, pinnedAtom);
         }
-        return this.pinnedAtomCache.get(watchNum)!;
+        return this.pinnedAtomCache.get(watchName)!;
     }
 
     // Update search term and trigger search

@@ -102,7 +102,7 @@ const WatchValueDisplay: React.FC<WatchValueDisplayProps> = ({ sample }) => {
 };
 
 const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
-    const isPinned = useAtomValue(model.getWatchPinnedAtom(watch.watchnum));
+    const isPinned = useAtomValue(model.getWatchPinnedAtom(watch.decl.name));
 
     // Get tags based on the watch declaration
     const getWatchTags = (decl: WatchDecl) => {
@@ -121,7 +121,7 @@ const WatchView: React.FC<WatchViewProps> = ({ watch, model }) => {
     const watchTags = getWatchTags(watch.decl);
 
     const handlePinClick = () => {
-        model.toggleWatchPin(watch.watchnum);
+        model.toggleWatchPin(watch.decl.name);
     };
 
     return (
