@@ -182,17 +182,18 @@ func (c *ControllerImpl) WriteInitMessage(connected bool, connWrap *comm.ConnWra
 	reset := "\x1b[0m"
 
 	if connected && connWrap != nil {
-		printf("%s[outrig]%s connected via %s, apprunid: %s\n", brightCyan, reset, connWrap.PeerName, c.AppInfo.AppRunId)
+		printf("%s[outrig]%s connected via %s (apprunid: %s)\n", brightCyan, reset, connWrap.PeerName, c.AppInfo.AppRunId)
 		if connWrap.ServerResponse != nil && connWrap.ServerResponse.ServerHttpPort > 0 {
-			printf("%s[outrig]%s open dashboard @ %shttp://localhost:%d%s\n", brightCyan, reset, brightBlueUnderline, connWrap.ServerResponse.ServerHttpPort, reset)
+			printf("%s[outrig]%s dashboard available @ %shttp://localhost:%d%s\n", brightCyan, reset, brightBlueUnderline, connWrap.ServerResponse.ServerHttpPort, reset)
 		}
 	} else if permErr != nil {
-		printf("[outrig] permanent connection error: %v\n", permErr)
+		printf("%s[outrig]%s Permanent connection error: %v\n", brightCyan, reset, permErr)
+		printf("%s[outrig]%s Entering standby mode.\n", brightCyan, reset)
 	} else if transErr != nil {
 		if outrigPath, _ := exec.LookPath("outrig"); outrigPath == "" {
-			printf("[outrig] outrig server not installed, see https://outrig.run\n")
+			printf("%s[outrig]%s Outrig server not detected; entering standby mode. %sInfo: https://outrig.run%s\n", brightCyan, reset, brightBlueUnderline, reset)
 		} else {
-			printf("[outrig] outrig server not running, start with: outrig server\n")
+			printf("%s[outrig]%s Outrig server installed but not running; entering standby mode.\n", brightCyan, reset)
 		}
 	} else {
 		// shouldn't happen (we should either be connected or have an error)

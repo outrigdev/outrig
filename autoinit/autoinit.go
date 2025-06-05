@@ -7,8 +7,14 @@
 //	import _ "github.com/outrigdev/outrig/autoinit"
 package autoinit
 
-import "github.com/outrigdev/outrig"
+import (
+	"github.com/outrigdev/outrig"
+	"github.com/outrigdev/outrig/pkg/global"
+)
 
 func init() {
-	outrig.Init("", nil)
+	_, err := outrig.Init("", nil)
+	if err == nil {
+		global.OutrigAutoInit.Store(true)
+	}
 }

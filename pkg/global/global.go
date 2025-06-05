@@ -9,5 +9,13 @@ import (
 	"github.com/outrigdev/outrig/pkg/ds"
 )
 
+// The main guard flag to indicate if Outrig is enabled.
+// Most SDK functions check this flag before proceeding.
 var OutrigEnabled atomic.Bool
+
+// Reference to the main Outrig controller.
 var Controller atomic.Pointer[ds.Controller]
+
+// Set when Outrig was initialized via the "autoinit" import
+// This flag is only used to control a special log message to warn users if they subsequently call Init() again.
+var OutrigAutoInit atomic.Bool

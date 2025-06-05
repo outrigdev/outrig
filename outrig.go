@@ -100,6 +100,9 @@ func Init(appName string, cfgParam *config.Config) (bool, error) {
 	var cif ds.Controller = ctrlImpl
 	ok := global.Controller.CompareAndSwap(nil, &cif)
 	if !ok {
+		if !finalCfg.Quiet && global.OutrigAutoInit.Load() {
+			fmt.Printf("[outrig] Warning: outrig.Init() called after importing github.com/outrigdev/outrig/autoinit; new config ignored. To customize settings, remove the autoinit import.\n")
+		}
 		return Enabled(), fmt.Errorf("controller already initialized")
 	}
 	ctrlImpl.InitialStart()
@@ -438,11 +441,11 @@ func (w *Watch) Static(val any) *Watch {
 		return w
 	}
 	w.registerWatch()
-	
+
 	// Immediately push the static value since it won't be polled
 	wc := watch.GetInstance()
 	wc.PushWatchSample(w.decl.Name, val)
-	
+
 	return w
 }
 
