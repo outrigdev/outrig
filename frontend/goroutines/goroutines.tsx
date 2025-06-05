@@ -11,7 +11,7 @@ import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
 import { cn, formatTimeOffset } from "@/util/util";
 import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
-import { Layers, Layers2, Pin, Search } from "lucide-react";
+import { Layers, Layers2, Search } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
@@ -107,7 +107,6 @@ interface GoroutineViewProps {
 
 const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
-    const isPinned = useAtomValue(model.getGoRoutinePinnedAtom(goroutine.goid));
     // Use the effective mode which automatically switches to "raw" when search is active
     const simpleMode = useAtomValue(model.effectiveSimpleStacktraceMode);
     const stackTraceRef = useRef<HTMLDivElement>(null);
@@ -126,9 +125,6 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
         }
     };
 
-    const handlePinClick = () => {
-        model.toggleGoRoutinePin(goroutine.goid);
-    };
 
     return (
         <div className="pl-4 pr-2">
@@ -173,19 +169,6 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                             successTooltipText="Stack trace copied!"
                             size={14}
                         />
-                        <Tooltip content={isPinned ? "Unpin goroutine" : "Pin goroutine"}>
-                            <button
-                                onClick={handlePinClick}
-                                className={`flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border transition-colors ${
-                                    isPinned
-                                        ? "text-warning bg-warning/10 border-warning/30"
-                                        : "text-secondary hover:text-primary border-border hover:border-primary/30 hover:bg-buttonhover"
-                                }`}
-                            >
-                                <Pin size={12} />
-                                {isPinned && <span>Pinned</span>}
-                            </button>
-                        </Tooltip>
                     </div>
                 </div>
                 {/* Only show tags row if there are tags */}

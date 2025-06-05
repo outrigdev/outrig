@@ -19,7 +19,8 @@ class WatchesModel {
     appRunId: string;
     appRunWatches: PrimitiveAtom<CombinedWatchSample[]> = atom<CombinedWatchSample[]>([]);
     matchedWatchIds: PrimitiveAtom<number[]> = atom<number[]>([]);
-    pinnedWatchNames: PrimitiveAtom<Set<string>> = atom<Set<string>>(new Set<string>());
+    pinnedWatchNames: PrimitiveAtom<Record<string, boolean>> = atom<Record<string, boolean>>({});
+    appName: string;
     searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({
         searchedCount: 0,
         totalCount: 0,
@@ -58,10 +59,13 @@ class WatchesModel {
         // Get app name from AppModel using the appRunId
         const appRunInfoAtom = AppModel.getAppRunInfoAtom(appRunId);
         const appRunInfo = getDefaultStore().get(appRunInfoAtom);
-        const appName = appRunInfo?.appname || "unknown";
+        this.appName = appRunInfo?.appname || "unknown";
+
+        // Load pinned watches from localStorage
+        this.loadPinnedWatchesFromStorage();
 
         // Get search term atom from SearchStore
-        this.searchTerm = SearchStore.getSearchTermAtom(appName, appRunId, "watches");
+        this.searchTerm = SearchStore.getSearchTermAtom(this.appName, appRunId, "watches");
 
         // Initial refresh
         this.quietRefresh(true);
@@ -73,6 +77,31 @@ class WatchesModel {
     // Set the content div reference for scrolling
     setContentRef(ref: React.RefObject<HTMLDivElement>) {
         this.contentRef = ref;
+    }
+
+    // Load pinned watches from localStorage
+    loadPinnedWatchesFromStorage() {
+        try {
+            const storageKey = `outrig:watchpins:${this.appName}`;
+            const stored = localStorage.getItem(storageKey);
+            if (stored) {
+                const pinnedWatches = JSON.parse(stored) as Record<string, boolean>;
+                getDefaultStore().set(this.pinnedWatchNames, pinnedWatches);
+            }
+        } catch (error) {
+            console.error("Failed to load pinned watches from localStorage:", error);
+        }
+    }
+
+    // Save pinned watches to localStorage
+    savePinnedWatchesToStorage() {
+        try {
+            const storageKey = `outrig:watchpins:${this.appName}`;
+            const pinnedWatches = getDefaultStore().get(this.pinnedWatchNames);
+            localStorage.setItem(storageKey, JSON.stringify(pinnedWatches));
+        } catch (error) {
+            console.error("Failed to save pinned watches to localStorage:", error);
+        }
     }
 
     // Page up in the content view
@@ -143,8 +172,8 @@ class WatchesModel {
         const validWatches = watches.filter((watch) => watch != null);
 
         // Separate pinned and unpinned watches
-        const pinnedWatches = validWatches.filter((watch) => pinnedWatchNames.has(watch.decl.name));
-        const unpinnedWatches = validWatches.filter((watch) => !pinnedWatchNames.has(watch.decl.name));
+        const pinnedWatches = validWatches.filter((watch) => pinnedWatchNames[watch.decl.name]);
+        const unpinnedWatches = validWatches.filter((watch) => !pinnedWatchNames[watch.decl.name]);
 
         // Sort each group by watch name
         pinnedWatches.sort((a, b) => a.decl.name.localeCompare(b.decl.name));
@@ -302,15 +331,16 @@ class WatchesModel {
     toggleWatchPin(watchName: string) {
         const store = getDefaultStore();
         const currentPinned = store.get(this.pinnedWatchNames);
-        const newPinned = new Set(currentPinned);
+        const newPinned = { ...currentPinned };
 
-        if (newPinned.has(watchName)) {
-            newPinned.delete(watchName);
+        if (newPinned[watchName]) {
+            delete newPinned[watchName];
         } else {
-            newPinned.add(watchName);
+            newPinned[watchName] = true;
         }
 
         store.set(this.pinnedWatchNames, newPinned);
+        this.savePinnedWatchesToStorage();
     }
 
     // Get a derived atom for checking if a specific watch is pinned
@@ -318,7 +348,7 @@ class WatchesModel {
         if (!this.pinnedAtomCache.has(watchName)) {
             const pinnedAtom = atom((get) => {
                 const pinnedWatchNames = get(this.pinnedWatchNames);
-                return pinnedWatchNames.has(watchName);
+                return pinnedWatchNames[watchName];
             });
             this.pinnedAtomCache.set(watchName, pinnedAtom);
         }
