@@ -17,7 +17,7 @@ import (
 func AcquireOutrigServerLock() (FDLock, error) {
 	outrigHome := utilfn.ExpandHomeDir(GetOutrigHome())
 	lockFileName := filepath.Join(outrigHome, OutrigLockFile)
-	log.Printf("[base] acquiring lock on %s\n", lockFileName)
+	log.Printf("#base acquiring lock on %s\n", lockFileName)
 	m, err := filemutex.New(lockFileName)
 	if err != nil {
 		return nil, fmt.Errorf("filemutex new error: %w", err)

@@ -9,10 +9,10 @@ import (
 	"errors"
 	"os"
 
-	"github.com/outrigdev/outrig/pkg/ds"
+	"github.com/outrigdev/outrig/pkg/config"
 )
 
-func enableExternalLogWrapImpl(_ string, _ ds.LogProcessorConfig, _ bool) error {
+func enableExternalLogWrapImpl(_ string, _ config.LogProcessorConfig, _ bool) error {
 	return errors.New("external log wrapping not supported on Windows")
 }
 

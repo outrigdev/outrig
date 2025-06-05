@@ -491,11 +491,8 @@ func CurrentGR() *GoRoutine {
 		// return existing decl if it exists
 		return &GoRoutine{decl: decl}
 	}
-	decl = &ds.GoDecl{
-		GoId:    goId,
-		State:   goroutine.GoState_Running,
-		StartTs: time.Now().UnixMilli(),
-	}
+	decl = goroutine.NewRunningGoDecl(goId)
+	decl.StartTs = time.Now().UnixMilli()
 	gc.RecordGoRoutineStart(decl, nil)
 	return &GoRoutine{decl: decl}
 }

@@ -89,7 +89,7 @@ func HandleWs(w http.ResponseWriter, r *http.Request) {
 	// If there's an error, it will be logged but we don't need to write an additional error response
 	// as the headers may have already been sent
 	if err := HandleWsInternal(w, r); err != nil {
-		log.Printf("[websocket] error handling websocket connection: %v", err)
+		log.Printf("#websocket error handling websocket connection: %v", err)
 	}
 }
 
@@ -102,13 +102,13 @@ func processMessage(event WSEventType, rpcCh chan []byte) {
 		rpcMsg := event.Data
 		msgBytes, err := json.Marshal(rpcMsg)
 		if err != nil {
-			log.Printf("[websocket] error marshalling rpc message: %v\n", err)
+			log.Printf("#websocket error marshalling rpc message: %v\n", err)
 			return
 		}
 		rpcCh <- msgBytes
 		return
 	}
-	log.Printf("[websocket] invalid message type: %s\n", event.Type)
+	log.Printf("#websocket invalid message type: %s\n", event.Type)
 }
 
 func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any, connId string, rpcCh chan []byte) {
@@ -127,13 +127,13 @@ func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any,
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("[websocket] ReadPump error (%s): %v\n", connId, err)
+			log.Printf("#websocket ReadPump error (%s): %v\n", connId, err)
 			break
 		}
 		var event WSEventType
 		err = json.Unmarshal(message, &event)
 		if err != nil {
-			log.Printf("[websocket] error unmarshalling json: %v\n", err)
+			log.Printf("#websocket error unmarshalling json: %v\n", err)
 			break
 		}
 		conn.SetReadDeadline(time.Now().Add(readWait))
@@ -147,10 +147,9 @@ func ReadLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any,
 			outputCh <- pongMessage
 			continue
 		}
-		go func() {
-			outrig.SetGoRoutineName("websocket:ReadLoop:processMessage")
+		outrig.Go("ReadLoop:processMessage").WithTags("#websocket").Run(func() {
 			processMessage(event, rpcCh)
-		}()
+		})
 	}
 }
 
@@ -170,10 +169,9 @@ func WriteLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any
 	ticker := time.NewTicker(wsInitialPingTime)
 	defer ticker.Stop()
 	defer func() {
-		go func() {
-			outrig.SetGoRoutineName("#outrig ws:WriteLoop:DrainChan")
+		outrig.Go("ws:WriteLoop:DrainChan").WithTags("#websocket").Run(func() {
 			utilfn.DrainChan(outputCh)
-		}()
+		})
 	}()
 	initialPing := true
 	for {
@@ -184,21 +182,21 @@ func WriteLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any
 			}
 			barr, err := json.Marshal(msg)
 			if err != nil {
-				log.Printf("[websocket] cannot marshal websocket message: %v\n", err)
+				log.Printf("#websocket cannot marshal websocket message: %v\n", err)
 				// just loop again
 				break
 			}
 			err = conn.WriteMessage(websocket.TextMessage, barr)
 			if err != nil {
 				conn.Close()
-				log.Printf("[websocket] WritePump error (%s): %v\n", connId, err)
+				log.Printf("#websocket WritePump error (%s): %v\n", connId, err)
 				return
 			}
 
 		case <-ticker.C:
 			err := WritePing(conn)
 			if err != nil {
-				log.Printf("[websocket] WritePump error (%s): %v\n", connId, err)
+				log.Printf("#websocket WritePump error (%s): %v\n", connId, err)
 				return
 			}
 			if initialPing {
@@ -227,7 +225,7 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	outputCh := make(chan WSEventType, 100)
 	closeCh := make(chan any)
 
-	log.Printf("[websocket] new connection: connid:%s, routeid:%s\n", connId, routeId)
+	log.Printf("#websocket new connection: connid:%s, routeid:%s\n", connId, routeId)
 	wsModel := &WebSocketModel{
 		ConnId:   connId,
 		RouteId:  routeId,
@@ -248,27 +246,24 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 
-	go func() {
-		outrig.SetGoRoutineName("websocket:HandleWsInternal:proxyToRemote")
+	outrig.Go("websocket:HandleWsInternal:proxyToRemote").WithTags("#websocket").Run(func() {
 		for msg := range proxy.ToRemoteCh {
 			rawMsg := json.RawMessage(msg)
 			outputCh <- WSEventType{Type: EventType_Rpc, Ts: time.Now().UnixMilli(), Data: rawMsg}
 		}
-	}()
+	})
 
-	go func() {
-		outrig.SetGoRoutineName("websocket:HandleWsInternal:ReadLoop")
+	outrig.Go("websocket:HandleWsInternal:ReadLoop").WithTags("#websocket").Run(func() {
 		// read loop
 		defer wg.Done()
 		ReadLoop(conn, outputCh, closeCh, connId, proxy.FromRemoteCh)
-	}()
+	})
 
-	go func() {
-		outrig.SetGoRoutineName("websocket:HandleWsInternal:WriteLoop")
+	outrig.Go("websocket:HandleWsInternal:WriteLoop").WithTags("#websocket").Run(func() {
 		// write loop
 		defer wg.Done()
 		WriteLoop(conn, outputCh, closeCh, connId)
-	}()
+	})
 
 	wg.Wait()
 	return nil

@@ -315,13 +315,13 @@ func (gc *GoroutineCollector) computeDeltaStack(id int64, current ds.GoRoutineSt
 		// New goroutine, include all fields
 		return current
 	}
-	
+
 	// Check if all fields are the same
 	allSame := lastStack.State == current.State &&
 		lastStack.StackTrace == current.StackTrace &&
 		lastStack.Name == current.Name &&
 		slices.Equal(lastStack.Tags, current.Tags)
-	
+
 	if allSame {
 		// All fields are the same, clear all fields and set Same
 		return ds.GoRoutineStack{
@@ -329,7 +329,7 @@ func (gc *GoroutineCollector) computeDeltaStack(id int64, current ds.GoRoutineSt
 			Same: true,
 		}
 	}
-	
+
 	// Fields differ, send all fields and don't set Same
 	return current
 }
@@ -440,6 +440,18 @@ func (gc *GoroutineCollector) setLastGoroutineStacksAndCleanupNames(stacks map[i
 	}
 }
 
+func NewRunningGoDecl(goId int64) *ds.GoDecl {
+	// Create a new GoDecl with the given ID and default values
+	decl := &ds.GoDecl{
+		GoId:  goId,
+		State: GoState_Running,
+	}
+	if goId == 1 {
+		decl.Name = "main" // Special case for goroutine 1
+	}
+	return decl
+}
+
 // recordPolledGoroutine records information about a goroutine discovered during polling
 // It sets the parent goroutine ID if it's the first time we see the goroutine
 // and updates FirstPollTs and LastPollTs appropriately
@@ -464,12 +476,9 @@ func (gc *GoroutineCollector) recordPolledGoroutine(goId int64, goroutineData []
 	}
 
 	// First time we've seen this goroutine
-	decl = &ds.GoDecl{
-		GoId:        goId,
-		State:       GoState_Running,
-		FirstPollTs: now,
-		LastPollTs:  now,
-	}
+	decl = NewRunningGoDecl(goId)
+	decl.FirstPollTs = now
+	decl.LastPollTs = now
 	gc.RecordGoRoutineStart(decl, goroutineData)
 }
 
@@ -485,19 +494,18 @@ func (gc *GoroutineCollector) GetStatus() ds.CollectorStatus {
 	status := ds.CollectorStatus{
 		Running: gc.config.Enabled,
 	}
-	
+
 	if !gc.config.Enabled {
 		status.Info = "Disabled in configuration"
 	} else {
 		activeGoroutines, totalDecls := gc.getMonitoringCounts()
 		status.Info = fmt.Sprintf("Monitoring %d active goroutines, %d total declarations", activeGoroutines, totalDecls)
 		status.CollectDuration = gc.executor.GetLastExecDuration()
-		
+
 		if lastErr := gc.executor.GetLastErr(); lastErr != nil {
 			status.Errors = append(status.Errors, lastErr.Error())
 		}
 	}
-	
+
 	return status
 }
-
