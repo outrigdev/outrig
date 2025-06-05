@@ -14,6 +14,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/ioutrig"
 )
 
 // Global counters for transport statistics
@@ -73,6 +74,7 @@ func (t *Transport) HasConnections() bool {
 // startPeerLoop starts a goroutine to process packets for a TransportPeer
 func (t *Transport) startPeerLoop(peer *transportPeer) {
 	go func() {
+		ioutrig.I.SetGoRoutineName("#outrig TransportPeerLoop")
 		for packet := range peer.SendCh {
 			peer.Conn.Conn.SetWriteDeadline(time.Now().Add(WriteDeadline))
 

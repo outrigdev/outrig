@@ -110,6 +110,10 @@ func main() {
 	// Print a hello world log line
 	logrus.Info("Hello, world!")
 
+	outrig.Go("test-goroutine").WithTags("#test").Run(func() {
+		log.Printf("async log message")
+	})
+
 	// Print a blank log line
 	fmt.Printf("\n\n")
 
