@@ -63,7 +63,7 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
 
 const WelcomeColumn: React.FC = () => {
     return (
-        <div className="flex-grow flex flex-col border-l border-border">
+        <div className="flex-grow flex flex-col border-l border-border overflow-auto">
             <div className="grow"></div>
             <div className="max-w-xl mx-auto p-8 flex flex-col items-center">
                 {/* Logo */}
