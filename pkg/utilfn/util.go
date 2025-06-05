@@ -21,6 +21,8 @@ import (
 	"time"
 )
 
+const MaxTagLen = 40
+
 var PTLoc *time.Location
 
 func init() {
@@ -314,9 +316,12 @@ func ParseTags(input string) []string {
 	if len(matches) == 0 {
 		return nil
 	}
-	tags := make([]string, len(matches))
-	for i, m := range matches {
-		tags[i] = strings.ToLower(m[1][1:]) // m[1] is “#tag”; drop the ‘#’
+	tags := make([]string, 0, len(matches))
+	for _, m := range matches {
+		tag := strings.ToLower(m[1][1:]) // m[1] is "#tag"; drop the '#'
+		if len(tag) <= MaxTagLen {
+			tags = append(tags, tag)
+		}
 	}
 	return tags
 }
@@ -330,9 +335,12 @@ func ParseNameAndTags(input string) (string, []string) {
 	if len(matches) == 0 {
 		return strings.TrimSpace(input), nil
 	}
-	tags := make([]string, len(matches))
-	for i, m := range matches {
-		tags[i] = strings.ToLower(m[1][1:])
+	tags := make([]string, 0, len(matches))
+	for _, m := range matches {
+		tag := strings.ToLower(m[1][1:])
+		if len(tag) <= MaxTagLen {
+			tags = append(tags, tag)
+		}
 	}
 
 	// strip *entire* tag-run (incl. leading & trailing ws) and collapse to one space
@@ -465,4 +473,30 @@ func LaunchUrl(url string) error {
 	default:
 		return fmt.Errorf("browser opening not supported on %s", runtime.GOOS)
 	}
+}
+
+var invalidTagCharRegex = regexp.MustCompile(`[^a-zA-Z0-9/_.:-]`)
+
+func CleanTag(tag string) string {
+	tag = strings.TrimPrefix(tag, "#")
+	tag = strings.ToLower(tag)
+	if len(tag) > MaxTagLen {
+		tag = tag[:MaxTagLen]
+	}
+	tag = invalidTagCharRegex.ReplaceAllString(tag, "_")
+	return tag
+}
+
+func CleanTagSlice(tags []string) []string {
+	var cleanedTags []string
+	seen := make(map[string]bool)
+	for _, tag := range tags {
+		cleaned := CleanTag(tag)
+		if cleaned == "" || seen[cleaned] {
+			continue
+		}
+		cleanedTags = append(cleanedTags, cleaned)
+		seen[cleaned] = true
+	}
+	return cleanedTags
 }

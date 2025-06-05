@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -249,29 +248,7 @@ func NewWatch(name string) *Watch {
 // WithTags adds tags to the watch. Tags can be specified with or without a "#" prefix,
 // which will be stripped if present. Empty, duplicate tags are removed, and all tags are trimmed.
 func (w *Watch) WithTags(tags ...string) *Watch {
-	var processedTags []string
-	seen := make(map[string]bool)
-
-	for _, tag := range tags {
-		// Process the tag (strip # if present and trim whitespace)
-		processed := tag
-		if len(tag) > 0 && tag[0] == '#' {
-			processed = tag[1:]
-		}
-		processed = strings.TrimSpace(processed)
-
-		// Skip empty tags and duplicates
-		if processed == "" || seen[processed] {
-			continue
-		}
-
-		// Add to result and mark as seen
-		processedTags = append(processedTags, processed)
-		seen[processed] = true
-	}
-
-	w.decl.Tags = processedTags
-	// tags are validated when registering with the collector
+	w.decl.Tags = utilfn.CleanTagSlice(tags)
 	return w
 }
 
@@ -498,14 +475,15 @@ func CurrentGR() *GoRoutine {
 }
 
 func (g *GoRoutine) WithTags(tags ...string) *GoRoutine {
+	cleanedTags := utilfn.CleanTagSlice(tags)
 	state := atomic.LoadInt32(&g.decl.State)
 	if state == goroutine.GoState_Init {
 		// For goroutines that haven't started yet, directly set the tags
-		g.decl.Tags = tags
+		g.decl.Tags = cleanedTags
 	} else {
 		// For running or completed goroutines, use the collector to update tags
 		gc := goroutine.GetInstance()
-		gc.UpdateGoRoutineTags(g.decl, tags)
+		gc.UpdateGoRoutineTags(g.decl, cleanedTags)
 	}
 	return g
 }
