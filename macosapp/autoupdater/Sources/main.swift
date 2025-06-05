@@ -5,7 +5,6 @@ import AppKit     // for NSApplication
 
 // ── parse CLI flags ─────────────────────────────────────────────
 let args = CommandLine.arguments
-let isBackground = args.contains("--background")
 let isFirst = args.contains("--first")
 
 guard
@@ -24,24 +23,17 @@ var validUpdateFound = false
 // This is critical for Sparkle UI to work properly
 let app = NSApplication.shared
 
-// Set activation policy based on mode
-if isBackground {
-    app.setActivationPolicy(.accessory) // Don't show in dock for background mode
-} else {
-    app.setActivationPolicy(.regular) // Show in dock for interactive and first modes
-    app.activate(ignoringOtherApps: true) // Bring to foreground
-}
+app.setActivationPolicy(.accessory)
+app.activate(ignoringOtherApps: true) // Bring to foreground
 
 // ── delegate ────────────────────────────────────────────────────
 final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
 
-    private let background: Bool
     private let trayPID: pid_t
     private var done = false
 
-    init(background: Bool, trayPID: pid_t) {
-        self.background = background
-        self.trayPID    = trayPID
+    init(trayPID: pid_t) {
+        self.trayPID = trayPID
     }
 
     // ── Success path ────────────────────────────────────────────
@@ -49,10 +41,8 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     func updater(_ u: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         print("Update \(item.displayVersionString) found → downloading…")
         validUpdateFound = true
-        if !background {
-            DispatchQueue.main.async {
-                NSApplication.shared.activate(ignoringOtherApps: true)
-            }
+        DispatchQueue.main.async {
+            NSApplication.shared.activate(ignoringOtherApps: true)
         }
     }
     
@@ -70,23 +60,11 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
 
     func updater(_ u: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
         print("Download complete, staging install")
-        if background { 
-            // In background mode, the update is staged for next launch
-            print("Background mode: Update staged for next launch")
-            // Give Sparkle time to finish staging before quitting
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self.quitHelper()
-            }
-        }
-        // In interactive mode, continue with the update process
+        // Continue with the update process
     }
     
     func updaterShouldRelaunchApplication(_ updater: SPUUpdater) -> Bool {
         print("Sparkle asking if should relaunch")
-        if background {
-            print("Background mode: Not relaunching application")
-            return false
-        }
         return true  // Yes, we want to relaunch
     }
 
@@ -106,32 +84,19 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     
     func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
         print("No updates found: \(error.localizedDescription)")
-        if !background {
-            NSApplication.shared.activate(ignoringOtherApps: true)
-        }
+        NSApplication.shared.activate(ignoringOtherApps: true)
         // Don't quit here in interactive mode - let user see the dialog
-        if background {
-            quitHelper()
-        }
     }
     
     func updater(_ u: SPUUpdater, didAbortWithError error: Error) {
         print("Update aborted with error: \(error)")
-        if !background {
-            NSApplication.shared.activate(ignoringOtherApps: true)
-        }
+        NSApplication.shared.activate(ignoringOtherApps: true)
         // Don't quit here in interactive mode - let user see the error
-        if background {
-            quitHelper()
-        }
     }
     
     func updater(_ updater: SPUUpdater, failedToDownloadUpdate item: SUAppcastItem, error: Error) {
         print("Failed to download update: \(error)")
         // Don't quit here in interactive mode - let user see the error
-        if background {
-            quitHelper()
-        }
     }
     
     func userDidCancelDownload(_ updater: SPUUpdater) {
@@ -195,9 +160,7 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
     // ── UI activation methods ───────────────────────────────────
     
     func updater(_ updater: SPUUpdater, willShowModalAlert alert: NSAlert) {
-        if !background {
-            NSApplication.shared.activate(ignoringOtherApps: true)
-        }
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 
     // ── Helper exit ─────────────────────────────────────────────
@@ -212,7 +175,7 @@ final class OutrigUpdaterDelegate: NSObject, SPUUpdaterDelegate {
 }
 
 // ── start Sparkle ───────────────────────────────────────────────
-let delegate = OutrigUpdaterDelegate(background: isBackground, trayPID: trayPID)
+let delegate = OutrigUpdaterDelegate(trayPID: trayPID)
 
 // Create updater controller
 let updaterCtl = SPUStandardUpdaterController(
@@ -227,9 +190,6 @@ let updater = updaterCtl.updater
 if isFirst {
     print("First mode – check for update information")
     updater.checkForUpdateInformation()
-} else if isBackground {
-    print("Background mode – silent check")
-    updater.checkForUpdatesInBackground()
 } else {
     print("Interactive mode – show Sparkle UI")
     updater.checkForUpdates()

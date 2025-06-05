@@ -589,8 +589,7 @@ func rebuildMenu(status ServerStatus) {
 	// Add check for updates menu item
 	latestVersion := getLatestAppcastVersion()
 	if isUpdaterRunning.Load() {
-		mCheckUpdatesGlobal = systray.AddMenuItem("Checking for updates...", "")
-		mCheckUpdatesGlobal.Disable()
+		mCheckUpdatesGlobal = systray.AddMenuItem("Updater Running (Focus Updater)...", "")
 	} else if latestVersion != "" {
 		mCheckUpdatesGlobal = systray.AddMenuItem("Install Outrig "+latestVersion+"...", "Install the latest version of Outrig")
 		mCheckUpdatesGlobal.SetTemplateIcon(downloadIconData, downloadIconData)
@@ -599,7 +598,11 @@ func rebuildMenu(status ServerStatus) {
 	}
 	go func() {
 		for range mCheckUpdatesGlobal.ClickedCh {
-			checkForUpdates(false, false)
+			if isUpdaterRunning.Load() {
+				foregroundUpdater()
+			} else {
+				checkForUpdates(false)
+			}
 		}
 	}()
 
@@ -633,7 +636,6 @@ func updateCheckUpdatesMenuItem() {
 	latestVersion := getLatestAppcastVersion()
 	if isUpdaterRunning.Load() {
 		mCheckUpdatesGlobal.SetTitle("Checking for updates...")
-		mCheckUpdatesGlobal.Disable()
 	} else if latestVersion != "" {
 		mCheckUpdatesGlobal.SetTitle("Install Outrig " + latestVersion + "...")
 		mCheckUpdatesGlobal.SetTemplateIcon(downloadIconData, downloadIconData)
@@ -661,7 +663,6 @@ func runAppcastUpdateCheckLoop() {
 		lastCheck := atomic.LoadInt64(&lastAppcastCheck)
 
 		if now-lastCheck >= AppcastUpdateCheckInterval.Milliseconds() {
-			checkForUpdates(false, true)
 			checkAppcastUpdates()
 		}
 	}
@@ -689,7 +690,7 @@ func onReady() {
 
 	// Check for updates on startup
 	go func() {
-		checkForUpdates(true, false)
+		checkForUpdates(true)
 		checkAppcastUpdates()
 	}()
 
@@ -797,8 +798,16 @@ func IsOutrigCLIInstalled() bool {
 	return getLinkState(target, cliSource) == LinkOK
 }
 
+func foregroundUpdater() {
+	exec.Command("osascript", "-e", `
+		tell application id "run.outrig.Outrig"
+			activate
+		end tell
+	`).Run()
+}
+
 // checkForUpdates launches the OutrigUpdater to check for updates
-func checkForUpdates(first bool, background bool) {
+func checkForUpdates(first bool) {
 	// Test and set - only proceed if no updater is currently running
 	if !isUpdaterRunning.CompareAndSwap(false, true) {
 		log.Printf("Update check already in progress, skipping\n")
@@ -807,11 +816,7 @@ func checkForUpdates(first bool, background bool) {
 
 	updateCheckUpdatesMenuItem()
 
-	if background {
-		log.Printf("Checking for updates in background...\n")
-	} else {
-		log.Printf("Checking for updates...\n")
-	}
+	log.Printf("Checking for updates...\n")
 
 	// Get the path to the OutrigUpdater
 	execPath, err := os.Executable()
@@ -835,8 +840,6 @@ func checkForUpdates(first bool, background bool) {
 	pidStr := fmt.Sprintf("%d", os.Getpid())
 	if first {
 		cmd = exec.Command(updaterPath, "--first", "--pid", pidStr)
-	} else if background {
-		cmd = exec.Command(updaterPath, "--background", "--pid", pidStr)
 	} else {
 		cmd = exec.Command(updaterPath, "--pid", pidStr)
 	}
@@ -958,7 +961,7 @@ func main() {
 		for {
 			sig := <-updateChan
 			log.Printf("Received signal %v, checking for updates", sig)
-			go checkForUpdates(false, false)
+			go checkForUpdates(false)
 		}
 	}()
 
