@@ -19,6 +19,7 @@ class GoRoutinesModel {
     appRunId: string;
     appRunGoRoutines: PrimitiveAtom<ParsedGoRoutine[]> = atom<ParsedGoRoutine[]>([]);
     matchedGoRoutineIds: PrimitiveAtom<number[]> = atom<number[]>([]);
+    pinnedGoRoutineIds: PrimitiveAtom<Set<number>> = atom<Set<number>>(new Set<number>());
     searchResultInfo: PrimitiveAtom<SearchResultInfo> = atom<SearchResultInfo>({
         searchedCount: 0,
         totalCount: 0,
@@ -28,11 +29,11 @@ class GoRoutinesModel {
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     contentRef: React.RefObject<HTMLDivElement> = null;
     currentSearchId: string = "";
+    pinnedAtomCache: Map<number, Atom<boolean>> = new Map();
 
     // State filters
     showAll: PrimitiveAtom<boolean> = atom(true);
     selectedStates: PrimitiveAtom<Set<string>> = atom(new Set<string>());
-
 
     // Toggle for showing/hiding #outrig goroutines
     showOutrigGoroutines: PrimitiveAtom<boolean> = atom(false);
@@ -65,6 +66,23 @@ class GoRoutinesModel {
     resultCount: Atom<number> = atom((get) => {
         const matchedIds = get(this.matchedGoRoutineIds);
         return matchedIds.length;
+    });
+
+    // Sorted goroutines with pinned ones first
+    sortedGoRoutines: Atom<ParsedGoRoutine[]> = atom((get): ParsedGoRoutine[] => {
+        const goroutines = get(this.appRunGoRoutines);
+        const pinnedGoRoutineIds = get(this.pinnedGoRoutineIds);
+
+        // Separate pinned and unpinned goroutines
+        const pinnedGoroutines = goroutines.filter((gr) => pinnedGoRoutineIds.has(gr.goid));
+        const unpinnedGoroutines = goroutines.filter((gr) => !pinnedGoRoutineIds.has(gr.goid));
+        
+        // Sort each group by goid
+        pinnedGoroutines.sort((a, b) => a.goid - b.goid);
+        unpinnedGoroutines.sort((a, b) => a.goid - b.goid);
+        
+        // Combine with pinned first
+        return [...pinnedGoroutines, ...unpinnedGoroutines];
     });
 
     constructor(appRunId: string) {
@@ -375,7 +393,6 @@ class GoRoutinesModel {
         return null;
     }
 
-
     // Refresh goroutines with a minimum time to show the refreshing state
     async refresh() {
         const store = getDefaultStore();
@@ -398,6 +415,33 @@ class GoRoutinesModel {
             // Set refreshing state to false
             store.set(this.isRefreshing, false);
         }
+    }
+
+    // Toggle pin status for a goroutine
+    toggleGoRoutinePin(goid: number) {
+        const store = getDefaultStore();
+        const currentPinned = store.get(this.pinnedGoRoutineIds);
+        const newPinned = new Set(currentPinned);
+
+        if (newPinned.has(goid)) {
+            newPinned.delete(goid);
+        } else {
+            newPinned.add(goid);
+        }
+
+        store.set(this.pinnedGoRoutineIds, newPinned);
+    }
+
+    // Get a derived atom for checking if a specific goroutine is pinned
+    getGoRoutinePinnedAtom(goid: number): Atom<boolean> {
+        if (!this.pinnedAtomCache.has(goid)) {
+            const pinnedAtom = atom((get) => {
+                const pinnedGoRoutineIds = get(this.pinnedGoRoutineIds);
+                return pinnedGoRoutineIds.has(goid);
+            });
+            this.pinnedAtomCache.set(goid, pinnedAtom);
+        }
+        return this.pinnedAtomCache.get(goid)!;
     }
 
     // Update search term and trigger search

@@ -11,7 +11,7 @@ import { useOutrigModel } from "@/util/hooks";
 import { checkKeyPressed } from "@/util/keyutil";
 import { cn, formatTimeOffset } from "@/util/util";
 import { PrimitiveAtom, useAtom, useAtomValue } from "jotai";
-import { Layers, Layers2, Search } from "lucide-react";
+import { Layers, Layers2, Pin, Search } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
@@ -107,6 +107,7 @@ interface GoroutineViewProps {
 
 const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
     const appRunStartTime = useAtomValue(AppModel.appRunStartTimeAtom);
+    const isPinned = useAtomValue(model.getGoRoutinePinnedAtom(goroutine.goid));
     // Use the effective mode which automatically switches to "raw" when search is active
     const simpleMode = useAtomValue(model.effectiveSimpleStacktraceMode);
     const stackTraceRef = useRef<HTMLDivElement>(null);
@@ -123,6 +124,10 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
             console.error("Failed to copy stack trace:", error);
             return Promise.reject(error);
         }
+    };
+
+    const handlePinClick = () => {
+        model.toggleGoRoutinePin(goroutine.goid);
     };
 
     return (
@@ -161,13 +166,26 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
                             />
                         )}
                     </div>
-                    <div>
+                    <div className="flex items-center gap-1">
                         <CopyButton
                             onCopy={copyStackTrace}
                             tooltipText="Copy stack trace"
                             successTooltipText="Stack trace copied!"
                             size={14}
                         />
+                        <Tooltip content={isPinned ? "Unpin goroutine" : "Pin goroutine"}>
+                            <button
+                                onClick={handlePinClick}
+                                className={`flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border transition-colors ${
+                                    isPinned
+                                        ? "text-warning bg-warning/10 border-warning/30"
+                                        : "text-secondary hover:text-primary border-border hover:border-primary/30 hover:bg-buttonhover"
+                                }`}
+                            >
+                                <Pin size={12} />
+                                {isPinned && <span>Pinned</span>}
+                            </button>
+                        </Tooltip>
                     </div>
                 </div>
                 {/* Only show tags row if there are tags */}
@@ -317,7 +335,7 @@ interface GoRoutinesContentProps {
 }
 
 const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
-    const goroutines = useAtomValue(model.appRunGoRoutines);
+    const sortedGoroutines = useAtomValue(model.sortedGoRoutines);
     const isRefreshing = useAtomValue(model.isRefreshing);
     const search = useAtomValue(model.searchTerm);
     const showAll = useAtomValue(model.showAll);
@@ -331,7 +349,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
 
     // Set a timeout to show empty message after component mounts or when goroutines change
     useEffect(() => {
-        if (goroutines.length === 0 && !isRefreshing) {
+        if (sortedGoroutines.length === 0 && !isRefreshing) {
             const timer = setTimeout(() => {
                 setShowEmptyMessage(true);
             }, EmptyMessageDelayMs);
@@ -340,7 +358,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
         } else {
             setShowEmptyMessage(false);
         }
-    }, [goroutines.length, isRefreshing]);
+    }, [sortedGoroutines.length, isRefreshing]);
 
     return (
         <div ref={contentRef} className="w-full h-full overflow-auto flex-1 px-0 py-2">
@@ -350,17 +368,17 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model }) => {
                         <span>Refreshing goroutines...</span>
                     </div>
                 </div>
-            ) : goroutines.length === 0 && showEmptyMessage ? (
+            ) : sortedGoroutines.length === 0 && showEmptyMessage ? (
                 <div className="flex items-center justify-center h-full text-secondary">
                     {search || !showAll ? "no goroutines match the filter" : "no goroutines found"}
                 </div>
             ) : (
                 <div>
-                    {goroutines.map((goroutine, index) => (
+                    {sortedGoroutines.map((goroutine, index) => (
                         <React.Fragment key={goroutine.goid}>
                             <GoroutineView goroutine={goroutine} model={model} />
                             {/* Add divider after each goroutine except the last one */}
-                            {index < goroutines.length - 1 && <div className="h-px bg-border my-2 w-full"></div>}
+                            {index < sortedGoroutines.length - 1 && <div className="h-px bg-border my-2 w-full"></div>}
                         </React.Fragment>
                     ))}
                 </div>

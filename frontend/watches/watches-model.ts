@@ -303,13 +303,13 @@ class WatchesModel {
         const store = getDefaultStore();
         const currentPinned = store.get(this.pinnedWatchNums);
         const newPinned = new Set(currentPinned);
-        
+
         if (newPinned.has(watchNum)) {
             newPinned.delete(watchNum);
         } else {
             newPinned.add(watchNum);
         }
-        
+
         store.set(this.pinnedWatchNums, newPinned);
     }
 
