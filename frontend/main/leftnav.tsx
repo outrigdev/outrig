@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useAtom, useAtomValue } from "jotai";
-import { Box, Clock, Github, Home, Moon, Settings, Sun, X } from "lucide-react";
+import { Box, Clock, Github, Home, Moon, Plus, Settings, Sun, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { AppModel } from "../appmodel";
 import { cn, formatDuration, formatRelativeTime } from "../util/util";
@@ -313,6 +313,15 @@ export const LeftNav: React.FC = () => {
                 {/* Bottom Links */}
                 <div className="mt-auto border-t border-border p-2">
                     <div className="flex flex-col gap-1">
+                        <button
+                            className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"
+                            onClick={() => {
+                                AppModel.openGettingStartedModal();
+                            }}
+                        >
+                            <Plus size={16} />
+                            <span>Integration Instructions</span>
+                        </button>
                         <ThemeToggle />
                         <button
                             className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"

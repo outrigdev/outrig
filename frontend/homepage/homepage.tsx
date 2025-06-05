@@ -8,7 +8,7 @@ import { UpdateBadge } from "@/elements/updatebadge";
 import { StatusBar } from "@/mainapp/statusbar";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
-import { BookText, ExternalLink, Github, HelpCircle } from "lucide-react";
+import { BookText, ExternalLink, Github } from "lucide-react";
 import { DemoAppController } from "./demo-app-controller";
 import { GettingStartedContent } from "./gettingstarted-content";
 
@@ -165,16 +165,6 @@ export const HomePage: React.FC = () => {
                         />
                     </div>
                     <div className="flex items-center gap-2">
-                        {hasAppRuns && (
-                            <button
-                                onClick={() => AppModel.openGettingStartedModal()}
-                                className="flex items-center gap-2 px-3 py-1.5 text-sm text-accent hover:text-accent-hover hover:bg-accent/10 rounded transition-colors cursor-pointer"
-                                aria-label="Getting Started Instructions"
-                            >
-                                <HelpCircle size={16} />
-                                Getting Started
-                            </button>
-                        )}
                         <SettingsButton onClick={() => AppModel.openSettingsModal()} />
                         <UpdateBadge onClick={() => AppModel.openUpdateModal()} />
                     </div>

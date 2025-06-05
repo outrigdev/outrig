@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useAtomValue } from "jotai";
-import { Box, CircleDot, Clock, ExternalLink, Eye, List } from "lucide-react";
+import { Box, CircleDot, Clock, ExternalLink, Eye, List, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AppModel } from "../appmodel";
 import { Tag } from "../elements/tag";
@@ -193,6 +193,17 @@ export const AppRunList: React.FC<AppRunListProps> = ({ emptyStateComponent }) =
                     </>
                 )}
             </div>
+            {appRuns.length > 0 && (
+                <div className="p-4 border-t border-border">
+                    <button
+                        onClick={() => AppModel.openGettingStartedModal()}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm text-accent hover:text-accent-hover hover:bg-accent/10 rounded transition-colors cursor-pointer border border-accent/20 hover:border-accent/40"
+                    >
+                        <Plus size={16} />
+                        Outrig Integration Instructions
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
