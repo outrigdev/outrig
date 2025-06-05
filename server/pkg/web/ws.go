@@ -169,7 +169,7 @@ func WriteLoop(conn *websocket.Conn, outputCh chan WSEventType, closeCh chan any
 	ticker := time.NewTicker(wsInitialPingTime)
 	defer ticker.Stop()
 	defer func() {
-		outrig.Go("ws:WriteLoop:DrainChan").WithTags("#websocket").Run(func() {
+		outrig.Go("WriteLoop:DrainChan").WithTags("#websocket").Run(func() {
 			utilfn.DrainChan(outputCh)
 		})
 	}()
@@ -246,20 +246,20 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 
-	outrig.Go("websocket:HandleWsInternal:proxyToRemote").WithTags("#websocket").Run(func() {
+	outrig.Go("HandleWsInternal:proxyToRemote").WithTags("#websocket").Run(func() {
 		for msg := range proxy.ToRemoteCh {
 			rawMsg := json.RawMessage(msg)
 			outputCh <- WSEventType{Type: EventType_Rpc, Ts: time.Now().UnixMilli(), Data: rawMsg}
 		}
 	})
 
-	outrig.Go("websocket:HandleWsInternal:ReadLoop").WithTags("#websocket").Run(func() {
+	outrig.Go("HandleWsInternal:ReadLoop").WithTags("#websocket").Run(func() {
 		// read loop
 		defer wg.Done()
 		ReadLoop(conn, outputCh, closeCh, connId, proxy.FromRemoteCh)
 	})
 
-	outrig.Go("websocket:HandleWsInternal:WriteLoop").WithTags("#websocket").Run(func() {
+	outrig.Go("HandleWsInternal:WriteLoop").WithTags("#websocket").Run(func() {
 		// write loop
 		defer wg.Done()
 		WriteLoop(conn, outputCh, closeCh, connId)
