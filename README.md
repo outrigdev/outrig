@@ -53,7 +53,7 @@ For Linux:
 curl -sf https://outrig.run/install.sh | sh
 ```
 
-Alternatively, you can download .deb, .rpm, or .tar.gz packages directly from our [GitHub releases page](https://github.com/outrigdev/outrig/releases).
+Alternatively, you can download .dmg, .deb, .rpm, or .tar.gz packages directly from our [GitHub releases page](https://github.com/outrigdev/outrig/releases).
 
 For developers interested in building from source, see [BUILD.md](docs/BUILD.md). If you've already cloned the repository, you can build and install with:
 
@@ -64,24 +64,15 @@ task install
 
 ## Usage
 
-### Integrating with Your Go Application
+### Simple Integration
 
-Add Outrig to your Go application with a single line:
+Integrate Outrig by adding a single import to your Go application's main file:
 
 ```go
-package main
+// Add this import to your main Go file:
+import _ "github.com/outrigdev/outrig/autoinit"
 
-import "github.com/outrigdev/outrig"
-
-func main() {
-    // Initialize Outrig with default configuration (set your application name)
-    outrig.Init("app-name", nil)
-
-    // Defer AppDone to signal when the application exits
-    defer outrig.AppDone()
-
-    // Your application code here
-}
+// That's it! Your app will appear in Outrig when run
 ```
 
 ### Running the Outrig Server
@@ -117,12 +108,11 @@ Features:
 - Real-time log streaming
 - Instant type-ahead progressive searching
 - Advanced search and filtering capabilities (exact match, fuzzy search, regexp, ANDs, and ORs)
-- Line marking for important logs
 - Follow mode to automatically track latest logs
 
 ### Watches
 
-Easily monitor variables in your application. Outrig can display structures (JSON or %v output) and numeric values (easy graphing and historical data viewing coming soon). Values are collected automatically every second (except for push-based watches).
+Easily monitor variables in your application. Outrig can display structures (JSON or %#v output) and numeric values (easy graphing and historical data viewing coming soon). Values are collected automatically every second (except for push-based watches).
 
 ```go
 // Basic watch using a function
@@ -194,7 +184,7 @@ The Outrig codebase is organized into three main components:
 
 ### Data Flow
 
-1. Your Go application imports the Outrig SDK and initializes it with `outrig.Init()`
+1. Your Go application imports the Outrig SDK and initializes it with the autoinit package or an explit call to `outrig.Init()`
 2. The SDK collects logs, goroutine information, and other runtime data
 3. This data is sent to the Outrig server via a local domain socket
 4. The server processes and stores the data
@@ -202,7 +192,7 @@ The Outrig codebase is organized into three main components:
 
 ### Performance
 
-- **Minimal overhead by design** — When disconnected, SDK calls perform a single atomic check (~1-5 nanoseconds per call)
+- **Minimal overhead by design** — When disconnected, the SDK enters standby mode, suspends collection, and performs only a brief periodic check for reconnection.
 - **Disable in Production** — A build flag (+no_outrig) can completely disable SDK at compile time
 
 ### Security
