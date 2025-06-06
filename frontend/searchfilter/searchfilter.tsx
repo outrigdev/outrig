@@ -308,9 +308,7 @@ const SearchHistoryDropdown = React.forwardRef<SearchHistoryDropdownHandle, Sear
                 ) : (
                     <div className="px-3 py-4 text-center">
                         <p className="text-primary font-medium text-sm">No Search History</p>
-                        <p className="text-secondary text-sm">
-                            To explicitly save a search to history press Enter &crarr;
-                        </p>
+                        <p className="text-secondary text-sm">To save a search to history press Enter &crarr;</p>
                     </div>
                 )}
             </div>

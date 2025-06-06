@@ -225,7 +225,7 @@ func HandleWsInternal(w http.ResponseWriter, r *http.Request) error {
 	outputCh := make(chan WSEventType, 100)
 	closeCh := make(chan any)
 
-	log.Printf("#websocket new connection: connid:%s, routeid:%s\n", connId, routeId)
+	log.Printf("#websocket new connection: connid:%s, routeid:%q\n", connId, routeId)
 	wsModel := &WebSocketModel{
 		ConnId:   connId,
 		RouteId:  routeId,
