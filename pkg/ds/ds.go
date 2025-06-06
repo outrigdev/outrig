@@ -117,6 +117,8 @@ type GoDecl struct {
 	EndTs       int64    `json:"endts,omitempty"`      // exact end time (from .Run() API)
 	FirstPollTs int64    `json:"firstpollts,omitempty"`
 	LastPollTs  int64    `json:"lastpollts,omitempty"`
+
+	RealCreatedBy string `json:"-"` // the real creator of this goroutine (for routines created by the SDK Run() func)
 }
 
 type WatchInfo struct {

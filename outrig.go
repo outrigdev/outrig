@@ -446,6 +446,20 @@ func getCallerInfo(skip int) string {
 	return fmt.Sprintf("%s:%d", file, line)
 }
 
+func getCallerCreatedByInfo(skip int) string {
+	pc, file, line, ok := runtime.Caller(skip + 1)
+	if !ok {
+		return ""
+	}
+	fn := runtime.FuncForPC(pc)
+	if fn == nil {
+		return fmt.Sprintf("%s:%d", file, line)
+	}
+	offset := pc - fn.Entry()
+	goID := utilfn.GetGoroutineID()
+	return fmt.Sprintf("created by %s in goroutine %d\n\t%s:%d +0x%x", fn.Name(), goID, file, line, offset)
+}
+
 func Go(name string) *GoRoutine {
 	return &GoRoutine{
 		decl: &ds.GoDecl{
@@ -516,6 +530,7 @@ func (g *GoRoutine) Run(fn func()) {
 	atomic.StoreInt32(&g.decl.State, goroutine.GoState_Running)
 	gc := goroutine.GetInstance()
 	g.decl.StartTs = time.Now().UnixMilli()
+	g.decl.RealCreatedBy = getCallerCreatedByInfo(1)
 	go func() {
 		gc.RecordGoRoutineStart(g.decl, nil)
 		if g.decl.NoRecover {

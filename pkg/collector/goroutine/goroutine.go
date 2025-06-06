@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -137,32 +138,45 @@ func (gc *GoroutineCollector) UpdateGoRoutineTags(decl *ds.GoDecl, newTags []str
 	gc.updatedDecls = append(gc.updatedDecls, declCopy)
 }
 
-func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl, stack []byte) {
+func (gc *GoroutineCollector) setGoIdAndParentGoId(decl *ds.GoDecl, stack []byte) {
+	if decl.GoId != 0 && decl.ParentGoId != 0 {
+		return // both IDs are already set
+	}
 	if len(stack) == 0 {
 		stack = gc.dumpSingleStack()
 		if len(stack) == 0 {
 			return
 		}
 	}
+
 	// Extract the goroutine ID from the stack trace
-	goMatches := goCreationRe.FindSubmatch(stack)
-	if len(goMatches) >= 2 {
-		goId, err := strconv.ParseInt(string(goMatches[1]), 10, 64)
-		if err == nil {
-			decl.GoId = goId
+	if decl.GoId == 0 {
+		goMatches := goCreationRe.FindSubmatch(stack)
+		if len(goMatches) >= 2 {
+			goId, err := strconv.ParseInt(string(goMatches[1]), 10, 64)
+			if err == nil {
+				decl.GoId = goId
+			}
 		}
 	}
 
 	// Extract the parent goroutine ID from the stack trace
-	parentMatches := parentGoRe.FindSubmatch(stack)
-	if len(parentMatches) >= 2 {
-		parentGoId, err := strconv.ParseInt(string(parentMatches[1]), 10, 64)
-		if err == nil {
-			decl.ParentGoId = parentGoId
-			gc.incrementParentSpawnCount(parentGoId)
+	if decl.ParentGoId == 0 {
+		parentMatches := parentGoRe.FindSubmatch(stack)
+		if len(parentMatches) >= 2 {
+			parentGoId, err := strconv.ParseInt(string(parentMatches[1]), 10, 64)
+			if err == nil {
+				decl.ParentGoId = parentGoId
+			}
 		}
 	}
+}
 
+func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl, stack []byte) {
+	gc.setGoIdAndParentGoId(decl, stack)
+	if decl.ParentGoId != 0 {
+		gc.incrementParentSpawnCount(decl.ParentGoId)
+	}
 	gc.setGoRoutineDecl(decl)
 }
 
@@ -367,9 +381,13 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool)
 			StackTrace: stackTrace,
 		}
 
-		if decl, ok := gc.goroutineDecls[id]; ok && decl.Name != "" {
-			grStack.Name = decl.Name
-			grStack.Tags = decl.Tags
+		if decl, ok := gc.goroutineDecls[id]; ok {
+			if decl.Name != "" {
+				grStack.Name = decl.Name
+				grStack.Tags = decl.Tags
+			}
+			// Patch the stack trace to replace Outrig SDK frames with real creator
+			grStack.StackTrace = patchCreatedByStack(decl, grStack.StackTrace)
 		}
 
 		currentStacks[id] = grStack
@@ -508,4 +526,39 @@ func (gc *GoroutineCollector) GetStatus() ds.CollectorStatus {
 	}
 
 	return status
+}
+
+// patchCreatedByStack patches the stack trace to replace Outrig SDK frames with the real creator
+func patchCreatedByStack(decl *ds.GoDecl, stack string) string {
+	if decl.RealCreatedBy == "" {
+		return stack
+	}
+
+	lines := strings.Split(stack, "\n")
+	
+	// Check if we have at least 4 lines and the last 4 lines match the expected pattern:
+	// Line N-3: github.com/outrigdev/outrig.(*GoRoutine).Run.func1()
+	// Line N-2: 	/path/to/outrig.go:537 +0xc8
+	// Line N-1: created by github.com/outrigdev/outrig.(*GoRoutine).Run in goroutine X
+	// Line N:   	/path/to/outrig.go:519 +0x110
+	
+	if len(lines) < 4 {
+		return stack
+	}
+	
+	lastIdx := len(lines) - 1
+	
+	// Check the pattern from the end
+	if strings.Contains(lines[lastIdx-3], "github.com/outrigdev/outrig.(*GoRoutine).Run") &&
+		strings.Contains(lines[lastIdx-1], "created by github.com/outrigdev/outrig.(*GoRoutine).Run") {
+		
+		// Pattern matches, remove the last 4 lines and replace with RealCreatedBy
+		lines = lines[:lastIdx-3]
+		lines = append(lines, decl.RealCreatedBy)
+		
+		return strings.Join(lines, "\n")
+	}
+	
+	// Pattern doesn't match, return original stack
+	return stack
 }
