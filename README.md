@@ -8,7 +8,7 @@
   </picture>
 </p>
 
-Outrig is an open-source, dev-time observability tool for Go programs — think Chrome DevTools for Go. Search logs, monitor goroutines, track variables, and explore runtime metrics. Integrate in seconds.
+Outrig is an open-source observability tool for Go development. It provides real-time log search, goroutine monitoring, variable tracking, and runtime metrics to help you debug and understand your applications.
 
 Outrig runs 100% locally. No data ever leaves your machine.
 
@@ -90,6 +90,8 @@ outrig server
 ```
 
 To stop the server, use Ctrl+C in the terminal where the server is running. Note that future versions will include systemd support to run the server as a background service.
+
+To verify the server is running correctly, navigate to http://localhost:5005 and you should see the Outrig dashboard.
 
 ## Key Features
 
@@ -184,7 +186,7 @@ The Outrig codebase is organized into three main components:
 
 ### Data Flow
 
-1. Your Go application imports the Outrig SDK and initializes it with the autoinit package or an explit call to `outrig.Init()`
+1. Your Go application imports the Outrig SDK and initializes it with the autoinit package or an explicit call to `outrig.Init()`
 2. The SDK collects logs, goroutine information, and other runtime data
 3. This data is sent to the Outrig server via a local domain socket
 4. The server processes and stores the data
@@ -197,7 +199,7 @@ The Outrig codebase is organized into three main components:
 
 ### Security
 
-- **No open ports** — Your program doesn't expose extra HTTP servers or ports. It attemps to make a domain socket connection to the outrig server. If the domain socket is not found or is not active, the SDK will remain dormant
+- **No open ports** — Your program doesn't expose extra HTTP servers or ports. It attempts to make a domain socket connection to the outrig server. If the domain socket is not found or is not active, the SDK will remain in standby mode
 - **Secure by default** -- All connections stay on localhost (unless you explicitly configure it otherwise); no application data leaves your machine
 
 ### Telemetry

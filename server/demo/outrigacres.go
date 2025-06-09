@@ -148,7 +148,7 @@ func (g *Game) initializeBoard() {
 		g.addCropCluster(false) // Allow different growth stages
 	}
 
-	log.Printf("Initialized %dx%d board with %d mountains", BoardSize, BoardSize, mountainCount)
+	log.Printf("#board Initialized %dx%d board with %d mountains", BoardSize, BoardSize, mountainCount)
 }
 
 func (g *Game) addCropCluster(seedsOnly bool) {
@@ -217,7 +217,7 @@ func (g *Game) addCropCluster(seedsOnly bool) {
 		placedCount++
 	}
 
-	log.Printf("Added %s cluster at (%d, %d) with %d crops", cropType, centerX, centerY, placedCount)
+	log.Printf("#cluster Added #crop-%s cluster at (%d, %d) with %d crops", cropType, centerX, centerY, placedCount)
 }
 
 func (g *Game) initializeAgent(agentID int) {
@@ -253,16 +253,16 @@ func (g *Game) initializeAgent(agentID int) {
 
 	// Set up watch for this agent
 	watchName := fmt.Sprintf("agent-%d", agentID)
-	agent.watch = outrig.NewWatch(watchName).WithTags("agent", "simulation").AsJSON().PollSync(agent.mu, agent)
+	agent.watch = outrig.NewWatch(watchName).WithTags("agent").AsJSON().PollSync(agent.mu, agent)
 
 	// Add agent to the slice
 	g.state.Agents = append(g.state.Agents, agent)
 
-	log.Printf("Agent#%d spawned at (%d, %d) with watch '%s'", agentID, x, y, watchName)
+	log.Printf("#agent-%d spawned at (%d, %d) with watch '%s'", agentID, x, y, watchName)
 }
 
 func (g *Game) Start() {
-	outrig.Go("game-loop").WithTags("game", "simulation").Run(func() {
+	outrig.Go("game-loop").WithTags("game").Run(func() {
 		g.gameLoop()
 	})
 
@@ -270,7 +270,7 @@ func (g *Game) Start() {
 	agentCount := 9 // agents 1-9
 	for i := 0; i < agentCount; i++ {
 		agentID := i + 1
-		outrig.Go(fmt.Sprintf("agent-%d", agentID)).WithTags("agent", "simulation").Run(func() {
+		outrig.Go(fmt.Sprintf("agent-%d", agentID)).WithTags("agent").Run(func() {
 			g.initializeAgent(agentID)
 			g.agentLoop(agentID)
 		})
@@ -285,7 +285,7 @@ func (g *Game) SetPaused(paused bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.paused = paused
-	log.Printf("Game paused: %v", paused)
+	log.Printf("#game Game paused: %v", paused)
 }
 
 func (g *Game) IsPaused() bool {
@@ -384,7 +384,7 @@ func (g *Game) updateBoard() {
 			case CellWheatMature:
 				if cell.TicksAge >= MatureTicks {
 					cell.Type = CellWheatWither
-					log.Printf("Wheat at (%d, %d) withered", x, y)
+					log.Printf("#crop Wheat at (%d, %d) withered", x, y)
 					cell.TicksAge = 0
 				}
 
@@ -514,7 +514,7 @@ func (g *Game) harvestAtPosition(agent *Agent) bool {
 		cell.Type = CellEmpty
 		cell.TicksAge = 0
 		agent.Score++
-		log.Printf("Agent#%d harvested Wheat at (%d, %d) - Score: %d", agent.ID, agent.X, agent.Y, agent.Score)
+		log.Printf("#agent-%d #harvest harvested Wheat at (%d, %d) - Score: %d", agent.ID, agent.X, agent.Y, agent.Score)
 		// Clear target since we harvested something
 		agent.TargetX = -1
 		agent.TargetY = -1
@@ -592,7 +592,7 @@ func (g *Game) moveAgent(agent *Agent) {
 	}
 
 	if agent.X != oldX || agent.Y != oldY {
-		log.Printf("Agent#%d moved to (%d, %d)", agent.ID, agent.X, agent.Y)
+		log.Printf("#agent-%d #move moved to (%d, %d)", agent.ID, agent.X, agent.Y)
 		// Check for harvest after moving
 		harvested := g.harvestAtPosition(agent)
 		// Broadcast agent update when position changes
@@ -613,7 +613,7 @@ func (g *Game) broadcastMessage(data []byte) {
 	for client := range g.clients {
 		err := client.WriteMessage(websocket.TextMessage, data)
 		if err != nil {
-			log.Printf("Error sending message to client: %v", err)
+			log.Printf("#websocket #error Error sending message to client: %v", err)
 			client.Close()
 			delete(g.clients, client)
 		}
@@ -631,7 +631,7 @@ func (g *Game) broadcastState() {
 
 	data, err := json.Marshal(boardUpdate)
 	if err != nil {
-		log.Printf("Error marshaling board update: %v", err)
+		log.Printf("#websocket #error Error marshaling board update: %v", err)
 		return
 	}
 
@@ -649,7 +649,7 @@ func (g *Game) broadcastAgentUpdate(agent *Agent, harvested bool) {
 
 	data, err := json.Marshal(agentUpdate)
 	if err != nil {
-		log.Printf("Error marshaling agent update: %v", err)
+		log.Printf("#websocket #error Error marshaling agent update: %v", err)
 		return
 	}
 
@@ -659,7 +659,7 @@ func (g *Game) broadcastAgentUpdate(agent *Agent, harvested bool) {
 func (g *Game) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		log.Printf("#websocket #error WebSocket upgrade error: %v", err)
 		return
 	}
 	defer conn.Close()
@@ -690,7 +690,7 @@ func (g *Game) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		// Parse message as JSON
 		var msg map[string]interface{}
 		if err := json.Unmarshal(message, &msg); err != nil {
-			log.Printf("Error parsing WebSocket message: %v", err)
+			log.Printf("#websocket #error Error parsing WebSocket message: %v", err)
 			continue
 		}
 
@@ -702,7 +702,7 @@ func (g *Game) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			case "unpause":
 				g.SetPaused(false)
 			default:
-				log.Printf("Unknown message type: %s", msgType)
+				log.Printf("#websocket #error Unknown message type: %s", msgType)
 			}
 		}
 	}
@@ -778,7 +778,7 @@ func RunOutrigAcres(config Config) {
 
 	// Set up stdin monitoring if requested
 	if config.CloseOnStdin {
-		log.Printf("Demo will shut down when stdin is closed")
+		log.Printf("#system Demo will shut down when stdin is closed")
 		go func() {
 			outrig.SetGoRoutineName("demo.StdinMonitor")
 			// Read from stdin until EOF
@@ -787,7 +787,7 @@ func RunOutrigAcres(config Config) {
 				_, err := os.Stdin.Read(buffer)
 				if err != nil {
 					// EOF or other error, shut down the demo
-					log.Printf("Stdin closed, shutting down demo")
+					log.Printf("#system Stdin closed, shutting down demo")
 					os.Exit(0)
 				}
 			}
@@ -797,10 +797,10 @@ func RunOutrigAcres(config Config) {
 	globalGame = NewGame()
 
 	// Set up global board watch to track cell type counts
-	outrig.NewWatch("gameboard-cells").WithTags("board", "simulation").AsJSON().PollFunc(getBoardCellCounts)
+	outrig.NewWatch("gameboard-cells").WithTags("board").AsJSON().PollFunc(getBoardCellCounts)
 
 	// Set up total score watch to track sum of all agent scores
-	outrig.NewWatch("totalscore").WithTags("score", "simulation").PollFunc(getTotalScore)
+	outrig.NewWatch("totalscore").WithTags("score").PollFunc(getTotalScore)
 
 	// Set up config watch to track demo configuration
 	outrig.NewWatch("demo-config").AsJSON().Static(config)
@@ -809,7 +809,7 @@ func RunOutrigAcres(config Config) {
 
 	// Serve frontend files
 	if config.DevMode {
-		log.Printf("Running in development mode - serving files from disk")
+		log.Printf("#system #dev Running in development mode - serving files from disk")
 		fileServer := http.FileServer(http.Dir("./frontend/"))
 		http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Add cache control headers to prevent caching in dev mode
@@ -834,7 +834,7 @@ func RunOutrigAcres(config Config) {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		log.Printf("Could not bind to port %d: %v", port, err)
+		log.Printf("#system #error Could not bind to port %d: %v", port, err)
 		os.Exit(1)
 	}
 
@@ -843,11 +843,11 @@ func RunOutrigAcres(config Config) {
 	// Set up watch for the game URL
 	outrig.NewWatch("game-url").Static(url)
 
-	log.Printf("OutrigAcres demo launched, available at: %s", url)
+	log.Printf("#system OutrigAcres demo launched, available at: %s", url)
 	if !config.NoBrowserLaunch {
 		err := utilfn.LaunchUrl(url)
 		if err != nil {
-			log.Printf("Failed to open browser: %v", err)
+			log.Printf("#system #error Failed to open browser: %v", err)
 		}
 	}
 	log.Fatal(http.Serve(listener, nil))

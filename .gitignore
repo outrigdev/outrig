@@ -8,6 +8,7 @@ dist-ssr
 !server/pkg/web/dist/
 server/pkg/web/dist/**
 !server/pkg/web/dist/.gitkeep
+tempdocs/
 
 bin/
 *.dmg
