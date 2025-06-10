@@ -33,6 +33,10 @@ type Pusher struct {
 	// No actual implementation needed for no_outrig build
 }
 
+type GoRoutine struct {
+	// No actual implementation needed for no_outrig build
+}
+
 // Disable is a no-op when no_outrig is set
 func Disable(disconnect bool) {}
 
@@ -151,7 +155,51 @@ func (p *Pusher) Unregister() {
 }
 
 // SetGoRoutineName is a no-op when no_outrig is set
-func SetGoRoutineName(name string) {}
+func SetGoRoutineName(name string) *GoRoutine {
+	return &GoRoutine{}
+}
+
+// Go creates a new GoRoutine with the given name
+// This is a no-op implementation for no_outrig build
+func Go(name string) *GoRoutine {
+	return &GoRoutine{}
+}
+
+// CurrentGR returns a GoRoutine for the current goroutine
+// This is a no-op implementation for no_outrig build
+func CurrentGR() *GoRoutine {
+	return &GoRoutine{}
+}
+
+// WithTags adds tags to the goroutine
+// This is a no-op implementation for no_outrig build
+func (g *GoRoutine) WithTags(tags ...string) *GoRoutine {
+	return g
+}
+
+// WithName sets the name of the goroutine
+// This is a no-op implementation for no_outrig build
+func (g *GoRoutine) WithName(name string) *GoRoutine {
+	return g
+}
+
+// WithPkg sets the package name of the goroutine
+// This is a no-op implementation for no_outrig build
+func (g *GoRoutine) WithPkg(pkg string) *GoRoutine {
+	return g
+}
+
+// WithoutRecover disables panic recovery for the goroutine
+// This is a no-op implementation for no_outrig build
+func (g *GoRoutine) WithoutRecover() *GoRoutine {
+	return g
+}
+
+// Run executes the given function in a new goroutine
+// This is a no-op implementation for no_outrig build
+func (g *GoRoutine) Run(fn func()) {
+	go fn()
+}
 
 func OrigStdout() *os.File {
 	return os.Stdout

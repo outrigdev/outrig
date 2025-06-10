@@ -138,9 +138,20 @@ func (gc *GoroutineCollector) UpdateGoRoutineTags(decl *ds.GoDecl, newTags []str
 	gc.updatedDecls = append(gc.updatedDecls, declCopy)
 }
 
-func (gc *GoroutineCollector) setGoIdAndParentGoId(decl *ds.GoDecl, stack []byte) {
-	if decl.GoId != 0 && decl.ParentGoId != 0 {
-		return // both IDs are already set
+func (gc *GoroutineCollector) UpdateGoRoutinePkg(decl *ds.GoDecl, newPkg string) {
+	// we use the gc.Lock to synchronize access to existing decls
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	decl.Pkg = newPkg
+
+	// Add to updated declarations (make a copy to avoid reference issues)
+	declCopy := *decl
+	gc.updatedDecls = append(gc.updatedDecls, declCopy)
+}
+
+func (gc *GoroutineCollector) setInitialGoDeclInfo(decl *ds.GoDecl, stack []byte) {
+	if decl.GoId != 0 && decl.ParentGoId != 0 && decl.Pkg != "" {
+		return // all fields are already set
 	}
 	if len(stack) == 0 {
 		stack = gc.dumpSingleStack()
@@ -170,10 +181,19 @@ func (gc *GoroutineCollector) setGoIdAndParentGoId(decl *ds.GoDecl, stack []byte
 			}
 		}
 	}
+
+	// Extract the package name from the stack trace
+	if decl.Pkg == "" {
+		createdByMatches := createdByRe.FindSubmatch(stack)
+		if len(createdByMatches) >= 2 {
+			funcName := string(createdByMatches[1])
+			decl.Pkg = extractPackage(funcName)
+		}
+	}
 }
 
 func (gc *GoroutineCollector) RecordGoRoutineStart(decl *ds.GoDecl, stack []byte) {
-	gc.setGoIdAndParentGoId(decl, stack)
+	gc.setInitialGoDeclInfo(decl, stack)
 	if decl.ParentGoId != 0 {
 		gc.incrementParentSpawnCount(decl.ParentGoId)
 	}
@@ -319,6 +339,26 @@ var startRe = regexp.MustCompile(`(?m)^goroutine\s+\d+`)
 var stackRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\].*\n((?s).*)`)
 var goCreationRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\]`)
 var parentGoRe = regexp.MustCompile(`created by .* in goroutine (\d+)`)
+var createdByRe = regexp.MustCompile(`created by\s+(\S+)`)
+
+// extractPackage extracts the package name from a stack trace function name
+func extractPackage(funcName string) string {
+	lastSlash := strings.LastIndex(funcName, "/")
+	if lastSlash == -1 {
+		// No slash, look for first dot
+		if dot := strings.Index(funcName, "."); dot != -1 {
+			return funcName[:dot]
+		}
+		return funcName
+	}
+
+	// Find first dot after last slash
+	remaining := funcName[lastSlash:]
+	if dot := strings.Index(remaining, "."); dot != -1 {
+		return funcName[:lastSlash+dot]
+	}
+	return funcName
+}
 
 // computeDeltaStack compares current and last goroutine stack and returns a delta stack
 // If all fields are the same, returns a stack with only GoId and Same=true
@@ -535,30 +575,30 @@ func patchCreatedByStack(decl *ds.GoDecl, stack string) string {
 	}
 
 	lines := strings.Split(stack, "\n")
-	
+
 	// Check if we have at least 4 lines and the last 4 lines match the expected pattern:
 	// Line N-3: github.com/outrigdev/outrig.(*GoRoutine).Run.func1()
 	// Line N-2: 	/path/to/outrig.go:537 +0xc8
 	// Line N-1: created by github.com/outrigdev/outrig.(*GoRoutine).Run in goroutine X
 	// Line N:   	/path/to/outrig.go:519 +0x110
-	
+
 	if len(lines) < 4 {
 		return stack
 	}
-	
+
 	lastIdx := len(lines) - 1
-	
+
 	// Check the pattern from the end
 	if strings.Contains(lines[lastIdx-3], "github.com/outrigdev/outrig.(*GoRoutine).Run") &&
 		strings.Contains(lines[lastIdx-1], "created by github.com/outrigdev/outrig.(*GoRoutine).Run") {
-		
+
 		// Pattern matches, remove the last 4 lines and replace with RealCreatedBy
 		lines = lines[:lastIdx-3]
 		lines = append(lines, decl.RealCreatedBy)
-		
+
 		return strings.Join(lines, "\n")
 	}
-	
+
 	// Pattern doesn't match, return original stack
 	return stack
 }

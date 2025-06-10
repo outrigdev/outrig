@@ -106,6 +106,7 @@ type GoRoutineStack struct {
 type GoDecl struct {
 	Name        string   `json:"name"`
 	Tags        []string `json:"tags,omitempty"`
+	Pkg         string   `json:"pkg,omitempty"`        // package name that created the goroutine
 	NewLine     string   `json:"newline,omitempty"`
 	RunLine     string   `json:"runline,omitempty"`
 	NoRecover   bool     `json:"norecover,omitempty"`

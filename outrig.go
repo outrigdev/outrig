@@ -515,6 +515,19 @@ func (g *GoRoutine) WithName(name string) *GoRoutine {
 	return g
 }
 
+func (g *GoRoutine) WithPkg(pkg string) *GoRoutine {
+	state := atomic.LoadInt32(&g.decl.State)
+	if state == goroutine.GoState_Init {
+		// For goroutines that haven't started yet, directly set the package
+		g.decl.Pkg = pkg
+	} else {
+		// For running or completed goroutines, use the collector to update package
+		gc := goroutine.GetInstance()
+		gc.UpdateGoRoutinePkg(g.decl, pkg)
+	}
+	return g
+}
+
 func (g *GoRoutine) WithoutRecover() *GoRoutine {
 	if atomic.LoadInt32(&g.decl.State) != goroutine.GoState_Init {
 		return g
