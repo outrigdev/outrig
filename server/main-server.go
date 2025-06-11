@@ -102,7 +102,7 @@ func runPostinstall(cmd *cobra.Command, args []string) {
 	fmt.Printf("%shttps://outrig.run/docs/quickstart%s\n\n", brightBlueUnderline, reset)
 
 	// Server start instructions
-	fmt.Printf("To start the Outrig server, run:\n%soutrig server%s\n\n", brightCyan, reset)
+	fmt.Printf("To start the Outrig Monitor, run:\n%soutrig monitor%s\n\n", brightCyan, reset)
 
 	// Separator
 	fmt.Println("---")
@@ -135,10 +135,11 @@ func main() {
 		// No Run function for root command - it will just display help and exit
 	}
 
-	serverCmd := &cobra.Command{
-		Use:   "server",
-		Short: "Run the Outrig server",
-		Long:  `Run the Outrig server which provides real-time debugging capabilities.`,
+	monitorCmd := &cobra.Command{
+		Use:     "monitor",
+		Aliases: []string{"server"},
+		Short:   "Run the Outrig Monitor",
+		Long:    `Run the Outrig Monitor which provides real-time debugging capabilities.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Check if telemetry should be disabled
 			noTelemetry, _ := cmd.Flags().GetBool("no-telemetry")
@@ -179,14 +180,14 @@ func main() {
 			return boot.RunServer(config)
 		},
 	}
-	// Add flags to server command
-	serverCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
-	serverCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
-	serverCmd.Flags().Int("port", 0, "Override the default web server port (default: 5005 for production, 6005 for development)")
-	serverCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
-	serverCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
+	// Add flags to monitor command
+	monitorCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
+	monitorCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
+	monitorCmd.Flags().Int("port", 0, "Override the default web server port (default: 5005 for production, 6005 for development)")
+	monitorCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
+	monitorCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
 	// Hide this flag since it's only used internally by the tray application
-	serverCmd.Flags().MarkHidden("tray-pid")
+	monitorCmd.Flags().MarkHidden("tray-pid")
 
 	versionCmd := &cobra.Command{
 		Use:   "version",
@@ -296,7 +297,7 @@ Example: outrig --dev exec ls -latrh`,
 	demoCmd.Flags().Int("port", 0, "Override the default demo server port (default: 22005)")
 	demoCmd.Flags().Bool("close-on-stdin", false, "Shut down the demo when stdin is closed")
 
-	rootCmd.AddCommand(serverCmd)
+	rootCmd.AddCommand(monitorCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(captureLogsCmd)
 	rootCmd.AddCommand(execCmd)

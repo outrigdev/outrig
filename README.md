@@ -12,7 +12,7 @@ Outrig is an open-source observability tool for Go development. It provides real
 
 Outrig runs 100% locally. No data ever leaves your machine.
 
-It is currently available for MacOS and Linux (Windows builds coming soon).
+It is currently available for macOS and Linux (Windows builds coming soon).
 
 <p align="center">
   <img src="assets/outrig-loop.gif" alt="Outrig in action" width="800">
@@ -24,21 +24,21 @@ It is currently available for MacOS and Linux (Windows builds coming soon).
 - **Goroutine Monitoring**: Track and inspect goroutines, including custom naming
 - **Variable Watching**: Monitor variables and counters in your application
 - **Runtime Hooks**: Execute hooks in your running application (coming soon)
-- **Minimal Integration**: Integrate into your go application in seconds
+- **Minimal Integration**: Integrate into your Go application in seconds
 
 ## How It Works
 
 Outrig consists of two main components that work together:
 
-1. **SDK Client**: A lightweight Go library that you import into your application. It collects logs, goroutine information, and other runtime data from your application and sends it to the Outrig server. [API Docs](https://pkg.go.dev/github.com/outrigdev/outrig)
+1. **SDK Client**: A lightweight Go library that you import into your application. It collects logs, goroutine information, and other runtime data from your application and sends it to the Outrig Monitor. [API Docs](https://pkg.go.dev/github.com/outrigdev/outrig)
 
-2. **Outrig Server**: A standalone server that receives data from your application, processes it, and provides a web interface for real-time monitoring and debugging.
+2. **Outrig Monitor**: A standalone server that receives data from your application, processes it, and provides a web-based dashboard for real-time monitoring and debugging.
 
 ## Installation
 
 ### For Users
 
-For MacOS:
+For macOS:
 
 ```bash
 brew install --cask outrigdev/outrig/outrig
@@ -75,29 +75,29 @@ import _ "github.com/outrigdev/outrig/autoinit"
 // That's it! Your app will appear in Outrig when run
 ```
 
-### Running the Outrig Server
+### Running the Outrig Monitor
 
-**MacOS**
+**macOS**
 
-The Outrig server is managed through the system tray application. After installation, launch the Outrig app from your Applications folder or Spotlight. The server will start automatically and you'll see the Outrig icon in your system tray.
+The Outrig Monitor is managed through the system tray application. After installation, launch the Outrig app from your Applications folder or Spotlight. The monitor will start automatically and you'll see the Outrig icon in your system tray.
 
 **Linux**
 
-To start the Outrig server, run the following command in your terminal:
+To start the Outrig Monitor, run the following command in your terminal:
 
 ```bash
 outrig server
 ```
 
-To stop the server, use Ctrl+C in the terminal where the server is running. Note that future versions will include systemd support to run the server as a background service.
+To stop the monitor, use Ctrl+C in the terminal where the monitor is running. Note that future versions will include systemd support to run the monitor as a background service.
 
-To verify the server is running correctly, navigate to http://localhost:5005 and you should see the Outrig dashboard.
+To verify the monitor is running correctly, navigate to http://localhost:5005 and you should see the Outrig dashboard.
 
 ## Key Features
 
 ### Logs
 
-Outrig captures and displays logs from your Go application in real-time out of the box by tee-ing stdout/stderr.
+Outrig captures and displays logs from your Go application in real-time out of the box by capturing stdout/stderr.
 
 ```go
 // Logs are automatically captured from stdout and stderr
@@ -109,7 +109,7 @@ Features:
 
 - Real-time log streaming
 - Instant type-ahead progressive searching
-- Advanced search and filtering capabilities (exact match, fuzzy search, regexp, ANDs, and ORs)
+- Advanced search and filtering capabilities (exact match, fuzzy search, regexp, tags, ANDs, and ORs)
 - Follow mode to automatically track latest logs
 
 ### Watches
@@ -154,7 +154,7 @@ outrig.NewWatch("request-count").
 
 ### Goroutine Monitoring
 
-Outrig dumps your goroutine stack traces every second for easy search/viewing. You can optionally name your goroutines for easier inspecting.
+Outrig captures your goroutine stack traces every second for easy search/viewing. You can optionally name and tag your goroutines for easier inspecting. Using the construct below also allows Outrig to log exact start and end timestamps for tracked goroutines.
 
 ```go
 outrig.Go("worker-pool-1").Run(func() {
@@ -178,18 +178,18 @@ Outrig gathers runtime stats every second. Including:
 
 The Outrig codebase is organized into three main components:
 
-1. **Client SDK** (`outrig.go` and `pkg/`): A lightweight Go library that integrates with your application. It collects logs, goroutine information, and other runtime data and sends it to the Outrig server.
+1. **Client SDK** (`outrig.go` and `pkg/`): A lightweight Go library that integrates with your application. It collects logs, goroutine information, and other runtime data and sends it to the Outrig Monitor.
 
-2. **Server** (`server/`): A standalone Go server that receives data from your application, processes it, and exposes it via an RPC API. The server efficiently stores and indexes the data for quick searching and retrieval. It has a separate go.mod file so its dependencies don't pollute the SDK.
+2. **Monitor** (`server/`): A standalone Go server that receives data from your application, processes it, and exposes it via an RPC API. The monitor efficiently stores and indexes the data for quick searching and retrieval. It has a separate go.mod file so its dependencies don't pollute the SDK.
 
-3. **Frontend** (`frontend/`): A React TypeScript application that communicates with the server via WebSocket using RPC calls. It provides a user-friendly interface for monitoring and debugging your application in real-time. It is built and embedded into the outrig server.
+3. **Frontend** (`frontend/`): A React TypeScript application that communicates with the monitor via WebSocket using RPC calls. It provides a user-friendly interface for monitoring and debugging your application in real-time. It is built and embedded into the Outrig Monitor.
 
 ### Data Flow
 
 1. Your Go application imports the Outrig SDK and initializes it with the autoinit package or an explicit call to `outrig.Init()`
 2. The SDK collects logs, goroutine information, and other runtime data
-3. This data is sent to the Outrig server via a local domain socket
-4. The server processes and stores the data
+3. This data is sent to the Outrig Monitor via a local domain socket
+4. The monitor server processes and stores the data
 5. Go to http://localhost:5005 to view and interact with your data
 
 ### Performance
@@ -199,12 +199,12 @@ The Outrig codebase is organized into three main components:
 
 ### Security
 
-- **No open ports** — Your program doesn't expose extra HTTP servers or ports. It attempts to make a domain socket connection to the outrig server. If the domain socket is not found or is not active, the SDK will remain in standby mode
-- **Secure by default** -- All connections stay on localhost (unless you explicitly configure it otherwise); no application data leaves your machine
+- **No open ports** — Your program doesn't expose extra HTTP servers or ports. It attempts to make a domain socket connection to the Outrig Monitor. If the domain socket is not found or is not active, the SDK will remain in standby mode
+- **Secure by default** — All connections stay on localhost (unless you explicitly configure it otherwise); no application data leaves your machine
 
 ### Telemetry
 
-To help understand how many people are using Outrig, help prioritize new features, and find/fix bugs we collect _minimal_ anonymous telemetry from the outrig server. It can be disabled on the CLI by running `outrig server --no-telemetry`.
+To help understand how many people are using Outrig, help prioritize new features, and find/fix bugs we collect _minimal_ anonymous telemetry from the Outrig Monitor. It can be disabled on the CLI by running `outrig server --no-telemetry`. Note that the SDK does not send _any_ telemetry.
 
 ## Development
 
