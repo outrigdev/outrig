@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -227,23 +226,10 @@ func runWebServerInternal(ctx context.Context, listener net.Listener) {
 	}
 }
 
-// RunWebServer initializes and runs the HTTP server (which also handles WebSockets)
-// If overridePort is non-zero, it will be used instead of the default port
-// Returns the port on which the server is running
-func RunWebServer(ctx context.Context, overridePort int) (int, error) {
-	webServerPort := serverbase.GetWebServerPort()
-	if overridePort > 0 {
-		webServerPort = overridePort
-	}
-
-	httpListener, err := MakeTCPListener("http", "127.0.0.1:"+strconv.Itoa(webServerPort))
-	if err != nil {
-		return 0, fmt.Errorf("failed to create HTTP listener: %w", err)
-	}
-	log.Printf("Outrig server running on http://%s\n", httpListener.Addr().String())
+// RunWebServerWithListener runs the HTTP server using the provided listener
+func RunWebServerWithListener(ctx context.Context, httpListener net.Listener) {
 	go func() {
 		outrig.SetGoRoutineName("WebServer.Waiter")
 		runWebServerInternal(ctx, httpListener)
 	}()
-	return webServerPort, nil
 }

@@ -17,6 +17,10 @@ type Config struct {
 	// If "-" => disable domain socket.
 	DomainSocketPath string
 
+	// TcpAddr is the TCP address to connect to the Outrig server.  If "" => use default.
+	// If "-" => disable TCP connection. Domain socket will be tried first (except on Windows where domain sockets are not supported).)
+	TcpAddr string
+
 	// ModuleName is the name of the Go module. If not specified, it will be determined
 	// from the go.mod file.
 	ModuleName string
@@ -74,6 +78,7 @@ func getDefaultConfig(isDev bool) *Config {
 
 	return &Config{
 		DomainSocketPath: base.GetDomainSocketNameForClient(isDev),
+		TcpAddr:          base.GetTcpAddrForClient(isDev),
 		ModuleName:       "",
 		Dev:              isDev,
 		ConnectOnInit:    true,

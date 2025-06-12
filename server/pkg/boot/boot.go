@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -52,6 +53,23 @@ type CLIConfig struct {
 	TrayAppPid int
 }
 
+// getWebServerPorts determines the listen and advertise ports for the web server
+func getWebServerPorts(config CLIConfig) (int, int) {
+	// Determine web server port for listening
+	listenPort := serverbase.GetWebServerPort()
+	if config.Port > 0 {
+		listenPort = config.Port
+	}
+
+	// Determine the port to advertise to SDK clients
+	advertisePort := listenPort
+	if serverbase.IsDev() {
+		advertisePort = 5173 // override to the vite port for SDK clients
+	}
+
+	return listenPort, advertisePort
+}
+
 // RunServer initializes and runs the Outrig server
 func RunServer(config CLIConfig) error {
 	if serverbase.IsDev() {
@@ -86,7 +104,7 @@ func RunServer(config CLIConfig) error {
 		// Give processes a moment to clean up
 		signal.Stop(signalChan)
 	}()
-	
+
 	// Set up stdin monitoring if requested
 	if config.CloseOnStdin {
 		log.Printf("Server will shut down when stdin is closed\n")
@@ -99,7 +117,7 @@ func RunServer(config CLIConfig) error {
 				if err != nil {
 					// EOF or other error, shut down the server
 					log.Printf("Stdin closed, shutting down server\n")
-					
+
 					// Perform graceful shutdown
 					gracefulShutdown(cancelFn, &wg)
 					return
@@ -169,16 +187,28 @@ func RunServer(config CLIConfig) error {
 	// Initialize update checker
 	updatecheck.StartUpdateChecker(config.TrayAppPid)
 
-	// Run web servers (HTTP and WebSocket)
-	webServerPort, err := web.RunWebServer(ctx, config.Port)
+	// Determine web server ports
+	listenPort, advertisePort := getWebServerPorts(config)
+
+	// Create connection multiplexer
+	multiplexerAddr := "127.0.0.1:" + strconv.Itoa(listenPort)
+	listeners, err := MakeMultiplexerListener(ctx, multiplexerAddr)
 	if err != nil {
-		return fmt.Errorf("error starting web servers: %w", err)
+		return fmt.Errorf("error creating connection multiplexer: %w", err)
 	}
-	if serverbase.IsDev() {
-		webServerPort = 5173 // override to the vite port...
+	log.Printf("Outrig server running on http://%s\n", listeners.HTTPListener.Addr().String())
+
+	// Run web server with HTTP listener from multiplexer
+	web.RunWebServerWithListener(ctx, listeners.HTTPListener)
+
+	// Run TCP accept loop for custom protocol connections
+	err = runTCPAcceptLoop(ctx, listeners.TCPListener, advertisePort)
+	if err != nil {
+		return fmt.Errorf("error starting TCP accept loop: %w", err)
 	}
+
 	// Run domain socket server
-	err = runDomainSocketServer(ctx, webServerPort)
+	err = runDomainSocketServer(ctx, advertisePort)
 	if err != nil {
 		return fmt.Errorf("error starting domain socket server: %w", err)
 	}
@@ -300,3 +330,4 @@ func sendServerActivityEvent() {
 	statDelta, activeAppRuns := apppeer.GetAppRunStatsDelta()
 	tevent.SendServerActivityEvent(statDelta, activeAppRuns)
 }
+
