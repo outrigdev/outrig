@@ -33,3 +33,8 @@ updates:
               patterns:
                   - "vite"
                   - "@vitejs/*"
+          tailwind-dependencies:
+              patterns:
+                  - "tailwindcss"
+                  - "@tailwindcss/*"
+                  - "tailwind-merge"
