@@ -15,7 +15,7 @@ builds:
       dir: ./server
       binary: outrig
       ldflags:
-          - -X main.OutrigVersion={{.Version}} -X main.OutrigBuildTime={{.Timestamp}} -X main.OutrigCommit={{.ShortCommit}}
+          - -X main.OutrigBuildTime={{.Timestamp}} -X main.OutrigCommit={{.ShortCommit}}
       goos:
           - linux
           - darwin

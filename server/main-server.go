@@ -64,7 +64,6 @@ func parseSpecialArgs(keyArg string) (specialArgs, error) {
 
 var (
 	// these get set via -X during build
-	OutrigVersion   = ""
 	OutrigBuildTime = ""
 	OutrigCommit    = ""
 )
@@ -121,10 +120,7 @@ func getVersion() string {
 }
 
 func main() {
-	// Set serverbase version from main version (which gets overridden by build tags)
-	if OutrigVersion != "" {
-		serverbase.OutrigServerVersion = OutrigVersion
-	}
+	// Set serverbase consts from main (which gets overridden by build tags)
 	serverbase.OutrigBuildTime = OutrigBuildTime
 	serverbase.OutrigCommit = OutrigCommit
 
