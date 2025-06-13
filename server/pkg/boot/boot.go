@@ -74,10 +74,6 @@ func getWebServerPorts(config CLIConfig) (int, int) {
 func RunServer(config CLIConfig) error {
 	if serverbase.IsDev() {
 		outrigConfig := outrig.DefaultConfig()
-		if stat, err := os.Stat("bin/outrig"); err == nil && !stat.IsDir() {
-			outrigConfig.LogProcessorConfig.OutrigPath = "bin/outrig"
-			log.Printf("Using override external OutrigPath: %s\n", outrigConfig.LogProcessorConfig.OutrigPath)
-		}
 		outrig.Init("outrig-server", outrigConfig)
 	}
 
@@ -330,4 +326,3 @@ func sendServerActivityEvent() {
 	statDelta, activeAppRuns := apppeer.GetAppRunStatsDelta()
 	tevent.SendServerActivityEvent(statDelta, activeAppRuns)
 }
-
