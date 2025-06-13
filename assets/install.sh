@@ -89,19 +89,33 @@ install_outrig() {
     TMP_DIR=$(mktemp -d)
     trap 'rm -rf "$TMP_DIR"' EXIT
     
-    # Get the version from the redirect URL when accessing the latest release page
-    info "Determining latest version..."
-    REDIRECT_URL=$(curl -s -I -L -o /dev/null -w '%{url_effective}' "https://github.com/outrigdev/outrig/releases/latest")
-    VERSION=$(echo "$REDIRECT_URL" | grep -o '[^/]*$' | sed 's/^v//')
-    
-    if [ -z "$VERSION" ]; then
-        error "Failed to determine the latest version"
+    # Check if version is specified via environment variable
+    if [ -n "$OUTRIG_VERSION" ]; then
+        # Validate version format
+        if ! printf '%s\n' "$OUTRIG_VERSION" |
+             grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9]+)*$'; then
+            error "OUTRIG_VERSION looks odd: $OUTRIG_VERSION"
+        fi
+        # Strip 'v' prefix if present
+        VERSION=$(echo "$OUTRIG_VERSION" | sed 's/^v//')
+        info "Using specified version: $VERSION"
+        # Construct URL for specific version
+        RELEASE_URL="https://github.com/outrigdev/outrig/releases/download/v${VERSION}/outrig_${VERSION}_${OS}_${ARCH}.tar.gz"
+    else
+        # Get the version from the redirect URL when accessing the latest release page
+        info "Determining latest version..."
+        REDIRECT_URL=$(curl -s -I -L -o /dev/null -w '%{url_effective}' "https://github.com/outrigdev/outrig/releases/latest")
+        VERSION=$(echo "$REDIRECT_URL" | grep -o '[^/]*$' | sed 's/^v//')
+        
+        if [ -z "$VERSION" ]; then
+            error "Failed to determine the latest version"
+        fi
+        
+        info "Latest version: $VERSION"
+        
+        # Construct the correct asset URL with version number for latest
+        RELEASE_URL="https://github.com/outrigdev/outrig/releases/latest/download/outrig_${VERSION}_${OS}_${ARCH}.tar.gz"
     fi
-    
-    info "Latest version: $VERSION"
-    
-    # Construct the correct asset URL with version number
-    RELEASE_URL="https://github.com/outrigdev/outrig/releases/latest/download/outrig_${VERSION}_${OS}_${ARCH}.tar.gz"
     
     info "Downloading Outrig from $RELEASE_URL..."
     
