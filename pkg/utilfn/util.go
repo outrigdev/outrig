@@ -500,3 +500,18 @@ func CleanTagSlice(tags []string) []string {
 	}
 	return cleanedTags
 }
+
+func InDockerEnv() bool {
+	// Check for /.dockerenv file which Docker creates in all containers
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+
+	// Fallback: check /proc/1/cgroup for docker-related entries
+	if data, err := os.ReadFile("/proc/1/cgroup"); err == nil {
+		content := string(data)
+		return strings.Contains(content, "docker") || strings.Contains(content, "/docker/")
+	}
+
+	return false
+}
