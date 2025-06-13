@@ -89,8 +89,8 @@ func MakeConnectAddrs(cfg *config.Config) []ConnectAddr {
 		disableDockerProbe = true
 	}
 
-	// Add Docker host probe if enabled
-	if !disableDockerProbe {
+	// Add Docker host probe if enabled and running in Docker environment
+	if !disableDockerProbe && utilfn.InDockerEnv() {
 		if probeDockerHost() {
 			port := base.GetMonitorPort(cfg.Dev)
 			dockerAddr := "host.docker.internal:" + strconv.Itoa(port)
