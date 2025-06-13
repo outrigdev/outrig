@@ -18,6 +18,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
 var (
@@ -341,6 +342,7 @@ func resolveOutrigPath(config config.LogProcessorConfig) (string, error) {
 	backupPaths := []string{
 		"/opt/homebrew/bin/outrig",
 		"/usr/local/bin/outrig",
+		utilfn.ExpandHomeDir("~/.local/bin/outrig"),
 	}
 
 	for _, backupPath := range backupPaths {
@@ -349,5 +351,5 @@ func resolveOutrigPath(config config.LogProcessorConfig) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("outrig command not found in PATH or backup directories (/opt/homebrew/bin, /usr/local/bin)")
+	return "", fmt.Errorf("outrig command not found in PATH or backup directories (/opt/homebrew/bin, /usr/local/bin, ~/.local/bin)")
 }
