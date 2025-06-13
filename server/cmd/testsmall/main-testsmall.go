@@ -46,8 +46,6 @@ func (f Foo) String() string {
 
 func main() {
 	config := configpkg.DefaultConfigForOutrigDevelopment()
-	config.LogProcessorConfig.OutrigPath = "go"
-	config.LogProcessorConfig.AdditionalArgs = []string{"run", "server/main-server.go"}
 	outrig.Init("test-small", config)
 	defer outrig.AppDone()
 

@@ -81,9 +81,7 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 	}
 	streams := []execlogwrap.TeeStreamDecl{
 		{Input: os.Stdin, Output: os.Stdout, Source: source},
-	}
-	if stderrIn != nil {
-		streams = append(streams, execlogwrap.TeeStreamDecl{Input: stderrIn, Output: os.Stderr, Source: "/dev/stderr"})
+		{Input: stderrIn, Output: os.Stderr, Source: "/dev/stderr"},
 	}
 	return execlogwrap.ProcessExistingStreams(streams, isDev)
 }

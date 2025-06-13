@@ -56,7 +56,7 @@ func (lc *LogCollector) Enable() {
 	// Use the new external log capture mechanism
 	err := loginitex.EnableExternalLogWrap(appRunId, lc.config, isDev)
 	lc.setExternalLogWrapError(err)
-	
+
 	if err != nil {
 		lc.controller.ILog("Failed to enable external log wrapping: %v", err)
 	} else {
@@ -78,7 +78,7 @@ func (lc *LogCollector) GetStatus() ds.CollectorStatus {
 	status := ds.CollectorStatus{
 		Running: lc.config.Enabled,
 	}
-	
+
 	if !lc.config.Enabled {
 		status.Info = "Disabled in configuration"
 	} else {
@@ -89,13 +89,13 @@ func (lc *LogCollector) GetStatus() ds.CollectorStatus {
 		} else {
 			status.Info = "Log processing active (external log wrapping disabled)"
 		}
-		
+
 		// Check for external log wrap error
 		if err := lc.getExternalLogWrapError(); err != nil {
 			status.Errors = append(status.Errors, "External log wrapping failed: "+err.Error())
 		}
 	}
-	
+
 	return status
 }
 

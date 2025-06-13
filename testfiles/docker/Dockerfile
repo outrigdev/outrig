@@ -10,5 +10,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+RUN rm -rf bin/
+
+# Install outrig binary to /root/.local/bin/outrig
+RUN mkdir -p /root/.local/bin
+COPY --chmod=755 bin/outrig-linux /root/.local/bin/outrig
 
 CMD ["task", "testsmall"]

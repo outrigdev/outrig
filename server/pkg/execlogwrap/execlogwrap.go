@@ -92,14 +92,14 @@ func tryConnect(source string, isDev bool) *comm.ConnWrap {
 	if appRunId == "" {
 		return nil
 	}
-	
+
 	var cfg *config.Config
 	if isDev {
 		cfg = config.DefaultConfigForOutrigDevelopment()
 	} else {
 		cfg = config.DefaultConfig()
 	}
-	
+
 	connWrap, _, transErr := comm.Connect(comm.ConnectionModeLog, source, appRunId, cfg)
 	if transErr != nil {
 		return nil
@@ -138,14 +138,12 @@ func processStream(wg *sync.WaitGroup, decl TeeStreamDecl) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := utilfn.TeeCopy(decl.Input, decl.Output, func(data []byte) {
+		utilfn.TeeCopy(decl.Input, decl.Output, func(data []byte) {
 			if ldw != nil {
 				ldw.processLogData(data)
 			}
 		})
-		if err != nil && err != io.EOF {
-			fmt.Fprintf(os.Stderr, "Error copying %s: %v\n", decl.Source, err)
-		}
+		// do not log errors, just ignore
 	}()
 }
 

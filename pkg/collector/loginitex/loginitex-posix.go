@@ -58,7 +58,7 @@ func enableExternalLogWrapImpl(appRunId string, config config.LogProcessorConfig
 	wrapStderr = config.WrapStderr
 
 	// Determine the outrig executable path
-	outrigPath, err := resolveOutrigPath(config)
+	outrigPath, err := resolveOutrigPath(config, isDev)
 	if err != nil {
 		return err
 	}
@@ -327,7 +327,7 @@ func OrigStderr() *os.File {
 }
 
 // resolveOutrigPath determines the path to the outrig executable
-func resolveOutrigPath(config config.LogProcessorConfig) (string, error) {
+func resolveOutrigPath(config config.LogProcessorConfig, isDev bool) (string, error) {
 	// If a custom path is provided, use it
 	if config.OutrigPath != "" {
 		return config.OutrigPath, nil
@@ -339,11 +339,16 @@ func resolveOutrigPath(config config.LogProcessorConfig) (string, error) {
 	}
 
 	// Try backup directories that might not be in PATH
-	backupPaths := []string{
+	var backupPaths []string
+	if isDev {
+		// in development mode try bin/outrig first
+		backupPaths = append(backupPaths, utilfn.ExpandHomeDir("bin/outrig"))
+	}
+	backupPaths = append(backupPaths,
 		"/opt/homebrew/bin/outrig",
 		"/usr/local/bin/outrig",
 		utilfn.ExpandHomeDir("~/.local/bin/outrig"),
-	}
+	)
 
 	for _, backupPath := range backupPaths {
 		if _, err := os.Stat(backupPath); err == nil {
@@ -351,5 +356,5 @@ func resolveOutrigPath(config config.LogProcessorConfig) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("outrig command not found in PATH or backup directories (/opt/homebrew/bin, /usr/local/bin, ~/.local/bin)")
+	return "", fmt.Errorf("outrig command not found in PATH or backup directories %v", backupPaths)
 }
