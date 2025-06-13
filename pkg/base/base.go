@@ -16,7 +16,7 @@ const DefaultDomainSocketName = "/outrig.sock"
 const ExternalLogCaptureEnvName = "OUTRIG_EXTERNALLOGCAPTURE"
 const AppRunIdEnvName = "OUTRIG_APPRUNID"
 
-const OutrigSDKVersion = "v0.7.4"
+const OutrigSDKVersion = "v0.8.0-beta.1"
 
 // Default ports for the server (should match serverbase)
 const (
