@@ -14,6 +14,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/outrigdev/outrig"
 )
 
 const (
@@ -111,9 +113,9 @@ func MakeMultiplexerListener(ctx context.Context, addr string) (*MultiplexerList
 	tcpListener := NewChannelListener(mainListener.Addr())
 
 	// Start the multiplexer goroutine
-	go func() {
+	outrig.Go("multiplexer.acceptmonitor").Run(func() {
 		var shutdown atomic.Bool
-		
+
 		defer func() {
 			mainListener.Close()
 			httpListener.Close()
@@ -124,7 +126,7 @@ func MakeMultiplexerListener(ctx context.Context, addr string) (*MultiplexerList
 		acceptDone := make(chan struct{})
 
 		// Start a goroutine to accept connections
-		go func() {
+		outrig.Go("multiplexer.acceptloop").Run(func() {
 			for {
 				conn, err := mainListener.Accept()
 				if err != nil {
@@ -139,7 +141,7 @@ func MakeMultiplexerListener(ctx context.Context, addr string) (*MultiplexerList
 				// Handle the connection in a separate goroutine
 				go handleMultiplexedConnection(conn, httpListener, tcpListener)
 			}
-		}()
+		})
 
 		// Wait for either context cancellation or accept to finish
 		select {
@@ -149,7 +151,7 @@ func MakeMultiplexerListener(ctx context.Context, addr string) (*MultiplexerList
 		case <-acceptDone:
 			// Accept returned on its own (likely due to an error)
 		}
-	}()
+	})
 
 	return &MultiplexerListeners{
 		HTTPListener: httpListener,

@@ -41,7 +41,7 @@ func runTCPAcceptLoop(ctx context.Context, tcpListener net.Listener, webServerPo
 				}
 				go func() {
 					outrig.SetGoRoutineName("TCPAcceptLoop.HandleConn")
-					handleDomainSocketConn(conn, webServerPort)
+					handleServerConn(conn, webServerPort, true)
 				}()
 			}
 		}()

@@ -85,9 +85,17 @@ func (cw *ConnWrap) Close() error {
 }
 
 // ClientHandshake performs the client side of the handshake protocol with the server.
-// It receives a ServerHandshakePacket, validates compatibility,
+// If isTcp is true, the client first sends "OUTRIG\n" to identify itself as an Outrig client.
+// It then receives a ServerHandshakePacket, validates compatibility,
 // sends a ClientHandshakePacket, and processes the server's response.
-func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId string) (*ServerHandshakeResponse, error) {
+func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId string, isTcp bool) (*ServerHandshakeResponse, error) {
+	// For TCP connections, send the Outrig identifier first
+	if isTcp {
+		if err := cw.WriteLine("!OUTRIG"); err != nil {
+			return nil, fmt.Errorf("failed to send TCP identifier: %v", err)
+		}
+	}
+
 	// Read the server handshake packet
 	packetLine, err := cw.ReadLine()
 	if err != nil {
@@ -180,9 +188,22 @@ func sendSuccessResponse(cw *ConnWrap, webServerPort int) error {
 }
 
 // ServerHandshake performs the server side of the handshake protocol.
-// It sends a ServerHandshakePacket, reads a ClientHandshakePacket,
+// If isTcp is true, it first reads the "OUTRIG\n" identifier from TCP clients.
+// It then sends a ServerHandshakePacket, reads a ClientHandshakePacket,
 // validates it, and sends a response.
-func (cw *ConnWrap) ServerHandshake(webServerPort int) (*ClientHandshakePacket, error) {
+func (cw *ConnWrap) ServerHandshake(webServerPort int, isTcp bool) (*ClientHandshakePacket, error) {
+	// For TCP connections, read the Outrig identifier first
+	if isTcp {
+		identifierLine, err := cw.ReadLine()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read TCP identifier: %v", err)
+		}
+		identifierLine = strings.TrimSpace(identifierLine)
+		if !strings.HasPrefix(identifierLine, "!OUTRIG") {
+			return nil, fmt.Errorf("invalid TCP identifier: expected line starting with '!OUTRIG', got '%s'", identifierLine)
+		}
+	}
+
 	// Create and send the server handshake packet
 	serverPacket := ServerHandshakePacket{
 		OutrigVersion: base.OutrigSDKVersion,

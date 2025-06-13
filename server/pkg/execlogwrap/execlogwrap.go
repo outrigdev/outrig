@@ -13,6 +13,7 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/comm"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -91,8 +92,15 @@ func tryConnect(source string, isDev bool) *comm.ConnWrap {
 	if appRunId == "" {
 		return nil
 	}
-	domainSocketPath := base.GetDomainSocketNameForClient(isDev)
-	connWrap, _, transErr := comm.Connect(comm.ConnectionModeLog, source, appRunId, domainSocketPath, "")
+	
+	var cfg *config.Config
+	if isDev {
+		cfg = config.DefaultConfigForOutrigDevelopment()
+	} else {
+		cfg = config.DefaultConfig()
+	}
+	
+	connWrap, _, transErr := comm.Connect(comm.ConnectionModeLog, source, appRunId, cfg)
 	if transErr != nil {
 		return nil
 	}

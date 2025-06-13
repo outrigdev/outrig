@@ -219,20 +219,8 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 		c.WriteInitMessage(rtnConnected, connWrap, permErr, transErr)
 	}()
 
-	// Check for domain socket override from environment variable
-	domainSocketPath := c.config.DomainSocketPath
-	if envPath := os.Getenv(ds.DomainSocketEnvName); envPath != "" {
-		domainSocketPath = envPath
-	}
-
-	// Check for TCP address override from environment variable
-	tcpAddr := c.config.TcpAddr
-	if envAddr := os.Getenv(ds.TcpAddrEnvName); envAddr != "" {
-		tcpAddr = envAddr
-	}
-
-	// Use the new Connect function to establish a connection
-	connWrap, permErr, transErr = comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, domainSocketPath, tcpAddr)
+	// Connect using config which handles environment overrides
+	connWrap, permErr, transErr = comm.Connect(comm.ConnectionModePacket, "", c.AppInfo.AppRunId, c.config)
 	if transErr != nil {
 		// Connection failed
 		return false, transErr

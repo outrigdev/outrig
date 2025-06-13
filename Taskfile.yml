@@ -74,7 +74,12 @@ tasks:
     testsmall:
         desc: run main-testsmall.go to generate minimal test data
         cmds:
-            - go run server/cmd/testsmall/main-testsmall.go
+            - OUTRIG_DEVCONFIG=1 go run server/cmd/testsmall/main-testsmall.go
+
+    test:docker:
+        cmds:
+            - docker build -t outrig-test -f testfiles/docker/Dockerfile .
+            - docker run --rm outrig-test
 
     test:noop:
         desc: build main-testsmall.go with +no_outrig

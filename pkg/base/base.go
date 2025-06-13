@@ -40,8 +40,12 @@ func GetDomainSocketNameForClient(isDev bool) string {
 }
 
 func GetTcpAddrForClient(isDev bool) string {
+	return "127.0.0.1:" + strconv.Itoa(GetMonitorPort(isDev))
+}
+
+func GetMonitorPort(isDev bool) int {
 	if isDev {
-		return "127.0.0.1:" + strconv.Itoa(DevWebServerPort)
+		return DevWebServerPort
 	}
-	return "127.0.0.1:" + strconv.Itoa(ProdWebServerPort)
+	return ProdWebServerPort
 }

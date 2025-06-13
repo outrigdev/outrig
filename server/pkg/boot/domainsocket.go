@@ -109,15 +109,15 @@ func handlePacketMode(connWrap *comm.ConnWrap, appRunId string) {
 	}
 }
 
-// handleDomainSocketConn reads the mode line from the connection and dispatches to the appropriate handler.
-func handleDomainSocketConn(conn net.Conn, webServerPort int) {
+// handleServerConn reads the mode line from the connection and dispatches to the appropriate handler.
+func handleServerConn(conn net.Conn, webServerPort int, isTcp bool) {
 	defer conn.Close()
 
 	// Create a ConnWrap for the connection
 	connWrap := comm.MakeConnWrap(conn, "domain-socket-client")
 
 	// Perform the handshake
-	packet, err := connWrap.ServerHandshake(webServerPort)
+	packet, err := connWrap.ServerHandshake(webServerPort, isTcp)
 	if errors.Is(err, io.EOF) {
 		// not a valid connection attempt, just ignore it
 		return
@@ -190,7 +190,7 @@ func runDomainSocketServer(ctx context.Context, webServerPort int) error {
 				}
 				go func() {
 					outrig.SetGoRoutineName("DomainSocketServer.HandleConn")
-					handleDomainSocketConn(conn, webServerPort)
+					handleServerConn(conn, webServerPort, false)
 				}()
 			}
 		}()

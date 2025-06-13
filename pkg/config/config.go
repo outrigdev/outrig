@@ -21,6 +21,11 @@ type Config struct {
 	// If "-" => disable TCP connection. Domain socket will be tried first (except on Windows where domain sockets are not supported).)
 	TcpAddr string
 
+	// By default the SDK will probe host.docker.internal:5005 to see if the Outrig monitor is running on the host machine
+	// We do an initial DNS lookup at startup and only try this host/port if the DNS lookup succeeds.
+	// Setting this to true will disable the initial probe.
+	DisableDockerProbe bool
+
 	// ModuleName is the name of the Go module. If not specified, it will be determined
 	// from the go.mod file.
 	ModuleName string
