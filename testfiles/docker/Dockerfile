@@ -6,14 +6,15 @@ WORKDIR /app
 RUN apk add --no-cache curl
 RUN curl -sL https://taskfile.dev/install.sh | sh -s -- -b /usr/local/bin
 
+# ---- START: Outrig Integration ----
+RUN apk add --no-cache curl
+RUN curl -sf https://outrig.run/install.sh | sh
+# ---- END: Outrig Integration ----
+
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 RUN rm -rf bin/
-
-# Install outrig binary to /root/.local/bin/outrig
-RUN mkdir -p /root/.local/bin
-COPY --chmod=755 bin/outrig-linux /root/.local/bin/outrig
 
 CMD ["task", "testsmall"]

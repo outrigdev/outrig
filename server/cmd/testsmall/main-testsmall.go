@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig"
-	configpkg "github.com/outrigdev/outrig/pkg/config"
 	"github.com/sirupsen/logrus"
 )
 
@@ -45,8 +44,7 @@ func (f Foo) String() string {
 }
 
 func main() {
-	config := configpkg.DefaultConfigForOutrigDevelopment()
-	outrig.Init("test-small", config)
+	outrig.Init("test-small", nil)
 	defer outrig.AppDone()
 
 	// Create temporary log file
