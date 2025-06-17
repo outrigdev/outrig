@@ -26,6 +26,8 @@ import (
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
+var initOnce sync.Once
+
 // Re-export ds.Config so callers can use "outrig.Config"
 type Config = config.Config
 
@@ -79,22 +81,35 @@ func Init(appName string, cfgParam *config.Config) (bool, error) {
 	// copy to avoid cross contamination with original
 	finalCfg := *cfgParam
 
-	// Create and initialize the controller
-	// (collectors are now initialized inside MakeController)
-	ctrlImpl, err := controller.MakeController(appName, finalCfg)
-	if err != nil {
-		return Enabled(), err
-	}
-	// Store the controller in global.Controller
-	var cif ds.Controller = ctrlImpl
-	ok := global.Controller.CompareAndSwap(nil, &cif)
-	if !ok {
+	var initErr error
+	var wasFirstCall bool
+
+	initOnce.Do(func() {
+		wasFirstCall = true
+		// Create and initialize the controller
+		// (collectors are now initialized inside MakeController)
+		ctrlImpl, err := controller.MakeController(appName, finalCfg)
+		if err != nil {
+			initErr = err
+			return
+		}
+		// Store the controller in global.Controller
+		var cif ds.Controller = ctrlImpl
+		global.Controller.Store(&cif)
+		ctrlImpl.InitialStart()
+	})
+
+	if !wasFirstCall {
+		// This is a subsequent call to Init()
 		if !finalCfg.Quiet && global.OutrigAutoInit.Load() {
-			fmt.Printf("[outrig] Warning: outrig.Init() called after importing github.com/outrigdev/outrig/autoinit; new config ignored. To customize settings, remove the autoinit import.\n")
+			fmt.Printf("#outrig Warning: outrig.Init() called after importing github.com/outrigdev/outrig/autoinit; new config ignored. To customize settings, remove the autoinit import.\n")
 		}
 		return Enabled(), fmt.Errorf("controller already initialized")
 	}
-	ctrlImpl.InitialStart()
+
+	if initErr != nil {
+		return Enabled(), initErr
+	}
 	return Enabled(), nil
 }
 

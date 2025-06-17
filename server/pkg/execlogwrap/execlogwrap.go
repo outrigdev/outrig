@@ -68,7 +68,7 @@ func (ldw *LogDataWrap) ensureConnection(isDev bool) {
 	if ldw.conn == nil {
 		if conn := tryConnect(ldw.source, isDev); conn != nil {
 			ldw.conn = conn
-			// fmt.Printf("[outrig] connected %s via %s\n", ldw.source, conn.PeerName)
+			// fmt.Printf("#outrig connected %s via %s\n", ldw.source, conn.PeerName)
 		}
 	}
 }

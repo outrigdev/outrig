@@ -133,9 +133,9 @@ func (t *Transport) closeConn_nolock(peer *transportPeer, err error) {
 
 	if !t.config.Quiet {
 		if err != nil {
-			fmt.Printf("[outrig] disconnecting from %s: %v\n", peer.Conn.PeerName, err)
+			fmt.Printf("#outrig disconnecting from %s: %v\n", peer.Conn.PeerName, err)
 		} else {
-			fmt.Printf("[outrig] disconnecting from %s\n", peer.Conn.PeerName)
+			fmt.Printf("#outrig disconnecting from %s\n", peer.Conn.PeerName)
 		}
 	}
 	// Close the channel to stop the goroutine

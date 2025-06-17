@@ -249,7 +249,7 @@ func monitorExternalProcess(proc *extCaptureProc) {
 		if !proc.closing.Load() {
 			// This was a truly unexpected termination
 			fmt.Fprintf(os.NewFile(uintptr(origStderrFD), "stderr"),
-				"[outrig] External log capture process exited unexpectedly: %v\n", err)
+				"#outrig External log capture process exited unexpectedly: %v\n", err)
 
 			// Call DisableExternalLogWrap to restore original file descriptors
 			DisableExternalLogWrap()

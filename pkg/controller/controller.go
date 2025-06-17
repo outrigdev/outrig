@@ -216,13 +216,13 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 	if permErr != nil {
 		c.OutrigForceDisabled = true
 		if !c.config.Quiet {
-			fmt.Printf("[outrig] connection error: %v\n", permErr)
+			fmt.Printf("#outrig connection error: %v\n", permErr)
 		}
 		return false, nil
 	}
 	// Connection and handshake successful
 	if !c.config.Quiet && !init {
-		fmt.Printf("[outrig] connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
+		fmt.Printf("#outrig connected via %s, apprunid:%s\n", connWrap.PeerName, c.AppInfo.AppRunId)
 	}
 	c.transport.AddConn(connWrap)
 	c.sendAppInfo()
