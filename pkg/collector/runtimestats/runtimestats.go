@@ -17,10 +17,9 @@ import (
 
 // RuntimeStatsCollector implements the collector.Collector interface for runtime stats collection
 type RuntimeStatsCollector struct {
-	lock       sync.Mutex
-	executor   *collector.PeriodicExecutor
-	controller ds.Controller
-	config     config.RuntimeStatsConfig
+	lock     sync.Mutex
+	executor *collector.PeriodicExecutor
+	config   config.RuntimeStatsConfig
 }
 
 // CollectorName returns the unique name of the collector
@@ -43,7 +42,6 @@ func GetInstance() *RuntimeStatsCollector {
 
 // InitCollector initializes the runtime stats collector with a controller and configuration
 func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, cfg any) error {
-	rc.controller = controller
 	if statsConfig, ok := cfg.(config.RuntimeStatsConfig); ok {
 		rc.config = statsConfig
 	}
@@ -62,7 +60,11 @@ func (rc *RuntimeStatsCollector) Disable() {
 
 // CollectRuntimeStats collects runtime statistics and sends them to the controller
 func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
-	if !global.OutrigEnabled.Load() || rc.controller == nil {
+	if !global.OutrigEnabled.Load() {
+		return
+	}
+	ctl := global.GetController()
+	if ctl == nil {
 		return
 	}
 
@@ -121,7 +123,7 @@ func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
 		Data: runtimeStats,
 	}
 
-	rc.controller.SendPacket(pk)
+	ctl.SendPacket(pk)
 }
 
 // GetStatus returns the current status of the runtime stats collector

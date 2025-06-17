@@ -41,7 +41,9 @@
         "editor.tabSize": 4
     },
     "[go]": {
-        "editor.defaultFormatter": "golang.go"
+        "editor.defaultFormatter": "golang.go",
+        "editor.detectIndentation": false,
+        "editor.formatOnSave": true
     },
     "[mdx]": {
         "editor.wordWrap": "on"

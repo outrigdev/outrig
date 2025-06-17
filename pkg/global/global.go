@@ -19,3 +19,11 @@ var Controller atomic.Pointer[ds.Controller]
 // Set when Outrig was initialized via the "autoinit" import
 // This flag is only used to control a special log message to warn users if they subsequently call Init() again.
 var OutrigAutoInit atomic.Bool
+
+func GetController() ds.Controller {
+	c := Controller.Load()
+	if c == nil || *c == nil {
+		return nil
+	}
+	return *c
+}

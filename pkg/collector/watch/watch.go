@@ -39,7 +39,6 @@ const (
 type WatchCollector struct {
 	lock              sync.Mutex
 	executor          *collector.PeriodicExecutor
-	controller        ds.Controller
 	config            config.WatchConfig
 	watchDecls        map[string]*ds.WatchDecl
 	pushSamples       []ds.WatchSample
@@ -157,7 +156,6 @@ func (wc *WatchCollector) SetNextSendFull(full bool) {
 
 // InitCollector initializes the watch collector with a controller and configuration
 func (wc *WatchCollector) InitCollector(controller ds.Controller, cfg any) error {
-	wc.controller = controller
 	if watchConfig, ok := cfg.(config.WatchConfig); ok {
 		wc.config = watchConfig
 	}
@@ -293,7 +291,11 @@ func (wc *WatchCollector) getRegErrors(delta bool) []ds.ErrWithContext {
 // CollectWatches collects watch information and sends it to the controller
 // note we do not hold the lock for the duration of this function
 func (wc *WatchCollector) CollectWatches() {
-	if !global.OutrigEnabled.Load() || wc.controller == nil {
+	if !global.OutrigEnabled.Load() {
+		return
+	}
+	ctl := global.GetController()
+	if ctl == nil {
 		return
 	}
 	var samples []ds.WatchSample
@@ -344,7 +346,7 @@ func (wc *WatchCollector) CollectWatches() {
 		Data: watchInfo,
 	}
 
-	wc.controller.SendPacket(pk)
+	ctl.SendPacket(pk)
 }
 
 const MaxWatchWaitTime = 10 * time.Millisecond

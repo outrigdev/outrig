@@ -9,11 +9,11 @@ import (
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
+	"github.com/outrigdev/outrig/pkg/global"
 )
 
 // LogCollector implements the collector.Collector interface for log collection
 type LogCollector struct {
-	controller           ds.Controller
 	config               config.LogProcessorConfig
 	dataLock             sync.RWMutex // protects externalLogWrapError
 	externalLogWrapError error        // Store any error from external log wrapping
@@ -38,7 +38,6 @@ func GetInstance() *LogCollector {
 
 // InitCollector initializes the log collector with a controller and configuration
 func (lc *LogCollector) InitCollector(controller ds.Controller, cfg any) error {
-	lc.controller = controller
 	if logConfig, ok := cfg.(config.LogProcessorConfig); ok {
 		lc.config = logConfig
 	}
@@ -55,10 +54,13 @@ func (lc *LogCollector) Enable() {
 	err := loginitex.EnableExternalLogWrap(appRunId, lc.config, isDev)
 	lc.setExternalLogWrapError(err)
 
-	if err != nil {
-		lc.controller.ILog("Failed to enable external log wrapping: %v", err)
-	} else {
-		lc.controller.ILog("External log wrapping enabled")
+	ctl := global.GetController()
+	if ctl != nil {
+		if err != nil {
+			ctl.ILog("Failed to enable external log wrapping: %v", err)
+		} else {
+			ctl.ILog("External log wrapping enabled")
+		}
 	}
 }
 
