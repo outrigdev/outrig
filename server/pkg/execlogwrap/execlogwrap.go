@@ -87,8 +87,9 @@ func (ldw *LogDataWrap) closeConnection() {
 // tryConnect attempts to connect to the Outrig server for the specified source
 // It returns the connection if successful, or nil if it fails
 func tryConnect(source string, isDev bool) *comm.ConnWrap {
-	appRunId := os.Getenv(config.AppRunIdEnvName)
+	appRunId := config.GetExternalAppRunId()
 	if appRunId == "" {
+		// it is an error if we don't have an _external_ apprunid
 		return nil
 	}
 
@@ -148,19 +149,16 @@ func processStream(wg *sync.WaitGroup, decl TeeStreamDecl) {
 
 // ProcessExistingStreams handles capturing logs from provided input/output streams
 func ProcessExistingStreams(streams []TeeStreamDecl, isDev bool) error {
-	appRunId := os.Getenv(config.AppRunIdEnvName)
-
+	appRunId := config.GetExternalAppRunId()
 	if appRunId != "" {
 		ensureConnections(isDev)
 		startConnPoller(isDev)
 	}
 
 	var wg sync.WaitGroup
-
 	for _, stream := range streams {
 		processStream(&wg, stream)
 	}
-
 	wg.Wait()
 	closeConnections()
 

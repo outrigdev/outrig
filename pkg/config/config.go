@@ -6,7 +6,10 @@ package config
 import (
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
+
+	"github.com/google/uuid"
 )
 
 const OutrigSDKVersion = "v0.8.0"
@@ -37,6 +40,11 @@ const (
 )
 
 var useDevConfig atomic.Bool
+
+var (
+	appRunIdOnce sync.Once
+	appRunId     string
+)
 
 func init() {
 	isDev := os.Getenv(DevConfigEnvName) != ""
@@ -114,8 +122,8 @@ func getDefaultConfig(isDev bool) *Config {
 	}
 
 	return &Config{
-		DomainSocketPath: GetDomainSocketNameForClient(isDev),
-		TcpAddr:          GetTcpAddrForClient(isDev),
+		DomainSocketPath: GetDomainSocketNameForClient(),
+		TcpAddr:          GetTcpAddrForClient(),
 		ModuleName:       "",
 		Dev:              isDev,
 		ConnectOnInit:    true,
@@ -134,6 +142,31 @@ func getDefaultConfig(isDev bool) *Config {
 			Enabled: true,
 		},
 	}
+}
+
+func GetAppRunId() string {
+	appRunIdOnce.Do(func() {
+		appRunId = os.Getenv(AppRunIdEnvName)
+		if appRunId == "" {
+			appRunId = uuid.New().String()
+		} else {
+			// Validate and normalize the UUID format
+			if parsedUuid, err := uuid.Parse(appRunId); err != nil {
+				appRunId = uuid.New().String()
+			} else {
+				appRunId = parsedUuid.String()
+			}
+		}
+	})
+	return appRunId
+}
+
+func GetExternalAppRunId() string {
+	extAppRunId := os.Getenv(AppRunIdEnvName)
+	if extAppRunId != GetAppRunId() {
+		return ""
+	}
+	return extAppRunId
 }
 
 func UseDevConfig() bool {
@@ -158,26 +191,26 @@ func DefaultConfigForOutrigDevelopment() *Config {
 	return getDefaultConfig(true)
 }
 
-func GetTcpAddrForClient(isDev bool) string {
-	return "127.0.0.1:" + strconv.Itoa(GetMonitorPort(isDev))
+func GetTcpAddrForClient() string {
+	return "127.0.0.1:" + strconv.Itoa(GetMonitorPort())
 }
 
-func GetMonitorPort(isDev bool) int {
-	if isDev {
+func GetMonitorPort() int {
+	if UseDevConfig() {
 		return DevWebServerPort
 	}
 	return ProdWebServerPort
 }
 
 // GetOutrigHomeForClient returns the appropriate home directory based on client config
-func GetOutrigHomeForClient(isDev bool) string {
-	if isDev {
+func GetOutrigHomeForClient() string {
+	if UseDevConfig() {
 		return DevOutrigHome
 	}
 	return OutrigHome
 }
 
 // GetDomainSocketNameForClient returns the full domain socket path for client
-func GetDomainSocketNameForClient(isDev bool) string {
-	return GetOutrigHomeForClient(isDev) + DefaultDomainSocketName
+func GetDomainSocketNameForClient() string {
+	return GetOutrigHomeForClient() + DefaultDomainSocketName
 }

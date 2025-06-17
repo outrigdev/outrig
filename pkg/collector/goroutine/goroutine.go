@@ -68,7 +68,7 @@ func GetInstance() *GoroutineCollector {
 }
 
 // InitCollector initializes the goroutine collector with a controller and configuration
-func (gc *GoroutineCollector) InitCollector(controller ds.Controller, cfg any, appRunContext ds.AppRunContext) error {
+func (gc *GoroutineCollector) InitCollector(controller ds.Controller, cfg any) error {
 	gc.controller = controller
 	if goConfig, ok := cfg.(config.GoRoutineConfig); ok {
 		gc.config = goConfig

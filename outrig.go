@@ -76,10 +76,8 @@ func Init(appName string, cfgParam *config.Config) (bool, error) {
 	if cfgParam == nil {
 		cfgParam = DefaultConfig()
 	}
+	// copy to avoid cross contamination with original
 	finalCfg := *cfgParam
-	if finalCfg.DomainSocketPath == "" {
-		finalCfg.DomainSocketPath = config.GetDomainSocketNameForClient(finalCfg.Dev)
-	}
 
 	// Create and initialize the controller
 	// (collectors are now initialized inside MakeController)
@@ -122,11 +120,7 @@ func Shutdown() {
 
 // GetAppRunId returns the unique identifier for the current application run
 func GetAppRunId() string {
-	ctrlPtr := getController()
-	if ctrlPtr != nil {
-		return ctrlPtr.GetAppRunId()
-	}
-	return ""
+	return config.GetAppRunId()
 }
 
 // AppDone signals that the application is done

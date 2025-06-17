@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/server/demo"
 	"github.com/outrigdev/outrig/server/pkg/boot"
@@ -239,18 +238,13 @@ Example: outrig --dev exec ls -latrh`,
 			if err != nil {
 				return err
 			}
-
 			if len(specialArgs.Args) == 0 {
 				return fmt.Errorf("exec command requires at least one argument")
 			}
-
-			if os.Getenv(config.AppRunIdEnvName) == "" {
-				appRunId := uuid.New().String()
-				os.Setenv(config.AppRunIdEnvName, appRunId)
+			if os.Getenv(config.AppRunIdEnvName) != config.GetAppRunId() {
+				os.Setenv(config.AppRunIdEnvName, config.GetAppRunId())
 			}
-	
 			os.Setenv(config.ExternalLogCaptureEnvName, "1")
-
 			return execlogwrap.ExecCommand(specialArgs.Args, specialArgs.IsDev)
 		},
 		// Disable flag parsing for this command so all flags are passed to the executed command

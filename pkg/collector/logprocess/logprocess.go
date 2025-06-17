@@ -15,7 +15,6 @@ import (
 type LogCollector struct {
 	controller           ds.Controller
 	config               config.LogProcessorConfig
-	appRunContext        ds.AppRunContext
 	dataLock             sync.RWMutex // protects externalLogWrapError
 	externalLogWrapError error        // Store any error from external log wrapping
 }
@@ -38,20 +37,19 @@ func GetInstance() *LogCollector {
 }
 
 // InitCollector initializes the log collector with a controller and configuration
-func (lc *LogCollector) InitCollector(controller ds.Controller, cfg any, appRunContext ds.AppRunContext) error {
+func (lc *LogCollector) InitCollector(controller ds.Controller, cfg any) error {
 	lc.controller = controller
 	if logConfig, ok := cfg.(config.LogProcessorConfig); ok {
 		lc.config = logConfig
 	}
-	lc.appRunContext = appRunContext
 	return nil
 }
 
 func (lc *LogCollector) Enable() {
 	// Enable external log wrapping if controller is available
-	// Get the appRunId from the controller
-	appRunId := lc.appRunContext.AppRunId
-	isDev := lc.appRunContext.IsDev
+	// Get the appRunId from the config
+	appRunId := config.GetAppRunId()
+	isDev := config.UseDevConfig()
 
 	// Use the new external log capture mechanism
 	err := loginitex.EnableExternalLogWrap(appRunId, lc.config, isDev)

@@ -192,17 +192,11 @@ type RuntimeStatsInfo struct {
 type Controller interface {
 	// Configuration
 	GetConfig() config.Config
-	GetAppRunId() string
 
 	// Transport
 	SendPacket(pk *PacketType) (bool, error)
 
 	ILog(format string, args ...any)
-}
-
-type AppRunContext struct {
-	IsDev    bool
-	AppRunId string
 }
 
 // ErrWithContext represents an error with a source code line reference

@@ -42,7 +42,7 @@ func GetInstance() *RuntimeStatsCollector {
 }
 
 // InitCollector initializes the runtime stats collector with a controller and configuration
-func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, cfg any, arCtx ds.AppRunContext) error {
+func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, cfg any) error {
 	rc.controller = controller
 	if statsConfig, ok := cfg.(config.RuntimeStatsConfig); ok {
 		rc.config = statsConfig

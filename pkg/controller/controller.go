@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
@@ -63,26 +62,21 @@ func MakeController(appName string, cfg config.Config) (*ControllerImpl, error) 
 	c.AppInfo = c.createAppInfo(appName, &cfg)
 	c.config = &cfg
 
-	arCtx := ds.AppRunContext{
-		AppRunId: c.AppInfo.AppRunId,
-		IsDev:    c.config.Dev,
-	}
-
 	// Initialize collectors with their respective configurations
 	logCollector := logprocess.GetInstance()
-	logCollector.InitCollector(c, c.config.LogProcessorConfig, arCtx)
+	logCollector.InitCollector(c, c.config.LogProcessorConfig)
 	c.Collectors[logCollector.CollectorName()] = logCollector
 
 	goroutineCollector := goroutine.GetInstance()
-	goroutineCollector.InitCollector(c, c.config.GoRoutineConfig, arCtx)
+	goroutineCollector.InitCollector(c, c.config.GoRoutineConfig)
 	c.Collectors[goroutineCollector.CollectorName()] = goroutineCollector
 
 	watchCollector := watch.GetInstance()
-	watchCollector.InitCollector(c, c.config.WatchConfig, arCtx)
+	watchCollector.InitCollector(c, c.config.WatchConfig)
 	c.Collectors[watchCollector.CollectorName()] = watchCollector
 
 	runtimeStatsCollector := runtimestats.GetInstance()
-	runtimeStatsCollector.InitCollector(c, c.config.RuntimeStatsConfig, arCtx)
+	runtimeStatsCollector.InitCollector(c, c.config.RuntimeStatsConfig)
 	c.Collectors[runtimeStatsCollector.CollectorName()] = runtimeStatsCollector
 
 	return c, nil
@@ -115,10 +109,7 @@ func (c *ControllerImpl) createAppInfo(appName string, cfg *config.Config) ds.Ap
 	appInfo := ds.AppInfo{}
 
 	// Initialize basic AppInfo
-	appInfo.AppRunId = os.Getenv(config.AppRunIdEnvName)
-	if appInfo.AppRunId == "" {
-		appInfo.AppRunId = uuid.New().String()
-	}
+	appInfo.AppRunId = config.GetAppRunId()
 	if appName == "" {
 		appName = determineAppName()
 	}

@@ -156,7 +156,7 @@ func (wc *WatchCollector) SetNextSendFull(full bool) {
 }
 
 // InitCollector initializes the watch collector with a controller and configuration
-func (wc *WatchCollector) InitCollector(controller ds.Controller, cfg any, arCtx ds.AppRunContext) error {
+func (wc *WatchCollector) InitCollector(controller ds.Controller, cfg any) error {
 	wc.controller = controller
 	if watchConfig, ok := cfg.(config.WatchConfig); ok {
 		wc.config = watchConfig

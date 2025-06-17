@@ -90,7 +90,7 @@ func MakeConnectAddrs(cfg *config.Config) []ConnectAddr {
 	// Add Docker host probe if enabled and running in Docker environment
 	if !disableDockerProbe && utilfn.InDockerEnv() {
 		if probeDockerHost() {
-			port := config.GetMonitorPort(cfg.Dev)
+			port := config.GetMonitorPort()
 			dockerAddr := "host.docker.internal:" + strconv.Itoa(port)
 			connectAddrs = append(connectAddrs, ConnectAddr{
 				ConnType: "TCP server",
