@@ -72,12 +72,12 @@ tasks:
             - go run server/cmd/generatego/main-generatego.go
             - go run server/cmd/generatets/main-generatets.go
 
-    testrun:
+    test:run:
         desc: run main-test.go to generate some fake data
         cmds:
             - go run server/cmd/test/main-test.go
 
-    testsmall:
+    test:small:
         desc: run main-testsmall.go to generate minimal test data
         cmds:
             - OUTRIG_DEVCONFIG=1 go run server/cmd/testsmall/main-testsmall.go
