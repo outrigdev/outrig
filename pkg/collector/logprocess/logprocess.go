@@ -4,17 +4,20 @@
 package logprocess
 
 import (
+	"fmt"
 	"sync"
 
+	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/utilds"
 )
 
 // LogCollector implements the collector.Collector interface for log collection
 type LogCollector struct {
-	config               config.LogProcessorConfig
+	config               *utilds.SetOnceConfig[config.LogProcessorConfig]
 	dataLock             sync.RWMutex // protects externalLogWrapError
 	externalLogWrapError error        // Store any error from external log wrapping
 }
@@ -31,21 +34,42 @@ var instanceOnce sync.Once
 // GetInstance returns the singleton instance of LogCollector
 func GetInstance() *LogCollector {
 	instanceOnce.Do(func() {
-		instance = &LogCollector{}
+		instance = &LogCollector{
+			config: utilds.NewSetOnceConfig(config.DefaultConfig().LogProcessorConfig),
+		}
 	})
 	return instance
+}
+
+func Init(cfg *config.LogProcessorConfig) error {
+	lc := GetInstance()
+	if loginitex.IsExternalLogWrapActive() {
+		return fmt.Errorf("log process collector is already initialized")
+	}
+	ok := lc.config.SetOnce(cfg)
+	if !ok {
+		return fmt.Errorf("log process collector configuration already set")
+	}
+	collector.RegisterCollector(lc)
+	return nil
 }
 
 // InitCollector initializes the log collector with a controller and configuration
 func (lc *LogCollector) InitCollector(controller ds.Controller, cfg any) error {
 	if logConfig, ok := cfg.(config.LogProcessorConfig); ok {
-		lc.config = logConfig
+		lc.config.SetOnce(&logConfig)
 	}
 	return nil
 }
 
 func (lc *LogCollector) Enable() {
-	if !lc.config.Enabled {
+	cfg := lc.config.Get()
+	if !cfg.Enabled {
+		return
+	}
+	
+	// Check if already enabled
+	if loginitex.IsExternalLogWrapActive() {
 		return
 	}
 	
@@ -55,7 +79,7 @@ func (lc *LogCollector) Enable() {
 	isDev := config.UseDevConfig()
 
 	// Use the new external log capture mechanism
-	err := loginitex.EnableExternalLogWrap(appRunId, lc.config, isDev)
+	err := loginitex.EnableExternalLogWrap(appRunId, cfg, isDev)
 	lc.setExternalLogWrapError(err)
 
 	ctl := global.GetController()
@@ -84,11 +108,12 @@ func (lc *LogCollector) OnNewConnection() {
 
 // GetStatus returns the current status of the log collector
 func (lc *LogCollector) GetStatus() ds.CollectorStatus {
+	cfg := lc.config.Get()
 	status := ds.CollectorStatus{
-		Running: lc.config.Enabled,
+		Running: cfg.Enabled,
 	}
 
-	if !lc.config.Enabled {
+	if !cfg.Enabled {
 		status.Info = "Disabled in configuration"
 	} else {
 		// Check if external log wrapping is active

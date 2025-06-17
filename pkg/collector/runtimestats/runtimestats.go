@@ -4,6 +4,7 @@
 package runtimestats
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"sync"
@@ -13,13 +14,13 @@ import (
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/utilds"
 )
 
 // RuntimeStatsCollector implements the collector.Collector interface for runtime stats collection
 type RuntimeStatsCollector struct {
-	lock     sync.Mutex
+	config   *utilds.SetOnceConfig[config.RuntimeStatsConfig]
 	executor *collector.PeriodicExecutor
-	config   config.RuntimeStatsConfig
 }
 
 // CollectorName returns the unique name of the collector
@@ -34,23 +35,39 @@ var instanceOnce sync.Once
 // GetInstance returns the singleton instance of RuntimeStatsCollector
 func GetInstance() *RuntimeStatsCollector {
 	instanceOnce.Do(func() {
-		instance = &RuntimeStatsCollector{}
+		instance = &RuntimeStatsCollector{
+			config: utilds.NewSetOnceConfig(config.DefaultConfig().RuntimeStatsConfig),
+		}
 		instance.executor = collector.MakePeriodicExecutor("RuntimeStatsCollector", 1*time.Second, instance.CollectRuntimeStats)
 	})
 	return instance
 }
 
+func Init(cfg *config.RuntimeStatsConfig) error {
+	rc := GetInstance()
+	if rc.executor.IsEnabled() {
+		return fmt.Errorf("runtime stats collector is already initialized")
+	}
+	ok := rc.config.SetOnce(cfg)
+	if !ok {
+		return fmt.Errorf("runtime stats collector configuration already set")
+	}
+	collector.RegisterCollector(rc)
+	return nil
+}
+
 // InitCollector initializes the runtime stats collector with a controller and configuration
 func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, cfg any) error {
 	if statsConfig, ok := cfg.(config.RuntimeStatsConfig); ok {
-		rc.config = statsConfig
+		rc.config.SetOnce(&statsConfig)
 	}
 	return nil
 }
 
 // Enable is called when the collector should start collecting data
 func (rc *RuntimeStatsCollector) Enable() {
-	if !rc.config.Enabled {
+	cfg := rc.config.Get()
+	if !cfg.Enabled {
 		return
 	}
 	rc.executor.Enable()
@@ -136,20 +153,21 @@ func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
 
 // GetStatus returns the current status of the runtime stats collector
 func (rc *RuntimeStatsCollector) GetStatus() ds.CollectorStatus {
+	cfg := rc.config.Get()
 	status := ds.CollectorStatus{
-		Running: rc.config.Enabled,
+		Running: cfg.Enabled,
 	}
-	
-	if !rc.config.Enabled {
+
+	if !cfg.Enabled {
 		status.Info = "Disabled in configuration"
 	} else {
 		status.Info = "Runtime statistics collection active"
 		status.CollectDuration = rc.executor.GetLastExecDuration()
-		
+
 		if lastErr := rc.executor.GetLastErr(); lastErr != nil {
 			status.Errors = append(status.Errors, lastErr.Error())
 		}
 	}
-	
+
 	return status
 }

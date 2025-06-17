@@ -77,9 +77,9 @@ func Init(cfg *config.GoRoutineConfig) error {
 	if !ok {
 		return fmt.Errorf("goroutine collector configuration already set")
 	}
+	collector.RegisterCollector(gc)
 	return nil
 }
-
 
 // InitCollector initializes the goroutine collector with a controller and configuration
 func (gc *GoroutineCollector) InitCollector(controller ds.Controller, cfg any) error {

@@ -17,6 +17,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/utilds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -38,8 +39,8 @@ const (
 // WatchCollector implements the collector.Collector interface for watch collection
 type WatchCollector struct {
 	lock              sync.Mutex
+	config            *utilds.SetOnceConfig[config.WatchConfig]
 	executor          *collector.PeriodicExecutor
-	config            config.WatchConfig
 	watchDecls        map[string]*ds.WatchDecl
 	pushSamples       []ds.WatchSample
 	lastWatchSamples  map[string]ds.WatchSample // last set of watch values for delta calculation
@@ -62,6 +63,7 @@ var instanceOnce sync.Once
 func GetInstance() *WatchCollector {
 	instanceOnce.Do(func() {
 		instance = &WatchCollector{
+			config:           utilds.NewSetOnceConfig(config.DefaultConfig().WatchConfig),
 			watchDecls:       make(map[string]*ds.WatchDecl),
 			lastWatchSamples: make(map[string]ds.WatchSample),
 			nextSendFull:     true, // First send is always a full update
@@ -70,6 +72,19 @@ func GetInstance() *WatchCollector {
 		instance.executor = collector.MakePeriodicExecutor("WatchCollector", 1*time.Second, instance.CollectWatches)
 	})
 	return instance
+}
+
+func Init(cfg *config.WatchConfig) error {
+	wc := GetInstance()
+	if wc.executor.IsEnabled() {
+		return fmt.Errorf("watch collector is already initialized")
+	}
+	ok := wc.config.SetOnce(cfg)
+	if !ok {
+		return fmt.Errorf("watch collector configuration already set")
+	}
+	collector.RegisterCollector(wc)
+	return nil
 }
 
 func (wc *WatchCollector) UnregisterWatch(decl *ds.WatchDecl) {
@@ -162,14 +177,15 @@ func (wc *WatchCollector) OnNewConnection() {
 // InitCollector initializes the watch collector with a controller and configuration
 func (wc *WatchCollector) InitCollector(controller ds.Controller, cfg any) error {
 	if watchConfig, ok := cfg.(config.WatchConfig); ok {
-		wc.config = watchConfig
+		wc.config.SetOnce(&watchConfig)
 	}
 	return nil
 }
 
 // Enable is called when the collector should start collecting data
 func (wc *WatchCollector) Enable() {
-	if !wc.config.Enabled {
+	cfg := wc.config.Get()
+	if !cfg.Enabled {
 		return
 	}
 	wc.executor.Enable()
@@ -642,11 +658,12 @@ func (wc *WatchCollector) getWatchCounts() (int, int, int) {
 
 // GetStatus returns the current status of the watch collector
 func (wc *WatchCollector) GetStatus() ds.CollectorStatus {
+	cfg := wc.config.Get()
 	status := ds.CollectorStatus{
-		Running: wc.config.Enabled,
+		Running: cfg.Enabled,
 	}
 
-	if !wc.config.Enabled {
+	if !cfg.Enabled {
 		status.Info = "Disabled in configuration"
 	} else {
 		totalWatches, pollingWatches, totalErrors := wc.getWatchCounts()
