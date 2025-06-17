@@ -1,39 +1,41 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-package controller
+package collector
 
 import (
 	"sync"
 
-	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 )
 
 var (
-	collectors        map[string]collector.Collector
+	collectors        map[string]Collector
 	collectorsEnabled bool
 	collectorsLock    sync.Mutex
 )
 
 func init() {
-	collectors = make(map[string]collector.Collector)
+	collectors = make(map[string]Collector)
 }
 
-func RegisterCollector(c collector.Collector) {
+func RegisterCollector(c Collector) {
 	collectorsLock.Lock()
 	defer collectorsLock.Unlock()
 	collectors[c.CollectorName()] = c
+	if collectorsEnabled {
+		c.Enable()
+	}
 }
 
-func getCollectorByName(name string) collector.Collector {
+func GetCollectorByName(name string) Collector {
 	collectorsLock.Lock()
 	defer collectorsLock.Unlock()
 	return collectors[name]
 }
 
-func getCollectorStatuses() map[string]ds.CollectorStatus {
+func GetCollectorStatuses() map[string]ds.CollectorStatus {
 	collectorsLock.Lock()
 	defer collectorsLock.Unlock()
 
@@ -44,7 +46,7 @@ func getCollectorStatuses() map[string]ds.CollectorStatus {
 	return statuses
 }
 
-func setCollectorsEnabled(enabled bool, cfg *config.Config) {
+func SetCollectorsEnabled(enabled bool, cfg *config.Config) {
 	collectorsLock.Lock()
 	defer collectorsLock.Unlock()
 

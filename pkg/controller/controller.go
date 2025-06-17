@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
@@ -62,19 +63,19 @@ func MakeController(appName string, cfg config.Config) (*ControllerImpl, error) 
 	// Initialize collectors with their respective configurations
 	logCollector := logprocess.GetInstance()
 	logCollector.InitCollector(c, c.config.LogProcessorConfig)
-	RegisterCollector(logCollector)
+	collector.RegisterCollector(logCollector)
 
 	goroutineCollector := goroutine.GetInstance()
 	goroutineCollector.InitCollector(c, c.config.GoRoutineConfig)
-	RegisterCollector(goroutineCollector)
+	collector.RegisterCollector(goroutineCollector)
 
 	watchCollector := watch.GetInstance()
 	watchCollector.InitCollector(c, c.config.WatchConfig)
-	RegisterCollector(watchCollector)
+	collector.RegisterCollector(watchCollector)
 
 	runtimeStatsCollector := runtimestats.GetInstance()
 	runtimeStatsCollector.InitCollector(c, c.config.RuntimeStatsConfig)
-	RegisterCollector(runtimeStatsCollector)
+	collector.RegisterCollector(runtimeStatsCollector)
 
 	return c, nil
 }
@@ -227,11 +228,11 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 	c.sendAppInfo()
 
 	// Force a full goroutine update on the next dump after a new connection
-	if goCollector, ok := getCollectorByName("goroutine").(*goroutine.GoroutineCollector); ok {
+	if goCollector, ok := collector.GetCollectorByName("goroutine").(*goroutine.GoroutineCollector); ok {
 		goCollector.SetNextSendFull(true)
 	}
 	// Force the watch collector to send a full update on the next cycle as well
-	if watchCollector, ok := getCollectorByName("watch").(*watch.WatchCollector); ok {
+	if watchCollector, ok := collector.GetCollectorByName("watch").(*watch.WatchCollector); ok {
 		watchCollector.SetNextSendFull(true)
 	}
 
@@ -312,7 +313,7 @@ func (c *ControllerImpl) sendCollectorStatus() {
 		return
 	}
 
-	statuses := getCollectorStatuses()
+	statuses := collector.GetCollectorStatuses()
 	collectorStatusPacket := &ds.PacketType{
 		Type: ds.PacketTypeCollectorStatus,
 		Data: statuses,
@@ -418,9 +419,9 @@ func (c *ControllerImpl) setEnabled(enabled bool) {
 	}
 	if enabled {
 		global.OutrigEnabled.Store(true)
-		setCollectorsEnabled(true, c.config)
+		collector.SetCollectorsEnabled(true, c.config)
 	} else {
-		setCollectorsEnabled(false, c.config)
+		collector.SetCollectorsEnabled(false, c.config)
 		global.OutrigEnabled.Store(false)
 	}
 }
