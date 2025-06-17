@@ -4,9 +4,9 @@
 package config
 
 import (
-	"log"
 	"os"
 	"strconv"
+	"sync/atomic"
 )
 
 const OutrigSDKVersion = "v0.8.0"
@@ -35,6 +35,13 @@ const (
 	ProdWebServerPort = 5005
 	DevWebServerPort  = 6005
 )
+
+var useDevConfig atomic.Bool
+
+func init() {
+	isDev := os.Getenv(DevConfigEnvName) != ""
+	useDevConfig.Store(isDev)
+}
 
 type Config struct {
 	Quiet bool // If true, suppresses init, connect, and disconnect messages
@@ -129,14 +136,17 @@ func getDefaultConfig(isDev bool) *Config {
 	}
 }
 
-func IsDev() bool {
-	return os.Getenv(DevConfigEnvName) != ""
+func UseDevConfig() bool {
+	return useDevConfig.Load()
+}
+
+func SetUseDevConfig(dev bool) {
+	useDevConfig.Store(dev)
 }
 
 // DefaultConfig returns the default configuration for normal usage
 func DefaultConfig() *Config {
-	if IsDev() {
-		log.Printf("%s environment variable is set, switching to development configuration", DevConfigEnvName)
+	if UseDevConfig() {
 		return getDefaultConfig(true)
 	}
 	return getDefaultConfig(false)

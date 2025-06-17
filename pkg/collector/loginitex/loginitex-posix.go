@@ -109,6 +109,10 @@ func enableExternalLogWrapImpl(appRunId string, cfg config.LogProcessorConfig, i
 
 	// Set the AppRunId environment variable
 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", config.AppRunIdEnvName, appRunId))
+	// Set dev config environment variable if in dev mode
+	if isDev {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=1", config.DevConfigEnvName))
+	}
 
 	// Add any additional arguments before "capturelogs"
 	if len(cfg.AdditionalArgs) > 0 {
