@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
@@ -37,12 +36,11 @@ const MaxInternalLog = 100
 type ControllerImpl struct {
 	Lock                sync.Mutex // lock for this struct
 	config              *config.Config
-	pollerOnce          sync.Once                      // ensures poller is started only once
-	AppInfo             ds.AppInfo                     // combined application information
-	OutrigForceDisabled bool                           // whether outrig is force disabled
-	Collectors          map[string]collector.Collector // map of collectors by name
-	InternalLogBuf      *utilds.CirBuf[string]         // internal log for debugging
-	transport           *Transport                     // handles connection management and packet sending
+	pollerOnce          sync.Once              // ensures poller is started only once
+	AppInfo             ds.AppInfo             // combined application information
+	OutrigForceDisabled bool                   // whether outrig is force disabled
+	InternalLogBuf      *utilds.CirBuf[string] // internal log for debugging
+	transport           *Transport             // handles connection management and packet sending
 }
 
 // this is idempotent
@@ -51,7 +49,6 @@ func MakeController(appName string, cfg config.Config) (*ControllerImpl, error) 
 		appName = determineAppName()
 	}
 	c := &ControllerImpl{
-		Collectors:     make(map[string]collector.Collector),
 		InternalLogBuf: utilds.MakeCirBuf[string](MaxInternalLog),
 	}
 
@@ -65,19 +62,19 @@ func MakeController(appName string, cfg config.Config) (*ControllerImpl, error) 
 	// Initialize collectors with their respective configurations
 	logCollector := logprocess.GetInstance()
 	logCollector.InitCollector(c, c.config.LogProcessorConfig)
-	c.Collectors[logCollector.CollectorName()] = logCollector
+	RegisterCollector(logCollector)
 
 	goroutineCollector := goroutine.GetInstance()
 	goroutineCollector.InitCollector(c, c.config.GoRoutineConfig)
-	c.Collectors[goroutineCollector.CollectorName()] = goroutineCollector
+	RegisterCollector(goroutineCollector)
 
 	watchCollector := watch.GetInstance()
 	watchCollector.InitCollector(c, c.config.WatchConfig)
-	c.Collectors[watchCollector.CollectorName()] = watchCollector
+	RegisterCollector(watchCollector)
 
 	runtimeStatsCollector := runtimestats.GetInstance()
 	runtimeStatsCollector.InitCollector(c, c.config.RuntimeStatsConfig)
-	c.Collectors[runtimeStatsCollector.CollectorName()] = runtimeStatsCollector
+	RegisterCollector(runtimeStatsCollector)
 
 	return c, nil
 }
@@ -230,11 +227,11 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 	c.sendAppInfo()
 
 	// Force a full goroutine update on the next dump after a new connection
-	if goCollector, ok := c.Collectors["goroutine"].(*goroutine.GoroutineCollector); ok {
+	if goCollector, ok := getCollectorByName("goroutine").(*goroutine.GoroutineCollector); ok {
 		goCollector.SetNextSendFull(true)
 	}
 	// Force the watch collector to send a full update on the next cycle as well
-	if watchCollector, ok := c.Collectors["watch"].(*watch.WatchCollector); ok {
+	if watchCollector, ok := getCollectorByName("watch").(*watch.WatchCollector); ok {
 		watchCollector.SetNextSendFull(true)
 	}
 
@@ -315,7 +312,7 @@ func (c *ControllerImpl) sendCollectorStatus() {
 		return
 	}
 
-	statuses := c.GetCollectorStatuses()
+	statuses := getCollectorStatuses()
 	collectorStatusPacket := &ds.PacketType{
 		Type: ds.PacketTypeCollectorStatus,
 		Data: statuses,
@@ -421,31 +418,9 @@ func (c *ControllerImpl) setEnabled(enabled bool) {
 	}
 	if enabled {
 		global.OutrigEnabled.Store(true)
-		// Only enable collectors that have Enabled set to true in their config
-		for name, collector := range c.Collectors {
-			switch name {
-			case "logprocess":
-				if c.config.LogProcessorConfig.Enabled {
-					collector.Enable()
-				}
-			case "goroutine":
-				if c.config.GoRoutineConfig.Enabled {
-					collector.Enable()
-				}
-			case "watch":
-				if c.config.WatchConfig.Enabled {
-					collector.Enable()
-				}
-			case "runtimestats":
-				if c.config.RuntimeStatsConfig.Enabled {
-					collector.Enable()
-				}
-			}
-		}
+		setCollectorsEnabled(true, c.config)
 	} else {
-		for _, collector := range c.Collectors {
-			collector.Disable()
-		}
+		setCollectorsEnabled(false, c.config)
 		global.OutrigEnabled.Store(false)
 	}
 }
@@ -490,16 +465,4 @@ func printf(format string, args ...any) {
 	}
 
 	fmt.Print(formatted)
-}
-
-// GetCollectorStatuses returns the status of all collectors
-func (c *ControllerImpl) GetCollectorStatuses() map[string]ds.CollectorStatus {
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
-
-	statuses := make(map[string]ds.CollectorStatus)
-	for name, collector := range c.Collectors {
-		statuses[name] = collector.GetStatus()
-	}
-	return statuses
 }
