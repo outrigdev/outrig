@@ -15,7 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ioutrig"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -40,7 +39,7 @@ type extCaptureProc struct {
 	closing                  atomic.Bool   // Flag to indicate that disableExternalLogWrapImpl is running
 }
 
-func enableExternalLogWrapImpl(appRunId string, config config.LogProcessorConfig, isDev bool) error {
+func enableExternalLogWrapImpl(appRunId string, cfg config.LogProcessorConfig, isDev bool) error {
 	externalCaptureLock.Lock()
 	defer externalCaptureLock.Unlock()
 
@@ -49,16 +48,16 @@ func enableExternalLogWrapImpl(appRunId string, config config.LogProcessorConfig
 	}
 
 	// If both stdout and stderr wrapping are disabled, do nothing
-	if !config.WrapStdout && !config.WrapStderr {
+	if !cfg.WrapStdout && !cfg.WrapStderr {
 		return nil
 	}
 
 	// Set which streams to wrap
-	wrapStdout = config.WrapStdout
-	wrapStderr = config.WrapStderr
+	wrapStdout = cfg.WrapStdout
+	wrapStderr = cfg.WrapStderr
 
 	// Determine the outrig executable path
-	outrigPath, err := resolveOutrigPath(config, isDev)
+	outrigPath, err := resolveOutrigPath(cfg, isDev)
 	if err != nil {
 		return err
 	}
@@ -109,11 +108,11 @@ func enableExternalLogWrapImpl(appRunId string, config config.LogProcessorConfig
 	localProc.cmd = cmd // Store command in the struct
 
 	// Set the AppRunId environment variable
-	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", base.AppRunIdEnvName, appRunId))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", config.AppRunIdEnvName, appRunId))
 
 	// Add any additional arguments before "capturelogs"
-	if len(config.AdditionalArgs) > 0 {
-		cmd.Args = append(cmd.Args, config.AdditionalArgs...)
+	if len(cfg.AdditionalArgs) > 0 {
+		cmd.Args = append(cmd.Args, cfg.AdditionalArgs...)
 	}
 
 	// Add the "capturelogs" command and any flags
@@ -327,10 +326,10 @@ func OrigStderr() *os.File {
 }
 
 // resolveOutrigPath determines the path to the outrig executable
-func resolveOutrigPath(config config.LogProcessorConfig, isDev bool) (string, error) {
+func resolveOutrigPath(cfg config.LogProcessorConfig, isDev bool) (string, error) {
 	// If a custom path is provided, use it
-	if config.OutrigPath != "" {
-		return config.OutrigPath, nil
+	if cfg.OutrigPath != "" {
+		return cfg.OutrigPath, nil
 	}
 
 	// Check if outrig is in the PATH

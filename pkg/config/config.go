@@ -6,6 +6,7 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/outrigdev/outrig/pkg/base"
 )
@@ -18,6 +19,14 @@ const (
 	NoTelemetryEnvName        = "OUTRIG_NOTELEMETRY"
 	DevConfigEnvName          = "OUTRIG_DEVCONFIG"
 	DisableDockerProbeEnvName = "OUTRIG_DISABLEDOCKERPROBE"
+	ExternalLogCaptureEnvName = "OUTRIG_EXTERNALLOGCAPTURE"
+	AppRunIdEnvName           = "OUTRIG_APPRUNID"
+)
+
+// Default ports for the server (should match serverbase)
+const (
+	ProdWebServerPort = 5005
+	DevWebServerPort  = 6005
 )
 
 type Config struct {
@@ -40,11 +49,10 @@ type Config struct {
 	// from the go.mod file.
 	ModuleName string
 
-	// Dev indicates whether the client is in development mode
-	Dev bool
-
 	// If true, try to synchronously connect to the server on Init
 	ConnectOnInit bool
+
+	Dev bool
 
 	// Collector configurations
 	LogProcessorConfig LogProcessorConfig
@@ -86,14 +94,14 @@ func getDefaultConfig(isDev bool) *Config {
 	wrapStdout := true
 	wrapStderr := true
 
-	if os.Getenv(base.ExternalLogCaptureEnvName) != "" {
+	if os.Getenv(ExternalLogCaptureEnvName) != "" {
 		wrapStdout = false
 		wrapStderr = false
 	}
 
 	return &Config{
 		DomainSocketPath: base.GetDomainSocketNameForClient(isDev),
-		TcpAddr:          base.GetTcpAddrForClient(isDev),
+		TcpAddr:          GetTcpAddrForClient(isDev),
 		ModuleName:       "",
 		Dev:              isDev,
 		ConnectOnInit:    true,
@@ -114,9 +122,13 @@ func getDefaultConfig(isDev bool) *Config {
 	}
 }
 
+func IsDev() bool {
+	return os.Getenv(DevConfigEnvName) != ""
+}
+
 // DefaultConfig returns the default configuration for normal usage
 func DefaultConfig() *Config {
-	if os.Getenv(DevConfigEnvName) != "" {
+	if IsDev() {
 		log.Printf("%s environment variable is set, switching to development configuration", DevConfigEnvName)
 		return getDefaultConfig(true)
 	}
@@ -127,4 +139,15 @@ func DefaultConfig() *Config {
 // This is only used for internal Outrig development and not intended for general SDK users
 func DefaultConfigForOutrigDevelopment() *Config {
 	return getDefaultConfig(true)
+}
+
+func GetTcpAddrForClient(isDev bool) string {
+	return "127.0.0.1:" + strconv.Itoa(GetMonitorPort(isDev))
+}
+
+func GetMonitorPort(isDev bool) int {
+	if isDev {
+		return DevWebServerPort
+	}
+	return ProdWebServerPort
 }

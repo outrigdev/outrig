@@ -116,7 +116,7 @@ func (c *ControllerImpl) createAppInfo(appName string, cfg *config.Config) ds.Ap
 	appInfo := ds.AppInfo{}
 
 	// Initialize basic AppInfo
-	appInfo.AppRunId = os.Getenv(base.AppRunIdEnvName)
+	appInfo.AppRunId = os.Getenv(config.AppRunIdEnvName)
 	if appInfo.AppRunId == "" {
 		appInfo.AppRunId = uuid.New().String()
 	}

@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/utilfn"
@@ -88,7 +87,7 @@ func (ldw *LogDataWrap) closeConnection() {
 // tryConnect attempts to connect to the Outrig server for the specified source
 // It returns the connection if successful, or nil if it fails
 func tryConnect(source string, isDev bool) *comm.ConnWrap {
-	appRunId := os.Getenv(base.AppRunIdEnvName)
+	appRunId := os.Getenv(config.AppRunIdEnvName)
 	if appRunId == "" {
 		return nil
 	}
@@ -149,7 +148,7 @@ func processStream(wg *sync.WaitGroup, decl TeeStreamDecl) {
 
 // ProcessExistingStreams handles capturing logs from provided input/output streams
 func ProcessExistingStreams(streams []TeeStreamDecl, isDev bool) error {
-	appRunId := os.Getenv(base.AppRunIdEnvName)
+	appRunId := os.Getenv(config.AppRunIdEnvName)
 
 	if appRunId != "" {
 		ensureConnections(isDev)

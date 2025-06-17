@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"github.com/google/uuid"
-	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/server/demo"
 	"github.com/outrigdev/outrig/server/pkg/boot"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
@@ -244,12 +244,12 @@ Example: outrig --dev exec ls -latrh`,
 				return fmt.Errorf("exec command requires at least one argument")
 			}
 
-			if os.Getenv(base.AppRunIdEnvName) == "" {
+			if os.Getenv(config.AppRunIdEnvName) == "" {
 				appRunId := uuid.New().String()
-				os.Setenv(base.AppRunIdEnvName, appRunId)
+				os.Setenv(config.AppRunIdEnvName, appRunId)
 			}
-
-			os.Setenv(base.ExternalLogCaptureEnvName, "1")
+	
+			os.Setenv(config.ExternalLogCaptureEnvName, "1")
 
 			return execlogwrap.ExecCommand(specialArgs.Args, specialArgs.IsDev)
 		},
