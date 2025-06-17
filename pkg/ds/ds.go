@@ -23,16 +23,6 @@ const (
 	PacketTypeCollectorStatus = "collectorstatus"
 )
 
-// Environment variables
-const (
-	DomainSocketEnvName       = "OUTRIG_DOMAINSOCKET"
-	TcpAddrEnvName            = "OUTRIG_TCPADDR"
-	DisabledEnvName           = "OUTRIG_DISABLED"
-	NoTelemetryEnvName        = "OUTRIG_NOTELEMETRY"
-	DevConfigEnvName          = "OUTRIG_DEVCONFIG"
-	DisableDockerProbeEnvName = "OUTRIG_DISABLEDOCKERPROBE"
-)
-
 type PacketType struct {
 	Type string `json:"type"`
 	Data any    `json:"data"`

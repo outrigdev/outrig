@@ -94,7 +94,7 @@ func (c *ControllerImpl) InitialStart() {
 	defer c.Lock.Unlock()
 
 	// Check if Outrig is disabled via environment variable
-	if os.Getenv(ds.DisabledEnvName) != "" {
+	if os.Getenv(config.DisabledEnvName) != "" {
 		c.OutrigForceDisabled = true
 	}
 
@@ -262,7 +262,7 @@ func (c *ControllerImpl) Enable() {
 	defer c.Lock.Unlock()
 
 	// Check if Outrig is disabled via environment variable
-	if os.Getenv(ds.DisabledEnvName) != "" {
+	if os.Getenv(config.DisabledEnvName) != "" {
 		// Don't allow enabling if the environment variable is set
 		return
 	}

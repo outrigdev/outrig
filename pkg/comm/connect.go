@@ -14,7 +14,6 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/config"
-	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -56,13 +55,13 @@ func probeDockerHost() bool {
 func MakeConnectAddrs(cfg *config.Config) []ConnectAddr {
 	// Check for domain socket override from environment variable
 	domainSocketPath := cfg.DomainSocketPath
-	if envPath := os.Getenv(ds.DomainSocketEnvName); envPath != "" {
+	if envPath := os.Getenv(config.DomainSocketEnvName); envPath != "" {
 		domainSocketPath = envPath
 	}
 
 	// Check for TCP address override from environment variable
 	tcpAddr := cfg.TcpAddr
-	if envAddr := os.Getenv(ds.TcpAddrEnvName); envAddr != "" {
+	if envAddr := os.Getenv(config.TcpAddrEnvName); envAddr != "" {
 		tcpAddr = envAddr
 	}
 
@@ -85,7 +84,7 @@ func MakeConnectAddrs(cfg *config.Config) []ConnectAddr {
 
 	// Check for disable docker probe override from environment variable
 	disableDockerProbe := cfg.DisableDockerProbe
-	if envDisable := os.Getenv(ds.DisableDockerProbeEnvName); envDisable != "" {
+	if envDisable := os.Getenv(config.DisableDockerProbeEnvName); envDisable != "" {
 		disableDockerProbe = true
 	}
 

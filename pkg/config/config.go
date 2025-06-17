@@ -10,6 +10,16 @@ import (
 	"github.com/outrigdev/outrig/pkg/base"
 )
 
+// Environment variables
+const (
+	DomainSocketEnvName       = "OUTRIG_DOMAINSOCKET"
+	TcpAddrEnvName            = "OUTRIG_TCPADDR"
+	DisabledEnvName           = "OUTRIG_DISABLED"
+	NoTelemetryEnvName        = "OUTRIG_NOTELEMETRY"
+	DevConfigEnvName          = "OUTRIG_DEVCONFIG"
+	DisableDockerProbeEnvName = "OUTRIG_DISABLEDOCKERPROBE"
+)
+
 type Config struct {
 	Quiet bool // If true, suppresses init, connect, and disconnect messages
 
@@ -106,8 +116,8 @@ func getDefaultConfig(isDev bool) *Config {
 
 // DefaultConfig returns the default configuration for normal usage
 func DefaultConfig() *Config {
-	if os.Getenv("OUTRIG_DEVCONFIG") != "" {
-		log.Printf("OUTRIG_DEVCONFIG environment variable is set, switching to development configuration")
+	if os.Getenv(DevConfigEnvName) != "" {
+		log.Printf("%s environment variable is set, switching to development configuration", DevConfigEnvName)
 		return getDefaultConfig(true)
 	}
 	return getDefaultConfig(false)

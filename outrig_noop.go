@@ -12,14 +12,6 @@ import (
 
 	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/config"
-	"github.com/outrigdev/outrig/pkg/ds"
-)
-
-// Environment variables
-const (
-	DomainSocketEnvName = ds.DomainSocketEnvName
-	DisabledEnvName     = ds.DisabledEnvName
-	NoTelemetryEnvName  = ds.NoTelemetryEnvName
 )
 
 // Re-export config.Config so callers can use "outrig.Config"
