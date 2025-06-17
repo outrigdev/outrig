@@ -131,7 +131,7 @@ tasks:
                 fi
             - echo "Setting Outrig version to {{.VERSION}}"
             - sed -i.bak 's/var OutrigServerVersion = ".*"/var OutrigServerVersion = "{{.VERSION}}"/' server/pkg/serverbase/serverbase.go && rm server/pkg/serverbase/serverbase.go.bak
-            - sed -i.bak 's/const OutrigSDKVersion = ".*"/const OutrigSDKVersion = "{{.VERSION}}"/' pkg/base/base.go && rm pkg/base/base.go.bak
+            - sed -i.bak 's/const OutrigSDKVersion = ".*"/const OutrigSDKVersion = "{{.VERSION}}"/' pkg/config/config.go && rm pkg/config/config.go.bak
             - sed -i.bak 's/OutrigAppVersion = ".*"/OutrigAppVersion = "{{.VERSION}}"/' macosapp/main-outrigapp.go && rm macosapp/main-outrigapp.go.bak
             # Update version in package.json and Info.plist (strip the 'v' prefix if present)
             - |
@@ -226,7 +226,7 @@ tasks:
                 fi
             # Check if SDK version matches
             - |
-                SDK_VERSION=$(grep 'const OutrigSDKVersion = ' pkg/base/base.go | cut -d'"' -f2)
+                SDK_VERSION=$(grep 'const OutrigSDKVersion = ' pkg/config/config.go | cut -d'"' -f2)
                 if [ "$SDK_VERSION" != "{{.VERSION}}" ]; then
                   echo "❌ Error: SDK version ($SDK_VERSION) does not match requested tag version ({{.VERSION}})"
                   echo "Run 'task updateversions {{.VERSION}}' first to update versions"

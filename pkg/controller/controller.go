@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/collector"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
@@ -138,7 +137,7 @@ func (c *ControllerImpl) createAppInfo(appName string, cfg *config.Config) ds.Ap
 	appInfo.Executable, _ = os.Executable()
 	appInfo.Env = utilfn.CopyStrArr(os.Environ())
 	appInfo.Pid = os.Getpid()
-	appInfo.OutrigSDKVersion = base.OutrigSDKVersion
+	appInfo.OutrigSDKVersion = config.OutrigSDKVersion
 
 	// Get user information
 	user, err := user.Current()

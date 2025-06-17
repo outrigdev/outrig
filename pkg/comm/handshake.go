@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -123,7 +123,7 @@ func (cw *ConnWrap) ClientHandshake(modeName string, submode string, appRunId st
 
 	// Create the client handshake packet
 	clientPacket := ClientHandshakePacket{
-		OutrigSDK: base.OutrigSDKVersion,
+		OutrigSDK: config.OutrigSDKVersion,
 		Mode:      modeName,
 		Submode:   submode,
 		AppRunID:  appRunId,
@@ -206,7 +206,7 @@ func (cw *ConnWrap) ServerHandshake(webServerPort int, isTcp bool) (*ClientHands
 
 	// Create and send the server handshake packet
 	serverPacket := ServerHandshakePacket{
-		OutrigVersion: base.OutrigSDKVersion,
+		OutrigVersion: config.OutrigSDKVersion,
 	}
 
 	jsonData, err := json.Marshal(serverPacket)

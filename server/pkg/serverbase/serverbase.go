@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/outrigdev/outrig/pkg/base"
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 )
 
@@ -57,14 +57,14 @@ func IsDev() bool {
 // GetOutrigHome returns the appropriate home directory based on mode
 func GetOutrigHome() string {
 	if IsDev() {
-		return base.DevOutrigHome
+		return config.DevOutrigHome
 	}
-	return base.OutrigHome
+	return config.OutrigHome
 }
 
 // GetDomainSocketName returns the full domain socket path
 func GetDomainSocketName() string {
-	return GetOutrigHome() + base.DefaultDomainSocketName
+	return GetOutrigHome() + config.DefaultDomainSocketName
 }
 
 // GetWebServerPort returns the appropriate web server port based on mode

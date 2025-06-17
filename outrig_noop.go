@@ -10,7 +10,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/config"
 )
 
@@ -208,7 +207,7 @@ func (i *internalOutrig) SetGoRoutineName(name string) {}
 
 // semver
 func OutrigVersion() string {
-	return base.OutrigSDKVersion
+	return config.OutrigSDKVersion
 }
 
 // Log is a no-op when no_outrig is set

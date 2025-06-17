@@ -7,9 +7,9 @@ import (
 	"log"
 	"os"
 	"strconv"
-
-	"github.com/outrigdev/outrig/pkg/base"
 )
+
+const OutrigSDKVersion = "v0.8.0"
 
 // Environment variables
 const (
@@ -21,6 +21,13 @@ const (
 	DisableDockerProbeEnvName = "OUTRIG_DISABLEDOCKERPROBE"
 	ExternalLogCaptureEnvName = "OUTRIG_EXTERNALLOGCAPTURE"
 	AppRunIdEnvName           = "OUTRIG_APPRUNID"
+)
+
+// Home directory paths
+const (
+	OutrigHome              = "~/.config/outrig"
+	DevOutrigHome           = "~/.config/outrig-dev"
+	DefaultDomainSocketName = "/outrig.sock"
 )
 
 // Default ports for the server (should match serverbase)
@@ -100,7 +107,7 @@ func getDefaultConfig(isDev bool) *Config {
 	}
 
 	return &Config{
-		DomainSocketPath: base.GetDomainSocketNameForClient(isDev),
+		DomainSocketPath: GetDomainSocketNameForClient(isDev),
 		TcpAddr:          GetTcpAddrForClient(isDev),
 		ModuleName:       "",
 		Dev:              isDev,
@@ -150,4 +157,17 @@ func GetMonitorPort(isDev bool) int {
 		return DevWebServerPort
 	}
 	return ProdWebServerPort
+}
+
+// GetOutrigHomeForClient returns the appropriate home directory based on client config
+func GetOutrigHomeForClient(isDev bool) string {
+	if isDev {
+		return DevOutrigHome
+	}
+	return OutrigHome
+}
+
+// GetDomainSocketNameForClient returns the full domain socket path for client
+func GetDomainSocketNameForClient(isDev bool) string {
+	return GetOutrigHomeForClient(isDev) + DefaultDomainSocketName
 }

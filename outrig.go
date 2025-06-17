@@ -14,7 +14,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/outrigdev/outrig/pkg/base"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
@@ -79,7 +78,7 @@ func Init(appName string, cfgParam *config.Config) (bool, error) {
 	}
 	finalCfg := *cfgParam
 	if finalCfg.DomainSocketPath == "" {
-		finalCfg.DomainSocketPath = base.GetDomainSocketNameForClient(finalCfg.Dev)
+		finalCfg.DomainSocketPath = config.GetDomainSocketNameForClient(finalCfg.Dev)
 	}
 
 	// Create and initialize the controller
@@ -180,7 +179,7 @@ func OrigStderr() *os.File {
 
 // semver
 func OutrigVersion() string {
-	return base.OutrigSDKVersion
+	return config.OutrigSDKVersion
 }
 
 func logInternal(str string) {
