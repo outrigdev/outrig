@@ -227,14 +227,8 @@ func (c *ControllerImpl) connectInternal(init bool) (rtnConnected bool, rtnErr e
 	c.transport.AddConn(connWrap)
 	c.sendAppInfo()
 
-	// Force a full goroutine update on the next dump after a new connection
-	if goCollector, ok := collector.GetCollectorByName("goroutine").(*goroutine.GoroutineCollector); ok {
-		goCollector.SetNextSendFull(true)
-	}
-	// Force the watch collector to send a full update on the next cycle as well
-	if watchCollector, ok := collector.GetCollectorByName("watch").(*watch.WatchCollector); ok {
-		watchCollector.SetNextSendFull(true)
-	}
+	// Notify all collectors of the new connection
+	collector.NotifyCollectorsNewConnection()
 
 	return true, nil
 }

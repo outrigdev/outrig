@@ -64,3 +64,13 @@ func SetCollectorsEnabled(enabled bool, cfg *config.Config) {
 		}
 	}
 }
+
+// NotifyCollectorsNewConnection calls OnNewConnection on all registered collectors
+func NotifyCollectorsNewConnection() {
+	collectorsLock.Lock()
+	defer collectorsLock.Unlock()
+	
+	for _, collector := range collectors {
+		collector.OnNewConnection()
+	}
+}

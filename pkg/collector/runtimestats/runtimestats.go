@@ -61,6 +61,11 @@ func (rc *RuntimeStatsCollector) Disable() {
 	rc.executor.Disable()
 }
 
+// OnNewConnection is called when a new connection is established
+func (rc *RuntimeStatsCollector) OnNewConnection() {
+	// No action needed for runtime stats collector
+}
+
 // CollectRuntimeStats collects runtime statistics and sends them to the controller
 func (rc *RuntimeStatsCollector) CollectRuntimeStats() {
 	if !global.OutrigEnabled.Load() {

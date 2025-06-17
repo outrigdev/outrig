@@ -20,4 +20,8 @@ type Collector interface {
 
 	// GetStatus returns the current status of the collector
 	GetStatus() ds.CollectorStatus
+
+	// OnNewConnection is called when a new connection is established
+	// Collectors that need to send full updates on new connections should implement this
+	OnNewConnection()
 }

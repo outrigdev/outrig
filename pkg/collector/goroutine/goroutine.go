@@ -261,6 +261,11 @@ func (gc *GoroutineCollector) SetNextSendFull(full bool) {
 	gc.nextSendFull = full
 }
 
+// OnNewConnection is called when a new connection is established
+func (gc *GoroutineCollector) OnNewConnection() {
+	gc.SetNextSendFull(true)
+}
+
 func (gc *GoroutineCollector) getLastStackSize() int {
 	gc.lock.Lock()
 	defer gc.lock.Unlock()

@@ -154,6 +154,11 @@ func (wc *WatchCollector) SetNextSendFull(full bool) {
 	wc.nextSendFull = full
 }
 
+// OnNewConnection is called when a new connection is established
+func (wc *WatchCollector) OnNewConnection() {
+	wc.SetNextSendFull(true)
+}
+
 // InitCollector initializes the watch collector with a controller and configuration
 func (wc *WatchCollector) InitCollector(controller ds.Controller, cfg any) error {
 	if watchConfig, ok := cfg.(config.WatchConfig); ok {

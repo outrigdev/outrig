@@ -77,6 +77,11 @@ func (lc *LogCollector) Disable() {
 	// loginitex.DisableExternalLogWrap()
 }
 
+// OnNewConnection is called when a new connection is established
+func (lc *LogCollector) OnNewConnection() {
+	// No action needed for log collector
+}
+
 // GetStatus returns the current status of the log collector
 func (lc *LogCollector) GetStatus() ds.CollectorStatus {
 	status := ds.CollectorStatus{
