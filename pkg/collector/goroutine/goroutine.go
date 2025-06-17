@@ -19,6 +19,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/global"
+	"github.com/outrigdev/outrig/pkg/utilds"
 )
 
 // MinStackBufferSize is the minimum buffer size for goroutine stack dumps (1MB)
@@ -34,8 +35,7 @@ const (
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
 type GoroutineCollector struct {
 	lock                sync.Mutex
-	configOnce          sync.Once // ensures config is only set once
-	config              atomic.Pointer[config.GoRoutineConfig]
+	config              *utilds.SetOnceConfig[config.GoRoutineConfig]
 	executor            *collector.PeriodicExecutor
 	goroutineDecls      map[int64]*ds.GoDecl        // map from goroutine ID to GoDecl
 	lastGoroutineStacks map[int64]ds.GoRoutineStack // last set of goroutine stacks for delta calculation
@@ -57,12 +57,12 @@ var instanceOnce sync.Once
 func GetInstance() *GoroutineCollector {
 	instanceOnce.Do(func() {
 		instance = &GoroutineCollector{
+			config:              utilds.NewSetOnceConfig(config.DefaultConfig().GoRoutineConfig),
 			goroutineDecls:      make(map[int64]*ds.GoDecl),
 			lastGoroutineStacks: make(map[int64]ds.GoRoutineStack),
 			nextSendFull:        true,               // First send is always a full update
 			lastStackSize:       MinStackBufferSize, // Start with minimum stack size estimate
 		}
-		instance.config.Store(&config.DefaultConfig().GoRoutineConfig)
 		instance.executor = collector.MakePeriodicExecutor("GoroutineCollector", 1*time.Second, instance.DumpGoroutines)
 	})
 	return instance
@@ -73,39 +73,25 @@ func Init(cfg *config.GoRoutineConfig) error {
 	if gc.executor.IsEnabled() {
 		return fmt.Errorf("goroutine collector is already initialized")
 	}
-	var ok bool
-	gc.configOnce.Do(func() {
-		if cfg == nil {
-			defCfg := config.DefaultConfig()
-			gc.config.Store(&defCfg.GoRoutineConfig)
-		} else {
-			cfgCopy := *cfg
-			gc.config.Store(&cfgCopy)
-		}
-		ok = true
-	})
+	ok := gc.config.SetOnce(cfg)
 	if !ok {
 		return fmt.Errorf("goroutine collector configuration already set")
 	}
 	return nil
 }
 
-func (gc *GoroutineCollector) getConfig() config.GoRoutineConfig {
-	cfg := gc.config.Load()
-	return *cfg
-}
 
 // InitCollector initializes the goroutine collector with a controller and configuration
 func (gc *GoroutineCollector) InitCollector(controller ds.Controller, cfg any) error {
 	if goConfig, ok := cfg.(config.GoRoutineConfig); ok {
-		gc.config.Store(&goConfig)
+		gc.config.SetOnce(&goConfig)
 	}
 	return nil
 }
 
 // Enable is called when the collector should start collecting data
 func (gc *GoroutineCollector) Enable() {
-	cfg := gc.getConfig()
+	cfg := gc.config.Get()
 	if !cfg.Enabled {
 		return
 	}
@@ -589,7 +575,7 @@ func (gc *GoroutineCollector) getMonitoringCounts() (int, int) {
 
 // GetStatus returns the current status of the goroutine collector
 func (gc *GoroutineCollector) GetStatus() ds.CollectorStatus {
-	cfg := gc.getConfig()
+	cfg := gc.config.Get()
 	status := ds.CollectorStatus{
 		Running: cfg.Enabled,
 	}
