@@ -45,6 +45,10 @@ func (lc *LogCollector) InitCollector(controller ds.Controller, cfg any) error {
 }
 
 func (lc *LogCollector) Enable() {
+	if !lc.config.Enabled {
+		return
+	}
+	
 	// Enable external log wrapping if controller is available
 	// Get the appRunId from the config
 	appRunId := config.GetAppRunId()

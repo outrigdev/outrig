@@ -105,6 +105,10 @@ func (gc *GoroutineCollector) InitCollector(controller ds.Controller, cfg any) e
 
 // Enable is called when the collector should start collecting data
 func (gc *GoroutineCollector) Enable() {
+	cfg := gc.getConfig()
+	if !cfg.Enabled {
+		return
+	}
 	gc.executor.Enable()
 }
 

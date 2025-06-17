@@ -50,6 +50,9 @@ func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, cfg any
 
 // Enable is called when the collector should start collecting data
 func (rc *RuntimeStatsCollector) Enable() {
+	if !rc.config.Enabled {
+		return
+	}
 	rc.executor.Enable()
 }
 

@@ -164,6 +164,9 @@ func (wc *WatchCollector) InitCollector(controller ds.Controller, cfg any) error
 
 // Enable is called when the collector should start collecting data
 func (wc *WatchCollector) Enable() {
+	if !wc.config.Enabled {
+		return
+	}
 	wc.executor.Enable()
 }
 

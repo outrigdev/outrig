@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	collectors     map[string]collector.Collector
-	collectorsLock sync.Mutex
+	collectors        map[string]collector.Collector
+	collectorsEnabled bool
+	collectorsLock    sync.Mutex
 )
 
 func init() {
@@ -47,27 +48,13 @@ func setCollectorsEnabled(enabled bool, cfg *config.Config) {
 	collectorsLock.Lock()
 	defer collectorsLock.Unlock()
 
+	if collectorsEnabled == enabled {
+		return
+	}
+	collectorsEnabled = enabled
 	if enabled {
-		// Only enable collectors that have Enabled set to true in their config
-		for name, collector := range collectors {
-			switch name {
-			case "logprocess":
-				if cfg.LogProcessorConfig.Enabled {
-					collector.Enable()
-				}
-			case "goroutine":
-				if cfg.GoRoutineConfig.Enabled {
-					collector.Enable()
-				}
-			case "watch":
-				if cfg.WatchConfig.Enabled {
-					collector.Enable()
-				}
-			case "runtimestats":
-				if cfg.RuntimeStatsConfig.Enabled {
-					collector.Enable()
-				}
-			}
+		for _, collector := range collectors {
+			collector.Enable()
 		}
 	} else {
 		for _, collector := range collectors {
