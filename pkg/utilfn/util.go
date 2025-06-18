@@ -303,49 +303,34 @@ func TeeCopy(src io.Reader, dst io.Writer, dataCallbackFn func([]byte)) error {
 const SimpleTagRegexStr = `[a-zA-Z0-9][a-zA-Z0-9/_.:-]*`
 
 // must have whitespace or EOL on either side
-var TagRegex = regexp.MustCompile(`(?:^|\s)(#` + SimpleTagRegexStr + `)(?:\s|$)`)
-
-// sequence of one-or-more tags (same trailing-ws/EOL rule)
-var tagSeqRegex = regexp.MustCompile(`(?:^|\s)(?:#` + SimpleTagRegexStr + `(?:\s|$))+`)
+var TagRegex = regexp.MustCompile(`(?:^|\s)(#` + SimpleTagRegexStr + `)`)
 
 func ParseTags(input string) []string {
 	if !strings.Contains(input, "#") {
 		return nil
 	}
-	matches := TagRegex.FindAllStringSubmatch(input, -1)
+	matches := TagRegex.FindAllStringSubmatchIndex(input, -1)
 	if len(matches) == 0 {
 		return nil
 	}
 	tags := make([]string, 0, len(matches))
-	for _, m := range matches {
-		tag := strings.ToLower(m[1][1:]) // m[1] is "#tag"; drop the '#'
-		if len(tag) <= MaxTagLen {
-			tags = append(tags, tag)
+	for _, match := range matches {
+		// match[2] and match[3] are the start and end of the captured group (the #tag part)
+		tagStart := match[2]
+		tagEnd := match[3]
+		tagText := input[tagStart:tagEnd]
+
+		// Check that the tag is properly bounded (ends with whitespace or end of string)
+		isValidEnd := tagEnd >= len(input) || input[tagEnd] == ' ' || input[tagEnd] == '\t' || input[tagEnd] == '\n' || input[tagEnd] == '\r'
+
+		if isValidEnd {
+			tag := strings.ToLower(tagText[1:]) // drop the '#'
+			if len(tag) <= MaxTagLen {
+				tags = append(tags, tag)
+			}
 		}
 	}
 	return tags
-}
-
-func ParseNameAndTags(input string) (string, []string) {
-	if !strings.Contains(input, "#") {
-		return strings.TrimSpace(input), nil
-	}
-
-	matches := TagRegex.FindAllStringSubmatch(input, -1)
-	if len(matches) == 0 {
-		return strings.TrimSpace(input), nil
-	}
-	tags := make([]string, 0, len(matches))
-	for _, m := range matches {
-		tag := strings.ToLower(m[1][1:])
-		if len(tag) <= MaxTagLen {
-			tags = append(tags, tag)
-		}
-	}
-
-	// strip *entire* tag-run (incl. leading & trailing ws) and collapse to one space
-	clean := tagSeqRegex.ReplaceAllString(input, " ")
-	return strings.TrimSpace(clean), tags
 }
 
 var goroutineIDRegexp = regexp.MustCompile(`goroutine (\d+)`)

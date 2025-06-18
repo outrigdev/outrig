@@ -8,87 +8,106 @@ import (
 	"testing"
 )
 
-func TestParseNameAndTags(t *testing.T) {
+func TestParseTags(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		wantName string
 		wantTags []string
 	}{
 		{
 			name:     "tag at beginning",
 			input:    "#hello mike",
-			wantName: "mike",
 			wantTags: []string{"hello"},
 		},
 		{
 			name:     "tag in middle",
 			input:    "mike #hello bar",
-			wantName: "mike bar",
 			wantTags: []string{"hello"},
 		},
 		{
 			name:     "tag at end",
 			input:    "mike #hello",
-			wantName: "mike",
 			wantTags: []string{"hello"},
 		},
 		{
 			name:     "multiple tags",
 			input:    "#hello mike #world",
-			wantName: "mike",
 			wantTags: []string{"hello", "world"},
 		},
 		{
 			name:     "complex tag",
 			input:    "mike #hello-world/123_test.abc",
-			wantName: "mike",
 			wantTags: []string{"hello-world/123_test.abc"},
 		},
 		{
 			name:     "no tags",
 			input:    "mike",
-			wantName: "mike",
 			wantTags: []string{},
 		},
 		{
 			name:     "only tag",
 			input:    "#hello",
-			wantName: "",
 			wantTags: []string{"hello"},
 		},
 		{
 			name:     "multiple tags with extra spaces",
 			input:    "  #hello   mike   #world  ",
-			wantName: "mike",
 			wantTags: []string{"hello", "world"},
 		},
 		{
-			name:     "non-terminated tag",
+			name:     "valid and invalid tags",
 			input:    "mike #hello-world:123_test.abc #foo(hello)",
-			wantName: "mike #hello-world:123_test.abc #foo(hello)",
-			wantTags: []string{},
+			wantTags: []string{"hello-world:123_test.abc"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotName, gotTags := ParseNameAndTags(tt.input)
-			if gotName != tt.wantName {
-				t.Errorf("ParseNameAndTags() name = %q, want %q", gotName, tt.wantName)
-			}
+			gotTags := ParseTags(tt.input)
 			if len(gotTags) != 0 || len(tt.wantTags) != 0 {
 				if !reflect.DeepEqual(gotTags, tt.wantTags) {
-					t.Errorf("ParseNameAndTags() tags = %+v, want %+v", gotTags, tt.wantTags)
-				}
-			}
-			justTags := ParseTags(tt.input)
-			if len(justTags) != 0 || len(tt.wantTags) != 0 {
-				if !reflect.DeepEqual(justTags, tt.wantTags) {
-					t.Errorf("ParseTags() tags = %+v, want %+v", justTags, tt.wantTags)
+					t.Errorf("ParseTags() tags = %+v, want %+v", gotTags, tt.wantTags)
 				}
 			}
 		})
+	}
+}
+
+func TestParseTagsSetGr(t *testing.T) {
+	input := `2025/06/17 18:48:24 #record #setgr from:Run demo.StdinMonitor (22) &ds.GoDecl{Name:"demo.StdinMonitor", Tags:[]string{"system"}, Pkg:"github.com/outrigdev/outrig", NewLine:"", RunLine:"", NoRecover:false, GoId:22, ParentGoId:1, NumSpawned:0, State:1, StartTs:1750211304225, EndTs:0, FirstPollTs:0, LastPollTs:0, RealCreatedBy:"created by github.com/outrigdev/outrig/server/demo.RunOutrigAcres in goroutine 1\n\t/Users/mike/work/outrig/server/demo/outrigacres.go:782 +0x123"}`
+	
+	tags := ParseTags(input)
+	expectedTags := []string{"record", "setgr"}
+	
+	if len(tags) != len(expectedTags) {
+		t.Errorf("ParseTags() returned %d tags, expected %d. Got: %+v", len(tags), len(expectedTags), tags)
+		return
+	}
+	
+	for i, expected := range expectedTags {
+		if i >= len(tags) || tags[i] != expected {
+			t.Errorf("ParseTags() tag[%d] = %q, expected %q. Full result: %+v", i, tags[i], expected, tags)
+			return
+		}
+	}
+}
+
+func TestParseTagsSimple(t *testing.T) {
+	input := "test #record #setgr more"
+	
+	tags := ParseTags(input)
+	expectedTags := []string{"record", "setgr"}
+	
+	if len(tags) != len(expectedTags) {
+		t.Errorf("ParseTags() returned %d tags, expected %d. Got: %+v", len(tags), len(expectedTags), tags)
+		return
+	}
+	
+	for i, expected := range expectedTags {
+		if i >= len(tags) || tags[i] != expected {
+			t.Errorf("ParseTags() tag[%d] = %q, expected %q. Full result: %+v", i, tags[i], expected, tags)
+			return
+		}
 	}
 }
 

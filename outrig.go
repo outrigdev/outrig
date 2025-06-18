@@ -165,8 +165,7 @@ func AppDone() {
 
 // SetGoRoutineName sets a name for the current goroutine
 func SetGoRoutineName(name string) *GoRoutine {
-	name, tags := utilfn.ParseNameAndTags(name)
-	return CurrentGR().WithName(name).WithTags(tags...)
+	return CurrentGR().WithName(name)
 }
 
 // to avoid circular references, when calling internal outrig functions from the SDK
@@ -546,10 +545,9 @@ func (g *GoRoutine) WithoutRecover() *GoRoutine {
 }
 
 func (g *GoRoutine) Run(fn func()) {
-	if atomic.LoadInt32(&g.decl.State) != goroutine.GoState_Init {
+	if !atomic.CompareAndSwapInt32(&g.decl.State, goroutine.GoState_Init, goroutine.GoState_Running) {
 		return
 	}
-	atomic.StoreInt32(&g.decl.State, goroutine.GoState_Running)
 	gc := goroutine.GetInstance()
 	g.decl.StartTs = time.Now().UnixMilli()
 	g.decl.RealCreatedBy = getCallerCreatedByInfo(1)
