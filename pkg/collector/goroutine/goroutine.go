@@ -6,6 +6,7 @@ package goroutine
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"regexp"
 	"runtime"
 	"slices"
@@ -25,6 +26,12 @@ import (
 // MinStackBufferSize is the minimum buffer size for goroutine stack dumps (1MB)
 const MinStackBufferSize = 1 << 20
 const SingleStackBufferSize = 8 * 1024
+
+// GoroutinePollInterval is how often we poll for goroutine stacks
+const GoroutinePollInterval = 1 * time.Second
+
+// GoroutineGracePeriod is how long to keep goroutine declarations before cleanup
+const GoroutineGracePeriod = 2 * GoroutinePollInterval
 
 const (
 	GoState_Init    = 0
@@ -63,7 +70,7 @@ func GetInstance() *GoroutineCollector {
 			nextSendFull:        true,               // First send is always a full update
 			lastStackSize:       MinStackBufferSize, // Start with minimum stack size estimate
 		}
-		instance.executor = collector.MakePeriodicExecutor("GoroutineCollector", 1*time.Second, instance.DumpGoroutines)
+		instance.executor = collector.MakePeriodicExecutor("GoroutineCollector", GoroutinePollInterval, instance.DumpGoroutines)
 	})
 	return instance
 }
@@ -101,7 +108,6 @@ func (gc *GoroutineCollector) setGoRoutineDecl(decl *ds.GoDecl) {
 		return
 	}
 	if gc.goroutineDecls[decl.GoId] != nil {
-		// this is weird and should never happen
 		return
 	}
 	gc.goroutineDecls[decl.GoId] = decl
@@ -406,6 +412,20 @@ func (gc *GoroutineCollector) computeDeltaStack(id int64, current ds.GoRoutineSt
 	return current
 }
 
+func (gc *GoroutineCollector) logInfo() {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+
+	grNames := make(map[int]string)
+	for goId, decl := range gc.goroutineDecls {
+		if decl.Name != "" {
+			grNames[int(goId)] = decl.Name
+		}
+	}
+
+	log.Printf("#grnames %v", grNames)
+}
+
 func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool) *ds.GoroutineInfo {
 	goroutineStacks := make([]ds.GoRoutineStack, 0)
 	activeGoroutines := make(map[int64]bool)
@@ -509,10 +529,24 @@ func (gc *GoroutineCollector) setLastGoroutineStacksAndCleanupNames(stacks map[i
 	}
 
 	// Remove declarations for goroutines that are not in the keep map
-	for id := range gc.goroutineDecls {
-		if !keepMap[id] {
-			delete(gc.goroutineDecls, id)
+	now := time.Now().UnixMilli()
+	for id, decl := range gc.goroutineDecls {
+		if keepMap[id] {
+			continue
 		}
+
+		// Check grace periods before removing
+		withinStartGrace := decl.StartTs > 0 && (now-decl.StartTs) < int64(GoroutineGracePeriod.Milliseconds())
+		if withinStartGrace {
+			continue
+		}
+
+		withinPollGrace := decl.LastPollTs > 0 && (now-decl.LastPollTs) < int64(GoroutineGracePeriod.Milliseconds())
+		if withinPollGrace {
+			continue
+		}
+
+		delete(gc.goroutineDecls, id)
 	}
 }
 

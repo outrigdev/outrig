@@ -774,13 +774,11 @@ func RunOutrigAcres(config Config) {
 
 	// Initialize Outrig
 	outrig.Init("OutrigAcres", nil)
-	outrig.SetGoRoutineName("main")
 
 	// Set up stdin monitoring if requested
 	if config.CloseOnStdin {
 		log.Printf("#system Demo will shut down when stdin is closed")
-		go func() {
-			outrig.SetGoRoutineName("demo.StdinMonitor")
+		outrig.Go("demo.StdinMonitor").WithTags("system").Run(func() {
 			// Read from stdin until EOF
 			buffer := make([]byte, 4096)
 			for {
@@ -791,7 +789,7 @@ func RunOutrigAcres(config Config) {
 					os.Exit(0)
 				}
 			}
-		}()
+		})
 	}
 
 	globalGame = NewGame()
