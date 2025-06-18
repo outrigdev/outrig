@@ -14,7 +14,8 @@ Outrig runs 100% locally. No data ever leaves your machine.
 
 It is currently available for macOS and Linux (Windows builds coming soon).
 
-Homepage: https://outrig.run
+- **Homepage**: https://outrig.run
+- **Discord** (new): https://discord.gg/u9gByfvZm9
 
 <p align="center">
   <img src="assets/outrig-loop.gif" alt="Outrig in action" width="800">

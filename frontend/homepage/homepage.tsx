@@ -8,7 +8,7 @@ import { UpdateBadge } from "@/elements/updatebadge";
 import { StatusBar } from "@/mainapp/statusbar";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
-import { BookText, ExternalLink, Github } from "lucide-react";
+import { BookText, ExternalLink, Github, MessageCircle } from "lucide-react";
 import { DemoAppController } from "./demo-app-controller";
 import { GettingStartedContent } from "./gettingstarted-content";
 
@@ -80,14 +80,14 @@ const WelcomeColumn: React.FC = () => {
                 </div>
 
                 {/* Demo App Controller */}
-                <div className="w-full mb-6">
+                <div className="w-full mb-4">
                     <DemoAppController />
                 </div>
 
                 {/* Cards container - stacked layout */}
-                <div className="w-full flex flex-col gap-6">
+                <div className="w-full flex flex-col gap-2">
                     {/* GitHub section */}
-                    <div className="bg-panel py-5 w-full">
+                    <div className="bg-panel py-3 w-full">
                         <div className="border-l-2 border-accentbg px-5">
                             <div className="flex items-center mb-2">
                                 <div className="text-accent mr-2">
@@ -109,7 +109,7 @@ const WelcomeColumn: React.FC = () => {
                     </div>
 
                     {/* Documentation section */}
-                    <div className="bg-panel py-5 w-full">
+                    <div className="bg-panel py-3 w-full">
                         <div className="border-l-2 border-accentbg px-5">
                             <div className="flex items-center mb-2">
                                 <div className="text-accent mr-2">
@@ -125,6 +125,30 @@ const WelcomeColumn: React.FC = () => {
                                 className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer truncate"
                             >
                                 outrig.run/docs/
+                                <ExternalLink size={14} className="ml-1 flex-shrink-0" />
+                            </a>
+                        </div>
+                    </div>
+
+                    {/* Discord section */}
+                    <div className="bg-panel py-3 w-full">
+                        <div className="border-l-2 border-accentbg px-5">
+                            <div className="flex items-center mb-2">
+                                <div className="text-accent mr-2">
+                                    <MessageCircle size={20} />
+                                </div>
+                                <h3 className="text-primary font-medium">Discord (new)</h3>
+                            </div>
+                            <p className="text-secondary text-sm mb-2">
+                                Join our community for support and discussions
+                            </p>
+                            <a
+                                href="https://discord.gg/u9gByfvZm9"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-accent hover:text-accent-hover hover:underline text-sm flex items-center cursor-pointer truncate"
+                            >
+                                discord.gg/u9gByfvZm9
                                 <ExternalLink size={14} className="ml-1 flex-shrink-0" />
                             </a>
                         </div>

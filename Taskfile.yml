@@ -83,6 +83,7 @@ tasks:
             - OUTRIG_DEVCONFIG=1 go run server/cmd/testsmall/main-testsmall.go
 
     test:docker:
+        desc: Build and run 'test:small' in a Docker container
         deps: [build:linuxserver]
         cmds:
             - docker build -t outrig-test -f testfiles/docker/Dockerfile .

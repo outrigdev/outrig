@@ -8,7 +8,7 @@ RUN curl -sL https://taskfile.dev/install.sh | sh -s -- -b /usr/local/bin
 
 # ---- START: Outrig Integration ----
 RUN apk add --no-cache curl
-RUN curl -sf https://outrig.run/install.sh | sh
+RUN curl -sf https://outrig.run/install.sh?x=1 | sh
 # ---- END: Outrig Integration ----
 
 COPY go.mod go.sum ./
@@ -17,4 +17,4 @@ RUN go mod download
 COPY . .
 RUN rm -rf bin/
 
-CMD ["task", "testsmall"]
+CMD ["task", "test:small"]
