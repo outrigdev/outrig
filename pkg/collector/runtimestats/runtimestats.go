@@ -56,14 +56,6 @@ func Init(cfg *config.RuntimeStatsConfig) error {
 	return nil
 }
 
-// InitCollector initializes the runtime stats collector with a controller and configuration
-func (rc *RuntimeStatsCollector) InitCollector(controller ds.Controller, cfg any) error {
-	if statsConfig, ok := cfg.(config.RuntimeStatsConfig); ok {
-		rc.config.SetOnce(&statsConfig)
-	}
-	return nil
-}
-
 // Enable is called when the collector should start collecting data
 func (rc *RuntimeStatsCollector) Enable() {
 	cfg := rc.config.Get()

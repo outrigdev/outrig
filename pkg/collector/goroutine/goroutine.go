@@ -81,14 +81,6 @@ func Init(cfg *config.GoRoutineConfig) error {
 	return nil
 }
 
-// InitCollector initializes the goroutine collector with a controller and configuration
-func (gc *GoroutineCollector) InitCollector(controller ds.Controller, cfg any) error {
-	if goConfig, ok := cfg.(config.GoRoutineConfig); ok {
-		gc.config.SetOnce(&goConfig)
-	}
-	return nil
-}
-
 // Enable is called when the collector should start collecting data
 func (gc *GoroutineCollector) Enable() {
 	cfg := gc.config.Get()

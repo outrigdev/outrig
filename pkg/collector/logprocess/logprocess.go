@@ -54,14 +54,6 @@ func Init(cfg *config.LogProcessorConfig) error {
 	return nil
 }
 
-// InitCollector initializes the log collector with a controller and configuration
-func (lc *LogCollector) InitCollector(controller ds.Controller, cfg any) error {
-	if logConfig, ok := cfg.(config.LogProcessorConfig); ok {
-		lc.config.SetOnce(&logConfig)
-	}
-	return nil
-}
-
 func (lc *LogCollector) Enable() {
 	cfg := lc.config.Get()
 	if !cfg.Enabled {

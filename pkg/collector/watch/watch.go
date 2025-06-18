@@ -174,14 +174,6 @@ func (wc *WatchCollector) OnNewConnection() {
 	wc.SetNextSendFull(true)
 }
 
-// InitCollector initializes the watch collector with a controller and configuration
-func (wc *WatchCollector) InitCollector(controller ds.Controller, cfg any) error {
-	if watchConfig, ok := cfg.(config.WatchConfig); ok {
-		wc.config.SetOnce(&watchConfig)
-	}
-	return nil
-}
-
 // Enable is called when the collector should start collecting data
 func (wc *WatchCollector) Enable() {
 	cfg := wc.config.Get()

@@ -16,11 +16,7 @@ import (
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/collector"
-	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
-	"github.com/outrigdev/outrig/pkg/collector/logprocess"
-	"github.com/outrigdev/outrig/pkg/collector/runtimestats"
-	"github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/ds"
@@ -59,23 +55,6 @@ func MakeController(appName string, cfg config.Config) (*ControllerImpl, error) 
 	// Initialize AppInfo using the dedicated function
 	c.AppInfo = c.createAppInfo(appName, &cfg)
 	c.config = &cfg
-
-	// Initialize collectors with their respective configurations
-	logCollector := logprocess.GetInstance()
-	logCollector.InitCollector(c, c.config.LogProcessorConfig)
-	collector.RegisterCollector(logCollector)
-
-	goroutineCollector := goroutine.GetInstance()
-	goroutineCollector.InitCollector(c, c.config.GoRoutineConfig)
-	collector.RegisterCollector(goroutineCollector)
-
-	watchCollector := watch.GetInstance()
-	watchCollector.InitCollector(c, c.config.WatchConfig)
-	collector.RegisterCollector(watchCollector)
-
-	runtimeStatsCollector := runtimestats.GetInstance()
-	runtimeStatsCollector.InitCollector(c, c.config.RuntimeStatsConfig)
-	collector.RegisterCollector(runtimeStatsCollector)
 
 	return c, nil
 }

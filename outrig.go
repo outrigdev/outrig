@@ -17,6 +17,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
+	"github.com/outrigdev/outrig/pkg/collector/runtimestats"
 	"github.com/outrigdev/outrig/pkg/collector/watch"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/controller"
@@ -86,6 +87,13 @@ func Init(appName string, cfgParam *config.Config) (bool, error) {
 
 	initOnce.Do(func() {
 		wasFirstCall = true
+
+		// init/register the collectors
+		logprocess.Init(&finalCfg.LogProcessorConfig)
+		goroutine.Init(&finalCfg.GoRoutineConfig)
+		watch.Init(&finalCfg.WatchConfig)
+		runtimestats.Init(&finalCfg.RuntimeStatsConfig)
+
 		// Create and initialize the controller
 		// (collectors are now initialized inside MakeController)
 		ctrlImpl, err := controller.MakeController(appName, finalCfg)
