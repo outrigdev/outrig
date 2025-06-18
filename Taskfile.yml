@@ -272,7 +272,7 @@ tasks:
             # Only commit if there are changes
             - |
                 if [ -n "$(git status --porcelain)" ]; then
-                  git add server/pkg/serverbase/serverbase.go pkg/base/base.go package.json macosapp/main-outrigapp.go macosapp/assets/Info.plist
+                  git add server/pkg/serverbase/serverbase.go pkg/config/config.go package.json macosapp/main-outrigapp.go macosapp/assets/Info.plist
                   git commit -m "Bump version to {{.VERSION}}"
                   echo "✅ Committed version changes"
                 else
