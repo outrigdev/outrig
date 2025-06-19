@@ -22,7 +22,7 @@ type PeriodicExecutor struct {
 	execFn           func()
 	isFnRunning      atomic.Bool
 	lastExecDuration atomic.Int64 // duration in milliseconds
-	lastErr          error         // protected by lock
+	lastErr          error        // protected by lock
 }
 
 func MakePeriodicExecutor(name string, dur time.Duration, execFn func()) *PeriodicExecutor {
@@ -57,7 +57,7 @@ func (p *PeriodicExecutor) Enable() {
 	ticker := time.NewTicker(p.duration)
 	p.ticker = ticker
 	go func() {
-		ioutrig.I.SetGoRoutineName(p.name + " #outrig")
+		ioutrig.I.SetGoRoutineNameAndTags(p.name, "outrig")
 		p.runFunc()
 		for {
 			select {
@@ -89,12 +89,12 @@ func (p *PeriodicExecutor) runFunc() {
 		return
 	}
 	defer p.isFnRunning.Store(false)
-	
+
 	start := time.Now()
 	defer func() {
 		duration := time.Since(start).Milliseconds()
 		p.lastExecDuration.Store(duration)
-		
+
 		if r := recover(); r != nil {
 			stack := debug.Stack()
 			err := fmt.Errorf("panic in %s: %v\nStack trace:\n%s", p.name, r, string(stack))
@@ -103,7 +103,7 @@ func (p *PeriodicExecutor) runFunc() {
 			p.setLastErr(nil) // Clear error on successful execution
 		}
 	}()
-	
+
 	p.execFn()
 }
 

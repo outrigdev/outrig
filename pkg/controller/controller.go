@@ -76,7 +76,7 @@ func (c *ControllerImpl) InitialStart() {
 		c.setEnabled(true)
 	}
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig ConnPoller")
+		ioutrig.I.SetGoRoutineNameAndTags("ConnPoller", "outrig")
 		c.runConnPoller()
 	}()
 }

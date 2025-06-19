@@ -171,8 +171,8 @@ func SetGoRoutineName(name string) *GoRoutine {
 // to avoid circular references, when calling internal outrig functions from the SDK
 type internalOutrig struct{}
 
-func (i *internalOutrig) SetGoRoutineName(name string) {
-	SetGoRoutineName(name)
+func (i *internalOutrig) SetGoRoutineNameAndTags(name string, tags ...string) {
+	CurrentGR().WithName(name).WithTags(tags...)
 }
 
 func (i *internalOutrig) Log(str string) {

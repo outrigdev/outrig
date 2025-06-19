@@ -7,14 +7,14 @@ package ioutrig
 var I OutrigInterface = noopOutrigInterface{}
 
 type OutrigInterface interface {
-	SetGoRoutineName(name string)
+	SetGoRoutineNameAndTags(name string, tags ...string)
 	Log(str string)
 	Logf(format string, args ...any)
 }
 
 type noopOutrigInterface struct{}
 
-func (n noopOutrigInterface) SetGoRoutineName(name string) {
+func (n noopOutrigInterface) SetGoRoutineNameAndTags(name string, tags ...string) {
 	// No operation
 }
 

@@ -175,7 +175,7 @@ func enableExternalLogWrapImpl(appRunId string, cfg config.LogProcessorConfig, i
 
 	// Start monitoring goroutine and pass the local struct to avoid race conditions
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig ExternalLogCapture:monitor")
+		ioutrig.I.SetGoRoutineNameAndTags("ExternalLogCapture:monitor", "outrig")
 		monitorExternalProcess(localProc)
 	}()
 

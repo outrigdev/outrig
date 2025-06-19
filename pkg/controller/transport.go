@@ -74,7 +74,7 @@ func (t *Transport) HasConnections() bool {
 // startPeerLoop starts a goroutine to process packets for a TransportPeer
 func (t *Transport) startPeerLoop(peer *transportPeer) {
 	go func() {
-		ioutrig.I.SetGoRoutineName("#outrig TransportPeerLoop")
+		ioutrig.I.SetGoRoutineNameAndTags("TransportPeerLoop", "outrig")
 		for packet := range peer.SendCh {
 			peer.Conn.Conn.SetWriteDeadline(time.Now().Add(WriteDeadline))
 
