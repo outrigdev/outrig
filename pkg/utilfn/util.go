@@ -33,6 +33,10 @@ func init() {
 	PTLoc = loc
 }
 
+func IsASCIISpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+}
+
 func GetHomeDir() string {
 	homeVar, err := os.UserHomeDir()
 	if err != nil {
@@ -321,7 +325,7 @@ func ParseTags(input string) []string {
 		tagText := input[tagStart:tagEnd]
 
 		// Check that the tag is properly bounded (ends with whitespace or end of string)
-		isValidEnd := tagEnd >= len(input) || input[tagEnd] == ' ' || input[tagEnd] == '\t' || input[tagEnd] == '\n' || input[tagEnd] == '\r'
+		isValidEnd := tagEnd >= len(input) || IsASCIISpace(input[tagEnd])
 
 		if isValidEnd {
 			tag := strings.ToLower(tagText[1:]) // drop the '#'
