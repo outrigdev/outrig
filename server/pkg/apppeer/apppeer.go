@@ -193,7 +193,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		if appInfo.BuildInfo != nil {
 			goVersion = appInfo.BuildInfo.GoVersion
 		}
-		tevent.SendAppRunConnectedEvent(appInfo.OutrigSDKVersion, goVersion)
+		tevent.SendAppRunConnectedEvent(appInfo.OutrigSDKVersion, goVersion, appInfo.AppName)
 
 	case ds.PacketTypeLog:
 		var logLine ds.LogLine

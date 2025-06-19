@@ -151,6 +151,7 @@ type TEventProps struct {
 	AppRunGoVersion      string `json:"apprun:goversion,omitempty"`
 	AppRunConnTimeMs     int64  `json:"apprun:conntimems,omitempty"`
 	AppRunCount          int    `json:"apprun:count,omitempty"`
+	AppRunDemo           bool   `json:"apprun:demo,omitempty"`
 
 	UserSet     *TEventUserProps `json:"$set,omitempty"`
 	UserSetOnce *TEventUserProps `json:"$set_once,omitempty"`
@@ -378,7 +379,7 @@ func SendShutdownEvent() {
 }
 
 // SendAppRunConnectedEvent sends an "apprun:connected" telemetry event
-func SendAppRunConnectedEvent(sdkVersion string, goVersion string) {
+func SendAppRunConnectedEvent(sdkVersion string, goVersion string, appName string) {
 	if Disabled.Load() {
 		return
 	}
@@ -386,9 +387,15 @@ func SendAppRunConnectedEvent(sdkVersion string, goVersion string) {
 		AppRunSDKFullVersion: sdkVersion,
 		AppRunSDKVersion:     extractMajorMinorVersion(sdkVersion),
 		AppRunGoVersion:      goVersion,
+		AppRunDemo:           isDemo(appName),
 	}
 	event := MakeTEvent("apprun:connected", props)
 	WriteTEvent(*event)
+}
+
+// isDemo returns true if the app name indicates this is a demo application
+func isDemo(appName string) bool {
+	return appName == "OutrigAcres"
 }
 
 // SendAppRunDisconnectedEvent sends an "apprun:disconnected" telemetry event
