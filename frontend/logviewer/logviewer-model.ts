@@ -165,10 +165,17 @@ class LogViewerModel {
         }
 
         const cmdPromiseFn = () => {
+            // Always build system query when there are marked lines
+            let systemQuery: string | undefined;
+            if (this.markedLines.size > 0) {
+                systemQuery = "#m | #userquery";
+            }
+
             return RpcApi.LogSearchRequestCommand(DefaultRpcClient, {
                 widgetid: this.widgetId,
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
+                systemquery: systemQuery,
                 pagesize: PAGESIZE,
                 requestpages: requestPages,
                 streaming: streaming,
@@ -308,10 +315,17 @@ class LogViewerModel {
         const streaming = getDefaultStore().get(this.isStreaming);
 
         const cmdPromiseFn = () => {
+            // Always build system query when there are marked lines
+            let systemQuery: string | undefined;
+            if (this.markedLines.size > 0) {
+                systemQuery = "#m | #userquery";
+            }
+
             return RpcApi.LogSearchRequestCommand(DefaultRpcClient, {
                 widgetid: this.widgetId,
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
+                systemquery: systemQuery,
                 pagesize: PAGESIZE,
                 requestpages: [pageNum],
                 streaming: streaming,
@@ -479,6 +493,7 @@ class LogViewerModel {
     getMarkedLinesCount(): number {
         return this.markedLines.size;
     }
+
 
     // Get all marked lines from the backend and copy their messages to clipboard
     async copyMarkedLinesToClipboard() {
