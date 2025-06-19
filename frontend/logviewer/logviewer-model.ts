@@ -88,6 +88,28 @@ class LogViewerModel {
     requestQueue: PromiseQueue = new PromiseQueue();
     keepAliveTimeoutId: NodeJS.Timeout = null;
 
+    // Method to get a log line by page number and line index
+    getLogLineByPageAndIndex(pageNum: number, lineIndex: number): LogLine | null {
+        const store = getDefaultStore();
+        const listState = store.get(this.listAtom);
+        
+        if (pageNum < 0 || pageNum >= listState.pages.length) {
+            return null;
+        }
+        
+        const pageAtom = listState.pages[pageNum];
+        if (!pageAtom) {
+            return null;
+        }
+        
+        const pageState = store.get(pageAtom);
+        if (!pageState.loaded || !pageState.lines || lineIndex < 0 || lineIndex >= pageState.lines.length) {
+            return null;
+        }
+        
+        return pageState.lines[lineIndex];
+    }
+
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();
         this.appRunId = appRunId;

@@ -173,15 +173,25 @@ interface LogLineComponentProps {
     line: LogLine;
     model?: LogViewerModel;
     lineSettings: LogLineSettings;
+    pageNum: number;
+    lineIndex: number;
+    onContextMenu?: (e: React.MouseEvent, pageNum: number, lineIndex: number) => void;
 }
 
-export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model, lineSettings }) => {
+export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model, lineSettings, pageNum, lineIndex, onContextMenu }) => {
     useAtomValue(model.markedLinesVersion);
     const { lineNumWidth, logSettings, appRunStartTime } = lineSettings;
 
     const handleLineNumberClick = useCallback(() => {
         model.toggleLineMarked(line.linenum);
     }, [model, line.linenum]);
+
+    const handleContextMenu = useCallback((e: React.MouseEvent) => {
+        if (onContextMenu) {
+            e.preventDefault();
+            onContextMenu(e, pageNum, lineIndex);
+        }
+    }, [onContextMenu, pageNum, lineIndex]);
 
     const isMarked = model.isLineMarked(line.linenum);
 
@@ -193,6 +203,7 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
     return (
         <div
             data-linenum={line.linenum}
+            onContextMenu={handleContextMenu}
             className={cn(
                 "flex text-muted select-none pl-1 pr-2",
                 isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover"

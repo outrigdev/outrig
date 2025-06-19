@@ -8,14 +8,15 @@ import React, { JSX, useEffect, useLayoutEffect, useRef } from "react";
 export interface PageProps {
     pageAtom: Atom<LogPageInterface>;
     defaultItemHeight: number;
-    lineComponent: (props: { line: LogLine }) => JSX.Element;
+    lineComponent: (props: { line: LogLine; pageNum: number; lineIndex: number; onContextMenu?: (e: React.MouseEvent, pageNum: number, lineIndex: number) => void }) => JSX.Element;
     pageNum: number;
     onPageRequired: (pageNum: number, load: boolean) => void;
+    onContextMenu?: (e: React.MouseEvent, pageNum: number, lineIndex: number) => void;
     vlistRef: React.RefObject<HTMLDivElement>;
 }
 
 const LogPage = React.memo<PageProps>(
-    ({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRequired, vlistRef }) => {
+    ({ pageAtom, defaultItemHeight, lineComponent, pageNum, onPageRequired, onContextMenu, vlistRef }) => {
         const { lines, totalCount, loaded } = useAtomValue(pageAtom);
         const LineComponent = lineComponent;
         const pageRef = useRef<HTMLDivElement>(null);
@@ -58,7 +59,7 @@ const LogPage = React.memo<PageProps>(
                 if (line == null) {
                     return <div key={`empty-${index}`} style={{ height: defaultItemHeight }} />;
                 } else {
-                    return <LineComponent key={line.linenum} line={line} />;
+                    return <LineComponent key={line.linenum} line={line} pageNum={pageNum} lineIndex={index} onContextMenu={onContextMenu} />;
                 }
             });
         }
@@ -84,12 +85,13 @@ LogPage.displayName = "LogPage";
 export interface LogListProps {
     listAtom: Atom<LogListInterface>;
     defaultItemHeight: number;
-    lineComponent: (props: { line: LogLine }) => JSX.Element;
+    lineComponent: (props: { line: LogLine; pageNum: number; lineIndex: number; onContextMenu?: (e: React.MouseEvent, pageNum: number, lineIndex: number) => void }) => JSX.Element;
     onPageRequired: (pageNum: number, load: boolean) => void;
+    onContextMenu?: (e: React.MouseEvent, pageNum: number, lineIndex: number) => void;
     vlistRef: React.RefObject<HTMLDivElement>;
 }
 
-const LogList = React.memo<LogListProps>(({ listAtom, defaultItemHeight, lineComponent, onPageRequired, vlistRef }) => {
+const LogList = React.memo<LogListProps>(({ listAtom, defaultItemHeight, lineComponent, onPageRequired, onContextMenu, vlistRef }) => {
     const { pages, pageSize, trimmedLines } = useAtomValue(listAtom);
 
     // Calculate how many pages have been trimmed
@@ -114,6 +116,7 @@ const LogList = React.memo<LogListProps>(({ listAtom, defaultItemHeight, lineCom
                         lineComponent={lineComponent}
                         pageNum={actualPageNum}
                         onPageRequired={onPageRequired}
+                        onContextMenu={onContextMenu}
                         vlistRef={vlistRef}
                     />
                 );
@@ -126,15 +129,16 @@ LogList.displayName = "LogList";
 export interface LogVListProps {
     listAtom: Atom<LogListInterface>;
     defaultItemHeight: number;
-    lineComponent: (props: { line: LogLine }) => JSX.Element;
+    lineComponent: (props: { line: LogLine; pageNum: number; lineIndex: number; onContextMenu?: (e: React.MouseEvent, pageNum: number, lineIndex: number) => void }) => JSX.Element;
     containerHeight: number;
     onPageRequired: (pageNum: number, load: boolean) => void;
+    onContextMenu?: (e: React.MouseEvent, pageNum: number, lineIndex: number) => void;
     pinToBottomAtom: PrimitiveAtom<boolean>;
     vlistRef: React.RefObject<HTMLDivElement>;
 }
 
 export const LogVList = React.memo<LogVListProps>(
-    ({ listAtom, defaultItemHeight, lineComponent, containerHeight, onPageRequired, pinToBottomAtom, vlistRef }) => {
+    ({ listAtom, defaultItemHeight, lineComponent, containerHeight, onPageRequired, onContextMenu, pinToBottomAtom, vlistRef }) => {
         const contentRef = useRef<HTMLDivElement>(null);
         const [isPinnedToBottom, setPinnedToBottom] = useAtom(pinToBottomAtom);
         const versionAtom = useRef(atom((get) => get(listAtom).version)).current;
@@ -216,6 +220,7 @@ export const LogVList = React.memo<LogVListProps>(
                         defaultItemHeight={defaultItemHeight}
                         lineComponent={lineComponent}
                         onPageRequired={onPageRequired}
+                        onContextMenu={onContextMenu}
                         vlistRef={vlistRef}
                     />
                 </div>

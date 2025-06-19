@@ -11,6 +11,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { LogViewerFilter } from "./logfilter";
 import { LogLineComponent } from "./logline";
 import { EmptyMessageDisplay, MarkedLinesIndicator, RefreshingModal, StreamingStatusBar } from "./logviewer-comps";
+import { useLogViewerContextMenu } from "./logviewer-contextmenu";
 import { LogViewerModel } from "./logviewer-model";
 
 // LogList component for rendering the list of logs using LogVList
@@ -22,6 +23,7 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     const listContainerRef = useRef<HTMLDivElement>(null);
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const followOutput = useAtomValue(model.followOutput);
+    const { contextMenu, handleContextMenu } = useLogViewerContextMenu(model);
 
     // Subscribe to atoms once at the LogList level
     const lineNumWidth = useAtomValue(model.lineNumberWidth);
@@ -109,8 +111,27 @@ const LogList = React.memo<LogListProps>(({ model }) => {
 
     // Create the line component for LogVList
     const lineComponent = useCallback(
-        ({ line }: { line: LogLine }) => {
-            return <LogLineComponent line={line} model={model} lineSettings={lineSettings} />;
+        ({
+            line,
+            pageNum,
+            lineIndex,
+            onContextMenu,
+        }: {
+            line: LogLine;
+            pageNum: number;
+            lineIndex: number;
+            onContextMenu?: (e: React.MouseEvent, pageNum: number, lineIndex: number) => void;
+        }) => {
+            return (
+                <LogLineComponent
+                    line={line}
+                    model={model}
+                    lineSettings={lineSettings}
+                    pageNum={pageNum}
+                    lineIndex={lineIndex}
+                    onContextMenu={onContextMenu}
+                />
+            );
         },
         [model, lineSettings]
     );
@@ -132,9 +153,11 @@ const LogList = React.memo<LogListProps>(({ model }) => {
                 lineComponent={lineComponent}
                 containerHeight={dimensions.height} // Fallback height if dimensions not set yet
                 onPageRequired={onPageRequired}
+                onContextMenu={handleContextMenu}
                 pinToBottomAtom={model.followOutput}
                 vlistRef={model.vlistRef}
             />
+            {contextMenu}
         </div>
     );
 });
