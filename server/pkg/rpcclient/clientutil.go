@@ -56,7 +56,7 @@ func SendRpcRequestCallHelper[T any](w *rpc.RpcClient, command string, data inte
 
 func RtnStreamErr[T any](ch chan rpctypes.RespUnion[T], err error) {
 	go func() {
-		outrig.SetGoRoutineName("#outrig RtnStreamErr")
+		outrig.SetGoRoutineName("RtnStreamErr")
 		defer func() {
 			panichandler.PanicHandler("wshclientutil:rtnErr", recover())
 		}()
@@ -84,7 +84,7 @@ func SendRpcRequestResponseStreamHelper[T any](w *rpc.RpcClient, command string,
 		reqHandler.SendCancel()
 	}
 	go func() {
-		outrig.SetGoRoutineName("#outrig SendRpcRequestResponseStreamHelper")
+		outrig.SetGoRoutineName("SendRpcRequestResponseStreamHelper")
 		defer func() {
 			panichandler.PanicHandler("sendRpcRequestResponseStreamHelper", recover())
 		}()

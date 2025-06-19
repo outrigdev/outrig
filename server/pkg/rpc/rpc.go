@@ -232,7 +232,7 @@ func MakeRpcClient(inputCh chan []byte, outputCh chan []byte, serverImpl RpcServ
 		ResponseHandlerMap: make(map[string]*RpcResponseHandler),
 	}
 	go func() {
-		outrig.SetGoRoutineName("#outrig RpcClient:" + debugName)
+		outrig.SetGoRoutineName("RpcClient:" + debugName)
 		rtn.runServer()
 	}()
 	return rtn
@@ -317,7 +317,7 @@ func (w *RpcClient) handleRequest(req *RpcMessage) {
 		}
 		if isAsync {
 			go func() {
-				outrig.SetGoRoutineName("#outrig RpcClient:Finalize:" + w.DebugName)
+				outrig.SetGoRoutineName("RpcClient:Finalize:" + w.DebugName)
 				defer func() {
 					panichandler.PanicHandler("handleRequest:finalize", recover())
 				}()
@@ -375,7 +375,7 @@ outer:
 		}
 		if msg.IsRpcRequest() {
 			go func() {
-				outrig.SetGoRoutineName("#outrig RpcClient:handleRequest:" + w.DebugName + " command:" + msg.Command)
+				outrig.SetGoRoutineName("RpcClient:handleRequest:" + w.DebugName + " command:" + msg.Command)
 				defer func() {
 					panichandler.PanicHandler("handleRequest:goroutine", recover())
 				}()
@@ -421,7 +421,7 @@ func (w *RpcClient) registerRpc(handler *RpcRequestHandler, command string, rout
 		ResCh:   rpcCh,
 	}
 	go func() {
-		outrig.SetGoRoutineName("#outrig RpcClient:timeouthandler")
+		outrig.SetGoRoutineName("RpcClient:timeouthandler")
 		defer func() {
 			panichandler.PanicHandler("registerRpc:timeout", recover())
 		}()
@@ -732,7 +732,7 @@ func (w *RpcClient) setServerDone() {
 	w.ServerDone = true
 	close(w.CtxDoneCh)
 	go func() {
-		outrig.SetGoRoutineName("#outrig RpcClient:close:DrainChan")
+		outrig.SetGoRoutineName("RpcClient:close:DrainChan")
 		utilfn.DrainChan(w.InputCh)
 	}()
 }

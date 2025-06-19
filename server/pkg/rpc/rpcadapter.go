@@ -128,7 +128,7 @@ func serverImplAdapter(impl any) func(*RpcResponseHandler) bool {
 				return true
 			}
 			go func() {
-				outrig.SetGoRoutineName("#outrig rpc:responseStream")
+				outrig.SetGoRoutineName("rpc:responseStream")
 				defer func() {
 					panichandler.PanicHandler("serverImplAdapter:responseStream", recover())
 				}()
