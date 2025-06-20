@@ -60,7 +60,7 @@ func main() {
 		}
 
 		// Calculate SHA256 hash
-		hash := fmt.Sprintf("sha256:%x", sha256.Sum256(fileData))
+		hash := fmt.Sprintf("%x", sha256.Sum256(fileData))
 		hashes[nixPlatform] = hash
 
 		fmt.Printf("Generated hash for %s: %s\n", nixPlatform, hash)
