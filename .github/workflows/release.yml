@@ -199,6 +199,8 @@ jobs:
               uses: actions/setup-go@v5
               with:
                   go-version: "1.24"
+                  cache: true
+                  cache-dependency-path: server/go.sum
 
             - name: Install Task
               uses: arduino/setup-task@v2
@@ -291,6 +293,8 @@ jobs:
               uses: actions/setup-go@v5
               with:
                   go-version: "1.24"
+                  cache: true
+                  cache-dependency-path: server/go.sum
 
             - name: Install Task
               uses: arduino/setup-task@v2
@@ -363,4 +367,64 @@ jobs:
                       --head "$BRANCH_NAME" \
                       --title "Update Outrig Cask for ${{ github.ref_name }} Release" \
                       --body "Automated update of Outrig cask for release ${{ github.ref_name }}" \
+                      || echo "PR already exists or no changes detected."
+
+    update-nix-package:
+        needs: goreleaser
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: "1.24"
+                  cache: true
+                  cache-dependency-path: server/go.sum
+
+            - name: Install Task
+              uses: arduino/setup-task@v2
+              with:
+                  version: 3.43.3
+                  repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Generate Nix Package
+              run: |
+                  task generate:nix -- ${{ github.ref_name }}
+
+            - name: Create PR for Nix Package Update
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  set -e
+
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+                  BRANCH_NAME="update-nix-${{ github.ref_name }}"
+
+                  git checkout -B "$BRANCH_NAME"
+
+                  # Copy the generated nix file
+                  cp ./dist/outrig-server.nix ./server/outrig-server.nix
+
+                  # Check if there are changes
+                  if [[ -z $(git status --porcelain) ]]; then
+                      echo "No changes to Nix package; skipping PR."
+                      exit 0
+                  fi
+
+                  # Commit and push changes
+                  git add server/outrig-server.nix
+                  git commit -m "Update Nix package for ${{ github.ref_name }} release"
+                  git push origin "$BRANCH_NAME" -f
+
+                  # Create PR
+                  gh pr create \
+                      --base main \
+                      --head "$BRANCH_NAME" \
+                      --title "Update Nix Package for ${{ github.ref_name }} Release" \
+                      --body "Automated update of Nix package for release ${{ github.ref_name }}" \
                       || echo "PR already exists or no changes detected."

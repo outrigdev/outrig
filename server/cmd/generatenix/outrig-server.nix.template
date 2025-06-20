@@ -1,0 +1,52 @@
+{
+  stdenv,
+  lib,
+  fetchzip,
+}:
+let
+  system = lib.splitString "-" stdenv.hostPlatform.system;
+  arch = lib.head system;
+  platform =
+    let
+      platform = lib.head (lib.tail system);
+    in
+    if platform == "linux" then
+      "Linux"
+    else if platform == "darwin" then
+      "Darwin"
+    else
+      platform;
+
+  # Platform-specific hashes for vVERSION_PLACEHOLDER
+  hashes = {
+    "x86_64-linux" = "X86_64_LINUX_HASH_PLACEHOLDER";
+    "aarch64-linux" = "AARCH64_LINUX_HASH_PLACEHOLDER";
+    "x86_64-darwin" = "X86_64_DARWIN_HASH_PLACEHOLDER";
+    "aarch64-darwin" = "AARCH64_DARWIN_HASH_PLACEHOLDER";
+  };
+in
+(stdenv.mkDerivation rec {
+  pname = "outrig";
+  version = "VERSION_PLACEHOLDER";
+
+  src = fetchzip {
+    url = "https://github.com/outrigdev/outrig/releases/download/v${version}/${pname}_${version}_${platform}_${arch}.tar.gz";
+    hash = hashes.${stdenv.hostPlatform.system};
+  };
+
+  dontBuild = true;
+
+  installPhase = ''
+    mkdir -p $out/bin
+    cp ${pname} $out/bin/${pname}
+    chmod +x $out/bin/${pname}
+  '';
+
+  meta = {
+    description = "Dev-time observability tool for Go programs. Search logs, monitor goroutines, and track variables";
+    homepage = "https://outrig.run/";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ sawka ];
+    mainProgram = "outrig";
+  };
+})
