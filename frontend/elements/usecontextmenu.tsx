@@ -10,10 +10,16 @@ interface ContextMenuItem {
     disabled?: boolean;
 }
 
+interface ContextMenuSeparator {
+    type: "separator";
+}
+
+type ContextMenuEntry = ContextMenuItem | ContextMenuSeparator;
+
 interface ContextMenuState {
     isOpen: boolean;
     position: { x: number; y: number };
-    items: ContextMenuItem[];
+    items: ContextMenuEntry[];
 }
 
 export function useContextMenu() {
@@ -23,7 +29,7 @@ export function useContextMenu() {
         items: [],
     });
 
-    const showContextMenu = useCallback((e: React.MouseEvent, items: ContextMenuItem[]) => {
+    const showContextMenu = useCallback((e: React.MouseEvent, items: ContextMenuEntry[]) => {
         e.preventDefault();
         setMenuState({
             isOpen: true,
@@ -96,21 +102,27 @@ export function useContextMenu() {
                   }}
                   className="rounded-md shadow min-w-[160px] text-[13px] text-primary bg-[#c7c7c9] z-[1000] pt-[5px] pb-[4px]"
               >
-                  {menuState.items.map((item, index) => (
-                      <div className="mx-1 mb-[1px]">
-                          <button
-                              key={index}
-                              onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleItemClick(item);
-                              }}
-                              disabled={item.disabled}
-                              className="font-system w-full px-2 py-0.5 text-left text-white hover:bg-[#0066cc] hover:text-primary disabled:opacity-50 flex items-center gap-1 rounded-md"
-                          >
-                              <span>{item.label}</span>
-                          </button>
-                      </div>
-                  ))}
+                  {menuState.items.map((item, index) => {
+                      if ("type" in item && item.type === "separator") {
+                          return <div key={index} className="mx-2 my-1 h-px bg-gray-400" />;
+                      }
+
+                      const menuItem = item as ContextMenuItem;
+                      return (
+                          <div key={index} className="mx-1 mb-[1px]">
+                              <button
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleItemClick(menuItem);
+                                  }}
+                                  disabled={menuItem.disabled}
+                                  className="font-system w-full px-2 py-0.5 text-left text-white hover:bg-[#0066cc] hover:text-primary disabled:opacity-50 flex items-center gap-1 rounded-md"
+                              >
+                                  <span>{menuItem.label}</span>
+                              </button>
+                          </div>
+                      );
+                  })}
               </div>,
               document.body
           )

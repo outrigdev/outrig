@@ -203,6 +203,8 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model
     return (
         <div
             data-linenum={line.linenum}
+            data-linepage={pageNum}
+            data-lineindex={lineIndex}
             onContextMenu={handleContextMenu}
             className={cn(
                 "flex text-muted select-none pl-1 pr-2",

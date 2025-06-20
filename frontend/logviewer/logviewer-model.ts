@@ -92,21 +92,21 @@ class LogViewerModel {
     getLogLineByPageAndIndex(pageNum: number, lineIndex: number): LogLine | null {
         const store = getDefaultStore();
         const listState = store.get(this.listAtom);
-        
+
         if (pageNum < 0 || pageNum >= listState.pages.length) {
             return null;
         }
-        
+
         const pageAtom = listState.pages[pageNum];
         if (!pageAtom) {
             return null;
         }
-        
+
         const pageState = store.get(pageAtom);
         if (!pageState.loaded || !pageState.lines || lineIndex < 0 || lineIndex >= pageState.lines.length) {
             return null;
         }
-        
+
         return pageState.lines[lineIndex];
     }
 
@@ -488,6 +488,36 @@ class LogViewerModel {
         );
     }
 
+    markLines(lineNumbers: number[], mark: boolean = true) {
+        if (lineNumbers.length === 0) return;
+
+        // Update internal marked lines set
+        if (mark) {
+            lineNumbers.forEach((lineNum) => this.markedLines.add(lineNum));
+        } else {
+            lineNumbers.forEach((lineNum) => this.markedLines.delete(lineNum));
+        }
+
+        // Increment version to trigger reactivity
+        getDefaultStore().set(this.markedLinesVersion, (v) => v + 1);
+
+        // Send delta to backend - all lines with the same mark status
+        const markedLinesMap: Record<string, boolean> = {};
+        lineNumbers.forEach((lineNum) => {
+            markedLinesMap[lineNum.toString()] = mark;
+        });
+
+        RpcApi.LogUpdateMarkedLinesCommand(
+            DefaultRpcClient,
+            {
+                widgetid: this.widgetId,
+                markedlines: markedLinesMap,
+                clear: false,
+            },
+            { noresponse: true }
+        );
+    }
+
     isLineMarked(lineNumber: number): boolean {
         return this.markedLines.has(lineNumber);
     }
@@ -515,7 +545,6 @@ class LogViewerModel {
     getMarkedLinesCount(): number {
         return this.markedLines.size;
     }
-
 
     // Get all marked lines from the backend and copy their messages to clipboard
     async copyMarkedLinesToClipboard() {
