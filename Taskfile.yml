@@ -318,3 +318,18 @@ tasks:
             - mkdir -p dist
             - cd server/cmd/generatecask && go run main-generatecask.go {{.VERSION}}
             - echo "✅ Generated Homebrew cask for version {{.VERSION}}"
+
+    generate:nix:
+        desc: Generate Nix package file for a specific version
+        vars:
+            VERSION: "{{.CLI_ARGS}}"
+        cmds:
+            - |
+                if [ -z "{{.VERSION}}" ]; then
+                  echo "❌ Error: Version is required"
+                  echo "Usage: task generate:nix -- v0.6.0"
+                  exit 1
+                fi
+            - mkdir -p dist
+            - cd server/cmd/generatenix && go run main-generatenix.go {{.VERSION}}
+            - echo "✅ Generated Nix package for version {{.VERSION}}"

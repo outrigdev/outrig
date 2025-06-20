@@ -58,6 +58,13 @@ curl -sf https://outrig.run/install.sh | sh
 
 Alternatively, you can download .dmg, .deb, .rpm, or .tar.gz packages directly from our [GitHub releases page](https://github.com/outrigdev/outrig/releases).
 
+For Nix users:
+
+```bash
+# Install using the flake
+nix profile install github:outrigdev/outrig
+```
+
 For developers interested in building from source, see [BUILD.md](docs/BUILD.md). If you've already cloned the repository, you can build and install with:
 
 ```bash

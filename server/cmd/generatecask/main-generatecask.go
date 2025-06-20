@@ -3,11 +3,11 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"strings"
+
+	"github.com/outrigdev/outrig/server/pkg/serverutil"
 )
 
 type CaskData struct {
@@ -53,12 +53,12 @@ func main() {
 		fmt.Printf("Read local files: amd64=%d bytes, arm64=%d bytes\n", len(amd64Data), len(arm64Data))
 	} else {
 		// Download from GitHub
-		amd64Data, err = downloadFile(amd64URL)
+		amd64Data, err = serverutil.DownloadFile(amd64URL, 1024*1024)
 		if err != nil {
 			log.Fatalf("Failed to download %s: %v", amd64URL, err)
 		}
 		
-		arm64Data, err = downloadFile(arm64URL)
+		arm64Data, err = serverutil.DownloadFile(arm64URL, 1024*1024)
 		if err != nil {
 			log.Fatalf("Failed to download %s: %v", arm64URL, err)
 		}
@@ -128,29 +128,4 @@ func generateCaskContent(data CaskData) string {
   ]
 end
 `, data.Version, data.AMD64URL, data.AMD64SHA256, data.ARM64URL, data.ARM64SHA256)
-}
-
-func downloadFile(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download file: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d when downloading %s", resp.StatusCode, url)
-	}
-
-	// Read file contents
-	fileData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file data: %v", err)
-	}
-
-	// Sanity check - DMG files should be at least 1MB
-	if len(fileData) < 1024*1024 {
-		return nil, fmt.Errorf("file too small (%d bytes), expected at least 1MB", len(fileData))
-	}
-
-	return fileData, nil
 }
