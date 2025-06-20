@@ -34,7 +34,7 @@ in
     sha256 = hashes.${stdenv.hostPlatform.system};
   };
 
-  sourceRoot = ".";
+  sourceRoot = "${pname}_${version}_${platform}_${arch}";
 
   unpackPhase = ''
     tar -xzf $src
