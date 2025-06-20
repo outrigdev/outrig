@@ -1,7 +1,7 @@
 {
   stdenv,
   lib,
-  fetchzip,
+  fetchurl,
 }:
 let
   system = lib.splitString "-" stdenv.hostPlatform.system;
@@ -29,10 +29,16 @@ in
   pname = "outrig";
   version = "VERSION_PLACEHOLDER";
 
-  src = fetchzip {
+  src = fetchurl {
     url = "https://github.com/outrigdev/outrig/releases/download/v${version}/${pname}_${version}_${platform}_${arch}.tar.gz";
-    hash = hashes.${stdenv.hostPlatform.system};
+    sha256 = hashes.${stdenv.hostPlatform.system};
   };
+
+  sourceRoot = "${pname}_${version}_${platform}_${arch}";
+
+  unpackPhase = ''
+    tar -xzf $src
+  '';
 
   dontBuild = true;
 
