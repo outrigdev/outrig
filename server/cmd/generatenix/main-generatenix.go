@@ -3,11 +3,11 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"strings"
+
+	"github.com/outrigdev/outrig/server/pkg/serverutil"
 )
 
 func main() {
@@ -52,7 +52,7 @@ func main() {
 			fmt.Printf("Read local file %s: %d bytes\n", localPath, len(fileData))
 		} else {
 			// Download from GitHub
-			fileData, err = downloadFile(url)
+			fileData, err = serverutil.DownloadFile(url, 1024*1024)
 			if err != nil {
 				log.Fatalf("Failed to download %s: %v", url, err)
 			}
@@ -90,29 +90,4 @@ func main() {
 
 	fmt.Printf("Generated Nix package for version %s\n", version)
 	fmt.Printf("Output written to: %s\n", outputPath)
-}
-
-func downloadFile(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download file: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d when downloading %s", resp.StatusCode, url)
-	}
-
-	// Read file contents
-	fileData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file data: %v", err)
-	}
-
-	// Sanity check - tar.gz files should be at least 1MB
-	if len(fileData) < 1024*1024 {
-		return nil, fmt.Errorf("file too small (%d bytes), expected at least 1MB", len(fileData))
-	}
-
-	return fileData, nil
 }
