@@ -178,57 +178,67 @@ interface LogLineComponentProps {
     onContextMenu?: (e: React.MouseEvent, pageNum: number, lineIndex: number) => void;
 }
 
-export const LogLineComponent = React.memo<LogLineComponentProps>(({ line, model, lineSettings, pageNum, lineIndex, onContextMenu }) => {
-    useAtomValue(model.markedLinesVersion);
-    const { lineNumWidth, logSettings, appRunStartTime } = lineSettings;
+export const LogLineComponent = React.memo<LogLineComponentProps>(
+    ({ line, model, lineSettings, pageNum, lineIndex, onContextMenu }) => {
+        useAtomValue(model.markedLinesVersion);
+        const { lineNumWidth, logSettings, appRunStartTime } = lineSettings;
 
-    const handleLineNumberClick = useCallback(() => {
-        model.toggleLineMarked(line.linenum);
-    }, [model, line.linenum]);
+        const handleLineNumberClick = useCallback(() => {
+            model.toggleLineMarked(line.linenum);
+        }, [model, line.linenum]);
 
-    const handleContextMenu = useCallback((e: React.MouseEvent) => {
-        if (onContextMenu) {
-            e.preventDefault();
-            onContextMenu(e, pageNum, lineIndex);
-        }
-    }, [onContextMenu, pageNum, lineIndex]);
+        const handleContextMenu = useCallback(
+            (e: React.MouseEvent) => {
+                if (onContextMenu) {
+                    e.preventDefault();
+                    onContextMenu(e, pageNum, lineIndex);
+                }
+            },
+            [onContextMenu, pageNum, lineIndex]
+        );
 
-    const isMarked = model.isLineMarked(line.linenum);
+        const isMarked = model.isLineMarked(line.linenum);
 
-    // Process message with emoji replacement if needed
-    const processedMessage = useMemo(() => {
-        return processMessageText(line.msg, line.source);
-    }, [line.msg, line.source]);
+        // Process message with emoji replacement if needed
+        const processedMessage = useMemo(() => {
+            return processMessageText(line.msg, line.source);
+        }, [line.msg, line.source]);
 
-    return (
-        <div
-            data-linenum={line.linenum}
-            data-linepage={pageNum}
-            data-lineindex={lineIndex}
-            onContextMenu={handleContextMenu}
-            className={cn(
-                "flex text-muted select-none pl-1 pr-2",
-                isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover"
-            )}
-        >
-            {formatMarkedLineNumber(
-                line.linenum,
-                isMarked,
-                lineNumWidth,
-                handleLineNumberClick,
-                logSettings.showLineNumbers
-            )}
-            {logSettings.showTimestamp && (
-                <div className="text-secondary flex-shrink-0 pl-2">
-                    {formatTimestamp(line.ts, logSettings.showMilliseconds, logSettings.timeFormat, appRunStartTime)}
-                </div>
-            )}
-            {logSettings.showSource && <div className="pl-2">{formatSource(line.source)}</div>}
-            <AnsiLine
-                className="flex-1 min-w-0 pl-2 select-text text-primary break-all overflow-hidden whitespace-pre"
-                line={processedMessage}
-            />
-        </div>
-    );
-});
+        return (
+            <div
+                data-linenum={line.linenum}
+                data-linepage={pageNum}
+                data-lineindex={lineIndex}
+                onContextMenu={handleContextMenu}
+                className={cn(
+                    "flex text-muted select-none pl-1 pr-2",
+                    isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover"
+                )}
+            >
+                {formatMarkedLineNumber(
+                    line.linenum,
+                    isMarked,
+                    lineNumWidth,
+                    handleLineNumberClick,
+                    logSettings.showLineNumbers
+                )}
+                {logSettings.showTimestamp && (
+                    <div className="text-secondary flex-shrink-0 pl-2">
+                        {formatTimestamp(
+                            line.ts,
+                            logSettings.showMilliseconds,
+                            logSettings.timeFormat,
+                            appRunStartTime
+                        )}
+                    </div>
+                )}
+                {logSettings.showSource && <div className="pl-2">{formatSource(line.source)}</div>}
+                <AnsiLine
+                    className="flex-1 min-w-0 pl-2 select-text cursor-default text-primary break-all overflow-hidden whitespace-pre"
+                    line={processedMessage}
+                />
+            </div>
+        );
+    }
+);
 LogLineComponent.displayName = "LogLineComponent";
