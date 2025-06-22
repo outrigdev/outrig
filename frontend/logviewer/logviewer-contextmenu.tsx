@@ -1,7 +1,10 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
 import { useContextMenu } from "@/elements/usecontextmenu";
+import { SettingsModel } from "@/settings/settings-model";
+import { getDefaultStore } from "jotai";
 import React, { useCallback } from "react";
 import { LogViewerModel } from "./logviewer-model";
 
@@ -211,6 +214,28 @@ export function useLogViewerContextMenu(model: LogViewerModel) {
                 markLabel = isMarked ? "Unmark Line" : "Mark Line";
             }
 
+            // Get current settings values
+            const store = getDefaultStore();
+            const showLineNumbers = store.get(SettingsModel.logsShowLineNumbers);
+            const showSource = store.get(SettingsModel.logsShowSource);
+            const showTimestamp = store.get(SettingsModel.logsShowTimestamp);
+
+            const handleToggleLineNumbers = () => {
+                SettingsModel.setLogsShowLineNumbers(!showLineNumbers);
+            };
+
+            const handleToggleSource = () => {
+                SettingsModel.setLogsShowSource(!showSource);
+            };
+
+            const handleToggleTimestamp = () => {
+                SettingsModel.setLogsShowTimestamp(!showTimestamp);
+            };
+
+            const handleOpenLogSettings = () => {
+                AppModel.openSettingsModal();
+            };
+
             const items = [
                 {
                     label: isFullLine ? "Copy Line" : "Copy",
@@ -221,6 +246,28 @@ export function useLogViewerContextMenu(model: LogViewerModel) {
                 {
                     label: markLabel,
                     onClick: handleMarkLines,
+                    disabled: false,
+                },
+                { type: "separator" as const },
+                {
+                    label: showLineNumbers ? "Hide Line Numbers" : "Show Line Numbers",
+                    onClick: handleToggleLineNumbers,
+                    disabled: false,
+                },
+                {
+                    label: showSource ? "Hide Source" : "Show Source",
+                    onClick: handleToggleSource,
+                    disabled: false,
+                },
+                {
+                    label: showTimestamp ? "Hide Timestamp" : "Show Timestamp",
+                    onClick: handleToggleTimestamp,
+                    disabled: false,
+                },
+                { type: "separator" as const },
+                {
+                    label: "Open Settings",
+                    onClick: handleOpenLogSettings,
                     disabled: false,
                 },
             ];
