@@ -24,6 +24,7 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const followOutput = useAtomValue(model.followOutput);
     const { contextMenu, handleContextMenu } = useLogViewerContextMenu(model);
+    const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Subscribe to atoms once at the LogList level
     const lineNumWidth = useAtomValue(model.lineNumberWidth);
@@ -68,10 +69,10 @@ const LogList = React.memo<LogListProps>(({ model }) => {
     // Handle visibility changes (when switching tabs)
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (!document.hidden && followOutput) {
-                // When tab becomes visible and follow mode is enabled, scroll to bottom
-                model.scrollToBottom();
-            }
+            if (document.hidden || !followOutput) return;
+            
+            // When tab becomes visible and follow mode is enabled, scroll to bottom
+            model.scrollToBottom();
         };
 
         document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -85,12 +86,23 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         if (!listContainerRef.current) return;
 
         const updateDimensions = () => {
-            if (listContainerRef.current) {
-                setDimensions({
-                    width: listContainerRef.current.offsetWidth,
-                    height: listContainerRef.current.offsetHeight,
-                });
+            if (!listContainerRef.current) return;
+            
+            const newWidth = listContainerRef.current.offsetWidth;
+            const newHeight = listContainerRef.current.offsetHeight;
+            
+            setDimensions({
+                width: newWidth,
+                height: newHeight,
+            });
+
+            // Debounced update to model's container width atom
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
             }
+            debounceTimeoutRef.current = setTimeout(() => {
+                model.setContainerWidth(newWidth);
+            }, 100);
         };
 
         // Initial dimensions
@@ -104,8 +116,11 @@ const LogList = React.memo<LogListProps>(({ model }) => {
         return () => {
             resizeObserver.unobserve(observedElement);
             resizeObserver.disconnect();
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
+            }
         };
-    }, []);
+    }, [model]);
 
     // We don't need to handle scroll position changes here as it's handled in LogVList
 

@@ -85,6 +85,9 @@ class LogViewerModel {
     // Version atom to trigger reactivity when the set changes
     markedLinesVersion: PrimitiveAtom<number> = atom(0);
 
+    // Container width atom for tracking the parent container width
+    containerWidth: PrimitiveAtom<number> = atom(0);
+
     requestQueue: PromiseQueue = new PromiseQueue();
     keepAliveTimeoutId: NodeJS.Timeout = null;
 
@@ -787,6 +790,11 @@ class LogViewerModel {
             });
         }
     };
+
+    // Method to update container width
+    setContainerWidth(width: number) {
+        getDefaultStore().set(this.containerWidth, width);
+    }
 }
 
 export { LogViewerModel };
