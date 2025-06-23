@@ -20,14 +20,16 @@ async function copySelectionText(): Promise<string> {
     div.style.left = "-99999px";
     div.appendChild(clonedSelection);
 
-    // Remove elements with user-select:none
-    div.querySelectorAll("*").forEach((el) => {
-        if (getComputedStyle(el).userSelect === "none") {
-            el.remove();
-        }
+    // Only copy text from elements with data-copy class
+    const copyElements = div.querySelectorAll(".data-copy");
+    const textParts: string[] = [];
+
+    copyElements.forEach((el) => {
+        const text = el.textContent || "";
+        textParts.push(text.trim());
     });
 
-    const textToCopy = (div.textContent || "").replace(/\n+$/, "");
+    const textToCopy = textParts.join("\n").replace(/\n+$/, "");
     await navigator.clipboard.writeText(textToCopy);
     return textToCopy;
 }
