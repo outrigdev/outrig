@@ -88,6 +88,28 @@ class LogViewerModel {
     requestQueue: PromiseQueue = new PromiseQueue();
     keepAliveTimeoutId: NodeJS.Timeout = null;
 
+    // Method to get a log line by page number and line index
+    getLogLineByPageAndIndex(pageNum: number, lineIndex: number): LogLine | null {
+        const store = getDefaultStore();
+        const listState = store.get(this.listAtom);
+
+        if (pageNum < 0 || pageNum >= listState.pages.length) {
+            return null;
+        }
+
+        const pageAtom = listState.pages[pageNum];
+        if (!pageAtom) {
+            return null;
+        }
+
+        const pageState = store.get(pageAtom);
+        if (!pageState.loaded || !pageState.lines || lineIndex < 0 || lineIndex >= pageState.lines.length) {
+            return null;
+        }
+
+        return pageState.lines[lineIndex];
+    }
+
     constructor(appRunId: string) {
         this.widgetId = crypto.randomUUID();
         this.appRunId = appRunId;
@@ -165,10 +187,17 @@ class LogViewerModel {
         }
 
         const cmdPromiseFn = () => {
+            // Always build system query when there are marked lines
+            let systemQuery: string | undefined;
+            if (this.markedLines.size > 0) {
+                systemQuery = "#m | #userquery";
+            }
+
             return RpcApi.LogSearchRequestCommand(DefaultRpcClient, {
                 widgetid: this.widgetId,
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
+                systemquery: systemQuery,
                 pagesize: PAGESIZE,
                 requestpages: requestPages,
                 streaming: streaming,
@@ -308,10 +337,17 @@ class LogViewerModel {
         const streaming = getDefaultStore().get(this.isStreaming);
 
         const cmdPromiseFn = () => {
+            // Always build system query when there are marked lines
+            let systemQuery: string | undefined;
+            if (this.markedLines.size > 0) {
+                systemQuery = "#m | #userquery";
+            }
+
             return RpcApi.LogSearchRequestCommand(DefaultRpcClient, {
                 widgetid: this.widgetId,
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
+                systemquery: systemQuery,
                 pagesize: PAGESIZE,
                 requestpages: [pageNum],
                 streaming: streaming,
@@ -440,6 +476,36 @@ class LogViewerModel {
         // Send just the delta to the backend
         const markedLinesMap: Record<string, boolean> = {};
         markedLinesMap[lineNumber.toString()] = !isMarked;
+
+        RpcApi.LogUpdateMarkedLinesCommand(
+            DefaultRpcClient,
+            {
+                widgetid: this.widgetId,
+                markedlines: markedLinesMap,
+                clear: false,
+            },
+            { noresponse: true }
+        );
+    }
+
+    markLines(lineNumbers: number[], mark: boolean = true) {
+        if (lineNumbers.length === 0) return;
+
+        // Update internal marked lines set
+        if (mark) {
+            lineNumbers.forEach((lineNum) => this.markedLines.add(lineNum));
+        } else {
+            lineNumbers.forEach((lineNum) => this.markedLines.delete(lineNum));
+        }
+
+        // Increment version to trigger reactivity
+        getDefaultStore().set(this.markedLinesVersion, (v) => v + 1);
+
+        // Send delta to backend - all lines with the same mark status
+        const markedLinesMap: Record<string, boolean> = {};
+        lineNumbers.forEach((lineNum) => {
+            markedLinesMap[lineNum.toString()] = mark;
+        });
 
         RpcApi.LogUpdateMarkedLinesCommand(
             DefaultRpcClient,

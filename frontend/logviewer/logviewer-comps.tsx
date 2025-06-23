@@ -142,25 +142,30 @@ export const MarkedLinesIndicator = React.memo<MarkedLinesIndicatorProps>(({ mod
     };
 
     return (
-        <div className="absolute bottom-0 right-0 flex items-center bg-accentbg text-primary dark:text-black rounded-tl-md px-2 py-1 text-xs z-10">
-            <span className="font-medium">
-                {markedCount} {markedCount === 1 ? "line" : "lines"} marked
-            </span>
-            <CopyButton
-                className="ml-2 text-primary dark:text-black"
-                size={14}
-                tooltipText="Copy marked lines"
-                successTooltipText="Copied!"
-                variant="primary"
-                onCopy={handleCopyMarkedLines}
-            />
-            <button
-                onClick={handleClearMarks}
-                className="ml-2 hover:text-black/70 cursor-pointer"
-                aria-label="Clear marked lines"
-            >
-                <X size={14} />
-            </button>
+        <div className="absolute bottom-0 right-0 bg-accentbg text-primary dark:text-black rounded-tl-md px-2 py-1 text-xs z-10">
+            <div className="flex items-center">
+                <span className="font-medium">
+                    {markedCount} {markedCount === 1 ? "line" : "lines"} marked
+                </span>
+                <CopyButton
+                    className="ml-2 text-primary dark:text-black"
+                    size={14}
+                    tooltipText="Copy marked lines"
+                    successTooltipText="Copied!"
+                    variant="primary"
+                    onCopy={handleCopyMarkedLines}
+                />
+                <button
+                    onClick={handleClearMarks}
+                    className="ml-2 hover:text-black/70 cursor-pointer"
+                    aria-label="Clear marked lines"
+                >
+                    <X size={14} />
+                </button>
+            </div>
+            <div className="text-[9.5px] italic text-primary/70 dark:text-black/70 mt-[-3px]">
+                marked lines always show
+            </div>
         </div>
     );
 });
