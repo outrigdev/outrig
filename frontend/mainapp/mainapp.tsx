@@ -171,7 +171,8 @@ const Tab = React.memo(function Tab({ name, displayName }: { name: string; displ
     const [selectedTab, setSelectedTab] = useAtom(AppModel.selectedTab);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
-    const handleTabClick = () => {
+    const handleTabClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault(); // Prevent default navigation
         // We should always have an app run ID here since the parent component
         // conditionally renders the HomePage when no app run is selected
         if (name === "goroutines") {
@@ -189,15 +190,22 @@ const Tab = React.memo(function Tab({ name, displayName }: { name: string; displ
         }
     };
 
+    // Construct the href with proper query parameters
+    const tabParams = new URLSearchParams();
+    tabParams.set("tab", name);
+    tabParams.set("appRunId", selectedAppRunId);
+    const tabHref = `?${tabParams.toString()}`;
+
     return (
-        <button
+        <a
+            href={tabHref}
             onClick={handleTabClick}
             data-selected={selectedTab === name || undefined}
-            className="relative px-2 lg:px-4 py-2 text-secondary text-[13px] lg:text-sm 
+            className="relative px-2 lg:px-4 py-2 text-secondary text-[13px] lg:text-sm
 				data-[selected]:text-primary data-[selected]:font-medium
 				border-b border-transparent data-[selected]:border-primary
                 whitespace-nowrap flex-shrink-0
-                hover:text-primary transition-colors cursor-pointer"
+                hover:text-primary transition-colors cursor-pointer no-underline"
         >
             {name === "runtimestats" ? (
                 <>
@@ -207,7 +215,7 @@ const Tab = React.memo(function Tab({ name, displayName }: { name: string; displ
             ) : (
                 displayName
             )}
-        </button>
+        </a>
     );
 });
 
