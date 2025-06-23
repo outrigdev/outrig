@@ -15,6 +15,7 @@ interface AppRunItemProps {
 
 export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) => {
     const [currentTime, setCurrentTime] = useState(() => Date.now());
+    const currentTab = useAtomValue(AppModel.selectedTab);
 
     // Only update the time for running apps
     useEffect(() => {
@@ -33,14 +34,16 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
         };
     }, [appRun.status]);
     return (
-        <div
+        <a
+            href={`?appRunId=${appRun.apprunid}&tab=${currentTab}`}
             className={cn(
-                "py-1 px-2 rounded text-sm cursor-pointer",
+                "block py-1 px-2 rounded text-sm cursor-pointer no-underline",
                 isSelected
                     ? "bg-primary/10 dark:bg-primary/20 text-primary font-medium ring-1 ring-primary/40"
                     : "text-secondary hover:bg-buttonhover hover:text-primary"
             )}
-            onClick={() => {
+            onClick={(e) => {
+                e.preventDefault();
                 AppModel.selectAppRunKeepTab(appRun.apprunid);
             }}
         >
@@ -67,7 +70,7 @@ export const AppRunItem = React.memo<AppRunItemProps>(({ appRun, isSelected }) =
                     <span className="text-xs whitespace-nowrap text-muted">({appRun.apprunid.substring(0, 4)})</span>
                 </div>
             </div>
-        </div>
+        </a>
     );
 });
 
@@ -294,9 +297,11 @@ export const LeftNav: React.FC = () => {
             <div className="flex-1 overflow-hidden flex flex-col">
                 {/* Top Links */}
                 <div className="p-2 border-b border-border">
-                    <button
-                        className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer"
-                        onClick={() => {
+                    <a
+                        href="/"
+                        className="w-full flex items-center space-x-2 p-2 text-secondary hover:text-primary hover:bg-buttonhover rounded cursor-pointer no-underline"
+                        onClick={(e) => {
+                            e.preventDefault();
                             // Navigate to homepage
                             AppModel.navToHomepage();
                             AppModel.setLeftNavOpen(false);
@@ -304,7 +309,7 @@ export const LeftNav: React.FC = () => {
                     >
                         <Home size={16} />
                         <span>Home</span>
-                    </button>
+                    </a>
                 </div>
 
                 {/* App Runs Section */}
