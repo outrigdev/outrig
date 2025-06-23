@@ -1,7 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 interface ContextMenuItem {
@@ -23,6 +23,7 @@ interface ContextMenuState {
 }
 
 export function useContextMenu() {
+    const instanceRef = useRef(0);
     const [menuState, setMenuState] = useState<ContextMenuState>({
         isOpen: false,
         position: { x: 0, y: 0 },
@@ -31,6 +32,7 @@ export function useContextMenu() {
 
     const showContextMenu = useCallback((e: React.MouseEvent, items: ContextMenuEntry[]) => {
         e.preventDefault();
+        instanceRef.current = Date.now();
         setMenuState({
             isOpen: true,
             position: { x: e.clientX, y: e.clientY },
@@ -94,6 +96,7 @@ export function useContextMenu() {
     const contextMenu = menuState.isOpen
         ? createPortal(
               <div
+                  key={instanceRef.current}
                   data-context-menu
                   style={{
                       position: "fixed",
