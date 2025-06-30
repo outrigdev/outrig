@@ -4,203 +4,161 @@
 package loglineparser
 
 import (
+	"iter"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
-// LogSpan represents a segment of parsed log text with styling information
-type LogSpan struct {
-	Text      string   `json:"text"`
-	ClassName []string `json:"classname,omitempty"`
+// Position represents the start and end positions of content in a string
+type Position struct {
+	Start int
+	End   int
 }
 
-// ANSI code to Tailwind CSS class mapping
-var ansiTailwindMap = map[int]string{
-	// Reset and modifiers
-	0: "reset", // special: clear state
-	1: "font-bold",
-	2: "opacity-75",
-	3: "italic",
-	4: "underline",
-	8: "invisible",
-	9: "line-through",
-
-	// Foreground standard colors
-	30: "text-ansi-black",
-	31: "text-ansi-red",
-	32: "text-ansi-green",
-	33: "text-ansi-yellow",
-	34: "text-ansi-blue",
-	35: "text-ansi-magenta",
-	36: "text-ansi-cyan",
-	37: "text-ansi-white",
-
-	// Foreground bright colors
-	90: "text-ansi-brightblack",
-	91: "text-ansi-brightred",
-	92: "text-ansi-brightgreen",
-	93: "text-ansi-brightyellow",
-	94: "text-ansi-brightblue",
-	95: "text-ansi-brightmagenta",
-	96: "text-ansi-brightcyan",
-	97: "text-ansi-brightwhite",
-
-	// Background standard colors
-	40: "bg-ansi-black",
-	41: "bg-ansi-red",
-	42: "bg-ansi-green",
-	43: "bg-ansi-yellow",
-	44: "bg-ansi-blue",
-	45: "bg-ansi-magenta",
-	46: "bg-ansi-cyan",
-	47: "bg-ansi-white",
-
-	// Background bright colors
-	100: "bg-ansi-brightblack",
-	101: "bg-ansi-brightred",
-	102: "bg-ansi-brightgreen",
-	103: "bg-ansi-brightyellow",
-	104: "bg-ansi-brightblue",
-	105: "bg-ansi-brightmagenta",
-	106: "bg-ansi-brightcyan",
-	107: "bg-ansi-brightwhite",
+// Node represents a fundamental unit of parsed log data in a doubly linked list
+type Node struct {
+	Type    string `json:"type"`
+	Content string `json:"content"`
+	Label   string `json:"label,omitempty"`
+	Prev    *Node  `json:"-"`
+	Next    *Node  `json:"-"`
 }
 
-// internalState tracks the current ANSI formatting state
-type internalState struct {
-	modifiers map[string]bool
-	textColor string
-	bgColor   string
-	reverse   bool
+// Node type constants
+const (
+	NodeTypeText      = "text"
+	NodeTypeAnsi      = "ansi"
+	NodeTypeJSON      = "json"
+	NodeTypeString    = "string"
+	NodeTypeUUID      = "uuid"
+	NodeTypeTimestamp = "timestamp"
+	NodeTypeURL       = "url"
+	NodeTypeNumber    = "number"
+)
+
+// SetLabel sets the label for a node
+func (n *Node) SetLabel(label string) {
+	n.Label = label
 }
 
-// makeInitialState creates a new initial state
-func makeInitialState() *internalState {
-	return &internalState{
-		modifiers: make(map[string]bool),
-		textColor: "",
-		bgColor:   "",
-		reverse:   false,
+// IsTextType returns true if the node is a text type
+func (n *Node) IsTextType() bool {
+	return n.Type == NodeTypeText
+}
+
+// IsAnsiType returns true if the node is an ANSI type
+func (n *Node) IsAnsiType() bool {
+	return n.Type == NodeTypeAnsi
+}
+
+// IsStructuredType returns true if the node is a structured type (JSON, string, UUID, etc.)
+func (n *Node) IsStructuredType() bool {
+	return n.Type == NodeTypeJSON || n.Type == NodeTypeString || n.Type == NodeTypeUUID ||
+		n.Type == NodeTypeTimestamp || n.Type == NodeTypeURL || n.Type == NodeTypeNumber
+}
+
+// Splice replaces the current node with a slice of new nodes and returns (head, next)
+func (n *Node) Splice(newNodes []Node) (*Node, *Node) {
+	nextNode := n.Next
+
+	if len(newNodes) == 0 {
+		// Remove the current node
+		if n.Prev != nil {
+			n.Prev.Next = n.Next
+		}
+		if n.Next != nil {
+			n.Next.Prev = n.Prev
+		}
+		return nextNode, nextNode
 	}
+
+	// Create linked list from slice
+	var head *Node
+	var prev *Node
+	for i := range newNodes {
+		node := &newNodes[i]
+		if head == nil {
+			head = node
+		}
+		node.Prev = prev
+		if prev != nil {
+			prev.Next = node
+		}
+		prev = node
+	}
+
+	// Connect the new linked list to the existing chain
+	if n.Prev != nil {
+		n.Prev.Next = head
+		head.Prev = n.Prev
+	}
+	if n.Next != nil {
+		prev.Next = n.Next
+		n.Next.Prev = prev
+	}
+
+	return head, nextNode
 }
 
-// updateStateWithCodes updates the state based on ANSI codes
-func updateStateWithCodes(state *internalState, codes []int) {
-	for _, code := range codes {
-		if code == 0 {
-			// Reset all
-			state.modifiers = make(map[string]bool)
-			state.textColor = ""
-			state.bgColor = ""
-			state.reverse = false
-			continue
-		}
-		if code == 7 {
-			state.reverse = true
-			continue
-		}
-		
-		tailwindClass, exists := ansiTailwindMap[code]
-		if exists && tailwindClass != "reset" {
-			if strings.HasPrefix(tailwindClass, "text-") {
-				state.textColor = tailwindClass
-			} else if strings.HasPrefix(tailwindClass, "bg-") {
-				state.bgColor = tailwindClass
-			} else {
-				state.modifiers[tailwindClass] = true
+// All returns an iterator that yields all nodes starting from this node
+func (n *Node) All() iter.Seq[*Node] {
+	return func(yield func(*Node) bool) {
+		current := n
+		for current != nil {
+			if !yield(current) {
+				return
 			}
+			current = current.Next
 		}
 	}
 }
 
-// stateToClasses converts the current state to a slice of class strings
-func stateToClasses(state *internalState) []string {
-	var classes []string
-	
-	// Add modifiers
-	for modifier := range state.modifiers {
-		classes = append(classes, modifier)
+// processAnsiEscapes takes a text node and splits it into alternating text and ansi nodes
+func processAnsiEscapes(node Node) []Node {
+	if node.Type != NodeTypeText {
+		return []Node{node}
 	}
-	
-	textColor := state.textColor
-	bgColor := state.bgColor
-	
-	// Handle reverse video
-	if state.reverse {
-		// Convert colors to their opposite types when reversing
-		if textColor != "" && strings.HasPrefix(textColor, "text-") {
-			textColor = "bg-" + textColor[5:] // Convert text-ansi-red to bg-ansi-red
-		}
-		if bgColor != "" && strings.HasPrefix(bgColor, "bg-") {
-			bgColor = "text-" + bgColor[3:] // Convert bg-ansi-green to text-ansi-green
-		}
-		textColor, bgColor = bgColor, textColor
-	}
-	
-	if textColor != "" {
-		classes = append(classes, textColor)
-	}
-	if bgColor != "" {
-		classes = append(classes, bgColor)
-	}
-	
-	return classes
-}
 
-// ANSI escape sequence regex
-var ansiRegex = regexp.MustCompile(`\x1b\[([0-9;]+)m`)
-
-// ParseLine parses a line with ANSI escape sequences and returns LogSpan segments
-func ParseLine(line string) []LogSpan {
-	// Fast path: if no ANSI escapes are found, return single span
-	if !strings.Contains(line, "\x1b[") {
-		return []LogSpan{{Text: line, ClassName: nil}}
+	// Fast path: if no ANSI escapes are found, return original node
+	if !strings.Contains(node.Content, "\x1b[") {
+		return []Node{node}
 	}
-	
-	var segments []LogSpan
+
+	var result []Node
+	content := node.Content
 	lastIndex := 0
-	currentState := makeInitialState()
-	
-	matches := ansiRegex.FindAllStringSubmatchIndex(line, -1)
-	
+
+	// ANSI escape sequence regex
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	matches := ansiRegex.FindAllStringIndex(content, -1)
+
 	for _, match := range matches {
 		matchStart := match[0]
 		matchEnd := match[1]
-		codeStart := match[2]
-		codeEnd := match[3]
-		
+
 		// Add text before this ANSI sequence
 		if matchStart > lastIndex {
-			text := line[lastIndex:matchStart]
-			segments = append(segments, LogSpan{
-				Text:      text,
-				ClassName: stateToClasses(currentState),
-			})
+			textContent := content[lastIndex:matchStart]
+			result = append(result, Node{Type: NodeTypeText, Content: textContent})
 		}
-		
-		// Parse the ANSI codes
-		codeStr := line[codeStart:codeEnd]
-		codeStrs := strings.Split(codeStr, ";")
-		var codes []int
-		for _, cs := range codeStrs {
-			if code, err := strconv.Atoi(cs); err == nil {
-				codes = append(codes, code)
-			}
-		}
-		
-		updateStateWithCodes(currentState, codes)
+
+		// Add the ANSI sequence itself
+		ansiContent := content[matchStart:matchEnd]
+		result = append(result, Node{Type: NodeTypeAnsi, Content: ansiContent})
+
 		lastIndex = matchEnd
 	}
-	
+
 	// Add remaining text after last ANSI sequence
-	if lastIndex < len(line) {
-		text := line[lastIndex:]
-		segments = append(segments, LogSpan{
-			Text:      text,
-			ClassName: stateToClasses(currentState),
-		})
+	if lastIndex < len(content) {
+		textContent := content[lastIndex:]
+		result = append(result, Node{Type: NodeTypeText, Content: textContent})
 	}
-	
-	return segments
+
+	return result
+}
+
+// ParseLineToNode creates an initial node containing the full log line as text
+func ParseLineToNode(line string) *Node {
+	return &Node{Type: NodeTypeText, Content: line}
 }
