@@ -234,7 +234,7 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(
                 )}
                 {logSettings.showSource && <div className="pl-2">{formatSource(line.source)}</div>}
                 <AnsiLine
-                    className="flex-1 min-w-0 pl-2 select-text cursor-default text-primary break-all overflow-hidden whitespace-pre"
+                    className="flex-1 min-w-0 pl-2 select-text cursor-default text-primary break-all overflow-hidden whitespace-pre data-copy"
                     line={processedMessage}
                 />
             </div>
