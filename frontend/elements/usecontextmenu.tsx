@@ -103,7 +103,7 @@ export function useContextMenu() {
                       left: menuState.position.x,
                       top: menuState.position.y,
                   }}
-                  className="rounded-md shadow min-w-[160px] text-[13px] text-primary bg-[#c7c7c9] z-[1000] pt-[5px] pb-[4px]"
+                  className="rounded-md shadow min-w-[160px] text-[13px] border border-gray-300 dark:border-none text-primary bg-[#e7e7e9] dark:bg-[#c7c7c9] z-[1000] pt-[5px] pb-[4px]"
               >
                   {menuState.items.map((item, index) => {
                       if ("type" in item && item.type === "separator") {
@@ -119,7 +119,7 @@ export function useContextMenu() {
                                       handleItemClick(menuItem);
                                   }}
                                   disabled={menuItem.disabled}
-                                  className="font-system w-full px-2 py-0.5 text-left text-white hover:bg-[#0066cc] hover:text-primary disabled:opacity-50 flex items-center gap-1 rounded-md"
+                                  className="font-system w-full px-2 py-0.5 text-left text-primary dark:text-white hover:bg-[#3399ee] dark:hover:bg-[#0066cc] hover:text-white dark:hover:text-primary disabled:opacity-50 flex items-center gap-1 rounded-md"
                               >
                                   <span>{menuItem.label}</span>
                               </button>
