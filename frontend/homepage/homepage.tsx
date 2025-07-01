@@ -3,6 +3,7 @@
 
 import { AppModel } from "@/appmodel";
 import { AppRunList } from "@/apprunlist/apprunlist";
+import { AppRunListModel } from "@/apprunlist/apprunlist-model";
 import { SettingsButton } from "@/elements/settingsbutton";
 import { UpdateBadge } from "@/elements/updatebadge";
 import { StatusBar } from "@/mainapp/statusbar";
@@ -169,7 +170,7 @@ const LeftColumn: React.FC = () => {
 };
 
 export const HomePage: React.FC = () => {
-    const appRunCount = useAtomValue(AppModel.appRunListModel.appRunCount);
+    const appRunCount = useAtomValue(AppRunListModel.appRunCount);
     const hasAppRuns = appRunCount > 0;
     const isDarkMode = useAtomValue(AppModel.darkMode);
     return (

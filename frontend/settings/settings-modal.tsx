@@ -1,17 +1,18 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
+import { AppRunListModel } from "@/apprunlist/apprunlist-model";
 import { CodeLinkType } from "@/codelink/codelink-model";
+import { Dropdown } from "@/elements/dropdown";
+import { Modal } from "@/elements/modal";
+import { Toggle } from "@/elements/toggle";
+import { DefaultRpcClient } from "@/init";
+import { RpcApi } from "@/rpc/rpcclientapi";
+import { SettingsModel } from "@/settings/settings-model";
 import { useAtom, useAtomValue } from "jotai";
 import { Moon, Sun } from "lucide-react";
 import React, { useEffect, useRef } from "react";
-import { AppModel } from "../appmodel";
-import { Dropdown } from "../elements/dropdown";
-import { Modal } from "../elements/modal";
-import { Toggle } from "../elements/toggle";
-import { DefaultRpcClient } from "../init";
-import { RpcApi } from "../rpc/rpcclientapi";
-import { SettingsModel } from "./settings-model";
 
 // Container component that checks isOpen state
 export const SettingsModalContainer: React.FC = () => {
@@ -50,7 +51,12 @@ export const SettingsModal: React.FC = () => {
     const [darkMode, setDarkMode] = useAtom(AppModel.darkMode);
 
     return (
-        <Modal isOpen={true} title="Outrig Settings" onClose={() => AppModel.closeSettingsModal()} className="w-[650px]">
+        <Modal
+            isOpen={true}
+            title="Outrig Settings"
+            onClose={() => AppModel.closeSettingsModal()}
+            className="w-[650px]"
+        >
             <div className="text-primary">
                 {/* Hidden input to capture focus */}
                 <input
@@ -193,7 +199,7 @@ export const SettingsModal: React.FC = () => {
                                         try {
                                             await RpcApi.ClearNonActiveAppRunsCommand(DefaultRpcClient);
                                             // Trigger a full refresh of the app runs list
-                                            AppModel.appRunListModel.triggerFullRefresh();
+                                            AppRunListModel.triggerFullRefresh();
                                             AppModel.showToast("Success", "Non-active app runs cleared", 3000);
                                         } catch (error) {
                                             console.error("Failed to clear non-active app runs:", error);

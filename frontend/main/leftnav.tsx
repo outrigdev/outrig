@@ -1,11 +1,12 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
+import { AppRunListModel } from "@/apprunlist/apprunlist-model";
+import { cn, formatDuration, formatRelativeTime } from "@/util/util";
 import { useAtom, useAtomValue } from "jotai";
 import { Box, Clock, Github, Home, Moon, Plus, Settings, Sun, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
-import { AppModel } from "../appmodel";
-import { cn, formatDuration, formatRelativeTime } from "../util/util";
 
 // AppRunItem component for displaying a single app run item
 interface AppRunItemProps {
@@ -122,18 +123,18 @@ export const AppNameGroup: React.FC<AppNameGroupProps> = ({ appName, appRuns, se
 // AppRunList component for displaying the list of app runs in the left navigation
 export const LeftNavAppRunList: React.FC = () => {
     const [isOpen, setIsOpen] = useAtom(AppModel.leftNavOpen);
-    const unsortedAppRuns = useAtomValue(AppModel.appRunListModel.appRuns);
+    const unsortedAppRuns = useAtomValue(AppRunListModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
     // Group app runs by app name and sort within groups
     const groupedAppRuns = useMemo(() => {
         // First, get all running app runs
-        const runningAppRuns = unsortedAppRuns.filter((run) => run.status === "running");
+        const runningAppRuns = unsortedAppRuns.filter((run: AppRunInfo) => run.status === "running");
 
         // Then get the latest 10 app runs by start time (excluding running ones to avoid duplicates)
         const nonRunningAppRuns = unsortedAppRuns
-            .filter((run) => run.status !== "running")
-            .sort((a, b) => b.starttime - a.starttime)
+            .filter((run: AppRunInfo) => run.status !== "running")
+            .sort((a: AppRunInfo, b: AppRunInfo) => b.starttime - a.starttime)
             .slice(0, Math.max(0, 10 - runningAppRuns.length));
 
         // Combine running and non-running app runs

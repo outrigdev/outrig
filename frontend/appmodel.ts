@@ -1,14 +1,14 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppRunListModel } from "@/apprunlist/apprunlist-model";
+import { Toast } from "@/elements/toast";
+import { emitter } from "@/events";
+import { DefaultRpcClient } from "@/init";
+import { RpcApi } from "@/rpc/rpcclientapi";
+import { sendTabEvent } from "@/tevent";
+import { isBlank } from "@/util/util";
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
-import { AppRunListModel } from "./apprunlist/apprunlist-model";
-import { Toast } from "./elements/toast";
-import { emitter } from "./events";
-import { DefaultRpcClient } from "./init";
-import { RpcApi } from "./rpc/rpcclientapi";
-import { sendTabEvent } from "./tevent";
-import { isBlank } from "./util/util";
 
 const AutoFollowStorageKey = "outrig:autoFollow";
 const ThemeLocalStorageKey = "outrig:theme";
@@ -52,9 +52,6 @@ class AppModel {
         return appRunInfo?.starttime || null;
     });
 
-    // App run model
-    appRunListModel: AppRunListModel;
-
     // Cache for app run info atoms
     appRunInfoAtomCache: Map<string, Atom<AppRunInfo>> = new Map();
 
@@ -62,7 +59,6 @@ class AppModel {
     private _isInitializing: boolean = true;
 
     constructor() {
-        this.appRunListModel = new AppRunListModel();
         this.applyTheme();
         this.initFromUrl();
 
@@ -170,12 +166,12 @@ class AppModel {
 
     async loadAppRuns() {
         // Let errors propagate to the caller
-        await this.appRunListModel.loadAppRuns();
+        await AppRunListModel.loadAppRuns();
 
         // If we have a pending appRunId from URL, verify it exists and set it
         if (this._pendingAppRunId) {
-            const appRuns = getDefaultStore().get(this.appRunListModel.appRuns);
-            const appRunExists = appRuns.some((run) => run.apprunid === this._pendingAppRunId);
+            const appRuns = getDefaultStore().get(AppRunListModel.appRuns);
+            const appRunExists = appRuns.some((run: AppRunInfo) => run.apprunid === this._pendingAppRunId);
 
             if (appRunExists) {
                 const appRunId = this._pendingAppRunId as string;
@@ -232,7 +228,7 @@ class AppModel {
 
     // Check if the selected app run is not the "best" one, and if so, disable auto-follow
     private checkAndDisableAutoFollow(appRunId: string) {
-        const bestAppRun = this.appRunListModel.findBestAppRun();
+        const bestAppRun = AppRunListModel.findBestAppRun();
         if (bestAppRun && bestAppRun.apprunid !== appRunId) {
             // The selected app run is not the best one, disable auto-follow
             const autoFollow = getDefaultStore().get(this.autoFollow);
@@ -409,8 +405,8 @@ class AppModel {
                 if (appRunId === "") {
                     return null;
                 }
-                const appRuns = get(this.appRunListModel.appRuns);
-                return appRuns.find((run) => run.apprunid === appRunId);
+                const appRuns = get(AppRunListModel.appRuns);
+                return appRuns.find((run: AppRunInfo) => run.apprunid === appRunId);
             });
             this.appRunInfoAtomCache.set(appRunId, appRunInfoAtom);
         }

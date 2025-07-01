@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AppModel } from "@/appmodel";
+import { AppRunListModel } from "@/apprunlist/apprunlist-model";
 import { ErrorBoundary } from "@/elements/errorboundary";
 import { SettingsButton } from "@/elements/settingsbutton";
 import { Tooltip } from "@/elements/tooltip";
@@ -56,7 +57,7 @@ const AppRunSwitcher = React.memo(function AppRunSwitcher() {
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const appRunInfoAtom = AppModel.getAppRunInfoAtom(selectedAppRunId || "");
     const appRunInfo = useAtomValue(appRunInfoAtom);
-    const allAppRuns = useAtomValue(AppModel.appRunListModel.appRuns);
+    const allAppRuns = useAtomValue(AppRunListModel.appRuns);
 
     const handleHeaderClick = () => {
         AppModel.setLeftNavOpen(!isLeftNavOpen); // Toggle the left nav
@@ -67,7 +68,7 @@ const AppRunSwitcher = React.memo(function AppRunSwitcher() {
         if (!currentRun) return false;
 
         // Filter app runs with the same appname
-        const sameAppRuns = allAppRuns.filter((run) => run.appname === currentRun.appname);
+        const sameAppRuns = allAppRuns.filter((run: AppRunInfo) => run.appname === currentRun.appname);
 
         // Sort by starttime (newest first)
         const sortedRuns = [...sameAppRuns].sort((a, b) => b.starttime - a.starttime);

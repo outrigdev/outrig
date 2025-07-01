@@ -1,12 +1,13 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
+import { AppRunListModel } from "@/apprunlist/apprunlist-model";
+import { Tag } from "@/elements/tag";
+import { cn, formatDuration, formatRelativeTime } from "@/util/util";
 import { useAtomValue } from "jotai";
 import { Box, CircleDot, Clock, ExternalLink, Eye, List, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { AppModel } from "../appmodel";
-import { Tag } from "../elements/tag";
-import { cn, formatDuration, formatRelativeTime } from "../util/util";
 
 interface AppRunStatusTagProps {
     status: string;
@@ -152,7 +153,7 @@ interface AppRunListProps {
 }
 
 export const AppRunList: React.FC<AppRunListProps> = ({ emptyStateComponent }) => {
-    const unsortedAppRuns = useAtomValue(AppModel.appRunListModel.appRuns);
+    const unsortedAppRuns = useAtomValue(AppRunListModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
     // Sort app runs: running apps at the top, then by start time (newest first)

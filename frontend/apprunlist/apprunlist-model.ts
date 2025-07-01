@@ -1,13 +1,13 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
 import { DefaultRpcClient } from "@/init";
+import { RpcApi } from "@/rpc/rpcclientapi";
+import { mergeArraysByKey } from "@/util/util";
+import { addWSReconnectHandler } from "@/websocket/client";
 import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { selectAtom } from "jotai/utils";
-import { AppModel } from "../appmodel";
-import { RpcApi } from "../rpc/rpcclientapi";
-import { mergeArraysByKey } from "../util/util";
-import { addWSReconnectHandler } from "../websocket/client";
 
 class AppRunListModel {
     appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);
@@ -210,4 +210,6 @@ class AppRunListModel {
     }
 }
 
-export { AppRunListModel };
+// Export a singleton instance
+const model = new AppRunListModel();
+export { model as AppRunListModel };

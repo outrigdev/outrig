@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AppModel } from "@/appmodel";
+import { AppRunListModel } from "@/apprunlist/apprunlist-model";
 import { Tooltip } from "@/elements/tooltip";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Box, CircleDot, Eye, List, PauseCircle, Wifi, WifiOff } from "lucide-react";
@@ -44,18 +45,18 @@ function ConnectionStatus({ status }: { status: string }) {
 }
 
 export function StatusBar() {
-    const appRuns = useAtomValue(AppModel.appRunListModel.appRuns);
+    const appRuns = useAtomValue(AppRunListModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const setSelectedTab = useSetAtom(AppModel.selectedTab);
 
     // Find the selected app run
     const selectedAppRun = useMemo(() => {
-        return appRuns.find((run) => run.apprunid === selectedAppRunId);
+        return appRuns.find((run: AppRunInfo) => run.apprunid === selectedAppRunId);
     }, [appRuns, selectedAppRunId]);
 
     // Count running app runs
     const runningAppRunsCount = useMemo(() => {
-        return appRuns.filter((run) => run.status === "running").length;
+        return appRuns.filter((run: AppRunInfo) => run.status === "running").length;
     }, [appRuns]);
 
     // Determine which goroutine count to display
