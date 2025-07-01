@@ -38,3 +38,7 @@ updates:
                   - "tailwindcss"
                   - "@tailwindcss/*"
                   - "tailwind-merge"
+          prettier-dependencies:
+              patterns:
+                  - "prettier"
+                  - "prettier-*"
