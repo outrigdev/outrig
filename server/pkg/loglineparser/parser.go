@@ -6,7 +6,6 @@ package loglineparser
 import (
 	"iter"
 	"regexp"
-	"strings"
 )
 
 // Position represents the start and end positions of content in a string
@@ -36,6 +35,9 @@ const (
 	NodeTypeNumber    = "number"
 )
 
+var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+var uuidRegex = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
+
 // SetLabel sets the label for a node
 func (n *Node) SetLabel(label string) {
 	n.Label = label
@@ -58,7 +60,7 @@ func (n *Node) IsStructuredType() bool {
 }
 
 // Splice replaces the current node with a slice of new nodes and returns (head, next)
-func (n *Node) Splice(newNodes []Node) (*Node, *Node) {
+func (n *Node) Splice(newNodes []*Node) (*Node, *Node) {
 	nextNode := n.Next
 
 	if len(newNodes) == 0 {
@@ -72,14 +74,15 @@ func (n *Node) Splice(newNodes []Node) (*Node, *Node) {
 		return nextNode, nextNode
 	}
 
+	// Special case: if there's only one node and it's the same as the current node, no change needed
+	if len(newNodes) == 1 && newNodes[0] == n {
+		return n, n.Next
+	}
+
 	// Create linked list from slice
-	var head *Node
+	head := newNodes[0]
 	var prev *Node
-	for i := range newNodes {
-		node := &newNodes[i]
-		if head == nil {
-			head = node
-		}
+	for _, node := range newNodes {
 		node.Prev = prev
 		if prev != nil {
 			prev.Next = node
@@ -113,52 +116,188 @@ func (n *Node) All() iter.Seq[*Node] {
 	}
 }
 
-// processAnsiEscapes takes a text node and splits it into alternating text and ansi nodes
-func processAnsiEscapes(node Node) []Node {
+// FindFirstAnsiEscape finds the first ANSI escape sequence in the given string
+// Returns nil if no ANSI escape is found, otherwise returns the position range
+func FindFirstAnsiEscape(s string) *Position {
+	if len(s) == 0 {
+		return nil
+	}
+
+	match := ansiEscapeRegex.FindStringIndex(s)
+	if match == nil {
+		return nil
+	}
+
+	return &Position{Start: match[0], End: match[1]}
+}
+
+// FindFirstUUID finds the first UUID in the given string
+// Returns nil if no UUID is found, otherwise returns the position range
+func FindFirstUUID(s string) *Position {
+	if len(s) == 0 {
+		return nil
+	}
+
+	match := uuidRegex.FindStringIndex(s)
+	if match == nil {
+		return nil
+	}
+
+	return &Position{Start: match[0], End: match[1]}
+}
+
+// FindFirstURL finds the first HTTP/HTTPS URL in the given string
+// Returns nil if no URL is found, otherwise returns the position range
+// Applies heuristics to avoid including trailing punctuation
+func FindFirstURL(s string) *Position {
+	if len(s) == 0 {
+		return nil
+	}
+
+	// Look for http:// or https://
+	httpIndex := -1
+	for i := 0; i <= len(s)-7; i++ {
+		if i <= len(s)-8 && s[i:i+8] == "https://" {
+			httpIndex = i
+			break
+		}
+		if s[i:i+7] == "http://" {
+			httpIndex = i
+			break
+		}
+	}
+
+	if httpIndex == -1 {
+		return nil
+	}
+
+	// Find the end of the URL by looking for whitespace or common delimiters
+	end := httpIndex + 7 // Start after "http://"
+	if httpIndex <= len(s)-8 && s[httpIndex:httpIndex+8] == "https://" {
+		end = httpIndex + 8 // Start after "https://"
+	}
+
+	// Continue until we hit whitespace, quotes, or other common delimiters
+	for end < len(s) {
+		char := s[end]
+		if char == ' ' || char == '\t' || char == '\n' || char == '\r' ||
+			char == '"' || char == '\'' || char == '`' ||
+			char == '<' || char == '>' || char == '|' {
+			break
+		}
+		end++
+	}
+
+	// Apply heuristics to trim common trailing punctuation
+	for end > httpIndex+7 {
+		lastChar := s[end-1]
+		if lastChar == '.' || lastChar == ',' || lastChar == ';' || lastChar == ':' ||
+			lastChar == '!' || lastChar == '?' || lastChar == ')' || lastChar == ']' ||
+			lastChar == '}' || lastChar == '"' || lastChar == '\'' {
+			end--
+		} else {
+			break
+		}
+	}
+
+	// Make sure we have a reasonable URL length
+	if end <= httpIndex+7 {
+		return nil
+	}
+
+	return &Position{Start: httpIndex, End: end}
+}
+
+// processNode takes a node and splits it based on positions returned by findFn
+// Non-found parts use the original node's type, found parts use the specified nodeType
+func processNode(node *Node, findFn func(s string) *Position, nodeType string) []*Node {
 	if node.Type != NodeTypeText {
-		return []Node{node}
+		return []*Node{node}
 	}
 
-	// Fast path: if no ANSI escapes are found, return original node
-	if !strings.Contains(node.Content, "\x1b[") {
-		return []Node{node}
-	}
-
-	var result []Node
+	var result []*Node
 	content := node.Content
-	lastIndex := 0
+	offset := 0
+	foundAny := false
 
-	// ANSI escape sequence regex
-	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	matches := ansiRegex.FindAllStringIndex(content, -1)
-
-	for _, match := range matches {
-		matchStart := match[0]
-		matchEnd := match[1]
-
-		// Add text before this ANSI sequence
-		if matchStart > lastIndex {
-			textContent := content[lastIndex:matchStart]
-			result = append(result, Node{Type: NodeTypeText, Content: textContent})
+	for {
+		// Find the next position in the remaining content
+		pos := findFn(content[offset:])
+		if pos == nil {
+			break
 		}
 
-		// Add the ANSI sequence itself
-		ansiContent := content[matchStart:matchEnd]
-		result = append(result, Node{Type: NodeTypeAnsi, Content: ansiContent})
+		foundAny = true
 
-		lastIndex = matchEnd
+		// Adjust position to absolute offset
+		absoluteStart := offset + pos.Start
+		absoluteEnd := offset + pos.End
+
+		// Add text before this match (if any)
+		if absoluteStart > offset {
+			textContent := content[offset:absoluteStart]
+			result = append(result, &Node{Type: node.Type, Content: textContent})
+		}
+
+		// Add the found content with the specified type
+		foundContent := content[absoluteStart:absoluteEnd]
+		result = append(result, &Node{Type: nodeType, Content: foundContent})
+
+		// Move offset past this match
+		offset = absoluteEnd
 	}
 
-	// Add remaining text after last ANSI sequence
-	if lastIndex < len(content) {
-		textContent := content[lastIndex:]
-		result = append(result, Node{Type: NodeTypeText, Content: textContent})
+	// If no matches were found, return original node
+	if !foundAny {
+		return []*Node{node}
+	}
+
+	// Add remaining text after last match (if any)
+	if offset < len(content) {
+		textContent := content[offset:]
+		result = append(result, &Node{Type: node.Type, Content: textContent})
 	}
 
 	return result
 }
 
-// ParseLineToNode creates an initial node containing the full log line as text
-func ParseLineToNode(line string) *Node {
-	return &Node{Type: NodeTypeText, Content: line}
+// processNodeList applies processNode to every node in a linked list
+// It takes the head of a linked list, a find function, and node type, then iterates through
+// each node, applies processNode, and splices the results back into the list
+func processNodeList(head *Node, findFn func(s string) *Position, nodeType string) *Node {
+	if head == nil {
+		return nil
+	}
+
+	current := head
+	var newHead *Node
+
+	for current != nil {
+		// Process the current node using processNode
+		processedNodes := processNode(current, findFn, nodeType)
+
+		// Splice the processed nodes back into the list
+		resultHead, nextNode := current.Splice(processedNodes)
+
+		// Update the head if this was the first node
+		if newHead == nil {
+			newHead = resultHead
+		}
+
+		// Move to the next node (which is now the node after our spliced content)
+		current = nextNode
+	}
+
+	return newHead
+}
+
+func ProcessLine(line string) *Node {
+	head := &Node{Type: NodeTypeText, Content: line}
+	head = processNodeList(head, FindFirstAnsiEscape, NodeTypeAnsi)
+	head = processNodeList(head, func(s string) *Position {
+		return FindFirstJSON(s, false) // Don't allow arrays
+	}, NodeTypeJSON)
+	head = processNodeList(head, FindFirstUUID, NodeTypeUUID)
+	head = processNodeList(head, FindFirstURL, NodeTypeURL)
+	return head
 }
