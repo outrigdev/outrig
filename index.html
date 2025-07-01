@@ -42,13 +42,13 @@
                 document.documentElement.dataset.theme = isDarkMode ? "dark" : "light";
                 // Set body background color after DOM is loaded
                 document.addEventListener("DOMContentLoaded", function () {
-                    document.body.style.backgroundColor = isDarkMode ? "#282c34" : "#f9fafb";
+                    document.body.style.backgroundColor = isDarkMode ? "#0f172a" : "#f9fafb";
                     checkCssLoaded("/assets/");
                 });
             })();
         </script>
     </head>
-    <body>
+    <body style="margin: 0; padding: 0; height: 100vh">
         <div id="root"></div>
         <script type="module" src="/frontend/main.tsx"></script>
     </body>
