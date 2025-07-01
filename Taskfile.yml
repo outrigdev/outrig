@@ -72,6 +72,11 @@ tasks:
             - go run server/cmd/generatego/main-generatego.go
             - go run server/cmd/generatets/main-generatets.go
 
+    check:ts:
+        desc: Check TypeScript for compile errors
+        cmds:
+            - npx tsc --project tsconfig.app.json --noEmit
+
     test:run:
         desc: run main-test.go to generate some fake data
         cmds:

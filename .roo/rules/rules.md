@@ -77,6 +77,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
 - The app uses a tab-based navigation system where the selected tab determines which component is displayed.
 - To handle keyboard events, use keymodel.ts. Register global keys in registerGlobalKeys() and hook them up to the appropriate handlers.
 - New modal containers should be added to app.tsx (not mainapp.tsx)
+- To check the frontend for TypeScript errors you can use `task check:ts`
 
 ### Data Flow
 
