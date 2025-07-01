@@ -152,7 +152,7 @@ interface AppRunListProps {
 }
 
 export const AppRunList: React.FC<AppRunListProps> = ({ emptyStateComponent }) => {
-    const unsortedAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
+    const unsortedAppRuns = useAtomValue(AppModel.appRunListModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
     // Sort app runs: running apps at the top, then by start time (newest first)

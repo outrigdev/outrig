@@ -193,7 +193,7 @@ export const SettingsModal: React.FC = () => {
                                         try {
                                             await RpcApi.ClearNonActiveAppRunsCommand(DefaultRpcClient);
                                             // Trigger a full refresh of the app runs list
-                                            AppModel.appRunModel.triggerFullRefresh();
+                                            AppModel.appRunListModel.triggerFullRefresh();
                                             AppModel.showToast("Success", "Non-active app runs cleared", 3000);
                                         } catch (error) {
                                             console.error("Failed to clear non-active app runs:", error);

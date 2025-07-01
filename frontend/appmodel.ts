@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
-import { AppRunModel } from "./apprunlist/apprunlist-model";
+import { AppRunListModel } from "./apprunlist/apprunlist-model";
 import { Toast } from "./elements/toast";
 import { emitter } from "./events";
 import { DefaultRpcClient } from "./init";
@@ -53,7 +53,7 @@ class AppModel {
     });
 
     // App run model
-    appRunModel: AppRunModel;
+    appRunListModel: AppRunListModel;
 
     // Cache for app run info atoms
     appRunInfoAtomCache: Map<string, Atom<AppRunInfo>> = new Map();
@@ -62,7 +62,7 @@ class AppModel {
     private _isInitializing: boolean = true;
 
     constructor() {
-        this.appRunModel = new AppRunModel();
+        this.appRunListModel = new AppRunListModel();
         this.applyTheme();
         this.initFromUrl();
 
@@ -170,11 +170,11 @@ class AppModel {
 
     async loadAppRuns() {
         // Let errors propagate to the caller
-        await this.appRunModel.loadAppRuns();
+        await this.appRunListModel.loadAppRuns();
 
         // If we have a pending appRunId from URL, verify it exists and set it
         if (this._pendingAppRunId) {
-            const appRuns = getDefaultStore().get(this.appRunModel.appRuns);
+            const appRuns = getDefaultStore().get(this.appRunListModel.appRuns);
             const appRunExists = appRuns.some((run) => run.apprunid === this._pendingAppRunId);
 
             if (appRunExists) {
@@ -232,7 +232,7 @@ class AppModel {
 
     // Check if the selected app run is not the "best" one, and if so, disable auto-follow
     private checkAndDisableAutoFollow(appRunId: string) {
-        const bestAppRun = this.appRunModel.findBestAppRun();
+        const bestAppRun = this.appRunListModel.findBestAppRun();
         if (bestAppRun && bestAppRun.apprunid !== appRunId) {
             // The selected app run is not the best one, disable auto-follow
             const autoFollow = getDefaultStore().get(this.autoFollow);
@@ -409,7 +409,7 @@ class AppModel {
                 if (appRunId === "") {
                     return null;
                 }
-                const appRuns = get(this.appRunModel.appRuns);
+                const appRuns = get(this.appRunListModel.appRuns);
                 return appRuns.find((run) => run.apprunid === appRunId);
             });
             this.appRunInfoAtomCache.set(appRunId, appRunInfoAtom);

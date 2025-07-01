@@ -169,7 +169,7 @@ const LeftColumn: React.FC = () => {
 };
 
 export const HomePage: React.FC = () => {
-    const appRunCount = useAtomValue(AppModel.appRunModel.appRunCount);
+    const appRunCount = useAtomValue(AppModel.appRunListModel.appRunCount);
     const hasAppRuns = appRunCount > 0;
     const isDarkMode = useAtomValue(AppModel.darkMode);
     return (

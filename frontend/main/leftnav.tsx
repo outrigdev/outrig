@@ -122,7 +122,7 @@ export const AppNameGroup: React.FC<AppNameGroupProps> = ({ appName, appRuns, se
 // AppRunList component for displaying the list of app runs in the left navigation
 export const LeftNavAppRunList: React.FC = () => {
     const [isOpen, setIsOpen] = useAtom(AppModel.leftNavOpen);
-    const unsortedAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
+    const unsortedAppRuns = useAtomValue(AppModel.appRunListModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
 
     // Group app runs by app name and sort within groups

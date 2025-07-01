@@ -44,7 +44,7 @@ function ConnectionStatus({ status }: { status: string }) {
 }
 
 export function StatusBar() {
-    const appRuns = useAtomValue(AppModel.appRunModel.appRuns);
+    const appRuns = useAtomValue(AppModel.appRunListModel.appRuns);
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const setSelectedTab = useSetAtom(AppModel.selectedTab);
 

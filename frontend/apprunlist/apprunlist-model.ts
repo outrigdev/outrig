@@ -9,7 +9,7 @@ import { RpcApi } from "../rpc/rpcclientapi";
 import { mergeArraysByKey } from "../util/util";
 import { addWSReconnectHandler } from "../websocket/client";
 
-class AppRunModel {
+class AppRunListModel {
     appRuns: PrimitiveAtom<AppRunInfo[]> = atom<AppRunInfo[]>([]);
     appRunCount = selectAtom(this.appRuns, (appRuns) => appRuns.length);
 
@@ -31,17 +31,17 @@ class AppRunModel {
     }
 
     handleServerReconnect() {
-        console.log("[AppRunModel] WebSocket reconnected, will perform full refresh of app runs");
+        console.log("[AppRunListModel] WebSocket reconnected, will perform full refresh of app runs");
         this.needsFullAppRunsRefresh = true;
 
         this.loadAppRuns().catch((error) => {
-            console.error("[AppRunModel] Error refreshing app runs after reconnection:", error);
+            console.error("[AppRunListModel] Error refreshing app runs after reconnection:", error);
         });
     }
 
     async loadAppRuns() {
         if (this.needsFullAppRunsRefresh) {
-            console.log("[AppRunModel] Performing full refresh of app runs after reconnection");
+            console.log("[AppRunListModel] Performing full refresh of app runs after reconnection");
             this.appRunsInfoLastUpdateTime = 0;
         }
 
@@ -210,4 +210,4 @@ class AppRunModel {
     }
 }
 
-export { AppRunModel };
+export { AppRunListModel };

@@ -56,7 +56,7 @@ const AppRunSwitcher = React.memo(function AppRunSwitcher() {
     const selectedAppRunId = useAtomValue(AppModel.selectedAppRunId);
     const appRunInfoAtom = AppModel.getAppRunInfoAtom(selectedAppRunId || "");
     const appRunInfo = useAtomValue(appRunInfoAtom);
-    const allAppRuns = useAtomValue(AppModel.appRunModel.appRuns);
+    const allAppRuns = useAtomValue(AppModel.appRunListModel.appRuns);
 
     const handleHeaderClick = () => {
         AppModel.setLeftNavOpen(!isLeftNavOpen); // Toggle the left nav
