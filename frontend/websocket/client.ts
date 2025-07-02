@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // WebSocket client for Outrig
-import { atom, getDefaultStore, PrimitiveAtom } from "jotai";
+import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
+
+// Global atom to track if WebSocketController is initialized
+const isInitializedAtom: PrimitiveAtom<boolean> = atom(false);
 
 // Constants
 const WarnWebSocketSendSize = 1024 * 1024; // 1MB
@@ -54,6 +57,8 @@ export function removeWSReconnectHandler(handler: () => void) {
 }
 
 export class WebSocketController {
+    static instance: WebSocketController | null = null;
+
     ws: WebSocket | null = null;
     options: WebSocketOptions;
     reconnectAttempts = 0;
@@ -70,10 +75,24 @@ export class WebSocketController {
         "connecting"
     );
 
-    constructor(options: WebSocketOptions) {
+    private constructor(options: WebSocketOptions) {
         this.options = options;
         this.connectNow("initial");
         this._startPingInterval();
+    }
+
+    static initialize(options: WebSocketOptions): WebSocketController {
+        if (WebSocketController.instance) {
+            throw new Error("WebSocketController already initialized");
+        }
+        WebSocketController.instance = new WebSocketController(options);
+        // Set the initialized atom to true
+        getDefaultStore().set(isInitializedAtom, true);
+        return WebSocketController.instance;
+    }
+
+    static getInstance(): WebSocketController | null {
+        return WebSocketController.instance;
     }
 
     _handleWindowFocus() {
@@ -332,6 +351,9 @@ export class WebSocketController {
     shutdown() {
         this.noReconnect = true;
         this.close();
+        WebSocketController.instance = null;
+        // Reset the initialized atom
+        getDefaultStore().set(isInitializedAtom, false);
     }
 
     close() {
@@ -365,3 +387,18 @@ export class WebSocketController {
         return this.isConnected && this.ws !== null && this.ws.readyState === WebSocket.OPEN;
     }
 }
+
+// Export the full connection state atom, defaulting to "connecting" if no instance
+export const serverConnectionStateAtom: Atom<"connecting" | "connected" | "failed"> = atom((get) => {
+    const isInitialized = get(isInitializedAtom);
+    if (!isInitialized || !WebSocketController.instance) {
+        return "connecting";
+    }
+    return get(WebSocketController.instance.connectionState);
+});
+
+// Export a boolean atom that wraps the connection state
+export const serverConnectedAtom: Atom<boolean> = atom((get) => {
+    const connectionState = get(serverConnectionStateAtom);
+    return connectionState === "connected";
+});

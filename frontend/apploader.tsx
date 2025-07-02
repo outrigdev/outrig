@@ -5,33 +5,33 @@ import { useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
 import { App } from "./app";
 import { AppModel } from "./appmodel";
-import { GlobalWS } from "./init";
+import { serverConnectionStateAtom } from "./websocket/client";
 
 /**
  * AppLoader component that waits for the websocket connection to be established
  * and app runs to be loaded before rendering the main App component.
- * 
+ *
  * On the happy path, we wait for both the websocket connection and app runs to load.
  * If the websocket fails, we render the App component immediately without waiting for app runs.
  * Once we've resolved once, we always render the App component even if the connection state changes.
  */
 function AppLoader() {
-    const connectionState = useAtomValue(GlobalWS.connectionState);
+    const connectionState = useAtomValue(serverConnectionStateAtom);
     const [hasResolvedOnce, setHasResolvedOnce] = useState(false);
     const [appRunsLoaded, setAppRunsLoaded] = useState(false);
     const [isLoadingAppRuns, setIsLoadingAppRuns] = useState(false);
-    
+
     useEffect(() => {
         // If the connection state is "failed", mark it as resolved immediately
         if (connectionState === "failed") {
             setHasResolvedOnce(true);
         }
-        
+
         // If the connection is established and we haven't started loading app runs yet,
         // start loading them
         if (connectionState === "connected" && !isLoadingAppRuns && !appRunsLoaded) {
             setIsLoadingAppRuns(true);
-            
+
             // Load app runs
             AppModel.loadAppRuns()
                 .then(() => {
