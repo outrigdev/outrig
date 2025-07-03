@@ -232,7 +232,7 @@ export const DemoAppController: React.FC = () => {
                     <h3 className="text-primary font-medium">Demo Application</h3>
                 </div>
                 <p className="text-secondary text-sm mb-3">
-                    Try Outrig with a sample Go application that generates logs and goroutines
+                    Try Outrig with a sample Go application that generates logs, goroutines, and watches
                 </p>
                 {renderButton()}
             </div>

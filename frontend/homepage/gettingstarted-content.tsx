@@ -33,7 +33,7 @@ export const GettingStartedContent: React.FC<GettingStartedContentProps> = ({
     return (
         <div className="px-6 py-6 max-w-xl w-full mx-auto">
             {!hideTitle && <h3 className="text-primary text-lg font-medium mb-4">Getting Started</h3>}
-            <p className="text-secondary mb-6">To connect your Go server or application, add this single import:</p>
+            <p className="text-secondary mb-6">To connect your Go server or application, add this import:</p>
             <div className="bg-black/4 py-5 w-full border-l-2 border-accentbg relative">
                 <div className="absolute top-3 right-3">
                     <CopyButton onCopy={handleCopyImport} />
