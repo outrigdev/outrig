@@ -223,7 +223,7 @@ export const DemoAppController: React.FC = () => {
     };
 
     return (
-        <div className="bg-panel py-5 w-full">
+        <div className="bg-panel py-3 w-full">
             <div className="border-l-2 border-accentbg px-5">
                 <div className="flex items-center mb-2">
                     <div className="text-accent mr-2">
@@ -232,7 +232,7 @@ export const DemoAppController: React.FC = () => {
                     <h3 className="text-primary font-medium">Demo Application</h3>
                 </div>
                 <p className="text-secondary text-sm mb-3">
-                    Try Outrig with a sample Go application that generates logs, goroutines, and watches
+                    Try a sample application that generates logs, goroutines, and watches
                 </p>
                 {renderButton()}
             </div>

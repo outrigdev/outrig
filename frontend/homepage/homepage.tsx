@@ -9,9 +9,8 @@ import { UpdateBadge } from "@/elements/updatebadge";
 import { StatusBar } from "@/mainapp/statusbar";
 import { cn } from "@/util/util";
 import { useAtomValue } from "jotai";
-import { BookText, ExternalLink, Github, MessageCircle } from "lucide-react";
+import { BookText, ExternalLink, Github, MessageCircle, Plus } from "lucide-react";
 import { DemoAppController } from "./demo-app-controller";
-import { GettingStartedContent } from "./gettingstarted-content";
 
 const OutrigVersion = "v" + import.meta.env.PACKAGE_VERSION;
 
@@ -21,7 +20,9 @@ const GettingStartedWithOutrig: React.FC = () => {
             <div className="grow" />
             <div className="flex">
                 <div className="flex-grow flex-shrink min-w-0" />
-                <GettingStartedContent />
+                <div className="max-w-xl w-full">
+                    <DemoAppController />
+                </div>
                 <div className="flex-grow flex-shrink min-w-0" />
             </div>
             <div className="grow-[2]" />
@@ -48,7 +49,7 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
                     </>
                 ) : (
                     <>
-                        <h2 className="text-primary text-xl font-medium">Waiting for Connection...</h2>
+                        <h2 className="text-primary text-xl font-medium">Waiting for Connections...</h2>
                         <p className="text-secondary text-sm mt-3">
                             Your connected server or application runs will appear here automatically.
                         </p>
@@ -62,7 +63,7 @@ const AppRunSelectionColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }
     );
 };
 
-const WelcomeColumn: React.FC = () => {
+const WelcomeColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }) => {
     return (
         <div className="flex-grow flex flex-col border-l border-border overflow-auto">
             <div className="grow"></div>
@@ -80,13 +81,35 @@ const WelcomeColumn: React.FC = () => {
                     </p>
                 </div>
 
-                {/* Demo App Controller */}
-                <div className="w-full mb-4">
-                    <DemoAppController />
-                </div>
-
                 {/* Cards container - stacked layout */}
                 <div className="w-full flex flex-col gap-2">
+                    {/* Conditional first card based on app runs */}
+                    {hasAppRuns ? (
+                        /* Demo App Controller when there are app runs */
+                        <DemoAppController />
+                    ) : (
+                        /* Integration Instructions when there are no app runs */
+                        <div className="bg-panel py-3 w-full">
+                            <div className="border-l-2 border-accentbg px-5">
+                                <div className="flex items-center mb-2">
+                                    <div className="text-accent mr-2">
+                                        <BookText size={20} />
+                                    </div>
+                                    <h3 className="text-primary font-medium">Connect Your Application</h3>
+                                </div>
+                                <p className="text-secondary text-sm mb-3">
+                                    Connect your Go application to Outrig with just one line of code
+                                </p>
+                                <button
+                                    onClick={() => AppModel.openGettingStartedModal()}
+                                    className="flex items-center gap-2 px-4 py-2 rounded transition-colors cursor-pointer border border-accent/50 text-accent hover:bg-accent/10"
+                                >
+                                    <Plus size={14} />
+                                    Integration Instructions
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     {/* GitHub section */}
                     <div className="bg-panel py-3 w-full">
                         <div className="border-l-2 border-accentbg px-5">
@@ -199,7 +222,7 @@ export const HomePage: React.FC = () => {
                 <main className="flex-grow overflow-x-auto w-full">
                     <div className="flex flex-row min-w-[1000px] h-full">
                         <AppRunSelectionColumn hasAppRuns={hasAppRuns} />
-                        <WelcomeColumn />
+                        <WelcomeColumn hasAppRuns={hasAppRuns} />
                     </div>
                 </main>
 
