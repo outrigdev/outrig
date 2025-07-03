@@ -19,8 +19,8 @@ const EventType_Ping = "ping";
 const EventType_Pong = "pong";
 
 // Reconnect timeouts in seconds
-const ReconnectTimeouts = [1, 1, 2, 5, 10, 10, 30, 60];
-const MaxReconnectAttempts = 20;
+const ReconnectTimeouts = [1, 1, 2, 2, 4];
+const MaxReconnectAttempts = 8;
 
 interface WebSocketOptions {
     url: string;
@@ -75,10 +75,17 @@ export class WebSocketController {
         "connecting"
     );
 
+    // Reconnect attempts atom
+    reconnectAttemptsAtom: PrimitiveAtom<number> = atom<number>(0);
+
     private constructor(options: WebSocketOptions) {
         this.options = options;
         this.connectNow("initial");
         this._startPingInterval();
+    }
+
+    private updateReconnectAttemptsAtom() {
+        getDefaultStore().set(this.reconnectAttemptsAtom, this.reconnectAttempts);
     }
 
     static initialize(options: WebSocketOptions): WebSocketController {
@@ -101,6 +108,7 @@ export class WebSocketController {
         }
         console.log("[websocket] window focus detected, attempting immediate reconnection");
         this.reconnectAttempts = 0;
+        this.updateReconnectAttemptsAtom();
         if (this.isOpening) {
             return;
         }
@@ -141,6 +149,7 @@ export class WebSocketController {
         // Set a timeout to reset reconnect attempts if connection stays stable
         this.onOpenTimeoutId = setTimeout(() => {
             this.reconnectAttempts = 0;
+            this.updateReconnectAttemptsAtom();
             console.log("[websocket] connection stable, reset reconnect counter");
         }, StableConnTime);
 
@@ -244,6 +253,7 @@ export class WebSocketController {
         }
 
         this.reconnectAttempts++;
+        this.updateReconnectAttemptsAtom();
         if (this.reconnectAttempts > MaxReconnectAttempts) {
             console.log("[websocket] max reconnect attempts reached, giving up");
             // Update connection state atom to failed
@@ -251,8 +261,11 @@ export class WebSocketController {
             return;
         }
 
+        // Update connection state to connecting since we're attempting to reconnect
+        getDefaultStore().set(this.connectionState, "connecting");
+
         // Determine timeout based on reconnect attempt count
-        let timeout = 60; // Default to 60 seconds
+        let timeout = ReconnectTimeouts[ReconnectTimeouts.length - 1]; // Default to last timeout value
         if (this.reconnectAttempts < ReconnectTimeouts.length) {
             timeout = ReconnectTimeouts[this.reconnectAttempts];
         }
@@ -386,6 +399,32 @@ export class WebSocketController {
     isOpen(): boolean {
         return this.isConnected && this.ws !== null && this.ws.readyState === WebSocket.OPEN;
     }
+
+    /**
+     * Reset reconnection attempts and try to connect immediately
+     */
+    retryConnection() {
+        console.log("[websocket] manual retry connection requested");
+        this.reconnectAttempts = 0;
+        this.updateReconnectAttemptsAtom();
+
+        // Clear any existing reconnect timer
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+
+        // Set state to connecting
+        getDefaultStore().set(this.connectionState, "connecting");
+
+        // If we're already connected or opening, close first
+        if (this.isConnected || this.isOpening) {
+            this.close();
+        }
+
+        // Try to connect immediately
+        this.connectNow("manual-retry");
+    }
 }
 
 // Export the full connection state atom, defaulting to "connecting" if no instance
@@ -401,4 +440,13 @@ export const serverConnectionStateAtom: Atom<"connecting" | "connected" | "faile
 export const serverConnectedAtom: Atom<boolean> = atom((get) => {
     const connectionState = get(serverConnectionStateAtom);
     return connectionState === "connected";
+});
+
+// Export the reconnect attempts atom, defaulting to 0 if no instance
+export const serverReconnectAttemptsAtom: Atom<number> = atom((get) => {
+    const isInitialized = get(isInitializedAtom);
+    if (!isInitialized || !WebSocketController.instance) {
+        return 0;
+    }
+    return get(WebSocketController.instance.reconnectAttemptsAtom);
 });

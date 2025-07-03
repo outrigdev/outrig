@@ -3,7 +3,7 @@
 
 import { cn } from "@/util/util";
 import { X } from "lucide-react";
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 
 interface ModalProps {
     isOpen: boolean;
@@ -15,19 +15,6 @@ interface ModalProps {
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, title, children, onClose, className }) => {
     const modalRef = useRef<HTMLDivElement>(null);
-
-    // Add a class to the body when the modal is open to prevent scrolling
-    useEffect(() => {
-        if (isOpen) {
-            document.body.classList.add("modal-open");
-        } else {
-            document.body.classList.remove("modal-open");
-        }
-
-        return () => {
-            document.body.classList.remove("modal-open");
-        };
-    }, [isOpen]);
 
     if (!isOpen) return null;
 
