@@ -209,7 +209,6 @@ export const LeftNavAppRunList: React.FC = () => {
                         onClick={() => {
                             // Navigate to homepage
                             AppModel.navToHomepage();
-                            AppModel.setLeftNavOpen(false);
                         }}
                     >
                         Show All
@@ -305,7 +304,6 @@ export const LeftNav: React.FC = () => {
                             e.preventDefault();
                             // Navigate to homepage
                             AppModel.navToHomepage();
-                            AppModel.setLeftNavOpen(false);
                         }}
                     >
                         <Home size={16} />
