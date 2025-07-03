@@ -201,7 +201,7 @@ export const AppRunList: React.FC<AppRunListProps> = ({ emptyStateComponent }) =
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm text-accent hover:text-accent-hover hover:bg-accent/10 rounded transition-colors cursor-pointer border border-accent/20 hover:border-accent/40"
                     >
                         <Plus size={16} />
-                        Outrig Integration Instructions
+                        Integration Instructions
                     </button>
                 </div>
             )}
