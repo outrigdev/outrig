@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/outrigdev/goid"
 	"github.com/outrigdev/outrig/pkg/collector/goroutine"
 	"github.com/outrigdev/outrig/pkg/collector/loginitex"
 	"github.com/outrigdev/outrig/pkg/collector/logprocess"
@@ -464,7 +465,7 @@ func getCallerCreatedByInfo(skip int) string {
 		return fmt.Sprintf("%s:%d", file, line)
 	}
 	offset := pc - fn.Entry()
-	goID := utilfn.GetGoroutineID()
+	goID := goid.Get()
 	return fmt.Sprintf("created by %s in goroutine %d\n\t%s:%d +0x%x", fn.Name(), goID, file, line, offset)
 }
 
@@ -480,7 +481,7 @@ func Go(name string) *GoRoutine {
 // If the goroutine is already registered, it returns the existing declaration.
 // Otherwise, it creates a new one and registers it.
 func CurrentGR() *GoRoutine {
-	goId := utilfn.GetGoroutineID()
+	goId := int64(goid.Get())
 	if goId <= 0 {
 		return nil
 	}

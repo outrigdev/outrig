@@ -337,22 +337,6 @@ func ParseTags(input string) []string {
 	return tags
 }
 
-var goroutineIDRegexp = regexp.MustCompile(`goroutine (\d+)`)
-
-func GetGoroutineID() int64 {
-	buf := make([]byte, 64)
-	n := runtime.Stack(buf, false)
-	// Format of the first line of stack trace is "goroutine N [status]:"
-	matches := goroutineIDRegexp.FindSubmatch(buf[:n])
-	if len(matches) < 2 {
-		return -1
-	}
-	id, err := strconv.ParseInt(string(matches[1]), 10, 64)
-	if err != nil {
-		return -1
-	}
-	return id
-}
 
 // CalculateDeltas converts a slice of values to deltas between consecutive values
 // The first value is kept as is, and subsequent values are the difference from the previous value
