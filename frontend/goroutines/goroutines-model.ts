@@ -11,6 +11,7 @@ import { RpcApi } from "../rpc/rpcclientapi";
 export type SearchResultInfo = {
     searchedCount: number;
     totalCount: number;
+    totalnonoutrig?: number;
     errorSpans?: SearchErrorSpan[];
 };
 
@@ -27,6 +28,7 @@ class GoRoutinesModel {
     });
     searchTerm: PrimitiveAtom<string>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
+    lastSearchTimestamp: PrimitiveAtom<number> = atom(0);
     contentRef: React.RefObject<HTMLDivElement> = null;
     currentSearchId: string = "";
     pinnedAtomCache: Map<number, Atom<boolean>> = new Map();
@@ -76,11 +78,11 @@ class GoRoutinesModel {
         // Separate pinned and unpinned goroutines
         const pinnedGoroutines = goroutines.filter((gr) => pinnedGoRoutineIds.has(gr.goid));
         const unpinnedGoroutines = goroutines.filter((gr) => !pinnedGoRoutineIds.has(gr.goid));
-        
+
         // Sort each group by goid
         pinnedGoroutines.sort((a, b) => a.goid - b.goid);
         unpinnedGoroutines.sort((a, b) => a.goid - b.goid);
-        
+
         // Combine with pinned first
         return [...pinnedGoroutines, ...unpinnedGoroutines];
     });
@@ -302,12 +304,14 @@ class GoRoutinesModel {
                 return; // Abandon results from stale search
             }
 
-            // Update search result info
+            // Update search result info and timestamp
             store.set(this.searchResultInfo, {
                 searchedCount: searchResult.searchedcount,
                 totalCount: searchResult.totalcount,
+                totalnonoutrig: searchResult.totalnonoutrig,
                 errorSpans: searchResult.errorspans || [],
             });
+            store.set(this.lastSearchTimestamp, Date.now());
 
             // Convert int64 IDs to numbers and store them
             const goIds = searchResult.results;

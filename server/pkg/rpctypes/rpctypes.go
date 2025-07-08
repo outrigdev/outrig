@@ -275,10 +275,11 @@ type GoRoutineSearchRequestData struct {
 
 // GoRoutineSearchResultData defines the response for goroutine search
 type GoRoutineSearchResultData struct {
-	SearchedCount int               `json:"searchedcount"`
-	TotalCount    int               `json:"totalcount"`
-	Results       []int64           `json:"results"`
-	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
+	SearchedCount    int               `json:"searchedcount"`
+	TotalCount       int               `json:"totalcount"`
+	TotalNonOutrig   int               `json:"totalnonoutrig,omitempty"` // Total count excluding #outrig goroutines (only for goroutines search)
+	Results          []int64           `json:"results"`
+	ErrorSpans       []SearchErrorSpan `json:"errorspans,omitempty"`     // Error spans in the search query
 }
 
 // WatchSearchRequestData defines the request for watch search

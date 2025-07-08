@@ -125,7 +125,6 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
         }
     };
 
-
     return (
         <div className="pl-4 pr-2">
             <div className="py-2">
@@ -202,6 +201,7 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
     const resultCount = useAtomValue(model.resultCount);
     const primaryStates = useAtomValue(model.primaryStates);
     const stateCounts = useAtomValue(model.stateCounts);
+    const lastSearchTimestamp = useAtomValue(model.lastSearchTimestamp);
     const errorSpans = searchResultInfo.errorSpans || [];
 
     const handleToggleShowAll = () => {
@@ -263,8 +263,17 @@ const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) => {
                 </div>
             </div>
 
-            {/* Subtle divider */}
-            <div className="h-px bg-border"></div>
+            {/* Timestamp display */}
+            {lastSearchTimestamp > 0 && (
+                <div className="px-4 py-2 border-b border-border">
+                    <div className="flex items-center gap-2 text-sm text-secondary">
+                        <span>
+                            GoRoutines at {new Date(lastSearchTimestamp).toLocaleTimeString()} (
+                            {showOutrig ? searchResultInfo.totalCount : searchResultInfo.totalnonoutrig})
+                        </span>
+                    </div>
+                </div>
+            )}
 
             {/* State filters */}
             <div className="px-4 py-2 border-b border-border">

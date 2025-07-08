@@ -6,6 +6,7 @@ package rpcserver
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 
@@ -218,11 +219,20 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 		results = results[:MaxGoRoutineSearchResults]
 	}
 
+	// Calculate total non-outrig goroutines count
+	totalNonOutrig := 0
+	for _, gr := range allGoRoutines {
+		if !slices.Contains(gr.Tags, "outrig") {
+			totalNonOutrig++
+		}
+	}
+
 	return rpctypes.GoRoutineSearchResultData{
-		SearchedCount: stats.SearchedCount,
-		TotalCount:    stats.TotalCount,
-		Results:       results,
-		ErrorSpans:    errorSpans,
+		SearchedCount:  stats.SearchedCount,
+		TotalCount:     stats.TotalCount,
+		TotalNonOutrig: totalNonOutrig,
+		Results:        results,
+		ErrorSpans:     errorSpans,
 	}, nil
 }
 

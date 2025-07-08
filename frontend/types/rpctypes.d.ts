@@ -137,6 +137,7 @@ declare global {
     type GoRoutineSearchResultData = {
         searchedcount: number;
         totalcount: number;
+        totalnonoutrig?: number;
         results: number[];
         errorspans?: SearchErrorSpan[];
     };
