@@ -224,12 +224,33 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 
 // GetParsedGoRoutinesAtTimestamp returns parsed goroutines for RPC at a specific timestamp
 // If timestamp is 0, returns the latest goroutines (same as GetParsedGoRoutines)
-// If timestamp is provided, finds the stack trace with the largest timestamp <= the provided timestamp
+// If timestamp is provided, returns all goroutines that were active at that timestamp by finding
+// the stack trace with the largest timestamp <= the provided timestamp
 func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, timestamp int64) []rpctypes.ParsedGoRoutine {
+	var goroutineIds []int64
+	var parsedGoRoutines []rpctypes.ParsedGoRoutine
+
+	if timestamp == 0 {
+		// If timestamp is 0, use currently active goroutines
+		activeGoRoutinesCopy := gp.getActiveGoRoutinesCopy()
+		goroutineIds = make([]int64, 0, len(activeGoRoutinesCopy))
+		for goId := range activeGoRoutinesCopy {
+			goroutineIds = append(goroutineIds, goId)
+		}
+		parsedGoRoutines = make([]rpctypes.ParsedGoRoutine, 0, len(activeGoRoutinesCopy))
+	} else {
+		// If timestamp is provided, check all goroutines to see which were active at that time
+		allKeys := gp.goRoutines.Keys()
+		goroutineIds = make([]int64, 0, len(allKeys))
+		for _, goId := range allKeys {
+			goroutineIds = append(goroutineIds, goId)
+		}
+		parsedGoRoutines = make([]rpctypes.ParsedGoRoutine, 0, len(allKeys))
+	}
+
 	activeGoRoutinesCopy := gp.getActiveGoRoutinesCopy()
 
-	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(activeGoRoutinesCopy))
-	for goId := range activeGoRoutinesCopy {
+	for _, goId := range goroutineIds {
 		goroutineObj, exists := gp.goRoutines.GetEx(goId)
 		if !exists {
 			continue
@@ -268,7 +289,13 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 		parsedGoRoutine.Tags = goroutineObj.Tags
 		parsedGoRoutine.FirstSeen = goroutineObj.FirstSeen
 		parsedGoRoutine.LastSeen = goroutineObj.LastSeen
-		parsedGoRoutine.Active = true // All goroutines returned by this method are active
+		// Set Active flag based on whether it's currently active (timestamp=0) or was active at the given timestamp
+		if timestamp == 0 {
+			parsedGoRoutine.Active = activeGoRoutinesCopy[goId]
+		} else {
+			// For historical timestamps, consider it active if we found a stack trace at that time
+			parsedGoRoutine.Active = found
+		}
 		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
 	}
 

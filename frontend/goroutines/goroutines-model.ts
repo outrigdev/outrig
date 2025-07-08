@@ -7,6 +7,9 @@ import { SearchStore } from "@/store/searchstore";
 import { Atom, atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcApi } from "../rpc/rpcclientapi";
 
+// Maximum time range for the slider (10 minutes minus small buffer for valid searches)
+const MAX_TIME_RANGE_SECONDS = 600 - 5;
+
 // Type for search result info
 export type SearchResultInfo = {
     searchedCount: number;
@@ -29,6 +32,8 @@ class GoRoutinesModel {
     searchTerm: PrimitiveAtom<string>;
     isRefreshing: PrimitiveAtom<boolean> = atom(false);
     lastSearchTimestamp: PrimitiveAtom<number> = atom(0);
+    selectedTimestamp: PrimitiveAtom<number> = atom(0);
+    searchLatestMode: PrimitiveAtom<boolean> = atom(true);
     contentRef: React.RefObject<HTMLDivElement> = null;
     currentSearchId: string = "";
     pinnedAtomCache: Map<number, Atom<boolean>> = new Map();
@@ -292,11 +297,15 @@ class GoRoutinesModel {
                 systemQuery = parts.join(" ");
             }
 
+            // Get the effective timestamp for the search
+            const effectiveTimestamp = this.getEffectiveTimestamp();
+
             // Call the search RPC to get matching goroutine IDs
             const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, {
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
                 systemquery: systemQuery,
+                timestamp: effectiveTimestamp > 0 ? effectiveTimestamp : undefined,
             });
 
             // Check if this search is still the current one
@@ -453,6 +462,67 @@ class GoRoutinesModel {
         const store = getDefaultStore();
         store.set(this.searchTerm, term);
         await this.searchGoroutines(term);
+    }
+
+    // Get time range for the slider based on app run info
+    getTimeRange(): { startTime: number; endTime: number; maxRange: number } {
+        const store = getDefaultStore();
+        const appRunInfoAtom = AppModel.getAppRunInfoAtom(this.appRunId);
+        const appRunInfo = store.get(appRunInfoAtom);
+
+        if (!appRunInfo) {
+            return { startTime: 0, endTime: 0, maxRange: MAX_TIME_RANGE_SECONDS };
+        }
+
+        const startTime = appRunInfo.starttime;
+        const endTime = appRunInfo.lastmodtime;
+
+        // Calculate actual duration in seconds
+        const actualDurationSeconds = Math.floor((endTime - startTime) / 1000);
+
+        // If the actual duration is less than our max range, use the actual duration
+        if (actualDurationSeconds <= MAX_TIME_RANGE_SECONDS) {
+            return {
+                startTime,
+                endTime,
+                maxRange: actualDurationSeconds,
+            };
+        }
+
+        // If duration exceeds max range, adjust start time and use max range
+        const adjustedStartTime = endTime - MAX_TIME_RANGE_SECONDS * 1000;
+        return {
+            startTime: adjustedStartTime,
+            endTime,
+            maxRange: MAX_TIME_RANGE_SECONDS,
+        };
+    }
+
+    // Set the selected timestamp and disable search latest mode
+    setSelectedTimestamp(timestamp: number) {
+        const store = getDefaultStore();
+        store.set(this.selectedTimestamp, timestamp);
+        store.set(this.searchLatestMode, false);
+    }
+
+    // Enable search latest mode and update to current time
+    enableSearchLatest() {
+        const store = getDefaultStore();
+        const { endTime } = this.getTimeRange();
+        store.set(this.selectedTimestamp, endTime);
+        store.set(this.searchLatestMode, true);
+    }
+
+    // Get the effective timestamp for searches (0 means latest)
+    getEffectiveTimestamp(): number {
+        const store = getDefaultStore();
+        const searchLatest = store.get(this.searchLatestMode);
+
+        if (searchLatest) {
+            return 0; // 0 means use latest timestamp
+        }
+
+        return store.get(this.selectedTimestamp);
     }
 }
 
