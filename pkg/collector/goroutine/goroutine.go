@@ -165,7 +165,7 @@ func (gc *GoroutineCollector) UpdateGoRoutinePkg(decl *ds.GoDecl, newPkg string)
 }
 
 func (gc *GoroutineCollector) setInitialGoDeclInfo(decl *ds.GoDecl, stack []byte) {
-	if decl.GoId != 0 && decl.ParentGoId != 0 && decl.Pkg != "" {
+	if decl.GoId != 0 && decl.ParentGoId != 0 && decl.Pkg != "" && decl.Func != "" {
 		return // all fields are already set
 	}
 	if len(stack) == 0 {
@@ -197,12 +197,17 @@ func (gc *GoroutineCollector) setInitialGoDeclInfo(decl *ds.GoDecl, stack []byte
 		}
 	}
 
-	// Extract the package name from the stack trace
-	if decl.Pkg == "" {
+	// Extract the package name and function name from the stack trace
+	if decl.Pkg == "" || decl.Func == "" {
 		createdByMatches := createdByRe.FindSubmatch(stack)
 		if len(createdByMatches) >= 2 {
 			funcName := string(createdByMatches[1])
-			decl.Pkg = extractPackage(funcName)
+			if decl.Pkg == "" {
+				decl.Pkg = extractPackage(funcName)
+			}
+			if decl.Func == "" {
+				decl.Func = extractFunction(funcName)
+			}
 		}
 	}
 }
@@ -382,6 +387,28 @@ func extractPackage(funcName string) string {
 	if dot := strings.Index(remaining, "."); dot != -1 {
 		return funcName[:lastSlash+dot]
 	}
+	return funcName
+}
+
+// extractFunction extracts the function name from a stack trace function name,
+// stripping anonymous function suffixes like .func1(), .func2.1(), etc.
+func extractFunction(funcName string) string {
+	// Remove parentheses at the end if present
+	funcName = strings.TrimSuffix(funcName, "()")
+	
+	// Find and remove anonymous function suffixes (.func\d)
+	funcRe := regexp.MustCompile(`\.func\d`)
+	funcIdx := funcRe.FindStringIndex(funcName)
+	if funcIdx != nil {
+		funcName = funcName[:funcIdx[0]]
+	}
+	
+	// Extract the function name (part after the last dot)
+	lastDot := strings.LastIndex(funcName, ".")
+	if lastDot != -1 && lastDot < len(funcName)-1 {
+		return funcName[lastDot+1:]
+	}
+	
 	return funcName
 }
 

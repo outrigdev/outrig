@@ -22,8 +22,10 @@ import (
 )
 
 const MaxTagLen = 40
+const MaxNameLen = 60
 
 var PTLoc *time.Location
+var NameRegex = regexp.MustCompile(`^[a-zA-Z0-9_.#\-\[\]]+$`)
 
 func init() {
 	loc, err := time.LoadLocation("America/Los_Angeles")
@@ -487,4 +489,33 @@ func InDockerEnv() bool {
 	}
 
 	return false
+}
+
+func NormalizeName(name string) string {
+	// Truncate to max length first
+	if len(name) > MaxNameLen {
+		name = name[:MaxNameLen]
+	}
+	
+	// Fast path: if it already matches, return as-is
+	if NameRegex.MatchString(name) {
+		return name
+	}
+	
+	// Slow path: replace invalid characters
+	var result strings.Builder
+	result.Grow(len(name))
+	
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') ||
+		   (r >= 'A' && r <= 'Z') ||
+		   (r >= '0' && r <= '9') ||
+		   r == '_' || r == '.' || r == '#' || r == '-' || r == '[' || r == ']' {
+			result.WriteRune(r)
+		} else {
+			result.WriteByte('_')
+		}
+	}
+	
+	return result.String()
 }
