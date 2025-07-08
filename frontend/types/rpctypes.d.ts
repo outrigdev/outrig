@@ -131,6 +131,7 @@ declare global {
         apprunid: string;
         searchterm: string;
         systemquery?: string;
+        timestamp?: number;
     };
 
     // rpctypes.GoRoutineSearchResultData

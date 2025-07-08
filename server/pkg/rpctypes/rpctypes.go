@@ -271,6 +271,7 @@ type GoRoutineSearchRequestData struct {
 	AppRunId    string `json:"apprunid"`
 	SearchTerm  string `json:"searchterm"`
 	SystemQuery string `json:"systemquery,omitempty"`
+	Timestamp   int64  `json:"timestamp,omitempty"` // Timestamp in milliseconds, 0 means use latest
 }
 
 // GoRoutineSearchResultData defines the response for goroutine search

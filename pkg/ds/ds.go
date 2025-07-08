@@ -88,6 +88,7 @@ type GoroutineInfo struct {
 
 type GoRoutineStack struct {
 	GoId       int64    `json:"goid"`
+	Ts         int64    `json:"ts"`
 	Same       bool     `json:"same,omitempty"` // true if the GoId, State, Name, Tags, and StackTrace are the same as the previous sample (for delta collection)
 	State      string   `json:"state,omitempty"`
 	Name       string   `json:"name,omitempty"`

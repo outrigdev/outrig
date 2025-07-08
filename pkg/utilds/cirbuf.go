@@ -265,3 +265,28 @@ func (cb *CirBuf[T]) FilterItems(filter func(item T, index int) bool) []T {
 
 	return result
 }
+
+// ForEach iterates through all elements in the buffer in order from oldest to newest,
+// calling the provided function on each element. If the function returns false,
+// iteration stops early. The buffer is locked during the entire iteration.
+func (cb *CirBuf[T]) ForEach(fn func(item T) bool) {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+
+	size := cb.size_nolock()
+	if size == 0 {
+		return
+	}
+
+	if cb.Buf == nil {
+		return
+	}
+
+	// Iterate through elements from head to tail (oldest to newest)
+	for i := 0; i < size; i++ {
+		pos := (cb.Head + i) % len(cb.Buf)
+		if !fn(cb.Buf[pos]) {
+			break
+		}
+	}
+}

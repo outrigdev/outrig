@@ -326,9 +326,10 @@ func (gc *GoroutineCollector) DumpGoroutines() {
 	if ctl == nil {
 		return
 	}
+	timestamp := time.Now().UnixMilli()
 	stackData := gc.dumpAllStacks()
 	sendFull := gc.getSendFullAndReset()
-	goroutineInfo := gc.parseGoroutineStacks(stackData, !sendFull)
+	goroutineInfo := gc.parseGoroutineStacks(stackData, !sendFull, timestamp)
 	pk := &ds.PacketType{
 		Type: ds.PacketTypeGoroutine,
 		Data: goroutineInfo,
@@ -404,6 +405,7 @@ func (gc *GoroutineCollector) computeDeltaStack(id int64, current ds.GoRoutineSt
 		// All fields are the same, clear all fields and set Same
 		return ds.GoRoutineStack{
 			GoId: current.GoId,
+			Ts:   current.Ts,
 			Same: true,
 		}
 	}
@@ -426,7 +428,7 @@ func (gc *GoroutineCollector) logInfo() {
 	log.Printf("#grnames %v", grNames)
 }
 
-func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool) *ds.GoroutineInfo {
+func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool, timestamp int64) *ds.GoroutineInfo {
 	goroutineStacks := make([]ds.GoRoutineStack, 0)
 	activeGoroutines := make(map[int64]bool)
 	currentStacks := make(map[int64]ds.GoRoutineStack)
@@ -455,6 +457,7 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool)
 
 		grStack := ds.GoRoutineStack{
 			GoId:       id,
+			Ts:         timestamp,
 			State:      state,
 			StackTrace: stackTrace,
 		}
@@ -486,7 +489,7 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool)
 	// Store current stacks for next delta calculation
 	gc.setLastGoroutineStacksAndCleanupNames(currentStacks)
 	return &ds.GoroutineInfo{
-		Ts:     time.Now().UnixMilli(),
+		Ts:     timestamp,
 		Count:  len(currentStacks), // Always report the total count
 		Stacks: goroutineStacks,
 		Delta:  delta,

@@ -46,7 +46,9 @@ type GoRoutinePeer struct {
 // Otherwise, returns the delta stack (which contains all current field values)
 func mergeGoRoutineStacks(baseStack, deltaStack ds.GoRoutineStack) ds.GoRoutineStack {
 	if deltaStack.Same {
-		// All fields are the same, return the base stack unchanged
+		// All fields are the same, but update the timestamp
+		// Safe to modify baseStack since it's passed by value
+		baseStack.Ts = deltaStack.Ts
 		return baseStack
 	}
 
@@ -217,6 +219,13 @@ func (gp *GoRoutinePeer) GetGoRoutineCounts() (int, int, int) {
 
 // GetParsedGoRoutines returns parsed goroutines for RPC
 func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.ParsedGoRoutine {
+	return gp.GetParsedGoRoutinesAtTimestamp(moduleName, 0)
+}
+
+// GetParsedGoRoutinesAtTimestamp returns parsed goroutines for RPC at a specific timestamp
+// If timestamp is 0, returns the latest goroutines (same as GetParsedGoRoutines)
+// If timestamp is provided, finds the stack trace with the largest timestamp <= the provided timestamp
+func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, timestamp int64) []rpctypes.ParsedGoRoutine {
 	activeGoRoutinesCopy := gp.getActiveGoRoutinesCopy()
 
 	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(activeGoRoutinesCopy))
@@ -226,12 +235,32 @@ func (gp *GoRoutinePeer) GetParsedGoRoutines(moduleName string) []rpctypes.Parse
 			continue
 		}
 
-		latestStack, _, exists := goroutineObj.StackTraces.GetLast()
-		if !exists {
+		var bestStack ds.GoRoutineStack
+		var found bool
+
+		if timestamp == 0 {
+			// Use latest stack if timestamp is 0
+			bestStack, _, found = goroutineObj.StackTraces.GetLast()
+		} else {
+			// Find the stack trace with the largest timestamp <= the provided timestamp
+			// Since ForEach iterates from oldest to newest, we can break early once we find a timestamp > target
+			goroutineObj.StackTraces.ForEach(func(stack ds.GoRoutineStack) bool {
+				if stack.Ts > timestamp {
+					// Since timestamps are in order, we can stop here
+					return false
+				}
+				// Keep updating bestStack since they're in chronological order
+				bestStack = stack
+				found = true
+				return true // Continue iteration
+			})
+		}
+
+		if !found {
 			continue
 		}
 
-		parsedGoRoutine, err := stacktrace.ParseGoRoutineStackTrace(latestStack.StackTrace, moduleName, latestStack.GoId, latestStack.State)
+		parsedGoRoutine, err := stacktrace.ParseGoRoutineStackTrace(bestStack.StackTrace, moduleName, bestStack.GoId, bestStack.State)
 		if err != nil {
 			continue
 		}

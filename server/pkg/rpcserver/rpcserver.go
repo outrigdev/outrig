@@ -163,8 +163,8 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 		moduleName = peer.AppInfo.ModuleName
 	}
 
-	// Get all goroutines
-	allGoRoutines := peer.GoRoutines.GetParsedGoRoutines(moduleName)
+	// Get all goroutines (use timestamp if provided, otherwise get latest)
+	allGoRoutines := peer.GoRoutines.GetParsedGoRoutinesAtTimestamp(moduleName, data.Timestamp)
 	totalCount := len(allGoRoutines)
 
 	// Create user searcher based on search term and get any error spans
