@@ -62,7 +62,7 @@ func parseOutrigDirective(comment string) (*OutrigDirective, error) {
 }
 
 // createOutrigGoCall creates an outrig.Go(name).Run(func() { originalCall }) AST node
-func createOutrigGoCall(directive *OutrigDirective, originalCall ast.Expr) *ast.ExprStmt {
+func createOutrigGoCall(directive *OutrigDirective, goStmt *ast.GoStmt) *ast.ExprStmt {
 	// Create the wrapper function: func() { originalCall }
 	wrapperFunc := &ast.FuncLit{
 		Type: &ast.FuncType{
@@ -70,7 +70,7 @@ func createOutrigGoCall(directive *OutrigDirective, originalCall ast.Expr) *ast.
 		},
 		Body: &ast.BlockStmt{
 			List: []ast.Stmt{
-				&ast.ExprStmt{X: originalCall},
+				&ast.ExprStmt{X: goStmt.Call},
 			},
 		},
 	}
@@ -98,11 +98,21 @@ func createOutrigGoCall(directive *OutrigDirective, originalCall ast.Expr) *ast.
 		Args: []ast.Expr{wrapperFunc},
 	}
 
-	return &ast.ExprStmt{X: runCall}
+	// Create the expression statement and preserve the position from the original go statement
+	result := &ast.ExprStmt{X: runCall}
+	
+	// Set positions to match the original go statement
+	if goStmt.Pos().IsValid() {
+		outrigGoCall.Fun.(*ast.SelectorExpr).X.(*ast.Ident).NamePos = goStmt.Pos()
+		runCall.Lparen = goStmt.Pos()
+		result.X = runCall
+	}
+
+	return result
 }
 
 // TransformGoStatements finds all go statements preceded by //outrig directives and transforms them
-func TransformGoStatements(fset *token.FileSet, node *ast.File) bool {
+func TransformGoStatements(transformState *astutil.TransformState, node *ast.File) bool {
 	var transformed bool
 	var replacements []struct {
 		parent  *ast.BlockStmt
@@ -118,10 +128,10 @@ func TransformGoStatements(fset *token.FileSet, node *ast.File) bool {
 			for i, stmt := range parent.List {
 				if goStmt, ok := stmt.(*ast.GoStmt); ok {
 					// Look for an outrig directive in the comments before this go statement
-					directive, comment := findOutrigDirectiveWithComment(fset, node.Comments, goStmt.Pos())
+					directive, comment := findOutrigDirectiveWithComment(transformState.FileSet, node.Comments, goStmt.Pos())
 					if directive != nil {
 						// Transform the go statement
-						newCall := createOutrigGoCall(directive, goStmt.Call)
+						newCall := createOutrigGoCall(directive, goStmt)
 						replacements = append(replacements, struct {
 							parent  *ast.BlockStmt
 							index   int

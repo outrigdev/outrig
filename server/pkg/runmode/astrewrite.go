@@ -125,7 +125,12 @@ func RewriteGoFiles(goFiles []string, mainFile string, fileSet *token.FileSet) (
 		}
 
 		// Apply gr transformations to ALL files
-		if gr.TransformGoStatements(fset, node) {
+		// Create a minimal TransformState for the transformation
+		transformState := &astutil.TransformState{
+			FileSet: fset,
+			Verbose: false,
+		}
+		if gr.TransformGoStatements(transformState, node) {
 			modified = true
 		}
 

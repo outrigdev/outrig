@@ -9,6 +9,8 @@ import (
 	"go/token"
 	"strings"
 	"testing"
+
+	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
 )
 
 func TestTransformGoStatements(t *testing.T) {
@@ -88,7 +90,13 @@ func main() {
 				t.Fatalf("Failed to parse input: %v", err)
 			}
 
-			transformed := TransformGoStatements(fset, node)
+			// Create a minimal TransformState for testing
+			transformState := &astutil.TransformState{
+				FileSet: fset,
+				Verbose: false,
+			}
+
+			transformed := TransformGoStatements(transformState, node)
 
 			var buf strings.Builder
 			config := &printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}

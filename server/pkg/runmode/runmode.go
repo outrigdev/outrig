@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
+	"github.com/outrigdev/outrig/server/pkg/runmode/gr"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -45,8 +46,41 @@ func findAndTransformMainFile(transformState *astutil.TransformState) error {
 	return nil
 }
 
-// ExecRunMode handles the "outrig run" command with AST rewriting
-func ExecRunMode(config Config) error {
+// transformGoStatementsInAllFiles iterates over all files in the transform state and applies go statement transformations
+func transformGoStatementsInAllFiles(transformState *astutil.TransformState) error {
+	var hasTransformations bool
+
+	// Iterate over all packages
+	for _, pkg := range transformState.Packages {
+		// Iterate over all AST files in each package
+		for _, astFile := range pkg.Syntax {
+			if astFile == nil {
+				continue
+			}
+
+			// Apply go statement transformations
+			if gr.TransformGoStatements(transformState, astFile) {
+				// Mark the file as modified if transformations were applied
+				transformState.MarkFileModified(astFile)
+				hasTransformations = true
+
+				if transformState.Verbose {
+					filePath := transformState.GetFilePath(astFile)
+					log.Printf("Applied go statement transformations to: %s", filePath)
+				}
+			}
+		}
+	}
+
+	if transformState.Verbose && hasTransformations {
+		log.Printf("Completed go statement transformations across all files")
+	}
+
+	return nil
+}
+
+// setupBuildArgs prepares build arguments from the config
+func setupBuildArgs(config Config) (astutil.BuildArgs, error) {
 	// Set dev environment variable if needed
 	if config.IsDev {
 		if config.IsVerbose {
@@ -58,7 +92,7 @@ func ExecRunMode(config Config) error {
 	// Check if user already provided -overlay flag
 	for _, arg := range config.Args {
 		if arg == "-overlay" || strings.HasPrefix(arg, "-overlay=") {
-			return fmt.Errorf("cannot use -overlay flag with 'outrig run' as it conflicts with AST rewriting")
+			return astutil.BuildArgs{}, fmt.Errorf("cannot use -overlay flag with 'outrig run' as it conflicts with AST rewriting")
 		}
 	}
 
@@ -79,6 +113,13 @@ func ExecRunMode(config Config) error {
 		BuildFlags: otherArgs,
 		Verbose:    config.IsVerbose,
 	}
+
+	return buildArgs, nil
+}
+
+// loadFilesAndSetupTransformState loads Go files and sets up transform state
+// Note: This function may call os.Exit() on errors
+func loadFilesAndSetupTransformState(buildArgs astutil.BuildArgs, config Config) *astutil.TransformState {
 	transformState, err := astutil.LoadGoFiles(buildArgs)
 	if err != nil {
 		log.Printf("#outrig failed to load Go files for AST rewriting: %v", err)
@@ -105,10 +146,22 @@ func ExecRunMode(config Config) error {
 		log.Printf("Using temp directory: %s", tempDir)
 	}
 
-	// Initialize overlay map, modified files map, and temp dir in transform state
+	// Initialize overlay map, modified files map, temp dir, and verbose flag in transform state
 	transformState.OverlayMap = make(map[string]string)
 	transformState.ModifiedFiles = make(map[string]*ast.File)
 	transformState.TempDir = tempDir
+	transformState.Verbose = config.IsVerbose
+
+	return transformState
+}
+
+// ExecRunMode handles the "outrig run" command with AST rewriting
+func ExecRunMode(config Config) error {
+	buildArgs, err := setupBuildArgs(config)
+	if err != nil {
+		return err
+	}
+	transformState := loadFilesAndSetupTransformState(buildArgs, config)
 
 	// Find and transform the main file
 	err = findAndTransformMainFile(transformState)
@@ -116,8 +169,11 @@ func ExecRunMode(config Config) error {
 		return fmt.Errorf("main file transformation failed: %w", err)
 	}
 
-	// TODO: Second pass will be for transforming go statements in all files
-	// This will be implemented in a separate step
+	// Second pass: transform go statements in all files
+	err = transformGoStatementsInAllFiles(transformState)
+	if err != nil {
+		return fmt.Errorf("go statement transformation failed: %w", err)
+	}
 
 	// Write all modified files to temp directory
 	err = astutil.WriteModifiedFiles(transformState)
@@ -133,7 +189,7 @@ func ExecRunMode(config Config) error {
 	}
 
 	// Create overlay file mapping and run
-	return runWithOverlay(transformState.OverlayMap, tempDir, goFiles, otherArgs, config)
+	return runWithOverlay(transformState.OverlayMap, transformState.TempDir, buildArgs.GoFiles, buildArgs.BuildFlags, config)
 }
 
 // runWithOverlay creates the overlay file and runs the go command
