@@ -7,14 +7,11 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
-	"go/printer"
 	"go/token"
-	"os"
-	"path/filepath"
-	"strings"
-)
 
-const outrigImportPath = "github.com/outrigdev/outrig"
+	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
+	"github.com/outrigdev/outrig/server/pkg/runmode/gr"
+)
 
 // FindMainFile searches through the provided Go files and returns the one containing the main() function
 // Returns an error if no main() function is found or if multiple main() functions are found
@@ -42,38 +39,6 @@ func FindMainFile(goFiles []string) (string, error) {
 	return mainFiles[0], nil
 }
 
-// findMainFunction returns the main function declaration if it exists with proper signature in package main, nil otherwise
-func findMainFunction(node *ast.File) *ast.FuncDecl {
-	// Check that this is package main
-	if node.Name.Name != "main" {
-		return nil
-	}
-
-	for _, decl := range node.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Name.Name != "main" {
-			continue
-		}
-
-		// Check that it's not a method (no receiver)
-		if fn.Recv != nil {
-			continue
-		}
-
-		// Check that it has no parameters
-		if fn.Type.Params != nil && len(fn.Type.Params.List) > 0 {
-			continue
-		}
-
-		// Check that it has no return values
-		if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 {
-			continue
-		}
-
-		return fn
-	}
-	return nil
-}
 
 // fileHasMainFunction checks if a Go file contains a proper main() function in package main
 func fileHasMainFunction(filename string) (bool, error) {
@@ -83,60 +48,13 @@ func fileHasMainFunction(filename string) (bool, error) {
 		return false, err
 	}
 
-	return findMainFunction(node) != nil, nil
-}
-
-// hasImport checks if the given import path exists in the AST node
-func hasImport(node *ast.File, importPath string) bool {
-	for _, imp := range node.Imports {
-		if imp.Path.Value == `"`+importPath+`"` {
-			return true
-		}
-	}
-	return false
-}
-
-// addOutrigImport checks if the outrig import exists in the AST node and adds it if not present.
-// Returns true if the import was added, false if it already existed.
-func addOutrigImport(node *ast.File) bool {
-	// Check if outrig import already exists
-	if hasImport(node, outrigImportPath) {
-		return false
-	}
-
-	// Add outrig import since it's not present
-	outrigImport := &ast.ImportSpec{
-		Path: &ast.BasicLit{
-			Kind:  token.STRING,
-			Value: `"` + outrigImportPath + `"`,
-		},
-	}
-
-	// Always create a new import declaration for outrig to avoid formatting issues
-	importDecl := &ast.GenDecl{
-		Tok:   token.IMPORT,
-		Specs: []ast.Spec{outrigImport},
-	}
-
-	// Find the position to insert the new import (after existing imports if any)
-	insertPos := 0
-	for i, decl := range node.Decls {
-		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-			insertPos = i + 1
-		} else {
-			break
-		}
-	}
-
-	// Insert the new import declaration
-	node.Decls = append(node.Decls[:insertPos], append([]ast.Decl{importDecl}, node.Decls[insertPos:]...)...)
-	return true
+	return astutil.FindMainFunction(node) != nil, nil
 }
 
 // modifyMainFunction finds the main function in the AST and injects outrig.Init() and defer outrig.AppDone() calls.
 // Returns true if the main function was found and modified, false otherwise.
 func modifyMainFunction(node *ast.File) bool {
-	fn := findMainFunction(node)
+	fn := astutil.FindMainFunction(node)
 	if fn == nil || fn.Body == nil {
 		return false
 	}
@@ -173,53 +91,86 @@ func modifyMainFunction(node *ast.File) bool {
 	return true
 }
 
-// writeASTToFile writes an AST node to a file using the provided file set
-func writeASTToFile(fset *token.FileSet, node *ast.File, fileName string) error {
-	var buf strings.Builder
-	config := &printer.Config{
-		Mode: printer.SourcePos, // Generate line directives to preserve original line numbers
-	}
-	err := config.Fprint(&buf, fset, node)
-	if err != nil {
-		return fmt.Errorf("failed to print modified code: %w", err)
+
+// RewriteGoFiles processes all Go files from the packages, applying appropriate transformations:
+// - modifyMainFunction is applied ONLY to the file containing main()
+// - TransformGoStatements is applied to ALL files
+// Returns a slice of AstFileWrap structs for files that were modified.
+func RewriteGoFiles(goFiles []string, mainFile string, fileSet *token.FileSet) ([]*astutil.AstFileWrap, error) {
+	// Use provided FileSet if available, otherwise create a new one
+	fset := fileSet
+	if fset == nil {
+		fset = token.NewFileSet()
 	}
 
-	err = os.WriteFile(fileName, []byte(buf.String()), 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write to file %s: %w", fileName, err)
+	var modifiedFiles []*astutil.AstFileWrap
+
+	for _, sourceFile := range goFiles {
+		// Parse the source file
+		node, err := parser.ParseFile(fset, sourceFile, nil, parser.ParseComments|parser.SkipObjectResolution)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", sourceFile, err)
+		}
+
+		// Track if any modifications were made
+		modified := false
+
+		// If this is the main file, add outrig import and modify main function
+		if sourceFile == mainFile {
+			astutil.AddOutrigImport(node)
+			if !modifyMainFunction(node) {
+				return nil, fmt.Errorf("unable to find main entry point in %s. Ensure your application has a valid main()", sourceFile)
+			}
+			modified = true
+		}
+
+		// Apply gr transformations to ALL files
+		if gr.TransformGoStatements(fset, node) {
+			modified = true
+		}
+
+		// Only include files that were modified
+		if modified {
+			modifiedFiles = append(modifiedFiles, &astutil.AstFileWrap{
+				OriginalPath: sourceFile,
+				ModifiedAST:  node,
+				FileSet:      fset,
+				WasModified:  true,
+			})
+		}
 	}
 
-	return nil
+	return modifiedFiles, nil
 }
 
-// RewriteAndCreateTempFile parses the given Go file, injects outrig.Init() into main(),
-// and creates a temporary file with the modified code in the provided temp directory.
-// Returns the path to the temporary file.
-func RewriteAndCreateTempFile(sourceFile string, tempDir string) (string, error) {
-	// Parse the source file
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, sourceFile, nil, parser.ParseComments|parser.SkipObjectResolution)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse %s: %w", sourceFile, err)
+// WriteTempFiles writes all modified files to the temp directory with unique names
+// Returns a map of original file paths to temporary file paths.
+func WriteTempFiles(modifiedFiles []*astutil.AstFileWrap, tempDir string) (map[string]string, error) {
+	overlayMap := make(map[string]string)
+
+	for _, modifiedFile := range modifiedFiles {
+		// Write the modified AST to the temp file using the wrapper method
+		tempFilePath, err := modifiedFile.WriteToTempFile(tempDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write temp file for %s: %w", modifiedFile.OriginalPath, err)
+		}
+
+		overlayMap[modifiedFile.OriginalPath] = tempFilePath
 	}
 
-	// Add outrig import if not already present
-	addOutrigImport(node)
-
-	// Find and modify the main function
-	if !modifyMainFunction(node) {
-		return "", fmt.Errorf("unable to find main entry point. Ensure your application has a valid main()")
-	}
-
-	// Create file with original name in temp directory
-	originalName := filepath.Base(sourceFile)
-	tempFilePath := filepath.Join(tempDir, originalName)
-
-	// Write the modified AST to the temp file
-	err = writeASTToFile(fset, node, tempFilePath)
-	if err != nil {
-		return "", err
-	}
-
-	return tempFilePath, nil
+	return overlayMap, nil
 }
+
+// RewriteAndCreateTempFiles processes all Go files from the packages, applying appropriate transformations
+// and writing them to temp files. This is the main entry point that combines RewriteGoFiles and WriteTempFiles.
+func RewriteAndCreateTempFiles(goFiles []string, mainFile string, tempDir string, fileSet *token.FileSet) (map[string]string, error) {
+	// First, rewrite the ASTs
+	modifiedFiles, err := RewriteGoFiles(goFiles, mainFile, fileSet)
+	if err != nil {
+		return nil, err
+	}
+
+	// Then write them to temp files
+	return WriteTempFiles(modifiedFiles, tempDir)
+}
+

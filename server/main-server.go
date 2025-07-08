@@ -226,6 +226,7 @@ Example: outrig --dev --verbose run main.go`,
 		},
 		// Disable flag parsing for this command so all flags are passed to the go command
 		DisableFlagParsing: true,
+		SilenceUsage:       true,
 	}
 
 	execCmd := &cobra.Command{
