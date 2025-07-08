@@ -526,14 +526,15 @@ func (g *GoRoutine) WithName(name string) *GoRoutine {
 }
 
 func (g *GoRoutine) WithPkg(pkg string) *GoRoutine {
+	normalizedPkg := utilfn.NormalizeName(pkg)
 	state := atomic.LoadInt32(&g.decl.State)
 	if state == goroutine.GoState_Init {
 		// For goroutines that haven't started yet, directly set the package
-		g.decl.Pkg = pkg
+		g.decl.Pkg = normalizedPkg
 	} else {
 		// For running or completed goroutines, use the collector to update package
 		gc := goroutine.GetInstance()
-		gc.UpdateGoRoutinePkg(g.decl, pkg)
+		gc.UpdateGoRoutinePkg(g.decl, normalizedPkg)
 	}
 	return g
 }
