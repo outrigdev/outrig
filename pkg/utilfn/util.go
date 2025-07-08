@@ -25,7 +25,7 @@ const MaxTagLen = 40
 const MaxNameLen = 60
 
 var PTLoc *time.Location
-var NameRegex = regexp.MustCompile(`^[a-zA-Z0-9_.#\-\[\]]+$`)
+var NameRegex = regexp.MustCompile(`^[a-zA-Z0-9_.#\[\]/-]+$`)
 
 func init() {
 	loc, err := time.LoadLocation("America/Los_Angeles")
@@ -510,7 +510,7 @@ func NormalizeName(name string) string {
 		if (r >= 'a' && r <= 'z') ||
 		   (r >= 'A' && r <= 'Z') ||
 		   (r >= '0' && r <= '9') ||
-		   r == '_' || r == '.' || r == '#' || r == '-' || r == '[' || r == ']' {
+		   r == '_' || r == '.' || r == '#' || r == '-' || r == '[' || r == ']' || r == '/' {
 			result.WriteRune(r)
 		} else {
 			result.WriteByte('_')

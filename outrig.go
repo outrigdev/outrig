@@ -246,7 +246,7 @@ func MakeLogStream(name string) io.Writer {
 func NewWatch(name string) *Watch {
 	w := &Watch{
 		decl: &ds.WatchDecl{
-			Name:    name,
+			Name:    utilfn.NormalizeName(name),
 			NewLine: getCallerInfo(1),
 		},
 	}
@@ -472,7 +472,7 @@ func getCallerCreatedByInfo(skip int) string {
 func Go(name string) *GoRoutine {
 	return &GoRoutine{
 		decl: &ds.GoDecl{
-			Name: name,
+			Name: utilfn.NormalizeName(name),
 		},
 	}
 }
@@ -512,14 +512,15 @@ func (g *GoRoutine) WithTags(tags ...string) *GoRoutine {
 }
 
 func (g *GoRoutine) WithName(name string) *GoRoutine {
+	normalizedName := utilfn.NormalizeName(name)
 	state := atomic.LoadInt32(&g.decl.State)
 	if state == goroutine.GoState_Init {
 		// For goroutines that haven't started yet, directly set the name
-		g.decl.Name = name
+		g.decl.Name = normalizedName
 	} else {
 		// For running or completed goroutines, use the collector to update name
 		gc := goroutine.GetInstance()
-		gc.UpdateGoRoutineName(g.decl, name)
+		gc.UpdateGoRoutineName(g.decl, normalizedName)
 	}
 	return g
 }
