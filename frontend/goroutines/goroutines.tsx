@@ -34,6 +34,11 @@ const TimeSlider: React.FC<TimeSliderProps> = ({ model }) => {
 
     const { startTime, endTime, maxRange } = model.getTimeRange();
 
+    // Don't render slider if no goroutine collection has occurred yet
+    if (startTime === 0 && endTime === 0) {
+        return null;
+    }
+
     // Convert timestamps to slider values (0 to maxRange seconds)
     // If selectedTimestamp is 0 or in search latest mode, push slider to the right
     const currentValue =

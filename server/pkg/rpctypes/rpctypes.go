@@ -183,22 +183,23 @@ type BuildInfoData struct {
 
 // App run data types
 type AppRunInfo struct {
-	AppRunId            string         `json:"apprunid"`
-	AppName             string         `json:"appname"`
-	StartTime           int64          `json:"starttime"`
-	IsRunning           bool           `json:"isrunning"`
-	Status              string         `json:"status"`
-	NumLogs             int            `json:"numlogs"`
-	NumTotalGoRoutines  int            `json:"numtotalgoroutines"`
-	NumActiveGoRoutines int            `json:"numactivegoroutines"`
-	NumOutrigGoRoutines int            `json:"numoutriggoroutines"`
-	NumActiveWatches    int            `json:"numactivewatches"`
-	NumTotalWatches     int            `json:"numtotalwatches"`
-	LastModTime         int64          `json:"lastmodtime"`
-	BuildInfo           *BuildInfoData `json:"buildinfo,omitempty"`
-	ModuleName          string         `json:"modulename,omitempty"`
-	Executable          string         `json:"executable,omitempty"`
-	OutrigSDKVersion    string         `json:"outrigsdkversion,omitempty"`
+	AppRunId                   string         `json:"apprunid"`
+	AppName                    string         `json:"appname"`
+	StartTime                  int64          `json:"starttime"`
+	FirstGoRoutineCollectionTs int64          `json:"firstgoroutinecollectionts,omitempty"`
+	IsRunning                  bool           `json:"isrunning"`
+	Status                     string         `json:"status"`
+	NumLogs                    int            `json:"numlogs"`
+	NumTotalGoRoutines         int            `json:"numtotalgoroutines"`
+	NumActiveGoRoutines        int            `json:"numactivegoroutines"`
+	NumOutrigGoRoutines        int            `json:"numoutriggoroutines"`
+	NumActiveWatches           int            `json:"numactivewatches"`
+	NumTotalWatches            int            `json:"numtotalwatches"`
+	LastModTime                int64          `json:"lastmodtime"`
+	BuildInfo                  *BuildInfoData `json:"buildinfo,omitempty"`
+	ModuleName                 string         `json:"modulename,omitempty"`
+	Executable                 string         `json:"executable,omitempty"`
+	OutrigSDKVersion           string         `json:"outrigsdkversion,omitempty"`
 }
 
 type AppRunsData struct {

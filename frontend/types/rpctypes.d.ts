@@ -23,6 +23,7 @@ declare global {
         apprunid: string;
         appname: string;
         starttime: number;
+        firstgoroutinecollectionts?: number;
         isrunning: boolean;
         status: string;
         numlogs: number;

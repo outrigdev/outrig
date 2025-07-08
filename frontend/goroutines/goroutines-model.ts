@@ -470,11 +470,11 @@ class GoRoutinesModel {
         const appRunInfoAtom = AppModel.getAppRunInfoAtom(this.appRunId);
         const appRunInfo = store.get(appRunInfoAtom);
 
-        if (!appRunInfo) {
+        if (!appRunInfo || !appRunInfo.firstgoroutinecollectionts) {
             return { startTime: 0, endTime: 0, maxRange: MAX_TIME_RANGE_SECONDS };
         }
 
-        const startTime = appRunInfo.starttime;
+        const startTime = appRunInfo.firstgoroutinecollectionts;
         const endTime = appRunInfo.lastmodtime;
 
         // Calculate actual duration in seconds

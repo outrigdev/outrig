@@ -38,13 +38,14 @@ const (
 
 // AppRunPeer represents a peer connection to an app client
 type AppRunPeer struct {
-	AppRunId    string
-	AppInfo     *ds.AppInfo
-	Status      string     // Current status of the application
-	LastModTime int64      // Last modification time in milliseconds
-	refCount    int        // Reference counter
-	refLock     sync.Mutex // Lock for reference counter operations
-	dataLock    sync.Mutex // Lock for data fields (CollectorStatus, etc.)
+	AppRunId                   string
+	AppInfo                    *ds.AppInfo
+	Status                     string     // Current status of the application
+	LastModTime                int64      // Last modification time in milliseconds
+	FirstGoRoutineCollectionTs int64      // Timestamp of first goroutine collection
+	refCount                   int        // Reference counter
+	refLock                    sync.Mutex // Lock for reference counter operations
+	dataLock                   sync.Mutex // Lock for data fields (CollectorStatus, etc.)
 
 	Logs            *LogLinePeer
 	GoRoutines      *GoRoutinePeer
@@ -136,6 +137,22 @@ func (p *AppRunPeer) GetRefCount() int {
 	return p.refCount
 }
 
+// setFirstGoRoutineCollectionTs sets the FirstGoRoutineCollectionTs if it hasn't been set yet
+func (p *AppRunPeer) setFirstGoRoutineCollectionTs(ts int64) {
+	p.dataLock.Lock()
+	defer p.dataLock.Unlock()
+	if p.FirstGoRoutineCollectionTs == 0 {
+		p.FirstGoRoutineCollectionTs = ts
+	}
+}
+
+// getFirstGoRoutineCollectionTs safely returns the FirstGoRoutineCollectionTs
+func (p *AppRunPeer) getFirstGoRoutineCollectionTs() int64 {
+	p.dataLock.Lock()
+	defer p.dataLock.Unlock()
+	return p.FirstGoRoutineCollectionTs
+}
+
 // GetAllAppRunPeers returns all AppRunPeers
 func GetAllAppRunPeers() []*AppRunPeer {
 	keys := appRunPeers.Keys()
@@ -214,6 +231,7 @@ func (p *AppRunPeer) HandlePacket(packetType string, packetData json.RawMessage)
 		if err := json.Unmarshal(packetData, &goroutineInfo); err != nil {
 			return fmt.Errorf("failed to unmarshal GoroutineInfo: %w", err)
 		}
+		p.setFirstGoRoutineCollectionTs(goroutineInfo.Ts)
 		p.GoRoutines.ProcessGoroutineStacks(goroutineInfo)
 		log.Printf("Processed %d goroutines for app run ID: %s (delta: %v)", len(goroutineInfo.Stacks), p.AppRunId, goroutineInfo.Delta)
 
@@ -316,21 +334,22 @@ func (p *AppRunPeer) GetAppRunInfo() rpctypes.AppRunInfo {
 	numTotalWatches := p.Watches.GetTotalWatchCount()
 	numLogs := p.Logs.GetTotalCount()
 	appRunInfo := rpctypes.AppRunInfo{
-		AppRunId:            p.AppRunId,
-		AppName:             p.AppInfo.AppName,
-		StartTime:           p.AppInfo.StartTime,
-		IsRunning:           isRunning,
-		Status:              p.Status,
-		NumLogs:             numLogs,
-		NumTotalGoRoutines:  numTotalGoRoutines,
-		NumActiveGoRoutines: numActiveGoRoutines,
-		NumOutrigGoRoutines: numOutrigGoRoutines,
-		NumActiveWatches:    numActiveWatches,
-		NumTotalWatches:     numTotalWatches,
-		LastModTime:         p.LastModTime,
-		ModuleName:          p.AppInfo.ModuleName,
-		Executable:          p.AppInfo.Executable,
-		OutrigSDKVersion:    p.AppInfo.OutrigSDKVersion,
+		AppRunId:                   p.AppRunId,
+		AppName:                    p.AppInfo.AppName,
+		StartTime:                  p.AppInfo.StartTime,
+		FirstGoRoutineCollectionTs: p.getFirstGoRoutineCollectionTs(),
+		IsRunning:                  isRunning,
+		Status:                     p.Status,
+		NumLogs:                    numLogs,
+		NumTotalGoRoutines:         numTotalGoRoutines,
+		NumActiveGoRoutines:        numActiveGoRoutines,
+		NumOutrigGoRoutines:        numOutrigGoRoutines,
+		NumActiveWatches:           numActiveWatches,
+		NumTotalWatches:            numTotalWatches,
+		LastModTime:                p.LastModTime,
+		ModuleName:                 p.AppInfo.ModuleName,
+		Executable:                 p.AppInfo.Executable,
+		OutrigSDKVersion:           p.AppInfo.OutrigSDKVersion,
 	}
 
 	if p.AppInfo.BuildInfo != nil {
