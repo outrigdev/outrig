@@ -8,6 +8,8 @@ import React from "react";
 import { Tag } from "../elements/tag";
 import { GrTableModel } from "./grtable-model";
 
+const ROW_HEIGHT = 45;
+
 // Helper function to clean up function names by removing parens, asterisks, and .func suffixes
 const cleanFuncName = (funcname: string): string => {
     let cleaned = funcname.replace(/[()*]/g, "");
@@ -46,7 +48,19 @@ function cell_goid(info: any) {
 }
 
 function cell_name(info: any) {
-    return <div className="text-primary">{formatGoroutineName(info.row.original)}</div>;
+    const goroutine = info.row.original;
+    const tags = goroutine.tags;
+    
+    return (
+        <div>
+            <div className="text-primary">{formatGoroutineName(goroutine)}</div>
+            {tags && tags.length > 0 && (
+                <div className="text-xs text-muted hover:text-primary mt-0.5 transition-colors cursor-default">
+                    {tags.map((tag: string) => `#${tag}`).join(' ')}
+                </div>
+            )}
+        </div>
+    );
 }
 
 function cell_primarystate(info: any) {
@@ -154,11 +168,14 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
 
                 <div>
                     {table.getRowModel().rows.map((row) => (
-                        <div key={row.id} className="flex border-b border-border hover:bg-muted/5 transition-colors">
+                        <div key={row.id} className="flex border-b border-border hover:bg-muted/5 transition-colors" style={{ height: ROW_HEIGHT }}>
                             {row.getVisibleCells().map((cell) => (
                                 <div
                                     key={cell.id}
-                                    className={cn("p-3 text-sm", getColumnGrow(cell.column.id) > 0 ? "flex-grow" : "")}
+                                    className={cn(
+                                        "px-3 text-sm flex items-center",
+                                        getColumnGrow(cell.column.id) > 0 ? "flex-grow" : ""
+                                    )}
                                     style={getColumnGrow(cell.column.id) > 0 ? {} : { width: cell.column.getSize() }}
                                 >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
