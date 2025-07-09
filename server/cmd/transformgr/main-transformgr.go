@@ -22,7 +22,7 @@ func main() {
 	//outrig name="anonymous-task"
 	go func() {
 		fmt.Println("Anonymous task running")
-		time.Sleep(2 * time.Second) // Simulate work
+		time.Sleep(1 * time.Second) // Simulate work
 	}()
 
 	//outrig name="parameterized-task"

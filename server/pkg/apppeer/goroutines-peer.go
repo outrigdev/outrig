@@ -25,9 +25,10 @@ type GoRoutine struct {
 	Name                string
 	Tags                []string
 	StackTraces         *utilds.CirBuf[ds.GoRoutineStack]
-	FirstSeen           int64 // Timestamp when the goroutine was first seen
-	LastSeen            int64 // Timestamp when the goroutine was last seen
-	LastActiveIteration int64 // Iteration when the goroutine was last active
+	FirstSeen           int64      // Timestamp when the goroutine was first seen
+	LastSeen            int64      // Timestamp when the goroutine was last seen
+	LastActiveIteration int64      // Iteration when the goroutine was last active
+	Decl                *ds.GoDecl // Declaration information for this goroutine
 }
 
 // GoRoutinePeer manages goroutines for an AppRunPeer
@@ -67,6 +68,19 @@ func MakeGoRoutinePeer(appRunId string) *GoRoutinePeer {
 	}
 }
 
+// getOrCreateGoRoutine gets or creates a goroutine with the given ID and timestamp
+func (gp *GoRoutinePeer) getOrCreateGoRoutine(goId int64, timestamp int64) (GoRoutine, bool) {
+	return gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
+		return GoRoutine{
+			GoId:                goId,
+			StackTraces:         utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
+			FirstSeen:           timestamp,
+			LastSeen:            timestamp,
+			LastActiveIteration: gp.currentIteration,
+		}
+	})
+}
+
 // ProcessGoroutineStacks processes goroutine stacks from a packet
 func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 	gp.lock.Lock()
@@ -90,6 +104,34 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		gp.hasSeenFullUpdate = true
 	}
 
+	// Process goroutine declarations first
+	for _, decl := range info.Decls {
+		goId := decl.GoId
+		if goId == 0 {
+			continue // Skip declarations without a valid GoId
+		}
+
+		// Update maxGoId if we see a larger goroutine ID
+		if goId > gp.maxGoId {
+			gp.maxGoId = goId
+		}
+
+		goroutine, _ := gp.getOrCreateGoRoutine(goId, timestamp)
+
+		// Store the declaration information
+		goroutine.Decl = &decl
+
+		// Update fields from declaration if available
+		if decl.Name != "" {
+			goroutine.Name = decl.Name
+		}
+		if len(decl.Tags) > 0 {
+			goroutine.Tags = decl.Tags
+		}
+
+		gp.goRoutines.Set(goId, goroutine)
+	}
+
 	// Process goroutine stacks
 	for _, stack := range info.Stacks {
 		goId := stack.GoId
@@ -101,15 +143,7 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 			gp.maxGoId = goId
 		}
 
-		goroutine, wasFound := gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
-			return GoRoutine{
-				GoId:                goId,
-				StackTraces:         utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
-				FirstSeen:           timestamp, // Set FirstSeen to the timestamp from GoroutineInfo
-				LastSeen:            timestamp, // Set LastSeen to the timestamp from GoroutineInfo
-				LastActiveIteration: gp.currentIteration,
-			}
-		})
+		goroutine, wasFound := gp.getOrCreateGoRoutine(goId, timestamp)
 
 		// Update the last active iteration and last seen timestamp
 		goroutine.LastActiveIteration = gp.currentIteration
@@ -281,20 +315,20 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 			continue
 		}
 
-		parsedGoRoutine, err := stacktrace.ParseGoRoutineStackTrace(bestStack.StackTrace, moduleName, bestStack.GoId, bestStack.State)
-		if err != nil {
+		var isActive bool
+		if timestamp == 0 {
+			isActive = activeGoRoutinesCopy[goId]
+		} else {
+			isActive = gp.isGoRoutineActiveAtTimestamp(goroutineObj, timestamp)
+		}
+
+		if !isActive {
 			continue
 		}
-		parsedGoRoutine.Name = goroutineObj.Name
-		parsedGoRoutine.Tags = goroutineObj.Tags
-		parsedGoRoutine.FirstSeen = goroutineObj.FirstSeen
-		parsedGoRoutine.LastSeen = goroutineObj.LastSeen
-		// Set Active flag based on whether it's currently active (timestamp=0) or was active at the given timestamp
-		if timestamp == 0 {
-			parsedGoRoutine.Active = activeGoRoutinesCopy[goId]
-		} else {
-			// For historical timestamps, consider it active if we found a stack trace at that time
-			parsedGoRoutine.Active = found
+
+		parsedGoRoutine, err := gp.createParsedGoRoutine(goroutineObj, bestStack, moduleName, isActive)
+		if err != nil {
+			continue
 		}
 		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
 	}
@@ -307,6 +341,55 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 	}
 
 	return parsedGoRoutines
+}
+
+// getGoRoutineLifetime returns the effective first seen and last seen times for a goroutine
+func (gp *GoRoutinePeer) getGoRoutineLifetime(goroutineObj GoRoutine) (int64, int64) {
+	firstSeen := goroutineObj.FirstSeen
+	lastSeen := goroutineObj.LastSeen
+
+	if goroutineObj.Decl != nil {
+		// For first seen, use the minimum (earliest) of all available timestamps
+		if goroutineObj.Decl.StartTs != 0 && (firstSeen == 0 || goroutineObj.Decl.StartTs < firstSeen) {
+			firstSeen = goroutineObj.Decl.StartTs
+		}
+		if goroutineObj.Decl.FirstPollTs != 0 && (firstSeen == 0 || goroutineObj.Decl.FirstPollTs < firstSeen) {
+			firstSeen = goroutineObj.Decl.FirstPollTs
+		}
+
+		// For last seen, use the maximum (latest) of all available timestamps
+		if goroutineObj.Decl.EndTs != 0 && goroutineObj.Decl.EndTs > lastSeen {
+			lastSeen = goroutineObj.Decl.EndTs
+		}
+		if goroutineObj.Decl.LastPollTs != 0 && goroutineObj.Decl.LastPollTs > lastSeen {
+			lastSeen = goroutineObj.Decl.LastPollTs
+		}
+	}
+
+	return firstSeen, lastSeen
+}
+
+// isGoRoutineActiveAtTimestamp checks if a goroutine was active at the given timestamp
+func (gp *GoRoutinePeer) isGoRoutineActiveAtTimestamp(goroutineObj GoRoutine, timestamp int64) bool {
+	firstSeen, lastSeen := gp.getGoRoutineLifetime(goroutineObj)
+	return firstSeen <= timestamp && lastSeen >= timestamp
+}
+
+// createParsedGoRoutine creates a ParsedGoRoutine from a GoRoutine and stack trace
+func (gp *GoRoutinePeer) createParsedGoRoutine(goroutineObj GoRoutine, stack ds.GoRoutineStack, moduleName string, isActive bool) (rpctypes.ParsedGoRoutine, error) {
+	parsedGoRoutine, err := stacktrace.ParseGoRoutineStackTrace(stack.StackTrace, moduleName, stack.GoId, stack.State)
+	if err != nil {
+		return rpctypes.ParsedGoRoutine{}, err
+	}
+
+	parsedGoRoutine.Name = goroutineObj.Name
+	parsedGoRoutine.Tags = goroutineObj.Tags
+	parsedGoRoutine.Active = isActive
+
+	// Use the same lifetime calculation logic
+	parsedGoRoutine.FirstSeen, parsedGoRoutine.LastSeen = gp.getGoRoutineLifetime(goroutineObj)
+
+	return parsedGoRoutine, nil
 }
 
 // GetParsedGoRoutinesByIds returns parsed goroutines for specific goroutine IDs
@@ -325,15 +408,11 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 			continue
 		}
 
-		parsedGoRoutine, err := stacktrace.ParseGoRoutineStackTrace(latestStack.StackTrace, moduleName, latestStack.GoId, latestStack.State)
+		isActive := activeGoRoutinesCopy[goId]
+		parsedGoRoutine, err := gp.createParsedGoRoutine(goroutineObj, latestStack, moduleName, isActive)
 		if err != nil {
 			continue
 		}
-		parsedGoRoutine.Name = goroutineObj.Name
-		parsedGoRoutine.Tags = goroutineObj.Tags
-		parsedGoRoutine.FirstSeen = goroutineObj.FirstSeen
-		parsedGoRoutine.LastSeen = goroutineObj.LastSeen
-		parsedGoRoutine.Active = activeGoRoutinesCopy[goId] // Set active flag based on whether it's in the activeGoRoutines map
 		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
 	}
 
