@@ -273,15 +273,17 @@ type GoRoutineSearchRequestData struct {
 	SearchTerm  string `json:"searchterm"`
 	SystemQuery string `json:"systemquery,omitempty"`
 	Timestamp   int64  `json:"timestamp,omitempty"` // Timestamp in milliseconds, 0 means use latest
+	ShowOutrig  bool   `json:"showoutrig"`          // Whether to include outrig-tagged goroutines in state counts
 }
 
 // GoRoutineSearchResultData defines the response for goroutine search
 type GoRoutineSearchResultData struct {
-	SearchedCount  int               `json:"searchedcount"`
-	TotalCount     int               `json:"totalcount"`
-	TotalNonOutrig int               `json:"totalnonoutrig,omitempty"` // Total count excluding #outrig goroutines (only for goroutines search)
-	Results        []int64           `json:"results"`
-	ErrorSpans     []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
+	SearchedCount        int               `json:"searchedcount"`
+	TotalCount           int               `json:"totalcount"`
+	TotalNonOutrig       int               `json:"totalnonoutrig,omitempty"`       // Total count excluding #outrig goroutines (only for goroutines search)
+	GoRoutineStateCounts map[string]int    `json:"goroutinestatecounts,omitempty"` // PrimaryState counts for all searched goroutines
+	Results              []int64           `json:"results"`
+	ErrorSpans           []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
 }
 
 // WatchSearchRequestData defines the request for watch search

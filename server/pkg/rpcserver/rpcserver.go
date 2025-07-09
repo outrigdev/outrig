@@ -219,20 +219,28 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 		results = results[:MaxGoRoutineSearchResults]
 	}
 
-	// Calculate total non-outrig goroutines count
+	// Calculate total non-outrig goroutines count and state counts
 	totalNonOutrig := 0
+	stateCounts := make(map[string]int)
 	for _, gr := range allGoRoutines {
-		if !slices.Contains(gr.Tags, "outrig") {
+		isOutrig := slices.Contains(gr.Tags, "outrig")
+		if !isOutrig {
 			totalNonOutrig++
+		}
+		
+		// Include in state counts based on ShowOutrig flag
+		if gr.PrimaryState != "" && (data.ShowOutrig || !isOutrig) {
+			stateCounts[gr.PrimaryState]++
 		}
 	}
 
 	return rpctypes.GoRoutineSearchResultData{
-		SearchedCount:  stats.SearchedCount,
-		TotalCount:     stats.TotalCount,
-		TotalNonOutrig: totalNonOutrig,
-		Results:        results,
-		ErrorSpans:     errorSpans,
+		SearchedCount:        stats.SearchedCount,
+		TotalCount:           stats.TotalCount,
+		TotalNonOutrig:       totalNonOutrig,
+		GoRoutineStateCounts: stateCounts,
+		Results:              results,
+		ErrorSpans:           errorSpans,
 	}, nil
 }
 

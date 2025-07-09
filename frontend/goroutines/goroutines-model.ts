@@ -15,6 +15,7 @@ export type SearchResultInfo = {
     searchedCount: number;
     totalCount: number;
     totalnonoutrig?: number;
+    goroutinestatecounts?: {[key: string]: number};
     errorSpans?: SearchErrorSpan[];
 };
 
@@ -138,96 +139,21 @@ class GoRoutinesModel {
         });
     }
 
-    // Derived atom for primary states
-    primaryStates: Atom<string[]> = atom((get) => {
-        const goroutines = get(this.appRunGoRoutines);
-        const statesSet = new Set<string>();
 
-        goroutines.forEach((goroutine) => {
-            if (goroutine.primarystate) {
-                statesSet.add(goroutine.primarystate);
-            }
-        });
-
-        return Array.from(statesSet).sort();
-    });
-
-    // Derived atom for duration states, sorted by millisecond value
-    durationStates: Atom<string[]> = atom((get) => {
-        const goroutines = get(this.appRunGoRoutines);
-        // Create a map of duration string to millisecond value
-        const durationMap = new Map<string, number>();
-
-        goroutines.forEach((goroutine) => {
-            if (goroutine.stateduration && goroutine.statedurationms != null) {
-                durationMap.set(goroutine.stateduration, goroutine.statedurationms);
-            }
-        });
-
-        // Convert to array of [string, number] pairs and sort by millisecond value
-        return Array.from(durationMap.entries())
-            .sort((a, b) => a[1] - b[1]) // Sort by millisecond value (ascending)
-            .map((entry) => entry[0]); // Extract just the duration string
-    });
-
-    // Derived atom for all available states (for backward compatibility)
-    availableStates: Atom<string[]> = atom((get) => {
-        const primaryStates = get(this.primaryStates);
-        const durationStates = get(this.durationStates);
-
-        return [...primaryStates, ...durationStates];
-    });
-
-    // Derived atom for state counts - returns a map of state name to count
-    stateCounts: Atom<Map<string, number>> = atom((get) => {
-        const goroutines = get(this.appRunGoRoutines);
-        const counts = new Map<string, number>();
-
-        // Initialize counts for all states
-        const primaryStates = get(this.primaryStates);
-        const durationStates = get(this.durationStates);
-
-        [...primaryStates, ...durationStates].forEach((state) => {
-            counts.set(state, 0);
-        });
-
-        // Count goroutines for each state
-        goroutines.forEach((goroutine) => {
-            // Count primary state
-            if (goroutine.primarystate) {
-                counts.set(goroutine.primarystate, (counts.get(goroutine.primarystate) || 0) + 1);
-            }
-
-            // Count duration state
-            if (goroutine.stateduration) {
-                counts.set(goroutine.stateduration, (counts.get(goroutine.stateduration) || 0) + 1);
-            }
-        });
-
-        return counts;
-    });
-
-    // Toggle a state filter
+    // Toggle a state filter (single selection mode)
     toggleStateFilter(state: string): void {
         const store = getDefaultStore();
         const selectedStates = store.get(this.selectedStates);
-        const newSelectedStates = new Set(selectedStates);
 
         if (selectedStates.has(state)) {
-            // Remove the state if it's already selected
-            newSelectedStates.delete(state);
-
-            // If no states are selected anymore, enable "show all"
-            if (newSelectedStates.size === 0) {
-                store.set(this.showAll, true);
-            }
+            // If clicking the already selected state, deselect it and enable "show all"
+            store.set(this.selectedStates, new Set<string>());
+            store.set(this.showAll, true);
         } else {
-            // Add the state and disable "show all"
-            newSelectedStates.add(state);
+            // Replace any existing selection with this state and disable "show all"
+            store.set(this.selectedStates, new Set([state]));
             store.set(this.showAll, false);
         }
-
-        store.set(this.selectedStates, newSelectedStates);
 
         // Trigger a new search with the current search term to apply the filter
         this.searchGoroutines(store.get(this.searchTerm));
@@ -306,6 +232,7 @@ class GoRoutinesModel {
                 searchterm: searchTerm,
                 systemquery: systemQuery,
                 timestamp: effectiveTimestamp > 0 ? effectiveTimestamp : undefined,
+                showoutrig: showOutrig,
             });
 
             // Check if this search is still the current one
@@ -318,9 +245,20 @@ class GoRoutinesModel {
                 searchedCount: searchResult.searchedcount,
                 totalCount: searchResult.totalcount,
                 totalnonoutrig: searchResult.totalnonoutrig,
+                goroutinestatecounts: searchResult.goroutinestatecounts,
                 errorSpans: searchResult.errorspans || [],
             });
-            store.set(this.lastSearchTimestamp, Date.now());
+            // Set the timestamp to the actual timestamp that was searched for
+            let searchedTimestamp: number;
+            if (effectiveTimestamp > 0) {
+                searchedTimestamp = effectiveTimestamp;
+            } else {
+                // When effectiveTimestamp is 0 (search latest), use the app run's lastmodtime
+                const appRunInfoAtom = AppModel.getAppRunInfoAtom(this.appRunId);
+                const appRunInfo = store.get(appRunInfoAtom);
+                searchedTimestamp = appRunInfo?.lastmodtime || 0;
+            }
+            store.set(this.lastSearchTimestamp, searchedTimestamp);
 
             // Convert int64 IDs to numbers and store them
             const goIds = searchResult.results;

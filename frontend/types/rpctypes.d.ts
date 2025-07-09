@@ -133,6 +133,7 @@ declare global {
         searchterm: string;
         systemquery?: string;
         timestamp?: number;
+        showoutrig: boolean;
     };
 
     // rpctypes.GoRoutineSearchResultData
@@ -140,6 +141,7 @@ declare global {
         searchedcount: number;
         totalcount: number;
         totalnonoutrig?: number;
+        goroutinestatecounts?: {[key: string]: number};
         results: number[];
         errorspans?: SearchErrorSpan[];
     };
