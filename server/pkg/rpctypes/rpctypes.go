@@ -277,11 +277,11 @@ type GoRoutineSearchRequestData struct {
 
 // GoRoutineSearchResultData defines the response for goroutine search
 type GoRoutineSearchResultData struct {
-	SearchedCount    int               `json:"searchedcount"`
-	TotalCount       int               `json:"totalcount"`
-	TotalNonOutrig   int               `json:"totalnonoutrig,omitempty"` // Total count excluding #outrig goroutines (only for goroutines search)
-	Results          []int64           `json:"results"`
-	ErrorSpans       []SearchErrorSpan `json:"errorspans,omitempty"`     // Error spans in the search query
+	SearchedCount  int               `json:"searchedcount"`
+	TotalCount     int               `json:"totalcount"`
+	TotalNonOutrig int               `json:"totalnonoutrig,omitempty"` // Total count excluding #outrig goroutines (only for goroutines search)
+	Results        []int64           `json:"results"`
+	ErrorSpans     []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
 }
 
 // WatchSearchRequestData defines the request for watch search
@@ -356,6 +356,7 @@ type ParsedGoRoutine struct {
 	GoId            int64        `json:"goid"`
 	Name            string       `json:"name,omitempty"`            // Optional name for the goroutine
 	Tags            []string     `json:"tags,omitempty"`            // Optional tags for the goroutine
+	CSNum           int          `json:"csnum,omitempty"`           // Call site number for goroutines spawned from the same location
 	FirstSeen       int64        `json:"firstseen,omitempty"`       // Timestamp when the goroutine was first seen
 	LastSeen        int64        `json:"lastseen,omitempty"`        // Timestamp when the goroutine was last seen
 	Active          bool         `json:"active"`                    // Whether the goroutine is currently active
