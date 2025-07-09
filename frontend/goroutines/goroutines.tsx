@@ -21,8 +21,8 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model, tableModel
     const isRefreshing = useAtomValue(model.isRefreshing);
     const search = useAtomValue(model.searchTerm);
     const showAll = useAtomValue(model.showAll);
+    const containerSize = useAtomValue(tableModel.containerSize);
     const containerRef = useRef<HTMLDivElement>(null);
-    const contentRef = useRef<HTMLDivElement>(null);
     const [showEmptyMessage, setShowEmptyMessage] = useState(false);
 
     // Set up resize observation for the container
@@ -35,7 +35,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model, tableModel
 
     // Set the content ref in the model when it changes
     useEffect(() => {
-        model.setContentRef(contentRef);
+        model.setContentRef(containerRef);
     }, [model]);
 
     // Set a timeout to show empty message after component mounts or when goroutines change
@@ -52,7 +52,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model, tableModel
     }, [sortedGoroutines.length, isRefreshing]);
 
     return (
-        <div ref={contentRef} className="w-full h-full overflow-auto flex-1">
+        <div ref={containerRef} className="w-full h-full overflow-auto flex-1">
             {isRefreshing ? (
                 <div className="flex items-center justify-center h-full">
                     <div className="flex items-center gap-2 text-primary">
@@ -63,9 +63,9 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model, tableModel
                 <div className="flex items-center justify-center h-full text-secondary">
                     {search || !showAll ? "no goroutines match the filter" : "no goroutines found"}
                 </div>
-            ) : (
+            ) : containerSize.width > 0 ? (
                 <GoRoutinesTable sortedGoroutines={sortedGoroutines} tableModel={tableModel} />
-            )}
+            ) : null}
         </div>
     );
 };
