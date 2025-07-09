@@ -14,6 +14,11 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - in Go code, prefer using Printf() vs Println()
     - use "Make" as opposed to "New" for struct initialization func names
     - in general const decls go at the top fo the file (before types and functions)
+- **Synchronization**:
+    - Always prefer to use the `lock.Lock(); defer lock.Unlock()` pattern for synchronization if possible
+    - Avoid inline lock/unlock pairs - instead create helper functions that use the defer pattern
+    - When accessing shared data structures (maps, slices, etc.), ensure proper locking
+    - Example: Instead of `gc.lock.Lock(); gc.map[key]++; gc.lock.Unlock()`, create a helper function like `getNextValue(key string) int { gc.lock.Lock(); defer gc.lock.Unlock(); gc.map[key]++; return gc.map[key] }`
 - **TypeScript Imports**:
     - Use `@/...` for imports from different parts of the project (configured in `tsconfig.json` as `"@/*": ["frontend/*"]`).
     - Prefer relative imports (`"./name"`) only within the same directory.

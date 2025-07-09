@@ -49,6 +49,7 @@ type GoroutineCollector struct {
 	nextSendFull        bool                        // true for full update, false for delta update
 	lastStackSize       int                         // last actual stack size (not buffer size)
 	updatedDecls        []ds.GoDecl                 // declarations updated since last send
+	callSiteCounts      map[string]int              // tracks number of goroutines spawned from each call site
 }
 
 // CollectorName returns the unique name of the collector
@@ -69,6 +70,7 @@ func GetInstance() *GoroutineCollector {
 			lastGoroutineStacks: make(map[int64]ds.GoRoutineStack),
 			nextSendFull:        true,               // First send is always a full update
 			lastStackSize:       MinStackBufferSize, // Start with minimum stack size estimate
+			callSiteCounts:      make(map[string]int),
 		}
 		instance.executor = collector.MakePeriodicExecutor("GoroutineCollector", GoroutinePollInterval, instance.DumpGoroutines)
 	})
@@ -131,6 +133,14 @@ func (gc *GoroutineCollector) incrementParentSpawnCount(parentGoId int64) {
 	}
 }
 
+// getNextCallSiteNum gets the next call site number for the given call site with proper locking
+func (gc *GoroutineCollector) getNextCallSiteNum(callSite string) int {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	gc.callSiteCounts[callSite]++
+	return gc.callSiteCounts[callSite]
+}
+
 func (gc *GoroutineCollector) UpdateGoRoutineName(decl *ds.GoDecl, newName string) {
 	// we use the gc.Lock to synchronize access to existing decls
 	gc.lock.Lock()
@@ -165,7 +175,7 @@ func (gc *GoroutineCollector) UpdateGoRoutinePkg(decl *ds.GoDecl, newPkg string)
 }
 
 func (gc *GoroutineCollector) setInitialGoDeclInfo(decl *ds.GoDecl, stack []byte) {
-	if decl.GoId != 0 && decl.ParentGoId != 0 && decl.Pkg != "" && decl.Func != "" {
+	if decl.GoId != 0 && decl.ParentGoId != 0 && decl.Pkg != "" && decl.Func != "" && decl.CSNum != 0 {
 		return // all fields are already set
 	}
 	if len(stack) == 0 {
@@ -208,6 +218,14 @@ func (gc *GoroutineCollector) setInitialGoDeclInfo(decl *ds.GoDecl, stack []byte
 			if decl.Func == "" {
 				decl.Func = extractFunction(funcName)
 			}
+		}
+	}
+
+	// Extract call site and assign CSNum
+	if decl.CSNum == 0 {
+		callSite := extractCallSite(stack)
+		if callSite != "" {
+			decl.CSNum = gc.getNextCallSiteNum(callSite)
 		}
 	}
 }
@@ -370,6 +388,7 @@ var stackRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\].*\n((?s).*)`)
 var goCreationRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\]`)
 var parentGoRe = regexp.MustCompile(`created by .* in goroutine (\d+)`)
 var createdByRe = regexp.MustCompile(`created by\s+(\S+)`)
+var callSiteRe = regexp.MustCompile(`(?m)^created by[^\n]*\n\s+(\S+\.go:\d+)`)
 
 // extractPackage extracts the package name from a stack trace function name
 func extractPackage(funcName string) string {
@@ -395,21 +414,32 @@ func extractPackage(funcName string) string {
 func extractFunction(funcName string) string {
 	// Remove parentheses at the end if present
 	funcName = strings.TrimSuffix(funcName, "()")
-	
+
 	// Find and remove anonymous function suffixes (.func\d)
 	funcRe := regexp.MustCompile(`\.func\d`)
 	funcIdx := funcRe.FindStringIndex(funcName)
 	if funcIdx != nil {
 		funcName = funcName[:funcIdx[0]]
 	}
-	
+
 	// Extract the function name (part after the last dot)
 	lastDot := strings.LastIndex(funcName, ".")
 	if lastDot != -1 && lastDot < len(funcName)-1 {
 		return funcName[lastDot+1:]
 	}
-	
+
 	return funcName
+}
+
+// extractCallSite extracts the call site (file:line) from a goroutine stack trace
+// It looks for the line after "created by" which contains the file:line information
+// Example input: "created by github.com/outrigdev/outrig/server/pkg/gensearch.init.0 in goroutine 1\n\t/Users/mike/work/outrig/server/pkg/gensearch/searchmanager.go:201 +0x24"
+// Returns: "/Users/mike/work/outrig/server/pkg/gensearch/searchmanager.go:201"
+func extractCallSite(stack []byte) string {
+	if m := callSiteRe.FindSubmatch(stack); m != nil {
+		return string(m[1])
+	}
+	return ""
 }
 
 // computeDeltaStack compares current and last goroutine stack and returns a delta stack
