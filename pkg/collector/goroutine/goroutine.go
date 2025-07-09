@@ -39,6 +39,11 @@ const (
 	GoState_Done    = 2
 )
 
+type callSiteInfo struct {
+	count       int
+	initialGoId int64
+}
+
 // GoroutineCollector implements the collector.Collector interface for goroutine collection
 type GoroutineCollector struct {
 	lock                sync.Mutex
@@ -49,7 +54,7 @@ type GoroutineCollector struct {
 	nextSendFull        bool                        // true for full update, false for delta update
 	lastStackSize       int                         // last actual stack size (not buffer size)
 	updatedDecls        []ds.GoDecl                 // declarations updated since last send
-	callSiteCounts      map[string]int              // tracks number of goroutines spawned from each call site
+	callSiteCounts      map[string]callSiteInfo     // tracks call site information for goroutines
 }
 
 // CollectorName returns the unique name of the collector
@@ -70,7 +75,7 @@ func GetInstance() *GoroutineCollector {
 			lastGoroutineStacks: make(map[int64]ds.GoRoutineStack),
 			nextSendFull:        true,               // First send is always a full update
 			lastStackSize:       MinStackBufferSize, // Start with minimum stack size estimate
-			callSiteCounts:      make(map[string]int),
+			callSiteCounts:      make(map[string]callSiteInfo),
 		}
 		instance.executor = collector.MakePeriodicExecutor("GoroutineCollector", GoroutinePollInterval, instance.DumpGoroutines)
 	})
@@ -134,11 +139,42 @@ func (gc *GoroutineCollector) incrementParentSpawnCount(parentGoId int64) {
 }
 
 // getNextCallSiteNum gets the next call site number for the given call site with proper locking
-func (gc *GoroutineCollector) getNextCallSiteNum(callSite string) int {
+// Returns 0 for the first goroutine, then handles backpatching when the second one appears
+func (gc *GoroutineCollector) getNextCallSiteNum(callSite string, currentGoId int64) int {
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
-	gc.callSiteCounts[callSite]++
-	return gc.callSiteCounts[callSite]
+	
+	info, exists := gc.callSiteCounts[callSite]
+	if !exists {
+		// First goroutine from this call site
+		gc.callSiteCounts[callSite] = callSiteInfo{
+			count:       1,
+			initialGoId: currentGoId,
+		}
+		return 0 // Leave CSNum as 0 for the first one
+	}
+	
+	info.count++
+	gc.callSiteCounts[callSite] = info
+	
+	if info.count == 2 {
+		// Second goroutine, need to backpatch the first one
+		gc.backpatchFirstCallSiteDecl_nolock(info.initialGoId)
+		return 2
+	}
+	
+	// Third and subsequent goroutines
+	return info.count
+}
+
+// backpatchFirstCallSiteDecl_nolock finds the first goroutine by ID and sets its CSNum to 1
+func (gc *GoroutineCollector) backpatchFirstCallSiteDecl_nolock(initialGoId int64) {
+	if decl, exists := gc.goroutineDecls[initialGoId]; exists && decl.CSNum == 0 {
+		decl.CSNum = 1
+		// Add to updated declarations
+		declCopy := *decl
+		gc.updatedDecls = append(gc.updatedDecls, declCopy)
+	}
 }
 
 func (gc *GoroutineCollector) UpdateGoRoutineName(decl *ds.GoDecl, newName string) {
@@ -225,7 +261,7 @@ func (gc *GoroutineCollector) setInitialGoDeclInfo(decl *ds.GoDecl, stack []byte
 	if decl.CSNum == 0 {
 		callSite := extractCallSite(stack)
 		if callSite != "" {
-			decl.CSNum = gc.getNextCallSiteNum(callSite)
+			decl.CSNum = gc.getNextCallSiteNum(callSite, decl.GoId)
 		}
 	}
 }
