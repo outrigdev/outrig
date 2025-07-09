@@ -525,6 +525,20 @@ func (g *GoRoutine) WithName(name string) *GoRoutine {
 	return g
 }
 
+func (g *GoRoutine) WithGroup(group string) *GoRoutine {
+	normalizedGroup := utilfn.NormalizeName(group)
+	state := atomic.LoadInt32(&g.decl.State)
+	if state == goroutine.GoState_Init {
+		// For goroutines that haven't started yet, directly set the group
+		g.decl.Group = normalizedGroup
+	} else {
+		// For running or completed goroutines, use the collector to update group
+		gc := goroutine.GetInstance()
+		gc.UpdateGoRoutineGroup(g.decl, normalizedGroup)
+	}
+	return g
+}
+
 func (g *GoRoutine) WithPkg(pkg string) *GoRoutine {
 	normalizedPkg := utilfn.NormalizeName(pkg)
 	state := atomic.LoadInt32(&g.decl.State)

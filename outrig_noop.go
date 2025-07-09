@@ -174,6 +174,12 @@ func (g *GoRoutine) WithName(name string) *GoRoutine {
 	return g
 }
 
+// WithGroup sets the group of the goroutine
+// This is a no-op implementation for no_outrig build
+func (g *GoRoutine) WithGroup(group string) *GoRoutine {
+	return g
+}
+
 // WithPkg sets the package name of the goroutine
 // This is a no-op implementation for no_outrig build
 func (g *GoRoutine) WithPkg(pkg string) *GoRoutine {

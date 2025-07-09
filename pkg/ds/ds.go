@@ -98,6 +98,7 @@ type GoRoutineStack struct {
 
 type GoDecl struct {
 	Name        string   `json:"name"`
+	Group       string   `json:"group,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	Pkg         string   `json:"pkg,omitempty"`  // package name that created the goroutine
 	Func        string   `json:"func,omitempty"` // function name that created the goroutine (without anonymous func suffixes)
