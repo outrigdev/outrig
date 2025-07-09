@@ -80,6 +80,11 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
     const containerSize = useAtomValue(tableModel.containerSize);
     const columns = useAtomValue(tableModel.columns);
 
+    const getColumnGrow = (columnId: string): number => {
+        const column = columns.find(col => col.id === columnId);
+        return column?.grow || 0;
+    };
+
     const tableColumns = [
         columnHelper.accessor("goid", {
             header: "GoID",
@@ -134,9 +139,9 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
                                     key={header.id}
                                     className={cn(
                                         "text-left p-3 text-sm font-medium text-secondary",
-                                        header.id === "timeline" ? "flex-grow" : ""
+                                        getColumnGrow(header.id) > 0 ? "flex-grow" : ""
                                     )}
-                                    style={header.id === "timeline" ? {} : { width: header.getSize() }}
+                                    style={getColumnGrow(header.id) > 0 ? {} : { width: header.getSize() }}
                                 >
                                     {header.isPlaceholder
                                         ? null
@@ -153,8 +158,8 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
                             {row.getVisibleCells().map((cell) => (
                                 <div
                                     key={cell.id}
-                                    className={cn("p-3 text-sm", cell.column.id === "timeline" ? "flex-grow" : "")}
-                                    style={cell.column.id === "timeline" ? {} : { width: cell.column.getSize() }}
+                                    className={cn("p-3 text-sm", getColumnGrow(cell.column.id) > 0 ? "flex-grow" : "")}
+                                    style={getColumnGrow(cell.column.id) > 0 ? {} : { width: cell.column.getSize() }}
                                 >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                 </div>
