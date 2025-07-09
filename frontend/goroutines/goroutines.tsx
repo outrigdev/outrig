@@ -18,6 +18,52 @@ import { GoRoutinesModel } from "./goroutines-model";
 import { StackTrace } from "./stacktrace";
 import { TimeSlider } from "./timeslider";
 
+// Helper function to clean up function names by removing parens, asterisks, and .func suffixes
+const cleanFuncName = (funcname: string): string => {
+    // Remove parentheses and asterisks
+    let cleaned = funcname.replace(/[()*]/g, "");
+
+    // Remove .func[\d.]+ suffixes (like .func5 or .func5.2)
+    cleaned = cleaned.replace(/\.func[\d.]+$/, "");
+
+    return cleaned;
+};
+
+// Helper function to format goroutine name according to the pattern [pkg].[func]#[csnum] (goid) or [pkg].[name]#[csnum] (goid)
+const formatGoroutineName = (goroutine: ParsedGoRoutine): React.ReactNode => {
+    // Use the createdbyframe to extract package and function info
+    const createdByFrame = goroutine.createdbyframe;
+
+    if (!createdByFrame) {
+        // Fallback to original display if no createdbyframe
+        if (goroutine.name) {
+            return (
+                <>
+                    <span className="text-primary">{goroutine.name}</span>
+                    <span className="text-secondary"> ({goroutine.goid})</span>
+                </>
+            );
+        } else {
+            return `Goroutine ${goroutine.goid}`;
+        }
+    }
+
+    // Extract just the last part of the package path (after the last slash)
+    const pkg = createdByFrame.package.split("/").pop() || createdByFrame.package;
+
+    // Determine what to show after the package
+    const nameOrFunc = goroutine.name ? `[${goroutine.name}]` : cleanFuncName(createdByFrame.funcname);
+
+    return (
+        <>
+            {!goroutine.name && <span className="text-secondary">{pkg}.</span>}
+            <span className="text-primary">{nameOrFunc}</span>
+            {goroutine.csnum && goroutine.csnum !== 0 && <span className="text-secondary">#{goroutine.csnum}</span>}
+            <span className="text-secondary"> ({goroutine.goid})</span>
+        </>
+    );
+};
+
 // StacktraceModeToggle component for toggling between raw and simplified stacktrace modes
 interface StacktraceModeToggleProps {
     modeAtom: PrimitiveAtom<string>;
@@ -131,15 +177,7 @@ const GoroutineView: React.FC<GoroutineViewProps> = ({ goroutine, model }) => {
             <div className="py-2">
                 <div className="flex justify-between items-center">
                     <div className="text-primary whitespace-nowrap overflow-hidden text-ellipsis pr-4 flex items-center">
-                        <span className="font-semibold">
-                            {goroutine.name ? (
-                                <>
-                                    {goroutine.name} <span className="text-secondary">({goroutine.goid})</span>
-                                </>
-                            ) : (
-                                `Goroutine ${goroutine.goid}`
-                            )}
-                        </span>
+                        <span className="font-semibold">{formatGoroutineName(goroutine)}</span>
                         {goroutine.firstseen && appRunStartTime && (
                             <Tooltip content={`Goroutine started at ${new Date(goroutine.firstseen).toLocaleString()}`}>
                                 <span className="ml-2 text-xs text-muted bg-muted/10 px-1 py-0.5 rounded hover:bg-muted/20 transition-colors font-semibold">

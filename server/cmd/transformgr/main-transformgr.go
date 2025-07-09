@@ -32,9 +32,11 @@ func main() {
 	}(55)
 
 	// This go statement has no outrig directive, so it won't be transformed
-	go func() {
-		fmt.Println("Regular goroutine")
-		time.Sleep(1 * time.Second) // Simulate work
+	func() {
+		go func() {
+			fmt.Println("Regular goroutine")
+			time.Sleep(2 * time.Second) // Simulate work
+		}()
 	}()
 
 	fmt.Println("All workers started")
