@@ -52,13 +52,7 @@ class GrTableModel {
     private containerElement: HTMLElement | null = null;
 
     constructor() {
-        // Initialize resize observer
-        this.resizeObserver = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                const { width, height } = entry.contentRect;
-                this.updateContainerSize({ width, height });
-            }
-        });
+        // ResizeObserver will be created lazily in observeContainer
     }
 
     // Set up resize observation for a container element
@@ -69,7 +63,17 @@ class GrTableModel {
 
         this.containerElement = element;
 
-        if (element && this.resizeObserver) {
+        if (element) {
+            // Create ResizeObserver if it doesn't exist
+            if (!this.resizeObserver) {
+                this.resizeObserver = new ResizeObserver((entries) => {
+                    for (const entry of entries) {
+                        const { width, height } = entry.contentRect;
+                        this.updateContainerSize({ width, height });
+                    }
+                });
+            }
+            
             this.resizeObserver.observe(element);
             // Get initial size
             const rect = element.getBoundingClientRect();

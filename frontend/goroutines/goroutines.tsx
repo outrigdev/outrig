@@ -51,6 +51,8 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model, tableModel
         }
     }, [sortedGoroutines.length, isRefreshing]);
 
+    console.log("gr-render, containerSize:", containerSize);
+
     return (
         <div ref={containerRef} className="w-full h-full overflow-auto flex-1">
             {isRefreshing ? (
