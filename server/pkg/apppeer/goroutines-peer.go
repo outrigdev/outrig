@@ -386,6 +386,11 @@ func (gp *GoRoutinePeer) createParsedGoRoutine(goroutineObj GoRoutine, stack ds.
 	parsedGoRoutine.Tags = goroutineObj.Tags
 	parsedGoRoutine.Active = isActive
 
+	// Set CSNum from declaration if available
+	if goroutineObj.Decl != nil {
+		parsedGoRoutine.CSNum = goroutineObj.Decl.CSNum
+	}
+
 	// Use the same lifetime calculation logic
 	parsedGoRoutine.FirstSeen, parsedGoRoutine.LastSeen = gp.getGoRoutineLifetime(goroutineObj)
 

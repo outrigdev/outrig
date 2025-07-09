@@ -212,6 +212,7 @@ declare global {
         goid: number;
         name?: string;
         tags?: string[];
+        csnum?: number;
         firstseen?: number;
         lastseen?: number;
         active: boolean;
