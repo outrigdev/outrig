@@ -13,11 +13,10 @@ func worker(id int) {
 func main() {
 	fmt.Println("Starting workers...")
 
-	//outrig name="worker-1"
-	go worker(1)
-
-	//outrig name="worker-2"
-	go worker(2)
+	for i := 0; i < 3; i++ {
+		//outrig name="worker"
+		go worker(i)
+	}
 
 	//outrig name="anonymous-task"
 	go func() {

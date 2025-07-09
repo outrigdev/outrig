@@ -143,7 +143,7 @@ func (gc *GoroutineCollector) incrementParentSpawnCount(parentGoId int64) {
 func (gc *GoroutineCollector) getNextCallSiteNum(callSite string, currentGoId int64) int {
 	gc.lock.Lock()
 	defer gc.lock.Unlock()
-	
+
 	info, exists := gc.callSiteCounts[callSite]
 	if !exists {
 		// First goroutine from this call site
@@ -153,16 +153,16 @@ func (gc *GoroutineCollector) getNextCallSiteNum(callSite string, currentGoId in
 		}
 		return 0 // Leave CSNum as 0 for the first one
 	}
-	
+
 	info.count++
 	gc.callSiteCounts[callSite] = info
-	
+
 	if info.count == 2 {
 		// Second goroutine, need to backpatch the first one
 		gc.backpatchFirstCallSiteDecl_nolock(info.initialGoId)
 		return 2
 	}
-	
+
 	// Third and subsequent goroutines
 	return info.count
 }
@@ -259,7 +259,10 @@ func (gc *GoroutineCollector) setInitialGoDeclInfo(decl *ds.GoDecl, stack []byte
 
 	// Extract call site and assign CSNum
 	if decl.CSNum == 0 {
-		callSite := extractCallSite(stack)
+		// Use patched stack for call site extraction
+		stackStr := strings.TrimSpace(string(stack))
+		patchedStack := patchCreatedByStack(decl, stackStr)
+		callSite := extractCallSite(patchedStack)
 		if callSite != "" {
 			decl.CSNum = gc.getNextCallSiteNum(callSite, decl.GoId)
 		}
@@ -471,9 +474,9 @@ func extractFunction(funcName string) string {
 // It looks for the line after "created by" which contains the file:line information
 // Example input: "created by github.com/outrigdev/outrig/server/pkg/gensearch.init.0 in goroutine 1\n\t/Users/mike/work/outrig/server/pkg/gensearch/searchmanager.go:201 +0x24"
 // Returns: "/Users/mike/work/outrig/server/pkg/gensearch/searchmanager.go:201"
-func extractCallSite(stack []byte) string {
-	if m := callSiteRe.FindSubmatch(stack); m != nil {
-		return string(m[1])
+func extractCallSite(stack string) string {
+	if m := callSiteRe.FindStringSubmatch(stack); m != nil {
+		return m[1]
 	}
 	return ""
 }
