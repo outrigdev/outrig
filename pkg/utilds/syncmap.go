@@ -79,3 +79,13 @@ func (sm *SyncMap[K, T]) Len() int {
 	
 	return len(sm.m)
 }
+
+// ForEach iterates over all key/value pairs in the map, calling the provided function for each pair
+func (sm *SyncMap[K, T]) ForEach(fn func(K, T)) {
+	sm.lock.Lock()
+	defer sm.lock.Unlock()
+	
+	for k, v := range sm.m {
+		fn(k, v)
+	}
+}
