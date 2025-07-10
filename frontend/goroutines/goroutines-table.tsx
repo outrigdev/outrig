@@ -1,6 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
 import { cn } from "@/util/util";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
@@ -95,8 +96,63 @@ function cell_primarystate(info: any) {
     );
 }
 
-function cell_timeline(info: any) {
-    return <div className="text-secondary">Timeline placeholder</div>;
+function cell_timeline(info: any, timelineRange: { startTime: number; endTime: number }) {
+    const goroutine: ParsedGoRoutine = info.row.original;
+
+    if (!goroutine.firstseen || !goroutine.lastseen) {
+        return <div className="h-4 bg-muted/20 rounded-sm"></div>;
+    }
+
+    const { startTime, endTime } = timelineRange;
+
+    // If no valid time range, show empty bar
+    if (startTime === 0 && endTime === 0) {
+        return <div className="h-4 bg-muted/20 rounded-sm"></div>;
+    }
+
+    const totalDuration = endTime - startTime;
+    if (totalDuration <= 0) {
+        return <div className="h-4 bg-muted/20 rounded-sm"></div>;
+    }
+
+    // Calculate positions as percentages
+    const grStartTime = Math.max(goroutine.firstseen, startTime);
+    const grEndTime = Math.min(goroutine.lastseen, endTime);
+
+    const startPercent = ((grStartTime - startTime) / totalDuration) * 100;
+    const widthPercent = ((grEndTime - grStartTime) / totalDuration) * 100;
+
+    // Ensure minimum 5px width for visibility
+    const minWidthPercent = (5 / info.column.getSize()) * 100; // 5px as percentage of column width
+    const finalWidthPercent = Math.max(widthPercent, minWidthPercent);
+
+    // Calculate tooltip information
+    const absoluteStartTime = new Date(goroutine.firstseen).toLocaleTimeString();
+    const relativeStartTime = ((goroutine.firstseen - startTime) / 1000).toFixed(2);
+    const duration = ((goroutine.lastseen - goroutine.firstseen) / 1000).toFixed(2);
+
+    const tooltipContent = (
+        <div className="text-xs">
+            <div>
+                Start: {absoluteStartTime} (+{relativeStartTime}s)
+            </div>
+            <div>Duration: {duration}s</div>
+        </div>
+    );
+
+    return (
+        <div className="relative h-4 bg-muted/20 rounded-sm overflow-hidden" style={{ width: "200px" }}>
+            <Tooltip content={tooltipContent}>
+                <div
+                    className="absolute h-full bg-accent rounded-sm cursor-pointer"
+                    style={{
+                        left: `${startPercent}%`,
+                        width: `${finalWidthPercent}%`,
+                    }}
+                />
+            </Tooltip>
+        </div>
+    );
 }
 
 interface GoRoutinesTableProps {
@@ -110,11 +166,32 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
     const columns = useAtomValue(tableModel.columns);
     const simpleMode = useAtomValue(model.effectiveSimpleStacktraceMode);
     const expandedRows = useAtomValue(tableModel.expandedRows);
+    const appRunInfoAtom = AppModel.getAppRunInfoAtom(model.appRunId);
+    const appRunInfo = useAtomValue(appRunInfoAtom);
 
     const getColumnGrow = (columnId: string): number => {
         const column = columns.find((col) => col.id === columnId);
         return column?.grow || 0;
     };
+
+    // Calculate timeline range once for all rows
+    const timelineRange = React.useMemo(() => {
+        if (!appRunInfo) {
+            return { startTime: 0, endTime: 0 };
+        }
+
+        const startTime = appRunInfo.starttime;
+        const endTime = appRunInfo.lastmodtime;
+
+        // If starttime is more than 600s before lastmodtime, set starttime to lastmodtime - 600s
+        const maxStartTime = endTime - 600 * 1000;
+        const effectiveStartTime = Math.max(startTime, maxStartTime);
+
+        return {
+            startTime: effectiveStartTime,
+            endTime,
+        };
+    }, [appRunInfo]);
 
     const tableColumns = [
         columnHelper.accessor("goid", {
@@ -139,7 +216,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         columnHelper.display({
             id: "timeline",
             header: "Timeline",
-            cell: cell_timeline,
+            cell: (info) => cell_timeline(info, timelineRange),
             size: tableModel.getColumnWidth("timeline"),
             enableResizing: true,
         }),

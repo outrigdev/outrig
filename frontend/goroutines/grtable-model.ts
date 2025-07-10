@@ -35,8 +35,8 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
     },
     {
         id: "timeline",
-        width: 200,
-        grow: 1, // This column will grow to fill remaining space
+        width: 300,
+        grow: 0, // Fixed width for now to debug
     },
 ];
 
