@@ -46,6 +46,13 @@ const formatGoroutineName = (goroutine: ParsedGoRoutine): React.ReactNode => {
     );
 };
 
+// Goroutine states: "running", "runnable", "syscall", "waiting", "IO wait", "chan send", "chan receive", "select", "sleep",
+//   "sync.Mutex", "sync.RWMutex", "semacquire", "GC assist wait", "GC sweep wait", "force gc (idle)", "timer goroutine (idle)",
+//   "trace reader (blocked)", "sync.WaitGroup.Wait"
+const goroutineStateColors: { [state: string]: string } = {
+    default: "bg-accent",
+};
+
 const columnHelper = createColumnHelper<ParsedGoRoutine>();
 
 function cell_goid(info: any) {
@@ -96,9 +103,12 @@ function cell_primarystate(info: any) {
     );
 }
 
-function cell_timeline(info: any, timelineRange: { startTime: number; endTime: number }) {
-    const goroutine: ParsedGoRoutine = info.row.original;
+interface GoTimelineProps {
+    goroutine: ParsedGoRoutine;
+    timelineRange: { startTime: number; endTime: number };
+}
 
+const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineRange }) => {
     if (!goroutine.firstseen || !goroutine.lastseen) {
         return <div className="h-4 bg-muted/20 rounded-sm"></div>;
     }
@@ -122,8 +132,8 @@ function cell_timeline(info: any, timelineRange: { startTime: number; endTime: n
     const startPercent = ((grStartTime - startTime) / totalDuration) * 100;
     const widthPercent = ((grEndTime - grStartTime) / totalDuration) * 100;
 
-    // Ensure minimum 5px width for visibility
-    const minWidthPercent = (5 / info.column.getSize()) * 100; // 5px as percentage of column width
+    // Ensure minimum 2% width for visibility
+    const minWidthPercent = 2;
     const finalWidthPercent = Math.max(widthPercent, minWidthPercent);
 
     // Calculate tooltip information
@@ -141,7 +151,7 @@ function cell_timeline(info: any, timelineRange: { startTime: number; endTime: n
     );
 
     return (
-        <div className="relative h-4 bg-muted/20 rounded-sm overflow-hidden" style={{ width: "200px" }}>
+        <div className="relative h-4 bg-muted/20 rounded-sm overflow-hidden w-full">
             <Tooltip content={tooltipContent}>
                 <div
                     className="absolute h-full bg-accent rounded-sm cursor-pointer"
@@ -153,6 +163,13 @@ function cell_timeline(info: any, timelineRange: { startTime: number; endTime: n
             </Tooltip>
         </div>
     );
+});
+
+GoTimeline.displayName = "GoTimeline";
+
+function cell_timeline(info: any, timelineRange: { startTime: number; endTime: number }) {
+    const goroutine: ParsedGoRoutine = info.row.original;
+    return <GoTimeline goroutine={goroutine} timelineRange={timelineRange} />;
 }
 
 interface GoRoutinesTableProps {
