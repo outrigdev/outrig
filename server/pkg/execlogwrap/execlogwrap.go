@@ -61,12 +61,12 @@ func (ldw *LogDataWrap) processLogData(data []byte) {
 }
 
 // ensureConnection ensures that we have a connection to the Outrig server
-func (ldw *LogDataWrap) ensureConnection(isDev bool) {
+func (ldw *LogDataWrap) ensureConnection() {
 	ldw.lock.Lock()
 	defer ldw.lock.Unlock()
 
 	if ldw.conn == nil {
-		if conn := tryConnect(ldw.source, isDev); conn != nil {
+		if conn := tryConnect(ldw.source); conn != nil {
 			ldw.conn = conn
 			// fmt.Printf("#outrig connected %s via %s\n", ldw.source, conn.PeerName)
 		}
@@ -86,19 +86,14 @@ func (ldw *LogDataWrap) closeConnection() {
 
 // tryConnect attempts to connect to the Outrig server for the specified source
 // It returns the connection if successful, or nil if it fails
-func tryConnect(source string, isDev bool) *comm.ConnWrap {
+func tryConnect(source string) *comm.ConnWrap {
 	appRunId := config.GetExternalAppRunId()
 	if appRunId == "" {
 		// it is an error if we don't have an _external_ apprunid
 		return nil
 	}
 
-	var cfg *config.Config
-	if isDev {
-		cfg = config.DefaultConfigForOutrigDevelopment()
-	} else {
-		cfg = config.DefaultConfig()
-	}
+	cfg := config.DefaultConfig()
 
 	connWrap, _, transErr := comm.Connect(comm.ConnectionModeLog, source, appRunId, cfg)
 	if transErr != nil {
@@ -109,17 +104,17 @@ func tryConnect(source string, isDev bool) *comm.ConnWrap {
 
 // ensureConnections ensures that we have connections to the Outrig server
 // for both stdout and stderr
-func ensureConnections(isDev bool) {
-	stdoutWrap.ensureConnection(isDev)
-	stderrWrap.ensureConnection(isDev)
+func ensureConnections() {
+	stdoutWrap.ensureConnection()
+	stderrWrap.ensureConnection()
 }
 
 // startConnPoller starts a goroutine that periodically tries to establish
 // connections to the Outrig server if they don't already exist
-func startConnPoller(isDev bool) {
+func startConnPoller() {
 	go func() {
 		for {
-			ensureConnections(isDev)
+			ensureConnections()
 			time.Sleep(ConnPollTime)
 		}
 	}()
@@ -148,11 +143,11 @@ func processStream(wg *sync.WaitGroup, decl TeeStreamDecl) {
 }
 
 // ProcessExistingStreams handles capturing logs from provided input/output streams
-func ProcessExistingStreams(streams []TeeStreamDecl, isDev bool) error {
+func ProcessExistingStreams(streams []TeeStreamDecl) error {
 	appRunId := config.GetExternalAppRunId()
 	if appRunId != "" {
-		ensureConnections(isDev)
-		startConnPoller(isDev)
+		ensureConnections()
+		startConnPoller()
 	}
 
 	var wg sync.WaitGroup
@@ -166,7 +161,7 @@ func ProcessExistingStreams(streams []TeeStreamDecl, isDev bool) error {
 }
 
 // ExecCommand executes a command with the provided arguments
-func ExecCommand(args []string, isDev bool) error {
+func ExecCommand(args []string) error {
 	execCmd := exec.Command(args[0], args[1:]...)
 
 	stdoutPipe, err := execCmd.StdoutPipe()
@@ -189,7 +184,7 @@ func ExecCommand(args []string, isDev bool) error {
 		{Input: stdoutPipe, Output: os.Stdout, Source: "/dev/stdout"},
 		{Input: stderrPipe, Output: os.Stderr, Source: "/dev/stderr"},
 	}
-	ProcessExistingStreams(streams, isDev)
+	ProcessExistingStreams(streams)
 
 	err = execCmd.Wait()
 	if exitErr, ok := err.(*exec.ExitError); ok {
