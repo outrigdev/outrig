@@ -82,6 +82,12 @@ func GoRoutineSearchRequestCommand(w *rpc.RpcClient, data rpctypes.GoRoutineSear
 	return resp, err
 }
 
+// command "goroutinetimespans", rpctypes.GoRoutineTimeSpansCommand
+func GoRoutineTimeSpansCommand(w *rpc.RpcClient, data rpctypes.GoRoutineTimeSpansRequest, opts *rpc.RpcOpts) (rpctypes.GoRoutineTimeSpansResponse, error) {
+	resp, err := SendRpcRequestCallHelper[rpctypes.GoRoutineTimeSpansResponse](w, "goroutinetimespans", data, opts)
+	return resp, err
+}
+
 // command "killdemoapp", rpctypes.KillDemoAppCommand
 func KillDemoAppCommand(w *rpc.RpcClient, opts *rpc.RpcOpts) error {
 	_, err := SendRpcRequestCallHelper[any](w, "killdemoapp", nil, opts)

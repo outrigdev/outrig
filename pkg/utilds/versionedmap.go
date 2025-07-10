@@ -50,7 +50,7 @@ func (vm *VersionedMap[K, V]) Get(key K) (V, int64, bool) {
 	return versionedVal.Value, versionedVal.Version, true
 }
 
-func (vm *VersionedMap[K, V]) GetSinceVersion(version int64) map[K]V {
+func (vm *VersionedMap[K, V]) GetSinceVersion(version int64) (map[K]V, int64) {
 	vm.lock.Lock()
 	defer vm.lock.Unlock()
 
@@ -60,5 +60,5 @@ func (vm *VersionedMap[K, V]) GetSinceVersion(version int64) map[K]V {
 			result[key] = versionedVal.Value
 		}
 	}
-	return result
+	return result, vm.nextVersion
 }

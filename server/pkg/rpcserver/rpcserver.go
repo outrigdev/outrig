@@ -244,6 +244,23 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	}, nil
 }
 
+// GoRoutineTimeSpansCommand handles requests for goroutine time spans since a version
+func (*RpcServerImpl) GoRoutineTimeSpansCommand(ctx context.Context, data rpctypes.GoRoutineTimeSpansRequest) (rpctypes.GoRoutineTimeSpansResponse, error) {
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	if peer == nil {
+		return rpctypes.GoRoutineTimeSpansResponse{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Get time spans since the specified version
+	timeSpans, currentVersion := peer.GoRoutines.GetTimeSpansSinceVersion(data.SinceVersion)
+
+	return rpctypes.GoRoutineTimeSpansResponse{
+		Data:    timeSpans,
+		Version: currentVersion,
+	}, nil
+}
+
 // combinedWatchSampleToSearchObject converts a CombinedWatchSample to a WatchSearchObject
 func combinedWatchSampleToSearchObject(combined rpctypes.CombinedWatchSample) gensearch.SearchObject {
 	// Extract data from both the declaration and sample

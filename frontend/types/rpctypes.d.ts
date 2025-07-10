@@ -146,6 +146,24 @@ declare global {
         errorspans?: SearchErrorSpan[];
     };
 
+    // rpctypes.GoRoutineTimeSpansRequest
+    type GoRoutineTimeSpansRequest = {
+        apprunid: string;
+        sinceversion: number;
+    };
+
+    // rpctypes.GoRoutineTimeSpansResponse
+    type GoRoutineTimeSpansResponse = {
+        data: GoTimeSpan[];
+        version: number;
+    };
+
+    // rpctypes.GoTimeSpan
+    type GoTimeSpan = {
+        goid: number;
+        span: TimeSpan;
+    };
+
     // ds.LogLine
     type LogLine = {
         linenum: number;

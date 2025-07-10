@@ -47,6 +47,7 @@ type FullRpcInterface interface {
 	// goroutine search
 	GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data AppRunGoRoutinesByIdsRequest) (AppRunGoRoutinesData, error)
 	GoRoutineSearchRequestCommand(ctx context.Context, data GoRoutineSearchRequestData) (GoRoutineSearchResultData, error)
+	GoRoutineTimeSpansCommand(ctx context.Context, data GoRoutineTimeSpansRequest) (GoRoutineTimeSpansResponse, error)
 
 	// watch search
 	GetAppRunWatchesByIdsCommand(ctx context.Context, data AppRunWatchesByIdsRequest) (AppRunWatchesData, error)
@@ -399,4 +400,22 @@ type CombinedWatchSample struct {
 	WatchNum int64          `json:"watchnum"`
 	Decl     ds.WatchDecl   `json:"decl"`
 	Sample   ds.WatchSample `json:"sample"`
+}
+
+// GoTimeSpan represents a goroutine's time span with its ID
+type GoTimeSpan struct {
+	GoId uint64   `json:"goid"`
+	Span TimeSpan `json:"span"`
+}
+
+// GoRoutineTimeSpansRequest defines the request for getting goroutine time spans since a version
+type GoRoutineTimeSpansRequest struct {
+	AppRunId     string `json:"apprunid"`
+	SinceVersion int64  `json:"sinceversion"`
+}
+
+// GoRoutineTimeSpansResponse defines the response with updated time spans
+type GoRoutineTimeSpansResponse struct {
+	Data    []GoTimeSpan `json:"data"`
+	Version int64        `json:"version"`
 }
