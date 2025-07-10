@@ -109,7 +109,7 @@ interface GoTimelineProps {
 }
 
 const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineRange }) => {
-    if (!goroutine.firstseen || !goroutine.lastseen) {
+    if (!goroutine.activetimespan?.start || !goroutine.activetimespan?.end) {
         return <div className="h-4 bg-muted/20 rounded-sm"></div>;
     }
 
@@ -126,8 +126,8 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     }
 
     // Calculate positions as percentages
-    const grStartTime = Math.max(goroutine.firstseen, startTime);
-    const grEndTime = Math.min(goroutine.lastseen, endTime);
+    const grStartTime = Math.max(goroutine.activetimespan.start, startTime);
+    const grEndTime = Math.min(goroutine.activetimespan.end, endTime);
 
     const startPercent = ((grStartTime - startTime) / totalDuration) * 100;
     const widthPercent = ((grEndTime - grStartTime) / totalDuration) * 100;
@@ -137,9 +137,9 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     const finalWidthPercent = Math.max(widthPercent, minWidthPercent);
 
     // Calculate tooltip information
-    const absoluteStartTime = new Date(goroutine.firstseen).toLocaleTimeString();
-    const relativeStartTime = ((goroutine.firstseen - startTime) / 1000).toFixed(2);
-    const duration = ((goroutine.lastseen - goroutine.firstseen) / 1000).toFixed(2);
+    const absoluteStartTime = new Date(goroutine.activetimespan.start).toLocaleTimeString();
+    const relativeStartTime = ((goroutine.activetimespan.start - startTime) / 1000).toFixed(2);
+    const duration = ((goroutine.activetimespan.end - goroutine.activetimespan.start) / 1000).toFixed(2);
 
     const tooltipContent = (
         <div className="text-xs">

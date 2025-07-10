@@ -215,8 +215,7 @@ declare global {
         name?: string;
         tags?: string[];
         csnum?: number;
-        firstseen?: number;
-        lastseen?: number;
+        activetimespan: TimeSpan;
         active: boolean;
         rawstacktrace: string;
         rawstate: string;
@@ -351,6 +350,14 @@ declare global {
         "frontend:searchlatency"?: number;
         "frontend:searchitems"?: number;
         "frontend:clicktype"?: string;
+    };
+
+    // rpctypes.TimeSpan
+    type TimeSpan = {
+        label?: string;
+        start: number;
+        end?: number;
+        exact?: boolean;
     };
 
     // rpctypes.UpdateCheckData

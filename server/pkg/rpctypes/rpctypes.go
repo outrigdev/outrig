@@ -353,14 +353,20 @@ type StackFrame struct {
 	IsSys       bool `json:"issys,omitempty"`       // True if the frame is from a system module (e.g., "os", "net", "internal")
 }
 
+type TimeSpan struct {
+	Label string `json:"label,omitempty"` // Label for the time span (e.g., "Running", "Waiting")
+	Start int64  `json:"start"`           // Start time in milliseconds
+	End   int64  `json:"end,omitempty"`   // End time in milliseconds (0 means ongoing)
+	Exact bool   `json:"exact,omitempty"` // True if the start and end times are exact (not approximate)
+}
+
 // ParsedGoRoutine represents a parsed goroutine stack trace
 type ParsedGoRoutine struct {
 	GoId            int64        `json:"goid"`
 	Name            string       `json:"name,omitempty"`            // Optional name for the goroutine
 	Tags            []string     `json:"tags,omitempty"`            // Optional tags for the goroutine
 	CSNum           int          `json:"csnum,omitempty"`           // Call site number for goroutines spawned from the same location
-	FirstSeen       int64        `json:"firstseen,omitempty"`       // Timestamp when the goroutine was first seen
-	LastSeen        int64        `json:"lastseen,omitempty"`        // Timestamp when the goroutine was last seen
+	ActiveTimeSpan  TimeSpan     `json:"activetimespan"`            // Time span when the goroutine was active
 	Active          bool         `json:"active"`                    // Whether the goroutine is currently active
 	RawStackTrace   string       `json:"rawstacktrace"`             // The raw stack trace string
 	RawState        string       `json:"rawstate"`                  // The complete state information

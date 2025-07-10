@@ -343,18 +343,21 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 	return parsedGoRoutines
 }
 
-// getGoRoutineLifetime returns the effective first seen and last seen times for a goroutine
-func (gp *GoRoutinePeer) getGoRoutineLifetime(goroutineObj GoRoutine) (int64, int64) {
+// getGoRoutineTimeSpan returns the effective time span for a goroutine
+func (gp *GoRoutinePeer) getGoRoutineTimeSpan(goroutineObj GoRoutine) rpctypes.TimeSpan {
 	firstSeen := goroutineObj.FirstSeen
 	lastSeen := goroutineObj.LastSeen
+	exact := false
 
 	if goroutineObj.Decl != nil {
 		// For first seen, use the minimum (earliest) of all available timestamps
 		if goroutineObj.Decl.StartTs != 0 && (firstSeen == 0 || goroutineObj.Decl.StartTs < firstSeen) {
 			firstSeen = goroutineObj.Decl.StartTs
+			exact = true // We have StartTs, so timing is exact
 		}
 		if goroutineObj.Decl.FirstPollTs != 0 && (firstSeen == 0 || goroutineObj.Decl.FirstPollTs < firstSeen) {
 			firstSeen = goroutineObj.Decl.FirstPollTs
+			// Don't set exact = true here since this is only FirstPollTs
 		}
 
 		// For last seen, use the maximum (latest) of all available timestamps
@@ -366,13 +369,18 @@ func (gp *GoRoutinePeer) getGoRoutineLifetime(goroutineObj GoRoutine) (int64, in
 		}
 	}
 
-	return firstSeen, lastSeen
+	return rpctypes.TimeSpan{
+		Label: "", // Leave empty as requested
+		Start: firstSeen,
+		End:   lastSeen,
+		Exact: exact,
+	}
 }
 
 // isGoRoutineActiveAtTimestamp checks if a goroutine was active at the given timestamp
 func (gp *GoRoutinePeer) isGoRoutineActiveAtTimestamp(goroutineObj GoRoutine, timestamp int64) bool {
-	firstSeen, lastSeen := gp.getGoRoutineLifetime(goroutineObj)
-	return firstSeen <= timestamp && lastSeen >= timestamp
+	timeSpan := gp.getGoRoutineTimeSpan(goroutineObj)
+	return timeSpan.Start <= timestamp && timeSpan.End >= timestamp
 }
 
 // createParsedGoRoutine creates a ParsedGoRoutine from a GoRoutine and stack trace
@@ -391,8 +399,8 @@ func (gp *GoRoutinePeer) createParsedGoRoutine(goroutineObj GoRoutine, stack ds.
 		parsedGoRoutine.CSNum = goroutineObj.Decl.CSNum
 	}
 
-	// Use the same lifetime calculation logic
-	parsedGoRoutine.FirstSeen, parsedGoRoutine.LastSeen = gp.getGoRoutineLifetime(goroutineObj)
+	// Set the active time span
+	parsedGoRoutine.ActiveTimeSpan = gp.getGoRoutineTimeSpan(goroutineObj)
 
 	return parsedGoRoutine, nil
 }
