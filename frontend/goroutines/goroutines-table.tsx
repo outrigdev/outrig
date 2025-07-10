@@ -86,7 +86,7 @@ function cell_primarystate(info: any) {
         <div className="flex">
             {state ? (
                 <Tag
-                    label={goroutine.stateduration ? `${state} (${goroutine.stateduration})` : state}
+                    label={state}
                     isSelected={false}
                     variant="secondary"
                 />
