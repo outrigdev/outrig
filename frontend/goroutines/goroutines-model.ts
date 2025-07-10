@@ -15,7 +15,7 @@ export type SearchResultInfo = {
     searchedCount: number;
     totalCount: number;
     totalnonoutrig?: number;
-    goroutinestatecounts?: {[key: string]: number};
+    goroutinestatecounts?: { [key: string]: number };
     errorSpans?: SearchErrorSpan[];
 };
 
@@ -138,7 +138,6 @@ class GoRoutinesModel {
             behavior: "auto",
         });
     }
-
 
     // Toggle a state filter (single selection mode)
     toggleStateFilter(state: string): void {

@@ -4,9 +4,12 @@
 import { cn } from "@/util/util";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
+import { List } from "lucide-react";
 import React from "react";
 import { Tag } from "../elements/tag";
+import { GoRoutinesModel } from "./goroutines-model";
 import { GrTableModel } from "./grtable-model";
+import { StackTrace } from "./stacktrace";
 
 const ROW_HEIGHT = 45;
 
@@ -25,7 +28,7 @@ const formatGoroutineName = (goroutine: ParsedGoRoutine): React.ReactNode => {
         if (goroutine.name) {
             return <span className="text-primary">{goroutine.name}</span>;
         } else {
-            return <span className="text-muted">-</span>;
+            return <span className="text-muted">(unnamed)</span>;
         }
     }
 
@@ -47,18 +50,31 @@ function cell_goid(info: any) {
     return <span className="font-mono text-sm text-secondary">{info.getValue()}</span>;
 }
 
-function cell_name(info: any) {
+function cell_name(info: any, tableModel: GrTableModel, expandedRows: Set<number>) {
     const goroutine = info.row.original;
     const tags = goroutine.tags;
-    
+    const isExpanded = expandedRows.has(goroutine.goid);
+
     return (
-        <div>
-            <div className="text-primary">{formatGoroutineName(goroutine)}</div>
-            {tags && tags.length > 0 && (
-                <div className="text-xs text-muted hover:text-primary mt-0.5 transition-colors cursor-default">
-                    {tags.map((tag: string) => `#${tag}`).join(' ')}
-                </div>
-            )}
+        <div className="flex items-start gap-2">
+            <button
+                className={cn(
+                    "flex-shrink-0 w-4 h-4 flex items-center justify-center transition-colors mt-0.5 cursor-pointer",
+                    isExpanded ? "text-primary" : "text-secondary hover:text-primary"
+                )}
+                onClick={() => tableModel.toggleRowExpanded(goroutine.goid)}
+                title={isExpanded ? "Hide stacktrace" : "Show stacktrace"}
+            >
+                <List className="w-3 h-3" />
+            </button>
+            <div className="flex-1">
+                <div className="text-primary">{formatGoroutineName(goroutine)}</div>
+                {tags && tags.length > 0 && (
+                    <div className="text-xs text-muted hover:text-primary mt-0.5 transition-colors cursor-default">
+                        {tags.map((tag: string) => `#${tag}`).join(" ")}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -88,14 +104,17 @@ function cell_timeline(info: any) {
 interface GoRoutinesTableProps {
     sortedGoroutines: ParsedGoRoutine[];
     tableModel: GrTableModel;
+    model: GoRoutinesModel;
 }
 
-export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutines, tableModel }) => {
+export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutines, tableModel, model }) => {
     const containerSize = useAtomValue(tableModel.containerSize);
     const columns = useAtomValue(tableModel.columns);
+    const simpleMode = useAtomValue(model.effectiveSimpleStacktraceMode);
+    const expandedRows = useAtomValue(tableModel.expandedRows);
 
     const getColumnGrow = (columnId: string): number => {
-        const column = columns.find(col => col.id === columnId);
+        const column = columns.find((col) => col.id === columnId);
         return column?.grow || 0;
     };
 
@@ -109,7 +128,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         columnHelper.display({
             id: "name",
             header: "Name",
-            cell: cell_name,
+            cell: (info) => cell_name(info, tableModel, expandedRows),
             size: tableModel.getColumnWidth("name"),
             enableResizing: true,
         }),
@@ -142,7 +161,8 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
     return (
         <>
             <div className="text-secondary m-2 text-xs">
-                Info: Container: {containerSize.width}x{containerSize.height} | Columns: {columns.map(col => `${col.id}:${tableModel.getColumnWidth(col.id)}px`).join(', ')}
+                Info: Container: {containerSize.width}x{containerSize.height} | Columns:{" "}
+                {columns.map((col) => `${col.id}:${tableModel.getColumnWidth(col.id)}px`).join(", ")}
             </div>
             <div className="w-full">
                 <div className="sticky top-0 bg-background border-b border-border">
@@ -167,22 +187,43 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
                 </div>
 
                 <div>
-                    {table.getRowModel().rows.map((row) => (
-                        <div key={row.id} className="flex border-b border-border hover:bg-muted/5 transition-colors" style={{ height: ROW_HEIGHT }}>
-                            {row.getVisibleCells().map((cell) => (
+                    {table.getRowModel().rows.map((row) => {
+                        const goroutine = row.original;
+                        const isExpanded = expandedRows.has(goroutine.goid);
+
+                        return (
+                            <React.Fragment key={row.id}>
                                 <div
-                                    key={cell.id}
-                                    className={cn(
-                                        "px-3 text-sm flex items-center",
-                                        getColumnGrow(cell.column.id) > 0 ? "flex-grow" : ""
-                                    )}
-                                    style={getColumnGrow(cell.column.id) > 0 ? {} : { width: cell.column.getSize() }}
+                                    className="flex border-b border-border hover:bg-muted/5 transition-colors"
+                                    style={{ height: ROW_HEIGHT }}
                                 >
-                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                    {row.getVisibleCells().map((cell) => (
+                                        <div
+                                            key={cell.id}
+                                            className={cn(
+                                                "px-3 text-sm flex items-center",
+                                                getColumnGrow(cell.column.id) > 0 ? "flex-grow" : ""
+                                            )}
+                                            style={
+                                                getColumnGrow(cell.column.id) > 0
+                                                    ? {}
+                                                    : { width: cell.column.getSize() }
+                                            }
+                                        >
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    ))}
+                                {isExpanded && (
+                                    <div className="border-b border-border bg-panel/50">
+                                        <div className="px-3 py-2">
+                                            <StackTrace goroutine={goroutine} model={model} simpleMode={simpleMode} />
+                                        </div>
+                                    </div>
+                                )}
+                            </React.Fragment>
+                        );
+                    })}
                 </div>
             </div>
         </>

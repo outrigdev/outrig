@@ -47,6 +47,9 @@ class GrTableModel {
     // Container size tracking
     containerSize: PrimitiveAtom<ContainerSize> = atom({ width: 0, height: 0 });
 
+    // Expanded rows state for table
+    expandedRows: PrimitiveAtom<Set<number>> = atom(new Set<number>());
+
     // Resize observer reference
     private resizeObserver: ResizeObserver | null = null;
     private containerElement: HTMLElement | null = null;
@@ -73,7 +76,7 @@ class GrTableModel {
                     }
                 });
             }
-            
+
             this.resizeObserver.observe(element);
             // Get initial size
             const rect = element.getBoundingClientRect();
@@ -160,6 +163,21 @@ class GrTableModel {
     resetColumns() {
         const store = getDefaultStore();
         store.set(this.columns, [...DEFAULT_COLUMNS]);
+    }
+
+    // Toggle expanded state for a row
+    toggleRowExpanded(goid: number) {
+        const store = getDefaultStore();
+        const currentExpanded = store.get(this.expandedRows);
+        const newExpanded = new Set(currentExpanded);
+
+        if (newExpanded.has(goid)) {
+            newExpanded.delete(goid);
+        } else {
+            newExpanded.add(goid);
+        }
+
+        store.set(this.expandedRows, newExpanded);
     }
 
     // Clean up resources
