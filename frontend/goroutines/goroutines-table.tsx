@@ -7,6 +7,7 @@ import { useAtomValue } from "jotai";
 import { List } from "lucide-react";
 import React from "react";
 import { Tag } from "../elements/tag";
+import { Tooltip } from "../elements/tooltip";
 import { GoRoutinesModel } from "./goroutines-model";
 import { GrTableModel } from "./grtable-model";
 import { StackTrace } from "./stacktrace";
@@ -57,16 +58,17 @@ function cell_name(info: any, tableModel: GrTableModel, expandedRows: Set<number
 
     return (
         <div className="flex items-start gap-2">
-            <button
-                className={cn(
-                    "flex-shrink-0 w-4 h-4 flex items-center justify-center transition-colors mt-0.5 cursor-pointer",
-                    isExpanded ? "text-primary" : "text-secondary hover:text-primary"
-                )}
-                onClick={() => tableModel.toggleRowExpanded(goroutine.goid)}
-                title={isExpanded ? "Hide stacktrace" : "Show stacktrace"}
-            >
-                <List className="w-3 h-3" />
-            </button>
+            <Tooltip content="Toggle Stacktrace">
+                <button
+                    className={cn(
+                        "flex-shrink-0 w-4 h-4 flex items-center justify-center transition-colors mt-0.5 cursor-pointer",
+                        isExpanded ? "text-primary" : "text-secondary hover:text-primary"
+                    )}
+                    onClick={() => tableModel.toggleRowExpanded(goroutine.goid)}
+                >
+                    <List className="w-3 h-3" />
+                </button>
+            </Tooltip>
             <div className="flex-1">
                 <div className="text-primary">{formatGoroutineName(goroutine)}</div>
                 {tags && tags.length > 0 && (
@@ -85,11 +87,7 @@ function cell_primarystate(info: any) {
     return (
         <div className="flex">
             {state ? (
-                <Tag
-                    label={state}
-                    isSelected={false}
-                    variant="secondary"
-                />
+                <Tag label={state} isSelected={false} variant="secondary" />
             ) : (
                 <span className="text-muted">-</span>
             )}
@@ -194,6 +192,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
                         return (
                             <React.Fragment key={row.id}>
                                 <div
+                                    key="maindiv"
                                     className="flex border-b border-border hover:bg-muted/5 transition-colors"
                                     style={{ height: ROW_HEIGHT }}
                                 >
@@ -215,7 +214,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
                                     ))}
                                 </div>
                                 {isExpanded && (
-                                    <div className="border-b border-border bg-panel/50">
+                                    <div key="stacktracediv" className="border-b border-border bg-panel/50">
                                         <div className="px-3 py-2">
                                             <StackTrace goroutine={goroutine} model={model} simpleMode={simpleMode} />
                                         </div>

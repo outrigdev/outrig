@@ -9,6 +9,7 @@ import { useAtom, useAtomValue } from "jotai";
 import React from "react";
 import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
+import { StacktraceModeToggle } from "./stacktrace-mode-toggle";
 import { TimeSlider } from "./timeslider";
 
 interface GoRoutinesFiltersProps {
@@ -74,6 +75,8 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
                             </span>
                         </div>
                     </Tooltip>
+
+                    <StacktraceModeToggle modeAtom={model.simpleStacktraceMode} model={model} />
 
                     <div className="flex items-center gap-2">
                         <RefreshButton
