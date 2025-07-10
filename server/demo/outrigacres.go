@@ -104,6 +104,7 @@ type Game struct {
 	tickSpeed time.Duration
 	stopChan  chan bool
 	paused    bool
+	startTime time.Time
 }
 
 var upgrader = websocket.Upgrader{
@@ -117,6 +118,7 @@ func NewGame() *Game {
 		clients:   make(map[*websocket.Conn]bool),
 		tickSpeed: time.Second,
 		stopChan:  make(chan bool),
+		startTime: time.Now(),
 	}
 
 	g.initializeBoard()
@@ -298,10 +300,17 @@ func (g *Game) gameLoop() {
 	ticker := time.NewTicker(g.tickSpeed)
 	defer ticker.Stop()
 
+	// Create a timeout timer for 20 minutes
+	timeout := time.NewTimer(20 * time.Minute)
+	defer timeout.Stop()
+
 	for {
 		select {
 		case <-ticker.C:
 			g.tick()
+		case <-timeout.C:
+			log.Printf("#game Game timeout reached (20 minutes), stopping game")
+			return
 		case <-g.stopChan:
 			return
 		}
