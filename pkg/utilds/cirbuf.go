@@ -232,6 +232,22 @@ func (cb *CirBuf[T]) GetLast() (T, int, bool) {
 	return cb.Buf[lastPos], lastOffset, true
 }
 
+// GetFirst returns the first element in the buffer, its offset, and a boolean indicating
+// whether the buffer has any elements. If the buffer is empty, the zero value of T,
+// 0, and false are returned.
+func (cb *CirBuf[T]) GetFirst() (T, int, bool) {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+
+	size := cb.size_nolock()
+	if size == 0 {
+		var zero T
+		return zero, 0, false
+	}
+
+	return cb.Buf[cb.Head], cb.HeadOffset, true
+}
+
 // FilterItems returns a slice of items for which the provided filter function returns true.
 // The filter function takes the item and its absolute index (TotalCount-based) and returns a boolean.
 // This is useful for filtering items based on custom criteria, such as timestamp.
