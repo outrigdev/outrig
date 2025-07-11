@@ -18,26 +18,42 @@ export const TimeSlider: React.FC<TimeSliderProps> = ({ model }) => {
     const searchLatestMode = useAtomValue(model.searchLatestMode);
     const appRunInfoAtom = AppModel.getAppRunInfoAtom(model.appRunId);
     const appRunInfo = useAtomValue(appRunInfoAtom);
+    const fullTimeSpan = useAtomValue(model.fullTimeSpan);
 
-    if (!appRunInfo) {
+    if (!appRunInfo || !fullTimeSpan) {
         return null;
     }
 
-    const { startTime, endTime, maxRange } = model.getTimeRange();
+    // Calculate time range from fullTimeSpan
+    const startTime = fullTimeSpan.start;
+    const endTime = fullTimeSpan.end;
+    const actualDurationSeconds = Math.floor((endTime - startTime) / 1000);
+    const MAX_TIME_RANGE_SECONDS = 600 - 5;
+    
+    let maxRange: number;
+    let adjustedStartTime: number;
+    
+    if (actualDurationSeconds <= MAX_TIME_RANGE_SECONDS) {
+        maxRange = actualDurationSeconds;
+        adjustedStartTime = startTime;
+    } else {
+        maxRange = MAX_TIME_RANGE_SECONDS;
+        adjustedStartTime = endTime - MAX_TIME_RANGE_SECONDS * 1000;
+    }
 
-    // Don't render slider if no goroutine collection has occurred yet
-    if (startTime === 0 && endTime === 0) {
+    // Don't render slider if no time range
+    if (maxRange === 0) {
         return null;
     }
 
     // Convert timestamps to slider values (0 to maxRange seconds)
     // If selectedTimestamp is 0 or in search latest mode, push slider to the right
     const currentValue =
-        searchLatestMode || selectedTimestamp === 0 ? maxRange : Math.floor((selectedTimestamp - startTime) / 1000);
+        searchLatestMode || selectedTimestamp === 0 ? maxRange : Math.floor((selectedTimestamp - adjustedStartTime) / 1000);
 
     const handleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const sliderValue = parseInt(event.target.value);
-        const timestamp = startTime + sliderValue * 1000;
+        const timestamp = adjustedStartTime + sliderValue * 1000;
         model.setSelectedTimestamp(timestamp);
 
         console.log(
@@ -65,11 +81,11 @@ export const TimeSlider: React.FC<TimeSliderProps> = ({ model }) => {
 
         if (index === 0) {
             // First tick - check if it's the actual start
-            if (isWithinCoupleSeconds(startTime / 1000, appRunInfo.starttime)) {
+            if (isWithinCoupleSeconds(adjustedStartTime / 1000, appRunInfo.starttime)) {
                 return "start";
             } else {
                 // Drifted from start, use local timestamp
-                const date = new Date(startTime);
+                const date = new Date(adjustedStartTime);
                 return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
             }
         } else if (index === total - 1) {

@@ -9,6 +9,7 @@ declare global {
     type AppRunGoRoutinesByIdsRequest = {
         apprunid: string;
         goids: number[];
+        timestamp: number;
     };
 
     // rpctypes.AppRunGoRoutinesData
@@ -134,6 +135,7 @@ declare global {
         systemquery?: string;
         timestamp?: number;
         showoutrig: boolean;
+        activeonly: boolean;
     };
 
     // rpctypes.GoRoutineSearchResultData
@@ -144,6 +146,7 @@ declare global {
         goroutinestatecounts?: {[key: string]: number};
         results: number[];
         errorspans?: SearchErrorSpan[];
+        effectivesearchtimestamp: number;
     };
 
     // rpctypes.GoRoutineTimeSpansRequest

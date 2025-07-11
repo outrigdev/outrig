@@ -98,7 +98,7 @@ func (*RpcServerImpl) GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data 
 	}
 
 	// Get parsed goroutines by IDs from the GoRoutinePeer
-	parsedGoRoutines := peer.GoRoutines.GetParsedGoRoutinesByIds(moduleName, data.GoIds)
+	parsedGoRoutines := peer.GoRoutines.GetParsedGoRoutinesByIds(moduleName, data.GoIds, data.Timestamp)
 
 	return rpctypes.AppRunGoRoutinesData{
 		AppRunId:   peer.AppRunId,
@@ -163,8 +163,8 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 		moduleName = peer.AppInfo.ModuleName
 	}
 
-	// Get all goroutines (use timestamp if provided, otherwise get latest)
-	allGoRoutines := peer.GoRoutines.GetParsedGoRoutinesAtTimestamp(moduleName, data.Timestamp)
+	// Get goroutines based on ActiveOnly flag and timestamp
+	allGoRoutines, effectiveTimestamp := peer.GoRoutines.GetParsedGoRoutinesAtTimestamp(moduleName, data.Timestamp, data.ActiveOnly)
 	totalCount := len(allGoRoutines)
 
 	// Create user searcher based on search term and get any error spans
@@ -227,7 +227,7 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 		if !isOutrig {
 			totalNonOutrig++
 		}
-		
+
 		// Include in state counts based on ShowOutrig flag
 		if gr.PrimaryState != "" && (data.ShowOutrig || !isOutrig) {
 			stateCounts[gr.PrimaryState]++
@@ -235,12 +235,13 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	}
 
 	return rpctypes.GoRoutineSearchResultData{
-		SearchedCount:        stats.SearchedCount,
-		TotalCount:           stats.TotalCount,
-		TotalNonOutrig:       totalNonOutrig,
-		GoRoutineStateCounts: stateCounts,
-		Results:              results,
-		ErrorSpans:           errorSpans,
+		SearchedCount:            stats.SearchedCount,
+		TotalCount:               stats.TotalCount,
+		TotalNonOutrig:           totalNonOutrig,
+		GoRoutineStateCounts:     stateCounts,
+		Results:                  results,
+		ErrorSpans:               errorSpans,
+		EffectiveSearchTimestamp: effectiveTimestamp,
 	}, nil
 }
 

@@ -218,8 +218,9 @@ type AppRunRequest struct {
 
 // AppRunGoRoutinesByIdsRequest defines the request for getting specific goroutines by their IDs
 type AppRunGoRoutinesByIdsRequest struct {
-	AppRunId string  `json:"apprunid"`
-	GoIds    []int64 `json:"goids"`
+	AppRunId  string  `json:"apprunid"`
+	GoIds     []int64 `json:"goids"`
+	Timestamp int64   `json:"timestamp"` // if 0, get latest stack; otherwise get stack at this timestamp
 }
 
 // AppRunWatchesByIdsRequest defines the request for getting specific watches by their IDs
@@ -275,16 +276,18 @@ type GoRoutineSearchRequestData struct {
 	SystemQuery string `json:"systemquery,omitempty"`
 	Timestamp   int64  `json:"timestamp,omitempty"` // Timestamp in milliseconds, 0 means use latest
 	ShowOutrig  bool   `json:"showoutrig"`          // Whether to include outrig-tagged goroutines in state counts
+	ActiveOnly  bool   `json:"activeonly"`          // Whether to filter to only active goroutines at the timestamp
 }
 
 // GoRoutineSearchResultData defines the response for goroutine search
 type GoRoutineSearchResultData struct {
-	SearchedCount        int               `json:"searchedcount"`
-	TotalCount           int               `json:"totalcount"`
-	TotalNonOutrig       int               `json:"totalnonoutrig,omitempty"`       // Total count excluding #outrig goroutines (only for goroutines search)
-	GoRoutineStateCounts map[string]int    `json:"goroutinestatecounts,omitempty"` // PrimaryState counts for all searched goroutines
-	Results              []int64           `json:"results"`
-	ErrorSpans           []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
+	SearchedCount            int               `json:"searchedcount"`
+	TotalCount               int               `json:"totalcount"`
+	TotalNonOutrig           int               `json:"totalnonoutrig,omitempty"`       // Total count excluding #outrig goroutines (only for goroutines search)
+	GoRoutineStateCounts     map[string]int    `json:"goroutinestatecounts,omitempty"` // PrimaryState counts for all searched goroutines
+	Results                  []int64           `json:"results"`
+	ErrorSpans               []SearchErrorSpan `json:"errorspans,omitempty"`           // Error spans in the search query
+	EffectiveSearchTimestamp int64             `json:"effectivesearchtimestamp"`       // The actual timestamp used for the search
 }
 
 // WatchSearchRequestData defines the request for watch search
@@ -359,6 +362,13 @@ type TimeSpan struct {
 	Start int64  `json:"start"`           // Start time in milliseconds
 	End   int64  `json:"end,omitempty"`   // End time in milliseconds (0 means ongoing)
 	Exact bool   `json:"exact,omitempty"` // True if the start and end times are exact (not approximate)
+}
+
+func (span TimeSpan) IsWithinSpan(ts int64) bool {
+	if ts < span.Start {
+		return false
+	}
+	return (span.End == 0 || ts <= span.End)
 }
 
 // ParsedGoRoutine represents a parsed goroutine stack trace
