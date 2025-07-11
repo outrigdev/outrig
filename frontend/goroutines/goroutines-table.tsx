@@ -110,6 +110,8 @@ interface GoTimelineProps {
 
 const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineRange, model }) => {
     const grTimeSpan = useAtomValue(model.getGRTimeSpanAtom(goroutine.goid));
+    const selectedTimestamp = useAtomValue(model.selectedTimestamp);
+    const searchLatestMode = useAtomValue(model.searchLatestMode);
 
     if (!grTimeSpan?.start) {
         return <div className="h-4 bg-muted/20 rounded-sm"></div>;
@@ -139,6 +141,15 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     const minWidthPercent = 2;
     const finalWidthPercent = Math.max(widthPercent, minWidthPercent);
 
+    // Calculate slider position marker
+    let sliderMarkerPercent: number | null = null;
+    if (!searchLatestMode && selectedTimestamp > 0) {
+        // Only show marker if we have a specific timestamp selected (not in latest mode)
+        if (selectedTimestamp >= startTime && selectedTimestamp <= endTime) {
+            sliderMarkerPercent = ((selectedTimestamp - startTime) / totalDuration) * 100;
+        }
+    }
+
     // Calculate tooltip information
     const absoluteStartTime = new Date(grTimeSpan.start).toLocaleTimeString();
     const relativeStartTime = ((grTimeSpan.start - startTime) / 1000).toFixed(2);
@@ -158,7 +169,7 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     );
 
     return (
-        <div className="relative h-4 bg-muted/20 rounded-sm overflow-hidden w-full">
+        <div className="relative h-4 bg-muted/20 rounded-sm overflow-visible w-full">
             <Tooltip content={tooltipContent}>
                 <div
                     className="absolute h-full bg-accent rounded-sm cursor-pointer"
@@ -168,6 +179,16 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
                     }}
                 />
             </Tooltip>
+            {sliderMarkerPercent !== null && (
+                <div
+                    className="absolute w-[2px] bg-black pointer-events-none z-[1.5] rounded-lg"
+                    style={{
+                        left: `${sliderMarkerPercent}%`,
+                        top: "-2px",
+                        height: "calc(100% + 4px)",
+                    }}
+                />
+            )}
         </div>
     );
 });
