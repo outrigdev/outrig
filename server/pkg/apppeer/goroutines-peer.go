@@ -25,10 +25,9 @@ type GoRoutine struct {
 	Name                string
 	Tags                []string
 	StackTraces         *utilds.CirBuf[ds.GoRoutineStack]
-	FirstSeen           int64      // Timestamp when the goroutine was first seen
-	LastSeen            int64      // Timestamp when the goroutine was last seen
-	LastActiveIteration int64      // Iteration when the goroutine was last active
-	Decl                *ds.GoDecl // Declaration information for this goroutine
+	TimeSpan            rpctypes.TimeSpan // Time span when the goroutine was active
+	LastActiveIteration int64             // Iteration when the goroutine was last active
+	Decl                *ds.GoDecl        // Declaration information for this goroutine
 }
 
 // GoRoutinePeer manages goroutines for an AppRunPeer
@@ -41,6 +40,7 @@ type GoRoutinePeer struct {
 	maxGoId           int64                                           // Maximum goroutine ID seen
 	hasSeenFullUpdate bool                                            // Flag to track if we've seen a full update
 	appRunId          string                                          // ID of the app run this peer belongs to
+	timeSpan          rpctypes.TimeSpan                               // Time range for goroutine collections
 }
 
 // mergeGoRoutineStacks combines a base stack with a delta stack to create a complete stack
@@ -74,10 +74,12 @@ func MakeGoRoutinePeer(appRunId string) *GoRoutinePeer {
 func (gp *GoRoutinePeer) getOrCreateGoRoutine(goId int64, timestamp int64) (GoRoutine, bool) {
 	goroutine, wasCreated := gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
 		return GoRoutine{
-			GoId:                goId,
-			StackTraces:         utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
-			FirstSeen:           timestamp,
-			LastSeen:            timestamp,
+			GoId:        goId,
+			StackTraces: utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
+			TimeSpan: rpctypes.TimeSpan{
+				Start: timestamp,
+				End:   0, // Keep End at 0 for ongoing goroutines per TimeSpan spec
+			},
 			LastActiveIteration: gp.currentIteration,
 		}
 	})
@@ -93,14 +95,14 @@ func (gp *GoRoutinePeer) getOrCreateGoRoutine(goId int64, timestamp int64) (GoRo
 // updateTimeSpanMap updates the versioned map with the current timespan for a goroutine
 // only if the timespan has actually changed
 func (gp *GoRoutinePeer) updateTimeSpanMap(goId int64, goroutine GoRoutine) {
-	newTimeSpan := gp.getGoRoutineTimeSpan(goroutine)
+	newTimeSpan := goroutine.TimeSpan
 	shouldUpdate := true
-	
+
 	// Check if we already have a timespan for this goroutine
 	if existingTimeSpan, _, exists := gp.timeSpanMap.Get(uint64(goId)); exists {
 		shouldUpdate = existingTimeSpan != newTimeSpan
 	}
-	
+
 	if shouldUpdate {
 		gp.timeSpanMap.Set(uint64(goId), newTimeSpan)
 	}
@@ -117,6 +119,14 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 	activeGoroutines := make(map[int64]bool)
 	timestamp := info.Ts
 	isDelta := info.Delta
+
+	// Update the overall TimeSpan for goroutine collections
+	if gp.timeSpan.Start == 0 || timestamp < gp.timeSpan.Start {
+		gp.timeSpan.Start = timestamp
+	}
+	if timestamp > gp.timeSpan.End {
+		gp.timeSpan.End = timestamp
+	}
 
 	// If this is a delta update but we haven't seen a full update yet, ignore it
 	if isDelta && !gp.hasSeenFullUpdate {
@@ -153,6 +163,17 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		if len(decl.Tags) > 0 {
 			goroutine.Tags = decl.Tags
 		}
+		
+		// If GoDecl has StartTs set, this is the exact start time for the goroutine
+		if decl.StartTs != 0 {
+			goroutine.TimeSpan.Start = decl.StartTs
+			goroutine.TimeSpan.Exact = true
+		}
+		
+		// If GoDecl has EndTs set, this is the exact end time for the goroutine
+		if decl.EndTs != 0 {
+			goroutine.TimeSpan.End = decl.EndTs
+		}
 
 		gp.goRoutines.Set(goId, goroutine)
 		// Update timespan map since declaration info affects timespan calculation
@@ -172,9 +193,8 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 
 		goroutine, wasFound := gp.getOrCreateGoRoutine(goId, timestamp)
 
-		// Update the last active iteration and last seen timestamp
+		// Update the last active iteration
 		goroutine.LastActiveIteration = gp.currentIteration
-		goroutine.LastSeen = timestamp
 
 		// Update fields based on the stack data
 		if stack.Name != "" {
@@ -207,6 +227,21 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		gp.goRoutines.Set(goId, goroutine)
 		// Update timespan map since LastSeen was updated
 		gp.updateTimeSpanMap(goId, goroutine)
+	}
+
+	// Before updating active goroutines, check for goroutines that were previously active
+	// but are no longer active, and set their End timestamp
+	for prevActiveGoId := range gp.activeGoRoutines {
+		if !activeGoroutines[prevActiveGoId] {
+			// This goroutine was active but is no longer active - set End timestamp if not already set
+			if goroutine, exists := gp.goRoutines.GetEx(prevActiveGoId); exists {
+				if goroutine.TimeSpan.End == 0 {
+					goroutine.TimeSpan.End = timestamp
+					gp.goRoutines.Set(prevActiveGoId, goroutine)
+					gp.updateTimeSpanMap(prevActiveGoId, goroutine)
+				}
+			}
+		}
 	}
 
 	// Always update the active goroutines map
@@ -254,6 +289,13 @@ func (gp *GoRoutinePeer) GetMaxGoId() int64 {
 	gp.lock.RLock()
 	defer gp.lock.RUnlock()
 	return gp.maxGoId
+}
+
+// getTimeSpan returns the overall time range for goroutine collections
+func (gp *GoRoutinePeer) getTimeSpan() rpctypes.TimeSpan {
+	gp.lock.RLock()
+	defer gp.lock.RUnlock()
+	return gp.timeSpan
 }
 
 // GetGoRoutineCounts returns (total, active, activeOutrig) goroutine counts
@@ -372,43 +414,10 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 	return parsedGoRoutines
 }
 
-// getGoRoutineTimeSpan returns the effective time span for a goroutine
-func (gp *GoRoutinePeer) getGoRoutineTimeSpan(goroutineObj GoRoutine) rpctypes.TimeSpan {
-	firstSeen := goroutineObj.FirstSeen
-	lastSeen := goroutineObj.LastSeen
-	exact := false
-
-	if goroutineObj.Decl != nil {
-		// For first seen, use the minimum (earliest) of all available timestamps
-		if goroutineObj.Decl.StartTs != 0 && (firstSeen == 0 || goroutineObj.Decl.StartTs < firstSeen) {
-			firstSeen = goroutineObj.Decl.StartTs
-			exact = true // We have StartTs, so timing is exact
-		}
-		if goroutineObj.Decl.FirstPollTs != 0 && (firstSeen == 0 || goroutineObj.Decl.FirstPollTs < firstSeen) {
-			firstSeen = goroutineObj.Decl.FirstPollTs
-			// Don't set exact = true here since this is only FirstPollTs
-		}
-
-		// For last seen, use the maximum (latest) of all available timestamps
-		if goroutineObj.Decl.EndTs != 0 && goroutineObj.Decl.EndTs > lastSeen {
-			lastSeen = goroutineObj.Decl.EndTs
-		}
-		if goroutineObj.Decl.LastPollTs != 0 && goroutineObj.Decl.LastPollTs > lastSeen {
-			lastSeen = goroutineObj.Decl.LastPollTs
-		}
-	}
-
-	return rpctypes.TimeSpan{
-		Label: "", // Leave empty as requested
-		Start: firstSeen,
-		End:   lastSeen,
-		Exact: exact,
-	}
-}
 
 // isGoRoutineActiveAtTimestamp checks if a goroutine was active at the given timestamp
 func (gp *GoRoutinePeer) isGoRoutineActiveAtTimestamp(goroutineObj GoRoutine, timestamp int64) bool {
-	timeSpan := gp.getGoRoutineTimeSpan(goroutineObj)
+	timeSpan := goroutineObj.TimeSpan
 	return timeSpan.Start <= timestamp && timeSpan.End >= timestamp
 }
 
@@ -429,7 +438,7 @@ func (gp *GoRoutinePeer) createParsedGoRoutine(goroutineObj GoRoutine, stack ds.
 	}
 
 	// Set the active time span
-	parsedGoRoutine.ActiveTimeSpan = gp.getGoRoutineTimeSpan(goroutineObj)
+	parsedGoRoutine.ActiveTimeSpan = goroutineObj.TimeSpan
 
 	return parsedGoRoutine, nil
 }
@@ -469,8 +478,9 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 }
 
 // GetTimeSpansSinceVersion returns all goroutine time spans that have been updated since the given version
-func (gp *GoRoutinePeer) GetTimeSpansSinceVersion(sinceVersion int64) ([]rpctypes.GoTimeSpan, int64) {
+func (gp *GoRoutinePeer) GetTimeSpansSinceVersion(sinceVersion int64) ([]rpctypes.GoTimeSpan, int64, rpctypes.TimeSpan) {
 	updatedTimeSpans, currentVersion := gp.timeSpanMap.GetSinceVersion(sinceVersion)
+	fullTimeSpan := gp.getTimeSpan()
 	
 	result := make([]rpctypes.GoTimeSpan, 0, len(updatedTimeSpans))
 	for goId, timeSpan := range updatedTimeSpans {
@@ -480,5 +490,5 @@ func (gp *GoRoutinePeer) GetTimeSpansSinceVersion(sinceVersion int64) ([]rpctype
 		})
 	}
 
-	return result, currentVersion
+	return result, currentVersion, fullTimeSpan
 }

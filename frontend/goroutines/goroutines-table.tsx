@@ -1,7 +1,6 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { AppModel } from "@/appmodel";
 import { cn } from "@/util/util";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
@@ -106,10 +105,13 @@ function cell_primarystate(info: any) {
 interface GoTimelineProps {
     goroutine: ParsedGoRoutine;
     timelineRange: { startTime: number; endTime: number };
+    model: GoRoutinesModel;
 }
 
-const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineRange }) => {
-    if (!goroutine.activetimespan?.start || !goroutine.activetimespan?.end) {
+const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineRange, model }) => {
+    const grTimeSpan = useAtomValue(model.getGRTimeSpanAtom(goroutine.goid));
+
+    if (!grTimeSpan?.start) {
         return <div className="h-4 bg-muted/20 rounded-sm"></div>;
     }
 
@@ -126,8 +128,9 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     }
 
     // Calculate positions as percentages
-    const grStartTime = Math.max(goroutine.activetimespan.start, startTime);
-    const grEndTime = Math.min(goroutine.activetimespan.end, endTime);
+    const grStartTime = Math.max(grTimeSpan.start, startTime);
+    // If end is 0 or null, it spans to the end of the range
+    const grEndTime = grTimeSpan.end && grTimeSpan.end > 0 ? Math.min(grTimeSpan.end, endTime) : endTime;
 
     const startPercent = ((grStartTime - startTime) / totalDuration) * 100;
     const widthPercent = ((grEndTime - grStartTime) / totalDuration) * 100;
@@ -137,16 +140,20 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     const finalWidthPercent = Math.max(widthPercent, minWidthPercent);
 
     // Calculate tooltip information
-    const absoluteStartTime = new Date(goroutine.activetimespan.start).toLocaleTimeString();
-    const relativeStartTime = ((goroutine.activetimespan.start - startTime) / 1000).toFixed(2);
-    const duration = ((goroutine.activetimespan.end - goroutine.activetimespan.start) / 1000).toFixed(2);
+    const absoluteStartTime = new Date(grTimeSpan.start).toLocaleTimeString();
+    const relativeStartTime = ((grTimeSpan.start - startTime) / 1000).toFixed(2);
+    const duration =
+        grTimeSpan.end && grTimeSpan.end > 0 ? ((grTimeSpan.end - grTimeSpan.start) / 1000).toFixed(2) : "ongoing";
 
     const tooltipContent = (
         <div className="text-xs">
             <div>
                 Start: {absoluteStartTime} (+{relativeStartTime}s)
             </div>
-            <div>Duration: {duration}s</div>
+            <div>
+                Duration: {duration}
+                {duration !== "ongoing" ? "s" : ""}
+            </div>
         </div>
     );
 
@@ -167,9 +174,9 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
 
 GoTimeline.displayName = "GoTimeline";
 
-function cell_timeline(info: any, timelineRange: { startTime: number; endTime: number }) {
+function cell_timeline(info: any, timelineRange: { startTime: number; endTime: number }, model: GoRoutinesModel) {
     const goroutine: ParsedGoRoutine = info.row.original;
-    return <GoTimeline goroutine={goroutine} timelineRange={timelineRange} />;
+    return <GoTimeline goroutine={goroutine} timelineRange={timelineRange} model={model} />;
 }
 
 interface GoRoutinesTableProps {
@@ -183,24 +190,23 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
     const columns = useAtomValue(tableModel.columns);
     const simpleMode = useAtomValue(model.effectiveSimpleStacktraceMode);
     const expandedRows = useAtomValue(tableModel.expandedRows);
-    const appRunInfoAtom = AppModel.getAppRunInfoAtom(model.appRunId);
-    const appRunInfo = useAtomValue(appRunInfoAtom);
+    const fullTimeSpan = useAtomValue(model.fullTimeSpan);
 
     const getColumnGrow = (columnId: string): number => {
         const column = columns.find((col) => col.id === columnId);
         return column?.grow || 0;
     };
 
-    // Calculate timeline range once for all rows
+    // Calculate timeline range once for all rows using fullTimeSpan
     const timelineRange = React.useMemo(() => {
-        if (!appRunInfo) {
+        if (!fullTimeSpan?.start) {
             return { startTime: 0, endTime: 0 };
         }
 
-        const startTime = appRunInfo.starttime;
-        const endTime = appRunInfo.lastmodtime;
+        const startTime = fullTimeSpan.start;
+        const endTime = fullTimeSpan.end && fullTimeSpan.end > 0 ? fullTimeSpan.end : Date.now();
 
-        // If starttime is more than 600s before lastmodtime, set starttime to lastmodtime - 600s
+        // If starttime is more than 600s before endtime, set starttime to endtime - 600s
         const maxStartTime = endTime - 600 * 1000;
         const effectiveStartTime = Math.max(startTime, maxStartTime);
 
@@ -208,7 +214,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
             startTime: effectiveStartTime,
             endTime,
         };
-    }, [appRunInfo]);
+    }, [fullTimeSpan]);
 
     const tableColumns = [
         columnHelper.accessor("goid", {
@@ -233,7 +239,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         columnHelper.display({
             id: "timeline",
             header: "Timeline",
-            cell: (info) => cell_timeline(info, timelineRange),
+            cell: (info) => cell_timeline(info, timelineRange, model),
             size: tableModel.getColumnWidth("timeline"),
             enableResizing: true,
         }),

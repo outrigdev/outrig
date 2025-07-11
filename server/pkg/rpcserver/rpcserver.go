@@ -253,11 +253,12 @@ func (*RpcServerImpl) GoRoutineTimeSpansCommand(ctx context.Context, data rpctyp
 	}
 
 	// Get time spans since the specified version
-	timeSpans, currentVersion := peer.GoRoutines.GetTimeSpansSinceVersion(data.SinceVersion)
+	timeSpans, currentVersion, fullTimeSpan := peer.GoRoutines.GetTimeSpansSinceVersion(data.SinceVersion)
 
 	return rpctypes.GoRoutineTimeSpansResponse{
-		Data:    timeSpans,
-		Version: currentVersion,
+		Data:         timeSpans,
+		Version:      currentVersion,
+		FullTimeSpan: fullTimeSpan,
 	}, nil
 }
 

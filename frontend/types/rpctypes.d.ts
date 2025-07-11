@@ -156,6 +156,7 @@ declare global {
     type GoRoutineTimeSpansResponse = {
         data: GoTimeSpan[];
         version: number;
+        fulltimespan: TimeSpan;
     };
 
     // rpctypes.GoTimeSpan

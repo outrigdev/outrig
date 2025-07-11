@@ -416,6 +416,7 @@ type GoRoutineTimeSpansRequest struct {
 
 // GoRoutineTimeSpansResponse defines the response with updated time spans
 type GoRoutineTimeSpansResponse struct {
-	Data    []GoTimeSpan `json:"data"`
-	Version int64        `json:"version"`
+	Data         []GoTimeSpan `json:"data"`
+	Version      int64        `json:"version"`
+	FullTimeSpan TimeSpan     `json:"fulltimespan"`
 }

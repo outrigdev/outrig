@@ -39,6 +39,12 @@ class GoRoutinesModel {
     currentSearchId: string = "";
     pinnedAtomCache: Map<number, Atom<boolean>> = new Map();
 
+    // Time spans polling state
+    timeSpanAtomCache: Map<number, PrimitiveAtom<TimeSpan>> = new Map();
+    timeSpansVersion: number = 0;
+    timeSpansPollingInterval: NodeJS.Timeout = null;
+    fullTimeSpan: PrimitiveAtom<TimeSpan> = atom<TimeSpan>(null) as PrimitiveAtom<TimeSpan>;
+
     // State filters
     showAll: PrimitiveAtom<boolean> = atom(true);
     selectedStates: PrimitiveAtom<Set<string>> = atom(new Set<string>());
@@ -106,12 +112,12 @@ class GoRoutinesModel {
         this.searchTerm = SearchStore.getSearchTermAtom(appName, appRunId, "goroutines");
 
         this.loadAppRunGoroutines();
+        this.startTimeSpansPolling();
     }
 
     // Clean up resources when component unmounts
     dispose() {
-        // Currently no resources to clean up, but this method is added
-        // for consistency with other models and future-proofing
+        this.stopTimeSpansPolling();
     }
 
     // Set the content div reference for scrolling
@@ -460,6 +466,66 @@ class GoRoutinesModel {
         }
 
         return store.get(this.selectedTimestamp);
+    }
+
+    // Get or create a time span atom for a specific goroutine
+    getGRTimeSpanAtom(goid: number): PrimitiveAtom<TimeSpan> {
+        if (!this.timeSpanAtomCache.has(goid)) {
+            const timeSpanAtom = atom<TimeSpan>(null) as PrimitiveAtom<TimeSpan>;
+            this.timeSpanAtomCache.set(goid, timeSpanAtom);
+        }
+        return this.timeSpanAtomCache.get(goid)!;
+    }
+
+    // Start polling for goroutine time spans
+    startTimeSpansPolling() {
+        // Initial call with version 0
+        this.pollTimeSpans();
+
+        // Set up interval to poll every second
+        this.timeSpansPollingInterval = setInterval(() => {
+            this.pollTimeSpans();
+        }, 1000);
+    }
+
+    // Stop polling for goroutine time spans
+    stopTimeSpansPolling() {
+        if (this.timeSpansPollingInterval) {
+            clearInterval(this.timeSpansPollingInterval);
+            this.timeSpansPollingInterval = null;
+        }
+    }
+
+    // Poll for goroutine time spans using the current version
+    async pollTimeSpans() {
+        try {
+            const response = await RpcApi.GoRoutineTimeSpansCommand(DefaultRpcClient, {
+                apprunid: this.appRunId,
+                sinceversion: this.timeSpansVersion,
+            });
+
+            // Update version for next call
+            this.timeSpansVersion = response.version;
+
+            // Update individual atoms
+            const store = getDefaultStore();
+            
+            for (const goTimeSpan of response.data) {
+                const timeSpanAtom = this.getGRTimeSpanAtom(goTimeSpan.goid);
+                store.set(timeSpanAtom, goTimeSpan.span);
+            }
+
+            // Update full time span if it changed
+            if (response.fulltimespan) {
+                const currentFullTimeSpan = store.get(this.fullTimeSpan);
+                if (response.fulltimespan.start !== currentFullTimeSpan?.start ||
+                    response.fulltimespan.end !== currentFullTimeSpan?.end) {
+                    store.set(this.fullTimeSpan, response.fulltimespan);
+                }
+            }
+        } catch (error) {
+            console.error(`Failed to poll time spans for app run ${this.appRunId}:`, error);
+        }
     }
 }
 
