@@ -258,12 +258,8 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
 
     return (
         <>
-            <div className="text-secondary m-2 text-xs">
-                Info: Container: {containerSize.width}x{containerSize.height} | Columns:{" "}
-                {columns.map((col) => `${col.id}:${tableModel.getColumnWidth(col.id)}px`).join(", ")}
-            </div>
             <div className="w-full">
-                <div className="sticky top-0 bg-background border-b border-border">
+                <div className="sticky top-0 bg-panel border-b border-border z-2">
                     {table.getHeaderGroups().map((headerGroup) => (
                         <div key={headerGroup.id} className="flex">
                             {headerGroup.headers.map((header) => (
