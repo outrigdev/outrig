@@ -203,3 +203,107 @@ func TestCirBufConcurrency(t *testing.T) {
 		t.Error("Buffer should be empty after reading all elements")
 	}
 }
+
+func TestCirBufWriteAt(t *testing.T) {
+	// Create a new circular buffer with max size 5
+	cb := MakeCirBuf[int](5)
+
+	// Write some initial elements
+	cb.Write(10)
+	cb.Write(20)
+	cb.Write(30)
+	// Buffer now has indexes 0, 1, 2 with values 10, 20, 30
+
+	// Test writing within existing range
+	err := cb.WriteAt(25, 1)
+	if err != nil {
+		t.Errorf("WriteAt within range should not error: %v", err)
+	}
+
+	// Verify the overwrite worked
+	all, headOffset := cb.GetAll()
+	expected := []int{10, 25, 30}
+	if len(all) != len(expected) {
+		t.Errorf("Expected %d elements, got %d", len(expected), len(all))
+	}
+	for i, val := range expected {
+		if all[i] != val {
+			t.Errorf("Expected all[%d] = %d, got %d", i, val, all[i])
+		}
+	}
+	if headOffset != 0 {
+		t.Errorf("Expected headOffset 0, got %d", headOffset)
+	}
+
+	// Test writing before buffer range (should error)
+	err = cb.WriteAt(99, -1)
+	if err == nil {
+		t.Error("WriteAt before buffer range should return error")
+	}
+
+	// Test writing beyond current range (should fill with zeros)
+	err = cb.WriteAt(50, 6)
+	if err != nil {
+		t.Errorf("WriteAt beyond range should not error: %v", err)
+	}
+
+	// Verify zeros were filled and element was written
+	// Since max size is 5 and we're writing 7 elements total, oldest 2 should be kicked out
+	all, headOffset = cb.GetAll()
+	expected = []int{30, 0, 0, 0, 50}
+	if len(all) != len(expected) {
+		t.Errorf("Expected %d elements, got %d", len(expected), len(all))
+	}
+	for i, val := range expected {
+		if all[i] != val {
+			t.Errorf("Expected all[%d] = %d, got %d", i, val, all[i])
+		}
+	}
+	if headOffset != 2 {
+		t.Errorf("Expected headOffset 2, got %d", headOffset)
+	}
+
+	// Test writing beyond max size (should kick out oldest elements)
+	cb2 := MakeCirBuf[int](3)
+	cb2.Write(1)
+	cb2.Write(2)
+	cb2.Write(3)
+	// Buffer is full with indexes 0, 1, 2
+
+	err = cb2.WriteAt(99, 5)
+	if err != nil {
+		t.Errorf("WriteAt beyond max size should not error: %v", err)
+	}
+
+	// Should have kicked out oldest elements and filled with zeros
+	all, _ = cb2.GetAll()
+	expected = []int{0, 0, 99}
+	if len(all) != len(expected) {
+		t.Errorf("Expected %d elements, got %d", len(expected), len(all))
+	}
+	for i, val := range expected {
+		if all[i] != val {
+			t.Errorf("Expected all[%d] = %d, got %d", i, val, all[i])
+		}
+	}
+	last, _, _ := cb2.GetLast()
+	if last != 99 {
+		t.Errorf("Expected last element 99, got %d", last)
+	}
+	first, _, _ := cb2.GetFirst()
+	if first != 0 {
+		t.Errorf("Expected first element 0, got %d", first)
+	}
+
+	cb2.Write(4)
+	expected = []int{0, 99, 4}
+	all, _ = cb2.GetAll()
+	if len(all) != len(expected) {
+		t.Errorf("Expected %d elements, got %d", len(expected), len(all))
+	}
+	for i, val := range expected {
+		if all[i] != val {
+			t.Errorf("Expected all[%d] = %d, got %d", i, val, all[i])
+		}
+	}
+}
