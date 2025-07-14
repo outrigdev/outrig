@@ -10,6 +10,7 @@ import (
 )
 
 var ErrSampleTooClose = errors.New("sample too close to previous timestamp")
+var ErrSampleSkipped = errors.New("sample skipped due to timing skew")
 
 // TimeSampleAligner converts real-world timestamps (which may have skew, gaps, or
 // timing drift) into clean logical time indices for frontend consumption.
@@ -108,7 +109,7 @@ func (tsa *TimeSampleAligner) AddSample(ts int64) (int, error) {
 	if newSkew <= -1000 {
 		// skip and reset skew
 		tsa.timeSkew = newSkew + 1000
-		return tsa.logicalCounter, nil
+		return tsa.logicalCounter, ErrSampleSkipped
 	}
 	// normal case, just update the last timestamp
 	tsa.appendSlot(tsa.logicalCounter+1, ts)
