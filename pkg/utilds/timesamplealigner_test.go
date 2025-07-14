@@ -66,10 +66,7 @@ func TestTimeSampleAlignerMappingAndBoundaries(t *testing.T) {
 
 	// Test that we can retrieve the exact timestamps back
 	for _, sample := range samples {
-		retrievedTs, exists := tsa.GetTimestamp(sample.expectedLogical)
-		if !exists {
-			t.Errorf("Should be able to retrieve timestamp for logical time %d", sample.expectedLogical)
-		}
+		retrievedTs := tsa.GetRealTimestampFromLogical(sample.expectedLogical)
 		if retrievedTs != sample.timestamp {
 			t.Errorf("Logical time %d: expected timestamp %d, got %d", sample.expectedLogical, sample.timestamp, retrievedTs)
 		}
@@ -89,7 +86,7 @@ func TestTimeSampleAlignerMappingAndBoundaries(t *testing.T) {
 	}
 
 	for _, test := range boundaryTests {
-		logical := tsa.GetLogicalTime(test.timestamp)
+		logical := tsa.GetLogicalTimeFromRealTimestamp(test.timestamp)
 		if logical != test.expectedLogical {
 			t.Errorf("%s: expected logical time %d, got %d", test.description, test.expectedLogical, logical)
 		}
@@ -121,24 +118,26 @@ func TestTimeSampleAlignerGapFilling(t *testing.T) {
 	}
 
 	// Verify that synthetic timestamps were created to fill the gap
-	// The gap should be filled with: 12400, 13400, 14400, 15400, 16400, 17400
+	// The implementation uses interpolation, so we need to calculate the expected values
+	// Gap from 11400 to 18250 = 6850ms over 7 slots (logical 1 to 8)
+	// Interpolation divides this gap proportionally
+	timeGap := int64(18250 - 11400) // 6850
+	totalSlots := int64(7)          // slots 2,3,4,5,6,7,8
+
 	expectedSyntheticTimestamps := []struct {
 		logical    int
 		expectedTs int64
 	}{
-		{2, 12400}, // 11400 + 1000
-		{3, 13400}, // 11400 + 2000
-		{4, 14400}, // 11400 + 3000
-		{5, 15400}, // 11400 + 4000
-		{6, 16400}, // 11400 + 5000
-		{7, 17400}, // 11400 + 6000
+		{2, 11400 + (timeGap*1)/totalSlots}, // 11400 + 978 = 12378
+		{3, 11400 + (timeGap*2)/totalSlots}, // 11400 + 1957 = 13357
+		{4, 11400 + (timeGap*3)/totalSlots}, // 11400 + 2935 = 14335
+		{5, 11400 + (timeGap*4)/totalSlots}, // 11400 + 3914 = 15314
+		{6, 11400 + (timeGap*5)/totalSlots}, // 11400 + 4892 = 16292
+		{7, 11400 + (timeGap*6)/totalSlots}, // 11400 + 5871 = 17271
 	}
 
 	for _, expected := range expectedSyntheticTimestamps {
-		ts, exists := tsa.GetTimestamp(expected.logical)
-		if !exists {
-			t.Errorf("Should have synthetic timestamp for logical time %d", expected.logical)
-		}
+		ts := tsa.GetRealTimestampFromLogical(expected.logical)
 		if ts != expected.expectedTs {
 			t.Errorf("Logical time %d: expected synthetic timestamp %d, got %d", expected.logical, expected.expectedTs, ts)
 		}
@@ -146,23 +145,23 @@ func TestTimeSampleAlignerGapFilling(t *testing.T) {
 
 	// Test that timestamps in the gap map to correct logical times
 	// Intervals work as [start, next) - so logical N covers from timestamp N to timestamp N+1 (exclusive)
+	// Using the actual interpolated timestamps: 12378, 13357, 14335, 15314, 16292, 17271
 	gapTests := []struct {
 		timestamp       int64
 		expectedLogical int
 		description     string
 	}{
-		{13450, 3, "13450 should map to logical 3 (in interval [13400, 14400))"},
-		{14350, 3, "14350 should map to logical 3 (in interval [13400, 14400))"},
-		{14400, 4, "14400 should map to logical 4 (at start of interval [14400, 15400))"},
-		{16500, 6, "16500 should map to logical 6 (in interval [16400, 17400))"},
-		{17500, 7, "17500 should map to logical 7 (in interval [17400, 18250))"},
+		{13400, 3, "13400 should map to logical 3 (in interval [13357, 14335))"},
+		{14300, 3, "14300 should map to logical 3 (in interval [13357, 14335))"},
+		{14335, 4, "14335 should map to logical 4 (at start of interval [14335, 15314))"},
+		{16300, 6, "16300 should map to logical 6 (in interval [16292, 17271))"},
+		{17300, 7, "17300 should map to logical 7 (in interval [17271, 18250))"},
 	}
 
 	for _, test := range gapTests {
-		logical := tsa.GetLogicalTime(test.timestamp)
+		logical := tsa.GetLogicalTimeFromRealTimestamp(test.timestamp)
 		if logical != test.expectedLogical {
 			t.Errorf("%s: expected logical time %d, got %d", test.description, test.expectedLogical, logical)
 		}
 	}
 }
-

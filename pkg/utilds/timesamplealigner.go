@@ -4,204 +4,185 @@
 package utilds
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 )
 
-// TimeSampleAligner maps real timestamps to logical time indices while maintaining
-// timing accuracy. Logical time starts at 0 and increments by 1 for each second.
-// It tracks global skew to handle timing drift and boundary conditions.
+var ErrSampleTooClose = errors.New("sample too close to previous timestamp")
+
+// TimeSampleAligner converts real-world timestamps (which may have skew, gaps, or
+// timing drift) into clean logical time indices for frontend consumption.
+//
+// Key features:
+//   - Maps incoming samples to logical time slots (0, 1, 2, 3...)
+//   - Maintains timing accuracy within ±1000ms of real timestamps
+//   - Handles clock drift and power-sleep gaps gracefully
+//   - Uses ring buffer for efficient memory management
+//   - Provides both logical indices and real timestamps for graphing
+//
+// Algorithm overview:
+//   - Tracks running time skew between expected and actual sample timing
+//   - When skew exceeds ±1000ms, corrects by either filling gaps or dropping samples
+//   - For gaps (skew >= +1000ms): interpolates synthetic timestamps and advances logical time
+//   - For samples arriving too fast (skew <= -1000ms): drops sample and resets skew
+//   - Maintains invariant: abs(timeSkew) < 1000ms for timing accuracy
+//
+// Usage pattern:
+//
+//	aligner := MakeTimeSampleAligner2(maxSamples)
+//	logicalTime, err := aligner.AddSample(timestampMs)
+//	baseLogical, timestamps := aligner.GetTimestamps()
+//	// Frontend can use logical indices 0,1,2... while mapping back to real timestamps
 type TimeSampleAligner struct {
 	lock           sync.Mutex
-	logicalCounter int                // Current logical time counter
-	timestamps     map[int]int64      // Map of logical time -> real timestamp
-	globalSkew     int64              // Accumulated timing drift (milliseconds)
-	lastRealTs     int64              // Last real timestamp received
-	firstTs        int64              // First timestamp (never cleaned up)
-	maxSamples     int                // Maximum number of logical samples to keep
-	hasFirstSample bool               // Whether we've received the first sample
+	firstTs        int64
+	lastRealTs     int64
+	timeSkew       int64
+	logicalCounter int
+	maxSamples     int
+	ringBuffer     []int64
+	baseLogical    int
 }
 
-// MakeTimeSampleAligner creates a new TimeSampleAligner instance
 func MakeTimeSampleAligner(maxSamples int) *TimeSampleAligner {
 	return &TimeSampleAligner{
-		timestamps: make(map[int]int64),
-		maxSamples: maxSamples,
+		maxSamples:  maxSamples,
+		ringBuffer:  make([]int64, 0, maxSamples),
+		baseLogical: 0,
 	}
 }
 
-// AddSample takes a timestamp in milliseconds and returns its logical time.
-// The first call always returns 0. Subsequent calls use skew-based algorithm
-// to maintain timing accuracy while handling gaps and timing drift.
-// Returns an error if sample is dropped or timestamp goes backward.
+func (tsa *TimeSampleAligner) addSkipTs(ts int64) (int, error) {
+	ideal := (ts - tsa.firstTs + 500) / 1000
+	idealSlot := int(ideal) + tsa.baseLogical
+	idealTs := tsa.firstTs + int64(idealSlot-tsa.baseLogical)*1000
+	newSkew := ts - idealTs
+
+	if idealSlot == tsa.logicalCounter {
+		// sanity check, but the math should guarantee that this never happens
+		return tsa.logicalCounter, fmt.Errorf("invalid ideal slot %d, already at %d", idealSlot, tsa.logicalCounter)
+	}
+
+	skipSlots := idealSlot - tsa.logicalCounter - 1
+	if skipSlots > 0 {
+		// Interpolate intermediate timestamps across the gap
+		timeGap := ts - tsa.lastRealTs
+		totalSlots := skipSlots + 1 // +1 to include the final slot
+
+		for i := 1; i <= skipSlots; i++ {
+			interpolatedTs := tsa.lastRealTs + (timeGap*int64(i))/int64(totalSlots)
+			tsa.appendSlot(tsa.logicalCounter+i, interpolatedTs)
+		}
+	}
+	// because idealSlot > ts.logicalCounter we should always be able to append
+	tsa.appendSlot(idealSlot, ts)
+	tsa.logicalCounter = idealSlot
+	tsa.lastRealTs = ts
+	tsa.timeSkew = newSkew
+
+	return tsa.logicalCounter, nil
+}
+
 func (tsa *TimeSampleAligner) AddSample(ts int64) (int, error) {
 	tsa.lock.Lock()
 	defer tsa.lock.Unlock()
-	defer tsa.cleanupOldSamples()
 
-	// First sample always maps to logical time 0
-	if !tsa.hasFirstSample {
-		tsa.hasFirstSample = true
-		tsa.logicalCounter = 0
-		tsa.timestamps[0] = ts
-		tsa.lastRealTs = ts
+	if len(tsa.ringBuffer) == 0 {
 		tsa.firstTs = ts
-		tsa.globalSkew = 0
+		tsa.lastRealTs = ts
+		tsa.appendSlot(0, ts)
 		return 0, nil
 	}
-
-	// Reject samples that go backward in time
 	if ts < tsa.lastRealTs {
-		return 0, fmt.Errorf("timestamp %d is less than previous timestamp %d", ts, tsa.lastRealTs)
+		return 0, fmt.Errorf("timestamp %d < previous %d", ts, tsa.lastRealTs)
 	}
-
-	// Drop samples that arrive < 500ms after previous sample
 	if ts-tsa.lastRealTs < 500 {
-		return 0, fmt.Errorf("sample dropped: timestamp %d is too close to previous timestamp %d", ts, tsa.lastRealTs)
+		return tsa.logicalCounter, ErrSampleTooClose
 	}
-
-	// Calculate time difference and how many logical slots to advance
-	timeDiff := ts - tsa.lastRealTs
-	logicalSlotsToAdvance := int((timeDiff + 500) / 1000) // Round to nearest second
-
-	// Fill gaps with synthetic timestamps for missing logical slots
-	// Don't advance logicalCounter yet - just fill the gaps
-	for i := 1; i <= logicalSlotsToAdvance; i++ {
-		gapLogical := tsa.logicalCounter + i
-		syntheticTs := tsa.lastRealTs + int64(i*1000)
-		tsa.timestamps[gapLogical] = syntheticTs
+	delta := ts - tsa.lastRealTs
+	newSkew := tsa.timeSkew + delta - 1000
+	if newSkew >= 1000 {
+		return tsa.addSkipTs(ts)
 	}
-
-	// Calculate expected timestamp for this sample based on logical advancement
-	expectedTs := tsa.lastRealTs + int64(logicalSlotsToAdvance*1000)
-	localSkew := ts - expectedTs
-
-	// Accumulate local skew into global skew
-	tsa.globalSkew += localSkew
-
-	// Determine where to place this sample based on global skew
-	targetLogical := tsa.logicalCounter + logicalSlotsToAdvance
-
-	// Handle global skew corrections
-	if tsa.globalSkew >= 1000 {
-		// Too far ahead - insert synthetic timestamp to slow down, then place sample
-		tsa.globalSkew -= 1000
-		targetLogical++
-		syntheticTs := (tsa.lastRealTs + ts) / 2 // Average of last and current
-		tsa.timestamps[targetLogical-1] = syntheticTs
-		tsa.timestamps[targetLogical] = ts
-		tsa.logicalCounter = targetLogical
-		tsa.lastRealTs = ts
-		return targetLogical, nil
-	} else if tsa.globalSkew <= -1000 {
-		// Too far behind - drop sample and reset skew (don't advance logical counter)
-		tsa.globalSkew += 1000
-		tsa.lastRealTs = ts
-		return 0, fmt.Errorf("sample dropped: global skew correction (too far behind)")
+	if newSkew <= -1000 {
+		// skip and reset skew
+		tsa.timeSkew = newSkew + 1000
+		return tsa.logicalCounter, nil
 	}
-
-	// Normal case - place the actual sample at the target logical time
-	tsa.logicalCounter = targetLogical
-	tsa.timestamps[targetLogical] = ts
+	// normal case, just update the last timestamp
+	tsa.appendSlot(tsa.logicalCounter+1, ts)
+	tsa.logicalCounter++
 	tsa.lastRealTs = ts
-	return targetLogical, nil
+	tsa.timeSkew = newSkew
+	return tsa.logicalCounter, nil
 }
 
-// cleanupOldSamples removes old logical time entries to stay under maxSamples
-func (tsa *TimeSampleAligner) cleanupOldSamples() {
-	if len(tsa.timestamps) <= tsa.maxSamples {
-		return
-	}
-
-	// Find the oldest logical time to keep
-	keepFromLogical := tsa.logicalCounter - tsa.maxSamples + 1
-	
-	// Remove entries older than keepFromLogical
-	for logical := range tsa.timestamps {
-		if logical < keepFromLogical {
-			delete(tsa.timestamps, logical)
-		}
+func (tsa *TimeSampleAligner) appendSlot(logical int, realTs int64) {
+	tsa.ringBuffer = append(tsa.ringBuffer, realTs)
+	if len(tsa.ringBuffer) > tsa.maxSamples {
+		tsa.ringBuffer = tsa.ringBuffer[1:]
+		tsa.baseLogical++
 	}
 }
 
-// GetTimestamp returns the real timestamp for a given logical time
-func (tsa *TimeSampleAligner) GetTimestamp(logicalTime int) (int64, bool) {
+func (tsa *TimeSampleAligner) GetTimestamps() (int, []int64) {
 	tsa.lock.Lock()
 	defer tsa.lock.Unlock()
-	
-	if !tsa.hasFirstSample {
-		return 0, false
-	}
-	
-	// If we have the actual timestamp, return it
-	if ts, exists := tsa.timestamps[logicalTime]; exists {
-		return ts, true
-	}
-	
-	// Otherwise calculate it from first timestamp
-	calculatedTs := tsa.firstTs + int64(logicalTime*1000)
-	return calculatedTs, true
+	timestamps := make([]int64, len(tsa.ringBuffer))
+	copy(timestamps, tsa.ringBuffer)
+	return tsa.baseLogical, timestamps
 }
 
-// GetLogicalTime returns the logical time for a given real timestamp
-// Uses the constraint that logical time N is within ±1000ms of N seconds from first sample
-func (tsa *TimeSampleAligner) GetLogicalTime(timestamp int64) int {
-	tsa.lock.Lock()
-	defer tsa.lock.Unlock()
-	
-	if !tsa.hasFirstSample {
-		return 0
-	}
-	
-	// Calculate approximate logical time (within ±1 due to skew constraint)
-	approxLogical := int((timestamp - tsa.firstTs) / 1000)
-	
-	// Check a small range around the approximate logical time
-	for logical := approxLogical - 1; logical <= approxLogical + 1; logical++ {
-		if logical < 0 || logical > tsa.logicalCounter {
-			continue
-		}
-		
-		currentTs, exists := tsa.timestamps[logical]
-		if !exists {
-			continue // Skip cleaned up entries
-		}
-		
-		// Check if timestamp falls in this logical interval
-		if logical == tsa.logicalCounter {
-			// Last logical time - timestamp must be >= currentTs
-			if timestamp >= currentTs {
-				return logical
-			}
-		} else {
-			// Find the next timestamp boundary
-			var nextTs int64
-			if nextTimestamp, nextExists := tsa.timestamps[logical+1]; nextExists {
-				nextTs = nextTimestamp
-			} else {
-				// Next was cleaned up, estimate based on current + 1s
-				nextTs = currentTs + 1000
-			}
-			
-			// Check if timestamp falls in [currentTs, nextTs)
-			if timestamp >= currentTs && timestamp < nextTs {
-				return logical
-			}
-		}
-	}
-	
-	// If we get here, timestamp doesn't fall in any retained interval
-	// Fall back to simple calculation
-	return int((timestamp - tsa.firstTs) / 1000)
-}
-
-// GetMaxLogicalTime returns the current maximum logical time
 func (tsa *TimeSampleAligner) GetMaxLogicalTime() int {
 	tsa.lock.Lock()
 	defer tsa.lock.Unlock()
-	
-	return tsa.logicalCounter
+	if len(tsa.ringBuffer) == 0 {
+		return 0
+	}
+	return tsa.baseLogical + len(tsa.ringBuffer) - 1
 }
 
+func (tsa *TimeSampleAligner) GetRealTimestampFromLogical(logical int) int64 {
+	tsa.lock.Lock()
+	defer tsa.lock.Unlock()
+	// if not in the ring buffer, return just a stright up delta from baseTs
+	if logical < tsa.baseLogical || logical >= tsa.baseLogical+len(tsa.ringBuffer) {
+		return tsa.firstTs + int64(logical-tsa.baseLogical)*1000
+	}
+	// find the timestamp in the ring buffer
+	return tsa.ringBuffer[logical-tsa.baseLogical]
+}
 
+func (tsa *TimeSampleAligner) GetLogicalTimeFromRealTimestamp(ts int64) int {
+	tsa.lock.Lock()
+	defer tsa.lock.Unlock()
 
+	// No samples yet
+	if len(tsa.ringBuffer) == 0 {
+		return 0
+	}
+
+	// Calculate ideal slot based on firstTs
+	idealSlot := int((ts - tsa.firstTs) / 1000)
+
+	// If outside ring buffer range, return calculated ideal
+	if idealSlot < tsa.baseLogical {
+		return idealSlot
+	}
+	if idealSlot >= tsa.baseLogical+len(tsa.ringBuffer) {
+		return idealSlot
+	}
+
+	// Search within ring buffer, starting near the ideal position
+	startIdx := max(idealSlot-tsa.baseLogical-1, 0)
+
+	for i := startIdx; i < len(tsa.ringBuffer)-1; i++ {
+		if ts >= tsa.ringBuffer[i] && ts < tsa.ringBuffer[i+1] {
+			return tsa.baseLogical + i
+		}
+	}
+
+	// ts >= all timestamps in buffer
+	return tsa.baseLogical + len(tsa.ringBuffer) - 1
+}
