@@ -343,9 +343,30 @@ func (cb *CirBuf[T]) WriteAt(element T, index int) error {
 	for i := 0; i < gapSize; i++ {
 		cb.write_nolock(zero)
 	}
-	
+
 	// Write the actual element
 	cb.write_nolock(element)
 
 	return nil
+}
+
+// GetAt returns the element at the specified absolute index and a boolean indicating
+// whether the element exists. The index is absolute (based on TotalCount), not relative
+// to the current buffer position. Returns the zero value of T and false if the index
+// is out of bounds.
+func (cb *CirBuf[T]) GetAt(index int) (T, bool) {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+
+	// Check if index is within valid range
+	if index < cb.HeadOffset || index >= cb.TotalCount {
+		var zero T
+		return zero, false
+	}
+
+	// Convert absolute index to buffer position
+	bufferIndex := index - cb.HeadOffset
+	pos := (cb.Head + bufferIndex) % len(cb.Buf)
+
+	return cb.Buf[pos], true
 }
