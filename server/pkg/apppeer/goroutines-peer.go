@@ -133,7 +133,9 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		fmt.Printf("WARNING: [AppRun: %s] TimeSampleAligner error: %v\n", gp.appRunId, err)
 		return // Drop this sample
 	}
-	_ = logicalTime // We'll use this later for WriteAt
+
+	// Set the version to match the logical time
+	gp.timeSpanMap.SetVersion(int64(logicalTime))
 
 	// Update the overall TimeSpan for goroutine collections
 	if gp.timeSpan.Start == 0 || timestamp < gp.timeSpan.Start {
@@ -473,11 +475,13 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 	return gp.getParsedGoRoutinesAtTimestamp_nolock(moduleName, goIds, timestamp, false)
 }
 
-// GetTimeSpansSinceVersion returns all goroutine time spans that have been updated since the given version
-func (gp *GoRoutinePeer) GetTimeSpansSinceVersion(sinceVersion int64) ([]rpctypes.GoTimeSpan, int64, rpctypes.TimeSpan) {
-	updatedTimeSpans, currentVersion := gp.timeSpanMap.GetSinceVersion(sinceVersion)
-	fullTimeSpan := gp.getTimeSpan()
+// GetTimeSpansSinceTickIdx returns the complete GoRoutineTimeSpansResponse for the given tick index
+func (gp *GoRoutinePeer) GetTimeSpansSinceTickIdx(sinceTickIdx int64) rpctypes.GoRoutineTimeSpansResponse {
+	gp.lock.Lock()
+	defer gp.lock.Unlock()
 
+	updatedTimeSpans, _ := gp.timeSpanMap.GetSinceVersion(sinceTickIdx)
+	fullTimeSpan := gp.timeSpan
 	result := make([]rpctypes.GoTimeSpan, 0, len(updatedTimeSpans))
 	for goId, timeSpan := range updatedTimeSpans {
 		result = append(result, rpctypes.GoTimeSpan{
@@ -486,5 +490,18 @@ func (gp *GoRoutinePeer) GetTimeSpansSinceVersion(sinceVersion int64) ([]rpctype
 		})
 	}
 
-	return result, currentVersion, fullTimeSpan
+	// Get the last tick from the time aligner
+	maxLogicalTime := gp.timeAligner.GetMaxLogicalTime()
+	lastTickTs := gp.timeAligner.GetRealTimestampFromLogical(maxLogicalTime)
+	lastTick := rpctypes.Tick{
+		Idx: maxLogicalTime,
+		Ts:  lastTickTs,
+	}
+
+	return rpctypes.GoRoutineTimeSpansResponse{
+		Data:         result,
+		FullTimeSpan: fullTimeSpan,
+		LastTick:     lastTick,
+		ActiveCounts: []rpctypes.GoRoutineActiveCount{}, // TODO: implement ActiveCounts later
+	}
 }

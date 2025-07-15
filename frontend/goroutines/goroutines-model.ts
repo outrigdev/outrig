@@ -41,7 +41,7 @@ class GoRoutinesModel {
 
     // Time spans polling state
     timeSpanAtomCache: Map<number, PrimitiveAtom<TimeSpan>> = new Map();
-    timeSpansVersion: number = 0;
+    timeSpansLastTickIdx: number = -1;
     timeSpansPollingInterval: NodeJS.Timeout = null;
     fullTimeSpan: PrimitiveAtom<TimeSpan> = atom<TimeSpan>(null) as PrimitiveAtom<TimeSpan>;
 
@@ -106,9 +106,18 @@ class GoRoutinesModel {
         const pinnedGoroutines = goroutines.filter((gr) => pinnedGoRoutineIds.has(gr.goid));
         const unpinnedGoroutines = goroutines.filter((gr) => !pinnedGoRoutineIds.has(gr.goid));
 
-        // Sort each group by goid
-        pinnedGoroutines.sort((a, b) => a.goid - b.goid);
-        unpinnedGoroutines.sort((a, b) => a.goid - b.goid);
+        // Sort each group by start time, then by goid if start times are equal
+        const sortByStartTime = (a: ParsedGoRoutine, b: ParsedGoRoutine) => {
+            const aStart = a.activetimespan?.start || 0;
+            const bStart = b.activetimespan?.start || 0;
+            if (aStart !== bStart) {
+                return aStart - bStart;
+            }
+            return a.goid - b.goid;
+        };
+
+        pinnedGoroutines.sort(sortByStartTime);
+        unpinnedGoroutines.sort(sortByStartTime);
 
         // Combine with pinned first
         return [...pinnedGoroutines, ...unpinnedGoroutines];
@@ -500,11 +509,11 @@ class GoRoutinesModel {
         try {
             const response = await RpcApi.GoRoutineTimeSpansCommand(DefaultRpcClient, {
                 apprunid: this.appRunId,
-                sinceversion: this.timeSpansVersion,
+                sincetickidx: this.timeSpansLastTickIdx,
             });
 
             // Update version for next call
-            this.timeSpansVersion = response.version;
+            this.timeSpansLastTickIdx = response.lasttick.idx;
 
             // Update individual atoms
             const store = getDefaultStore();

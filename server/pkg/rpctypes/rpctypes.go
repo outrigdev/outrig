@@ -427,15 +427,27 @@ type GoTimeSpan struct {
 	Span TimeSpan `json:"span"`
 }
 
-// GoRoutineTimeSpansRequest defines the request for getting goroutine time spans since a version
+// GoRoutineTimeSpansRequest defines the request for getting goroutine time spans since a tick index
 type GoRoutineTimeSpansRequest struct {
-	AppRunId     string `json:"apprunid"`
-	SinceVersion int64  `json:"sinceversion"`
+	AppRunId      string `json:"apprunid"`
+	SinceTickIdx  int64  `json:"sincetickidx"`
+}
+
+type GoRoutineActiveCount struct {
+	Count   int   `json:"count"`
+	TimeIdx int   `json:"timeidx"` // Index in the logical time sequence
+	Ts      int64 `json:"tsts"`    // Timestamp in milliseconds
+}
+
+type Tick struct {
+	Idx int   `json:"idx"` // Index in the logical time sequence
+	Ts  int64 `json:"ts"`  // Timestamp in milliseconds
 }
 
 // GoRoutineTimeSpansResponse defines the response with updated time spans
 type GoRoutineTimeSpansResponse struct {
-	Data         []GoTimeSpan `json:"data"`
-	Version      int64        `json:"version"`
-	FullTimeSpan TimeSpan     `json:"fulltimespan"`
+	Data         []GoTimeSpan           `json:"data"`
+	ActiveCounts []GoRoutineActiveCount `json:"activecounts"`
+	FullTimeSpan TimeSpan               `json:"fulltimespan"`
+	LastTick     Tick                   `json:"lasttick"`
 }

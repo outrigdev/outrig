@@ -128,6 +128,13 @@ declare global {
         | (EventCommonFields & { event: "route:up"; data?: null })
     ;
 
+    // rpctypes.GoRoutineActiveCount
+    type GoRoutineActiveCount = {
+        count: number;
+        timeidx: number;
+        tsts: number;
+    };
+
     // rpctypes.GoRoutineSearchRequestData
     type GoRoutineSearchRequestData = {
         apprunid: string;
@@ -152,14 +159,15 @@ declare global {
     // rpctypes.GoRoutineTimeSpansRequest
     type GoRoutineTimeSpansRequest = {
         apprunid: string;
-        sinceversion: number;
+        sincetickidx: number;
     };
 
     // rpctypes.GoRoutineTimeSpansResponse
     type GoRoutineTimeSpansResponse = {
         data: GoTimeSpan[];
-        version: number;
+        activecounts: GoRoutineActiveCount[];
         fulltimespan: TimeSpan;
+        lasttick: Tick;
     };
 
     // rpctypes.GoTimeSpan
@@ -372,6 +380,12 @@ declare global {
         "frontend:searchlatency"?: number;
         "frontend:searchitems"?: number;
         "frontend:clicktype"?: string;
+    };
+
+    // rpctypes.Tick
+    type Tick = {
+        idx: number;
+        ts: number;
     };
 
     // rpctypes.TimeSpan

@@ -13,16 +13,25 @@ type versionedValue[V any] struct {
 }
 
 type VersionedMap[K comparable, V any] struct {
-	lock        *sync.Mutex
-	nextVersion int64                        // Next version to assign
-	m           map[K]versionedValue[V]      // Map of values with versioning
+	lock       *sync.Mutex
+	curVersion int64                   // Next version to assign
+	m          map[K]versionedValue[V] // Map of values with versioning
 }
 
 func MakeVersionedMap[K comparable, V any]() *VersionedMap[K, V] {
 	return &VersionedMap[K, V]{
-		lock:        &sync.Mutex{},
-		nextVersion: 0,
-		m:           make(map[K]versionedValue[V]),
+		lock:       &sync.Mutex{},
+		curVersion: 0,
+		m:          make(map[K]versionedValue[V]),
+	}
+}
+
+func (vm *VersionedMap[K, V]) SetVersion(version int64) {
+	vm.lock.Lock()
+	defer vm.lock.Unlock()
+
+	if version > vm.curVersion {
+		vm.curVersion = version
 	}
 }
 
@@ -30,10 +39,20 @@ func (vm *VersionedMap[K, V]) Set(key K, value V) {
 	vm.lock.Lock()
 	defer vm.lock.Unlock()
 
-	// Increment version for each new set operation
-	vm.nextVersion++
 	vm.m[key] = versionedValue[V]{
-		Version: vm.nextVersion,
+		Version: vm.curVersion,
+		Value:   value,
+	}
+}
+
+func (vm *VersionedMap[K, V]) SetAndIncVersion(key K, value V) {
+	vm.lock.Lock()
+	defer vm.lock.Unlock()
+
+	// Increment version for each new set operation
+	vm.curVersion++
+	vm.m[key] = versionedValue[V]{
+		Version: vm.curVersion,
 		Value:   value,
 	}
 }
@@ -60,5 +79,25 @@ func (vm *VersionedMap[K, V]) GetSinceVersion(version int64) (map[K]V, int64) {
 			result[key] = versionedVal.Value
 		}
 	}
-	return result, vm.nextVersion
+	return result, vm.curVersion
+}
+
+func (vm *VersionedMap[K, V]) ForEach(fn func(key K, value V, version int64)) {
+	vm.lock.Lock()
+	defer vm.lock.Unlock()
+
+	for key, versionedVal := range vm.m {
+		fn(key, versionedVal.Value, versionedVal.Version)
+	}
+}
+
+func (vm *VersionedMap[K, V]) Keys() []K {
+	vm.lock.Lock()
+	defer vm.lock.Unlock()
+
+	keys := make([]K, 0, len(vm.m))
+	for key := range vm.m {
+		keys = append(keys, key)
+	}
+	return keys
 }
