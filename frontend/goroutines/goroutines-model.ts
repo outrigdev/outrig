@@ -512,6 +512,9 @@ class GoRoutinesModel {
                 sincetickidx: this.timeSpansLastTickIdx,
             });
 
+            // Check if we got a new tick index (new time spans available)
+            const hasNewTimeIdx = response.lasttick.idx !== this.timeSpansLastTickIdx;
+
             // Update version for next call
             this.timeSpansLastTickIdx = response.lasttick.idx;
 
@@ -532,6 +535,14 @@ class GoRoutinesModel {
                 ) {
                     store.set(this.fullTimeSpan, response.fulltimespan);
                 }
+            }
+
+            // If we got new time spans, re-run the search to find new goroutines
+            if (hasNewTimeIdx) {
+                const searchTerm = store.get(this.searchTerm);
+                setTimeout(() => {
+                    this.searchGoroutines(searchTerm);
+                }, 0);
             }
         } catch (error) {
             console.error(`Failed to poll time spans for app run ${this.appRunId}:`, error);
