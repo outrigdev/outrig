@@ -40,10 +40,10 @@ const formatGoroutineName = (goroutine: ParsedGoRoutine): React.ReactNode => {
 
     return (
         <>
-            {!hasName && <span className="text-secondary">{pkg}.</span>}
+            {!hasName && <span className="text-secondary text-xs">{pkg}.</span>}
             <span className="text-primary">{nameOrFunc}</span>
             {!hasName && createdByFrame.linenumber && (
-                <span className="text-secondary">:{createdByFrame.linenumber}</span>
+                <span className="text-secondary text-xs">:{createdByFrame.linenumber}</span>
             )}
         </>
     );

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/outrigdev/outrig/pkg/ds"
 	"github.com/outrigdev/outrig/pkg/utilds"
@@ -45,6 +46,7 @@ type GoRoutinePeer struct {
 	appRunId          string                                          // ID of the app run this peer belongs to
 	timeSpan          rpctypes.TimeSpan                               // Time range for goroutine collections
 	timeAligner       *utilds.TimeSampleAligner                       // Aligns goroutine stack timestamps to logical indices
+	droppedCount      atomic.Int64                                    // Count of goroutines dropped during pruning (synchronized with atomic operations)
 }
 
 // mergeGoRoutineStacks combines a base stack with a delta stack to create a complete stack
@@ -309,6 +311,7 @@ func (gp *GoRoutinePeer) pruneOldGoroutines() {
 		// If the goroutine hasn't been active for more than GoRoutinePruneThreshold iterations, remove it
 		if goroutine.LastActiveIteration < cutoffIteration {
 			gp.goRoutines.Delete(key)
+			gp.droppedCount.Add(1)
 		}
 	}
 }
@@ -534,5 +537,6 @@ func (gp *GoRoutinePeer) GetTimeSpansSinceTickIdx(sinceTickIdx int64) rpctypes.G
 		FullTimeSpan: fullTimeSpan,
 		LastTick:     lastTick,
 		ActiveCounts: activeCounts,
+		DroppedCount: gp.droppedCount.Load(),
 	}
 }

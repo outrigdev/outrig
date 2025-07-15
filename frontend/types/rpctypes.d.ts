@@ -168,6 +168,7 @@ declare global {
         activecounts: GoRoutineActiveCount[];
         fulltimespan: TimeSpan;
         lasttick: Tick;
+        droppedcount: number;
     };
 
     // rpctypes.GoTimeSpan

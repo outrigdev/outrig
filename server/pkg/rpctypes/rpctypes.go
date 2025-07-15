@@ -450,4 +450,5 @@ type GoRoutineTimeSpansResponse struct {
 	ActiveCounts []GoRoutineActiveCount `json:"activecounts"`
 	FullTimeSpan TimeSpan               `json:"fulltimespan"`
 	LastTick     Tick                   `json:"lasttick"`
+	DroppedCount int64                  `json:"droppedcount"`
 }
