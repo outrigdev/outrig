@@ -430,8 +430,20 @@ class GoRoutinesModel {
     // Set the selected timestamp and disable search latest mode
     setSelectedTimestamp(timestamp: number) {
         const store = getDefaultStore();
-        store.set(this.selectedTimestamp, timestamp);
+        // Ensure timestamp is an integer to avoid backend marshalling errors
+        const normalizedTimestamp = Math.round(timestamp);
+        store.set(this.selectedTimestamp, normalizedTimestamp);
         store.set(this.searchLatestMode, false);
+    }
+
+    // Set the selected timestamp and trigger a new search
+    setSelectedTimestampAndSearch(timestamp: number) {
+        this.setSelectedTimestamp(timestamp);
+
+        // Trigger a new search with the current search term
+        const store = getDefaultStore();
+        const searchTerm = store.get(this.searchTerm);
+        this.searchGoroutines(searchTerm);
     }
 
     // Enable search latest mode and update to current time

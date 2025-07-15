@@ -118,6 +118,19 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     const searchLatestMode = useAtomValue(model.searchLatestMode);
     const isAppRunning = useAtomValue(AppModel.selectedAppRunIsRunningAtom);
 
+    const handleTimelineClick = (event: React.MouseEvent<HTMLDivElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const timelineWidth = rect.width;
+        const clickPercent = clickX / timelineWidth;
+
+        const { startTime, endTime } = timelineRange;
+        const totalDuration = endTime - startTime;
+        const clickedTimestamp = startTime + clickPercent * totalDuration;
+
+        model.setSelectedTimestampAndSearch(clickedTimestamp);
+    };
+
     if (!grTimeSpan?.start) {
         return <div className="h-4 bg-muted/20 rounded-sm"></div>;
     }
@@ -194,7 +207,11 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     );
 
     return (
-        <div className="relative h-4 bg-muted/20 rounded-sm overflow-visible" style={{ width: containerWidthStyle }}>
+        <div
+            className="relative h-4 bg-muted/20 rounded-sm overflow-visible cursor-pointer"
+            style={{ width: containerWidthStyle }}
+            onClick={handleTimelineClick}
+        >
             <Tooltip content={tooltipContent}>
                 <div
                     className="absolute h-full bg-accent rounded-sm cursor-pointer"

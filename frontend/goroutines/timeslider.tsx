@@ -57,16 +57,7 @@ export const TimeSlider: React.FC<TimeSliderProps> = ({ model }) => {
     const handleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const sliderValue = parseInt(event.target.value);
         const timestamp = adjustedStartTime + sliderValue * 1000;
-        model.setSelectedTimestamp(timestamp);
-
-        console.log(
-            `Slider changed to timestamp: ${timestamp} | Value: ${sliderValue} | Max Range: ${maxRange} | formatted: ${new Date(timestamp).toLocaleString()}`
-        );
-
-        // Trigger a new search with the selected timestamp
-        const store = getDefaultStore();
-        const searchTerm = store.get(model.searchTerm);
-        model.searchGoroutines(searchTerm);
+        model.setSelectedTimestampAndSearch(timestamp);
     };
 
     const handleSearchLatest = () => {
