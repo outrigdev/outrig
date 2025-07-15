@@ -44,6 +44,7 @@ class GoRoutinesModel {
     timeSpansLastTickIdx: number = -1;
     timeSpansPollingInterval: NodeJS.Timeout = null;
     fullTimeSpan: PrimitiveAtom<TimeSpan> = atom<TimeSpan>(null) as PrimitiveAtom<TimeSpan>;
+    droppedCount: PrimitiveAtom<number> = atom(0);
 
     // State filters
     showAll: PrimitiveAtom<boolean> = atom(true);
@@ -536,6 +537,9 @@ class GoRoutinesModel {
                     store.set(this.fullTimeSpan, response.fulltimespan);
                 }
             }
+
+            // Update dropped count
+            store.set(this.droppedCount, response.droppedcount || 0);
 
             // If we got new time spans, re-run the search to find new goroutines
             if (hasNewTimeIdx) {

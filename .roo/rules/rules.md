@@ -37,6 +37,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
         - For element variants use class-variance-authority
     - **Component Practices**:
         - Make sure to add cursor-pointer to buttons/links and clickable items
+        - NEVER use cursor-help (it looks terrible)
         - useAtom() and useAtomValue() are react HOOKS, so they must be called at the component level not inline in JSX
         - If you use React.memo(), make sure to add a displayName for the component
 

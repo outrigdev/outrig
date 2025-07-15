@@ -5,6 +5,7 @@ import { EmptyMessageDelayMs } from "@/util/constants";
 import { useOutrigModel } from "@/util/hooks";
 import { useAtomValue } from "jotai";
 import React, { useEffect, useRef, useState } from "react";
+import { DroppedGoroutinesIndicator } from "./goroutines-comps";
 import { GoRoutinesFilters } from "./goroutines-filters";
 import { GoRoutinesModel } from "./goroutines-model";
 import { GoRoutinesTable } from "./goroutines-table";
@@ -54,7 +55,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model, tableModel
     console.log("gr-render, containerSize:", containerSize);
 
     return (
-        <div ref={containerRef} className="w-full h-full overflow-auto flex-1">
+        <div ref={containerRef} className="w-full h-full overflow-auto flex-1 relative">
             {isRefreshing ? (
                 <div className="flex items-center justify-center h-full">
                     <div className="flex items-center gap-2 text-primary">
@@ -68,6 +69,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model, tableModel
             ) : containerSize.width > 0 ? (
                 <GoRoutinesTable sortedGoroutines={sortedGoroutines} tableModel={tableModel} model={model} />
             ) : null}
+            <DroppedGoroutinesIndicator model={model} />
         </div>
     );
 };
