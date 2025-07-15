@@ -475,6 +475,17 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 	return gp.getParsedGoRoutinesAtTimestamp_nolock(moduleName, goIds, timestamp, false)
 }
 
+// getActiveCountAtTimeIdx returns the number of goroutines active at the given logical time index
+func (gp *GoRoutinePeer) getActiveCountAtTimeIdx(timeIdx int) int {
+	activeCount := 0
+	gp.timeSpanMap.ForEach(func(goId uint64, timeSpan rpctypes.TimeSpan, version int64) {
+		if timeSpan.IsWithinSpanIdx(timeIdx) {
+			activeCount++
+		}
+	})
+	return activeCount
+}
+
 // GetTimeSpansSinceTickIdx returns the complete GoRoutineTimeSpansResponse for the given tick index
 func (gp *GoRoutinePeer) GetTimeSpansSinceTickIdx(sinceTickIdx int64) rpctypes.GoRoutineTimeSpansResponse {
 	gp.lock.Lock()
@@ -490,6 +501,26 @@ func (gp *GoRoutinePeer) GetTimeSpansSinceTickIdx(sinceTickIdx int64) rpctypes.G
 		})
 	}
 
+	// Get all timestamps from the time aligner
+	baseLogical, timestamps := gp.timeAligner.GetTimestamps()
+
+	// Filter timestamps to only include those after sinceTickIdx
+	startIdx := utilfn.BoundValue(int(sinceTickIdx)-baseLogical+1, 0, len(timestamps))
+	filteredTimestamps := timestamps[startIdx:]
+	baseLogical += startIdx
+
+	// Create ActiveCounts for each filtered timestamp
+	activeCounts := make([]rpctypes.GoRoutineActiveCount, 0, len(filteredTimestamps))
+	for i, ts := range filteredTimestamps {
+		logicalIdx := baseLogical + i
+		activeCount := gp.getActiveCountAtTimeIdx(logicalIdx)
+		activeCounts = append(activeCounts, rpctypes.GoRoutineActiveCount{
+			TimeIdx: logicalIdx,
+			Ts:      ts,
+			Count:   activeCount,
+		})
+	}
+
 	// Get the last tick from the time aligner
 	maxLogicalTime := gp.timeAligner.GetMaxLogicalTime()
 	lastTickTs := gp.timeAligner.GetRealTimestampFromLogical(maxLogicalTime)
@@ -502,6 +533,6 @@ func (gp *GoRoutinePeer) GetTimeSpansSinceTickIdx(sinceTickIdx int64) rpctypes.G
 		Data:         result,
 		FullTimeSpan: fullTimeSpan,
 		LastTick:     lastTick,
-		ActiveCounts: []rpctypes.GoRoutineActiveCount{}, // TODO: implement ActiveCounts later
+		ActiveCounts: activeCounts,
 	}
 }
