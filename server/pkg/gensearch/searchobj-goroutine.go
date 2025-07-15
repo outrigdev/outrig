@@ -71,7 +71,7 @@ func (gso *GoRoutineSearchObject) GetField(fieldName string, fieldMods int) stri
 	if fieldName == "" {
 		// Combine name, state, and stack with a newline delimiter
 		if gso.Combined == "" {
-			gso.Combined = gso.Name + "\n" + gso.State + "\n" + gso.Stack
+			gso.Combined = gso.Name + "\n" + gso.State
 		}
 
 		if fieldMods&FieldMod_ToLower != 0 {

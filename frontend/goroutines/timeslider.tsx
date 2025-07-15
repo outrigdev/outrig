@@ -16,6 +16,7 @@ interface TimeSliderProps {
 export const TimeSlider: React.FC<TimeSliderProps> = ({ model }) => {
     const selectedTimestamp = useAtomValue(model.selectedTimestamp);
     const searchLatestMode = useAtomValue(model.searchLatestMode);
+    const showActiveOnly = useAtomValue(model.showActiveOnly);
     const appRunInfoAtom = AppModel.getAppRunInfoAtom(model.appRunId);
     const appRunInfo = useAtomValue(appRunInfoAtom);
     const fullTimeSpan = useAtomValue(model.fullTimeSpan);
@@ -125,6 +126,32 @@ export const TimeSlider: React.FC<TimeSliderProps> = ({ model }) => {
 
     return (
         <div className="flex items-center gap-2 flex-1 min-w-0 mt-[-8px]">
+            <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center bg-muted rounded-md p-1">
+                    <button
+                        onClick={() => model.toggleShowActiveOnly()}
+                        className={cn(
+                            "px-2 py-1 text-xs rounded transition-colors",
+                            !showActiveOnly
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-primary"
+                        )}
+                    >
+                        All
+                    </button>
+                    <button
+                        onClick={() => model.toggleShowActiveOnly()}
+                        className={cn(
+                            "px-2 py-1 text-xs rounded transition-colors",
+                            showActiveOnly
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-primary"
+                        )}
+                    >
+                        Active
+                    </button>
+                </div>
+            </div>
             <div className="flex-1 relative">
                 <input
                     type="range"
@@ -156,8 +183,8 @@ export const TimeSlider: React.FC<TimeSliderProps> = ({ model }) => {
                                 className={`absolute flex flex-col ${alignmentClass}`}
                                 style={{ left: `${tick.position}%`, transform: transformStyle }}
                             >
-                                <div className="w-px h-1 bg-muted" />
-                                <span className="text-[10px] text-muted mt-[-2px] whitespace-nowrap">{tick.label}</span>
+                                <div className="w-px h-2 bg-primary" />
+                                <span className="text-[10px] text-muted mt-[-1px] whitespace-nowrap">{tick.label}</span>
                             </div>
                         );
                     })}

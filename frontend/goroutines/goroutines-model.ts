@@ -52,6 +52,9 @@ class GoRoutinesModel {
     // Toggle for showing/hiding #outrig goroutines
     showOutrigGoroutines: PrimitiveAtom<boolean> = atom(false);
 
+    // Toggle for showing all goroutines vs only active ones
+    showActiveOnly: PrimitiveAtom<boolean> = atom(false);
+
     // Stacktrace display settings - can be "raw", "simplified", or "simplified:files"
     simpleStacktraceMode: PrimitiveAtom<string> = atom("simplified");
 
@@ -68,6 +71,18 @@ class GoRoutinesModel {
 
         // Otherwise use the user-selected mode
         return userSelectedMode;
+    });
+
+    // Calculate the time offset from the start for display (derived atom)
+    timeOffsetSeconds: Atom<number> = atom((get) => {
+        const lastSearchTimestamp = get(this.lastSearchTimestamp);
+        const fullTimeSpan = get(this.fullTimeSpan);
+
+        if (!fullTimeSpan || lastSearchTimestamp === 0) {
+            return 0;
+        }
+
+        return Math.floor((lastSearchTimestamp - fullTimeSpan.start) / 1000);
     });
 
     // Total count of goroutines (derived from appRunGoRoutines)
@@ -191,6 +206,16 @@ class GoRoutinesModel {
         this.searchGoroutines(store.get(this.searchTerm));
     }
 
+    // Toggle showing all vs active only goroutines
+    toggleShowActiveOnly(): void {
+        const store = getDefaultStore();
+        const showActiveOnly = store.get(this.showActiveOnly);
+        store.set(this.showActiveOnly, !showActiveOnly);
+
+        // Trigger a new search with the current search term
+        this.searchGoroutines(store.get(this.searchTerm));
+    }
+
     // Search for goroutines matching the search term
     async searchGoroutines(searchTerm: string) {
         const store = getDefaultStore();
@@ -198,6 +223,7 @@ class GoRoutinesModel {
         this.currentSearchId = searchId;
         const showOutrig = store.get(this.showOutrigGoroutines);
         const selectedStates = store.get(this.selectedStates);
+        const showActiveOnly = store.get(this.showActiveOnly);
 
         try {
             // Build the systemQuery based on selected states and showOutrig setting
@@ -232,14 +258,15 @@ class GoRoutinesModel {
             const effectiveTimestamp = this.getEffectiveTimestamp();
 
             // Call the search RPC to get matching goroutine IDs
-            const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, {
+            const fullQuery = {
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
                 systemquery: systemQuery,
                 timestamp: effectiveTimestamp,
                 showoutrig: showOutrig,
-                activeonly: true,
-            });
+                activeonly: showActiveOnly,
+            };
+            const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, fullQuery);
 
             // Check if this search is still the current one
             if (this.currentSearchId !== searchId) {

@@ -25,6 +25,8 @@ type GoRoutine struct {
 	GoId                int64
 	Name                string
 	Tags                []string
+	CreatedByGoId       int64                // ID of the goroutine that created this one
+	CreatedByFrame      *rpctypes.StackFrame // Frame information for the creation point
 	StackTraces         *utilds.CirBuf[ds.GoRoutineStack]
 	TimeSpan            rpctypes.TimeSpan // Time span when the goroutine was active
 	LastActiveIteration int64             // Iteration when the goroutine was last active
@@ -221,6 +223,19 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 			goroutine.Tags = stack.Tags
 		}
 
+		// Set CreatedByGoId and CreatedByFrame from the first stack trace we see for this goroutine
+		if goroutine.CreatedByGoId == 0 && goroutine.CreatedByFrame == nil && stack.StackTrace != "" {
+			// Parse the stack trace to extract creation information
+			if parsedGoRoutine, err := stacktrace.ParseGoRoutineStackTrace(stack.StackTrace, "", stack.GoId, stack.State); err == nil {
+				if parsedGoRoutine.CreatedByGoId != 0 {
+					goroutine.CreatedByGoId = parsedGoRoutine.CreatedByGoId
+				}
+				if parsedGoRoutine.CreatedByFrame != nil {
+					goroutine.CreatedByFrame = parsedGoRoutine.CreatedByFrame
+				}
+			}
+		}
+
 		// Handle stack trace updates based on whether it's a delta update
 		if isDelta && stack.Same {
 			// Delta updates need a base stack to merge with
@@ -362,16 +377,26 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 		// For all other cases: use all goroutines (either activeOnly with timestamp, or not activeOnly)
 		goroutineIds = gp.goRoutines.Keys()
 	}
-
 	parsedGoRoutines := gp.getParsedGoRoutinesAtTimestamp_nolock(moduleName, goroutineIds, timestamp, activeOnly)
 	return parsedGoRoutines, effectiveTimestamp
 }
 
 // createParsedGoRoutine creates a ParsedGoRoutine from a GoRoutine and stack trace
-func (gp *GoRoutinePeer) createParsedGoRoutine(goroutineObj GoRoutine, stack ds.GoRoutineStack, moduleName string, isActive bool) (rpctypes.ParsedGoRoutine, error) {
-	parsedGoRoutine, err := stacktrace.ParseGoRoutineStackTrace(stack.StackTrace, moduleName, stack.GoId, stack.State)
-	if err != nil {
-		return rpctypes.ParsedGoRoutine{}, err
+func (gp *GoRoutinePeer) createParsedGoRoutine(goroutineObj GoRoutine, stack *ds.GoRoutineStack, moduleName string, isActive bool) (rpctypes.ParsedGoRoutine, error) {
+	var parsedGoRoutine rpctypes.ParsedGoRoutine
+	var err error
+
+	if stack == nil {
+		// Create a basic ParsedGoRoutine with just the GoId set
+		parsedGoRoutine = rpctypes.ParsedGoRoutine{
+			GoId:         goroutineObj.GoId,
+			PrimaryState: "inactive",
+		}
+	} else {
+		parsedGoRoutine, err = stacktrace.ParseGoRoutineStackTrace(stack.StackTrace, moduleName, stack.GoId, stack.State)
+		if err != nil {
+			return rpctypes.ParsedGoRoutine{}, err
+		}
 	}
 
 	parsedGoRoutine.Name = goroutineObj.Name
@@ -382,6 +407,10 @@ func (gp *GoRoutinePeer) createParsedGoRoutine(goroutineObj GoRoutine, stack ds.
 	if goroutineObj.Decl != nil {
 		parsedGoRoutine.CSNum = goroutineObj.Decl.CSNum
 	}
+
+	// Set CreatedBy information from stored values
+	parsedGoRoutine.CreatedByGoId = goroutineObj.CreatedByGoId
+	parsedGoRoutine.CreatedByFrame = goroutineObj.CreatedByFrame
 
 	// Set the active time span
 	parsedGoRoutine.ActiveTimeSpan = goroutineObj.TimeSpan
@@ -407,18 +436,19 @@ func (gp *GoRoutinePeer) getParsedGoRoutinesAtTimestamp_nolock(moduleName string
 		logicalIndex := gp.timeAligner.GetLogicalTimeFromRealTimestamp(effectiveTimestamp)
 		bestStack, found := goroutineObj.StackTraces.GetAt(logicalIndex)
 
-		// Check if stack is valid (not a zero value)
-		if !found || bestStack.GoId == 0 {
-			continue
-		}
-
 		// Determine if goroutine is active at this timestamp
 		isActive := goroutineObj.TimeSpan.IsWithinSpanTs(effectiveTimestamp)
 		if activeOnly && !isActive {
 			continue
 		}
 
-		parsedGoRoutine, err := gp.createParsedGoRoutine(goroutineObj, bestStack, moduleName, isActive)
+		// Check if stack is valid (not a zero value) and pass pointer or nil
+		var stackPtr *ds.GoRoutineStack
+		if found && bestStack.GoId != 0 {
+			stackPtr = &bestStack
+		}
+
+		parsedGoRoutine, err := gp.createParsedGoRoutine(goroutineObj, stackPtr, moduleName, isActive)
 		if err != nil {
 			continue
 		}

@@ -24,6 +24,7 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
     const searchResultInfo = useAtomValue(model.searchResultInfo);
     const resultCount = useAtomValue(model.resultCount);
     const lastSearchTimestamp = useAtomValue(model.lastSearchTimestamp);
+    const timeOffsetSeconds = useAtomValue(model.timeOffsetSeconds);
     const errorSpans = searchResultInfo.errorSpans || [];
 
     const goroutineStateCounts = searchResultInfo.goroutinestatecounts || {};
@@ -90,17 +91,17 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
             </div>
 
             {lastSearchTimestamp > 0 && (
-                <div className="px-4 py-2 border-b border-border">
-                    <div className="flex items-center gap-4 text-xs text-secondary">
-                        <span className="whitespace-nowrap">
-                            GoRoutines @ {new Date(lastSearchTimestamp).toLocaleTimeString()}
-                        </span>
-                        <TimeSlider model={model} />
-                    </div>
+                <div className="px-4 py-2">
+                    <TimeSlider model={model} />
                 </div>
             )}
 
             <div className="px-4 py-2 border-b border-border">
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-secondary whitespace-nowrap">
+                        @ +{timeOffsetSeconds}s
+                    </span>
+                </div>
                 <div className="flex items-start gap-x-2">
                     <div className="flex items-start shrink-0">
                         <Tag
