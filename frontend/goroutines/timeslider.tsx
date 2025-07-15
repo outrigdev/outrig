@@ -29,10 +29,10 @@ export const TimeSlider: React.FC<TimeSliderProps> = ({ model }) => {
     const endTime = fullTimeSpan.end;
     const actualDurationSeconds = Math.floor((endTime - startTime) / 1000);
     const MAX_TIME_RANGE_SECONDS = 600 - 5;
-    
+
     let maxRange: number;
     let adjustedStartTime: number;
-    
+
     if (actualDurationSeconds <= MAX_TIME_RANGE_SECONDS) {
         maxRange = actualDurationSeconds;
         adjustedStartTime = startTime;
@@ -49,7 +49,9 @@ export const TimeSlider: React.FC<TimeSliderProps> = ({ model }) => {
     // Convert timestamps to slider values (0 to maxRange seconds)
     // If selectedTimestamp is 0 or in search latest mode, push slider to the right
     const currentValue =
-        searchLatestMode || selectedTimestamp === 0 ? maxRange : Math.floor((selectedTimestamp - adjustedStartTime) / 1000);
+        searchLatestMode || selectedTimestamp === 0
+            ? maxRange
+            : Math.floor((selectedTimestamp - adjustedStartTime) / 1000);
 
     const handleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const sliderValue = parseInt(event.target.value);

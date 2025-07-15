@@ -400,7 +400,6 @@ class GoRoutinesModel {
         await this.searchGoroutines(term);
     }
 
-
     // Set the selected timestamp and disable search latest mode
     setSelectedTimestamp(timestamp: number) {
         const store = getDefaultStore();

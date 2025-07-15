@@ -286,8 +286,8 @@ type GoRoutineSearchResultData struct {
 	TotalNonOutrig           int               `json:"totalnonoutrig,omitempty"`       // Total count excluding #outrig goroutines (only for goroutines search)
 	GoRoutineStateCounts     map[string]int    `json:"goroutinestatecounts,omitempty"` // PrimaryState counts for all searched goroutines
 	Results                  []int64           `json:"results"`
-	ErrorSpans               []SearchErrorSpan `json:"errorspans,omitempty"`           // Error spans in the search query
-	EffectiveSearchTimestamp int64             `json:"effectivesearchtimestamp"`       // The actual timestamp used for the search
+	ErrorSpans               []SearchErrorSpan `json:"errorspans,omitempty"`     // Error spans in the search query
+	EffectiveSearchTimestamp int64             `json:"effectivesearchtimestamp"` // The actual timestamp used for the search
 }
 
 // WatchSearchRequestData defines the request for watch search
@@ -358,17 +358,26 @@ type StackFrame struct {
 }
 
 type TimeSpan struct {
-	Label string `json:"label,omitempty"` // Label for the time span (e.g., "Running", "Waiting")
-	Start int64  `json:"start"`           // Start time in milliseconds
-	End   int64  `json:"end,omitempty"`   // End time in milliseconds (0 means ongoing)
-	Exact bool   `json:"exact,omitempty"` // True if the start and end times are exact (not approximate)
+	Label    string `json:"label,omitempty"`    // Label for the time span (e.g., "Running", "Waiting")
+	Start    int64  `json:"start"`              // Start time in milliseconds
+	StartIdx int    `json:"startidx,omitempty"` // Start index in the logical time sequence (if applicable)
+	End      int64  `json:"end,omitempty"`      // End time in milliseconds (-1 means ongoing)
+	EndIdx   int    `json:"endidx,omitempty"`   // End index in the logical time sequence (-1 means ongoing)
+	Exact    bool   `json:"exact,omitempty"`    // True if the start and end times are exact (not approximate)
 }
 
-func (span TimeSpan) IsWithinSpan(ts int64) bool {
+func (span TimeSpan) IsWithinSpanTs(ts int64) bool {
 	if ts < span.Start {
 		return false
 	}
-	return (span.End == 0 || ts <= span.End)
+	return (span.End == -1 || ts <= span.End)
+}
+
+func (span TimeSpan) IsWithinSpanIdx(idx int) bool {
+	if idx < span.StartIdx {
+		return false
+	}
+	return (span.EndIdx == -1 || idx <= span.EndIdx)
 }
 
 // ParsedGoRoutine represents a parsed goroutine stack trace

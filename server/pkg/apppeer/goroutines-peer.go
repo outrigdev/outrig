@@ -42,6 +42,7 @@ type GoRoutinePeer struct {
 	hasSeenFullUpdate bool                                            // Flag to track if we've seen a full update
 	appRunId          string                                          // ID of the app run this peer belongs to
 	timeSpan          rpctypes.TimeSpan                               // Time range for goroutine collections
+	timeAligner       *utilds.TimeSampleAligner                       // Aligns goroutine stack timestamps to logical indices
 }
 
 // mergeGoRoutineStacks combines a base stack with a delta stack to create a complete stack
@@ -68,18 +69,21 @@ func MakeGoRoutinePeer(appRunId string) *GoRoutinePeer {
 		currentIteration: 0,
 		maxGoId:          0,
 		appRunId:         appRunId,
+		timeAligner:      utilds.MakeTimeSampleAligner(GoRoutineStackBufferSize),
 	}
 }
 
 // getOrCreateGoRoutine gets or creates a goroutine with the given ID and timestamp
-func (gp *GoRoutinePeer) getOrCreateGoRoutine(goId int64, timestamp int64) (GoRoutine, bool) {
+func (gp *GoRoutinePeer) getOrCreateGoRoutine(goId int64, timestamp int64, logicalTime int) (GoRoutine, bool) {
 	goroutine, wasCreated := gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
 		return GoRoutine{
 			GoId:        goId,
 			StackTraces: utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
 			TimeSpan: rpctypes.TimeSpan{
-				Start: timestamp,
-				End:   0, // Keep End at 0 for ongoing goroutines per TimeSpan spec
+				Start:    timestamp,
+				StartIdx: logicalTime,
+				End:      -1, // Keep End at -1 for ongoing goroutines per TimeSpan spec
+				EndIdx:   -1, // Keep EndIdx at -1 for ongoing goroutines
 			},
 			LastActiveIteration: gp.currentIteration,
 		}
@@ -121,12 +125,22 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 	timestamp := info.Ts
 	isDelta := info.Delta
 
+	// Add sample to time aligner
+	logicalTime, err := gp.timeAligner.AddSample(timestamp)
+	if err != nil {
+		fmt.Printf("WARNING: [AppRun: %s] TimeSampleAligner error: %v\n", gp.appRunId, err)
+		return // Drop this sample
+	}
+	_ = logicalTime // We'll use this later for WriteAt
+
 	// Update the overall TimeSpan for goroutine collections
 	if gp.timeSpan.Start == 0 || timestamp < gp.timeSpan.Start {
 		gp.timeSpan.Start = timestamp
+		gp.timeSpan.StartIdx = logicalTime
 	}
 	if timestamp > gp.timeSpan.End {
 		gp.timeSpan.End = timestamp
+		gp.timeSpan.EndIdx = logicalTime
 	}
 
 	// If this is a delta update but we haven't seen a full update yet, ignore it
@@ -152,7 +166,7 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 			gp.maxGoId = goId
 		}
 
-		goroutine, _ := gp.getOrCreateGoRoutine(goId, timestamp)
+		goroutine, _ := gp.getOrCreateGoRoutine(goId, timestamp, logicalTime)
 
 		// Store the declaration information
 		goroutine.Decl = &decl
@@ -168,12 +182,14 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		// If GoDecl has StartTs set, this is the exact start time for the goroutine
 		if decl.StartTs != 0 {
 			goroutine.TimeSpan.Start = decl.StartTs
+			goroutine.TimeSpan.StartIdx = gp.timeAligner.GetLogicalTimeFromRealTimestamp(decl.StartTs)
 			goroutine.TimeSpan.Exact = true
 		}
 
 		// If GoDecl has EndTs set, this is the exact end time for the goroutine
 		if decl.EndTs != 0 {
 			goroutine.TimeSpan.End = decl.EndTs
+			goroutine.TimeSpan.EndIdx = gp.timeAligner.GetLogicalTimeFromRealTimestamp(decl.EndTs)
 		}
 
 		gp.goRoutines.Set(goId, goroutine)
@@ -192,7 +208,7 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 			gp.maxGoId = goId
 		}
 
-		goroutine, wasFound := gp.getOrCreateGoRoutine(goId, timestamp)
+		goroutine, wasFound := gp.getOrCreateGoRoutine(goId, timestamp, logicalTime)
 
 		// Update the last active iteration
 		goroutine.LastActiveIteration = gp.currentIteration
@@ -215,14 +231,14 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 			}
 			if exists {
 				completeStack := mergeGoRoutineStacks(lastStack, stack)
-				goroutine.StackTraces.Write(completeStack)
+				goroutine.StackTraces.WriteAt(completeStack, logicalTime)
 			} else {
 				logKey := fmt.Sprintf("goroutine-nodeltaupdate-%s", gp.appRunId)
 				logutil.LogfOnce(logKey, "WARNING: [AppRun: %s] Delta update received for goroutine %d with no last stack\n", gp.appRunId, goId)
 			}
 		} else {
 			// full updates write the stack directly
-			goroutine.StackTraces.Write(stack)
+			goroutine.StackTraces.WriteAt(stack, logicalTime)
 		}
 
 		gp.goRoutines.Set(goId, goroutine)
@@ -236,8 +252,9 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		if !activeGoroutines[prevActiveGoId] {
 			// This goroutine was active but is no longer active - set End timestamp if not already set
 			if goroutine, exists := gp.goRoutines.GetEx(prevActiveGoId); exists {
-				if goroutine.TimeSpan.End == 0 {
+				if goroutine.TimeSpan.End == -1 {
 					goroutine.TimeSpan.End = timestamp
+					goroutine.TimeSpan.EndIdx = logicalTime
 					gp.goRoutines.Set(prevActiveGoId, goroutine)
 					gp.updateTimeSpanMap(prevActiveGoId, goroutine)
 				}
@@ -346,40 +363,8 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 		goroutineIds = gp.goRoutines.Keys()
 	}
 
-	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(goroutineIds))
-	for _, goId := range goroutineIds {
-		goroutineObj, exists := gp.goRoutines.GetEx(goId)
-		if !exists {
-			continue
-		}
-		bestStack, found, isActive := goroutineObj.getStackTraceAt(timestamp)
-		if !found {
-			continue
-		}
-		if activeOnly && !isActive {
-			continue
-		}
-		parsedGoRoutine, err := gp.createParsedGoRoutine(goroutineObj, bestStack, moduleName, isActive)
-		if err != nil {
-			continue
-		}
-		parsedGoRoutines = append(parsedGoRoutines, parsedGoRoutine)
-	}
-
-	// Sort goroutines by ID to ensure consistent ordering
-	if len(parsedGoRoutines) > 1 {
-		sort.Slice(parsedGoRoutines, func(i, j int) bool {
-			return parsedGoRoutines[i].GoId < parsedGoRoutines[j].GoId
-		})
-	}
-
+	parsedGoRoutines := gp.getParsedGoRoutinesAtTimestamp_nolock(moduleName, goroutineIds, timestamp, activeOnly)
 	return parsedGoRoutines, effectiveTimestamp
-}
-
-// isGoRoutineActiveAtTimestamp checks if a goroutine was active at the given timestamp
-func (gp *GoRoutinePeer) isGoRoutineActiveAtTimestamp(goroutineObj GoRoutine, timestamp int64) bool {
-	timeSpan := goroutineObj.TimeSpan
-	return timeSpan.Start <= timestamp && timeSpan.End >= timestamp
 }
 
 // createParsedGoRoutine creates a ParsedGoRoutine from a GoRoutine and stack trace
@@ -404,21 +389,36 @@ func (gp *GoRoutinePeer) createParsedGoRoutine(goroutineObj GoRoutine, stack ds.
 	return parsedGoRoutine, nil
 }
 
-// GetParsedGoRoutinesByIds returns parsed goroutines for specific goroutine IDs
-func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int64, timestamp int64) []rpctypes.ParsedGoRoutine {
-	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(goIds))
-	for _, goId := range goIds {
+// getParsedGoRoutinesAtTimestamp_nolock is the internal implementation that assumes the lock is already held
+func (gp *GoRoutinePeer) getParsedGoRoutinesAtTimestamp_nolock(moduleName string, goroutineIds []int64, timestamp int64, activeOnly bool) []rpctypes.ParsedGoRoutine {
+	effectiveTimestamp := timestamp
+	if effectiveTimestamp == 0 {
+		effectiveTimestamp = gp.timeSpan.End
+	}
+
+	parsedGoRoutines := make([]rpctypes.ParsedGoRoutine, 0, len(goroutineIds))
+	for _, goId := range goroutineIds {
 		goroutineObj, exists := gp.goRoutines.GetEx(goId)
 		if !exists {
 			continue
 		}
 
-		stack, found, isActive := goroutineObj.getStackTraceAt(timestamp)
-		if !found {
+		// Convert effective timestamp to logical index and get stack directly from CirBuf
+		logicalIndex := gp.timeAligner.GetLogicalTimeFromRealTimestamp(effectiveTimestamp)
+		bestStack, found := goroutineObj.StackTraces.GetAt(logicalIndex)
+
+		// Check if stack is valid (not a zero value)
+		if !found || bestStack.GoId == 0 {
 			continue
 		}
 
-		parsedGoRoutine, err := gp.createParsedGoRoutine(goroutineObj, stack, moduleName, isActive)
+		// Determine if goroutine is active at this timestamp
+		isActive := goroutineObj.TimeSpan.IsWithinSpanTs(effectiveTimestamp)
+		if activeOnly && !isActive {
+			continue
+		}
+
+		parsedGoRoutine, err := gp.createParsedGoRoutine(goroutineObj, bestStack, moduleName, isActive)
 		if err != nil {
 			continue
 		}
@@ -435,6 +435,14 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 	return parsedGoRoutines
 }
 
+// GetParsedGoRoutinesByIds returns parsed goroutines for specific goroutine IDs
+func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int64, timestamp int64) []rpctypes.ParsedGoRoutine {
+	gp.lock.RLock()
+	defer gp.lock.RUnlock()
+
+	return gp.getParsedGoRoutinesAtTimestamp_nolock(moduleName, goIds, timestamp, false)
+}
+
 // GetTimeSpansSinceVersion returns all goroutine time spans that have been updated since the given version
 func (gp *GoRoutinePeer) GetTimeSpansSinceVersion(sinceVersion int64) ([]rpctypes.GoTimeSpan, int64, rpctypes.TimeSpan) {
 	updatedTimeSpans, currentVersion := gp.timeSpanMap.GetSinceVersion(sinceVersion)
@@ -449,44 +457,4 @@ func (gp *GoRoutinePeer) GetTimeSpansSinceVersion(sinceVersion int64) ([]rpctype
 	}
 
 	return result, currentVersion, fullTimeSpan
-}
-
-// getStackTraceAt returns the stack trace at the given timestamp and whether the goroutine is active
-// returns (stack, found, active)
-func (gr *GoRoutine) getStackTraceAt(timestamp int64) (ds.GoRoutineStack, bool, bool) {
-	// Determine if goroutine is active at this timestamp
-	isActive := (timestamp == 0 && gr.TimeSpan.End == 0) || gr.TimeSpan.IsWithinSpan(timestamp)
-
-	if timestamp == 0 || (gr.TimeSpan.End != 0 && timestamp > gr.TimeSpan.End) {
-		// Get latest stack (for timestamp=0 or after goroutine ended)
-		stack, _, found := gr.StackTraces.GetLast()
-		return stack, found, isActive
-	}
-
-	if timestamp < gr.TimeSpan.Start {
-		// Get earliest stack (before goroutine started)
-		stack, _, found := gr.StackTraces.GetFirst()
-		return stack, found, isActive
-	}
-
-	// Find stack with largest timestamp <= requested timestamp
-	var bestStack ds.GoRoutineStack
-	var found bool
-	gr.StackTraces.ForEach(func(stack ds.GoRoutineStack) bool {
-		if stack.Ts > timestamp {
-			return false // Stop searching
-		}
-		bestStack = stack
-		found = true
-		return true // Continue
-	})
-
-	// If no stack found, timestamp is before all stacks - return first
-	// this is a weird case since TimeSpan.Start should have prevented this...
-	if !found {
-		stack, _, found := gr.StackTraces.GetFirst()
-		return stack, found, isActive
-	}
-
-	return bestStack, found, isActive
 }

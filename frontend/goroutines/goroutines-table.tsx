@@ -131,8 +131,8 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
 
     // Calculate positions as percentages
     const grStartTime = Math.max(grTimeSpan.start, startTime);
-    // If end is 0 or null, it spans to the end of the range
-    const grEndTime = grTimeSpan.end && grTimeSpan.end > 0 ? Math.min(grTimeSpan.end, endTime) : endTime;
+    // If end is -1 or null, it spans to the end of the range
+    const grEndTime = grTimeSpan.end != null && grTimeSpan.end !== -1 ? Math.min(grTimeSpan.end, endTime) : endTime;
 
     const startPercent = ((grStartTime - startTime) / totalDuration) * 100;
     const widthPercent = ((grEndTime - grStartTime) / totalDuration) * 100;
@@ -154,7 +154,7 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     const absoluteStartTime = new Date(grTimeSpan.start).toLocaleTimeString();
     const relativeStartTime = ((grTimeSpan.start - startTime) / 1000).toFixed(2);
     const duration =
-        grTimeSpan.end && grTimeSpan.end > 0 ? ((grTimeSpan.end - grTimeSpan.start) / 1000).toFixed(2) : "ongoing";
+        grTimeSpan.end != null && grTimeSpan.end !== -1 ? ((grTimeSpan.end - grTimeSpan.start) / 1000).toFixed(2) : "ongoing";
 
     const tooltipContent = (
         <div className="text-xs">
@@ -220,12 +220,12 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
 
     // Calculate timeline range once for all rows using fullTimeSpan
     const timelineRange = React.useMemo(() => {
-        if (!fullTimeSpan?.start) {
+        if (!fullTimeSpan?.start || !fullTimeSpan?.end) {
             return { startTime: 0, endTime: 0 };
         }
 
         const startTime = fullTimeSpan.start;
-        const endTime = fullTimeSpan.end && fullTimeSpan.end > 0 ? fullTimeSpan.end : Date.now();
+        const endTime = fullTimeSpan.end;
 
         // If starttime is more than 600s before endtime, set starttime to endtime - 600s
         const maxStartTime = endTime - 600 * 1000;
