@@ -21,12 +21,13 @@ const cleanFuncName = (funcname: string): string => {
     return cleaned;
 };
 
-// Helper function to format goroutine name according to the pattern [pkg].[func]#[csnum] or [pkg].[name]#[csnum]
+// Helper function to format goroutine name according to the pattern [pkg].[func]:[line] or [pkg].[name]
 const formatGoroutineName = (goroutine: ParsedGoRoutine): React.ReactNode => {
     const createdByFrame = goroutine.createdbyframe;
+    const hasName = goroutine.name && goroutine.name.length > 0;
 
     if (!createdByFrame) {
-        if (goroutine.name) {
+        if (hasName) {
             return <span className="text-primary">{goroutine.name}</span>;
         } else {
             return <span className="text-muted">(unnamed)</span>;
@@ -34,13 +35,15 @@ const formatGoroutineName = (goroutine: ParsedGoRoutine): React.ReactNode => {
     }
 
     const pkg = createdByFrame.package.split("/").pop() || createdByFrame.package;
-    const nameOrFunc = goroutine.name ? `[${goroutine.name}]` : cleanFuncName(createdByFrame.funcname);
+    const nameOrFunc = hasName ? `[${goroutine.name}]` : cleanFuncName(createdByFrame.funcname);
 
     return (
         <>
-            {!goroutine.name && <span className="text-secondary">{pkg}.</span>}
+            {!hasName && <span className="text-secondary">{pkg}.</span>}
             <span className="text-primary">{nameOrFunc}</span>
-            {goroutine.csnum && goroutine.csnum !== 0 && <span className="text-secondary">#{goroutine.csnum}</span>}
+            {!hasName && createdByFrame.linenumber && (
+                <span className="text-secondary">:{createdByFrame.linenumber}</span>
+            )}
         </>
     );
 };
@@ -154,7 +157,9 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     const absoluteStartTime = new Date(grTimeSpan.start).toLocaleTimeString();
     const relativeStartTime = ((grTimeSpan.start - startTime) / 1000).toFixed(2);
     const duration =
-        grTimeSpan.end != null && grTimeSpan.end !== -1 ? ((grTimeSpan.end - grTimeSpan.start) / 1000).toFixed(2) : "ongoing";
+        grTimeSpan.end != null && grTimeSpan.end !== -1
+            ? ((grTimeSpan.end - grTimeSpan.start) / 1000).toFixed(2)
+            : "ongoing";
 
     const tooltipContent = (
         <div className="text-xs">
