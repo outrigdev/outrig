@@ -13,7 +13,7 @@ import { GoRoutinesModel } from "./goroutines-model";
 import { GrTableModel } from "./grtable-model";
 import { StackTrace } from "./stacktrace";
 
-const ROW_HEIGHT = 45;
+const ROW_HEIGHT = 32;
 
 // Helper function to clean up function names by removing parens, asterisks, and .func suffixes
 const cleanFuncName = (funcname: string): string => {
@@ -68,11 +68,11 @@ function cell_name(info: any, tableModel: GrTableModel, expandedRows: Set<number
     const isExpanded = expandedRows.has(goroutine.goid);
 
     return (
-        <div className="flex items-start gap-2">
+        <div className="flex items-center gap-2">
             <Tooltip content="Toggle Stacktrace">
                 <button
                     className={cn(
-                        "flex-shrink-0 w-4 h-4 flex items-center justify-center transition-colors mt-0.5 cursor-pointer",
+                        "flex-shrink-0 w-4 h-4 flex items-center justify-center transition-colors cursor-pointer",
                         isExpanded ? "text-primary" : "text-secondary hover:text-primary"
                     )}
                     onClick={() => tableModel.toggleRowExpanded(goroutine.goid)}
@@ -80,10 +80,10 @@ function cell_name(info: any, tableModel: GrTableModel, expandedRows: Set<number
                     <List className="w-3 h-3" />
                 </button>
             </Tooltip>
-            <div className="flex-1">
+            <div className="flex-1 flex items-center gap-2">
                 <div className="text-primary">{formatGoroutineName(goroutine)}</div>
                 {tags && tags.length > 0 && (
-                    <div className="text-xs text-muted hover:text-primary mt-0.5 transition-colors cursor-default">
+                    <div className="text-xs text-muted hover:text-primary transition-colors cursor-default">
                         {tags.map((tag: string) => `#${tag}`).join(" ")}
                     </div>
                 )}
@@ -98,7 +98,7 @@ function cell_primarystate(info: any) {
     return (
         <div className="flex">
             {state ? (
-                <Tag label={state} isSelected={false} variant="secondary" />
+                <Tag label={state} isSelected={false} variant="secondary" compact={true} />
             ) : (
                 <span className="text-muted">-</span>
             )}
