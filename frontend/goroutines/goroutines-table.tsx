@@ -1,6 +1,7 @@
 // Copyright 2025, Command Line Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { AppModel } from "@/appmodel";
 import { cn } from "@/util/util";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useAtomValue } from "jotai";
@@ -115,6 +116,7 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     const grTimeSpan = useAtomValue(model.getGRTimeSpanAtom(goroutine.goid));
     const selectedTimestamp = useAtomValue(model.selectedTimestamp);
     const searchLatestMode = useAtomValue(model.searchLatestMode);
+    const isAppRunning = useAtomValue(AppModel.selectedAppRunIsRunningAtom);
 
     if (!grTimeSpan?.start) {
         return <div className="h-4 bg-muted/20 rounded-sm"></div>;
@@ -132,22 +134,40 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
         return <div className="h-4 bg-muted/20 rounded-sm"></div>;
     }
 
-    // Calculate positions as percentages
+    // Calculate the actual goroutine duration in seconds
     const grStartTime = Math.max(grTimeSpan.start, startTime);
-    // If end is -1 or null, it spans to the end of the range
     const grEndTime = grTimeSpan.end != null && grTimeSpan.end !== -1 ? Math.min(grTimeSpan.end, endTime) : endTime;
+    const actualDurationMs = grEndTime - grStartTime;
+    const actualDurationSeconds = actualDurationMs / 1000;
 
+    // Check if goroutine is still running (end is null or -1) AND app is running
+    const isGoroutineRunning = (grTimeSpan.end == null || grTimeSpan.end === -1) && isAppRunning;
+
+    // Calculate positions and widths
     const startPercent = ((grStartTime - startTime) / totalDuration) * 100;
     const widthPercent = ((grEndTime - grStartTime) / totalDuration) * 100;
-
-    // Ensure minimum 2% width for visibility
     const minWidthPercent = 2;
     const finalWidthPercent = Math.max(widthPercent, minWidthPercent);
 
+    // Calculate container width - same for all goroutines, only depends on app running state
+    let containerWidthStyle: string;
+    if (!isAppRunning) {
+        containerWidthStyle = "100%";
+    } else {
+        // For running app: pad timeline to 15s boundary and calculate width = actual timeline / padded timeline
+        const timelineDurationSeconds = totalDuration / 1000;
+        const paddedTimelineSeconds = Math.max(Math.ceil(timelineDurationSeconds / 15) * 15, 15);
+        const widthPercent = (timelineDurationSeconds / paddedTimelineSeconds) * 100;
+        containerWidthStyle = `${widthPercent}%`;
+    }
+
     // Calculate slider position marker
     let sliderMarkerPercent: number | null = null;
-    if (!searchLatestMode && selectedTimestamp > 0) {
-        // Only show marker if we have a specific timestamp selected (not in latest mode)
+    if (searchLatestMode) {
+        // In search latest mode, show marker at the end
+        sliderMarkerPercent = 100;
+    } else if (selectedTimestamp > 0) {
+        // Show marker at specific timestamp position
         if (selectedTimestamp >= startTime && selectedTimestamp <= endTime) {
             sliderMarkerPercent = ((selectedTimestamp - startTime) / totalDuration) * 100;
         }
@@ -174,7 +194,7 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     );
 
     return (
-        <div className="relative h-4 bg-muted/20 rounded-sm overflow-visible w-full">
+        <div className="relative h-4 bg-muted/20 rounded-sm overflow-visible" style={{ width: containerWidthStyle }}>
             <Tooltip content={tooltipContent}>
                 <div
                     className="absolute h-full bg-accent rounded-sm cursor-pointer"

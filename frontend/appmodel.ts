@@ -52,6 +52,14 @@ class AppModel {
         return appRunInfo?.starttime || null;
     });
 
+    // Selected app run is running status
+    selectedAppRunIsRunningAtom: Atom<boolean> = atom((get) => {
+        const appRunId = get(this.selectedAppRunId);
+        if (!appRunId) return false;
+        const appRunInfo = get(this.getAppRunInfoAtom(appRunId));
+        return appRunInfo?.isrunning || false;
+    });
+
     // Cache for app run info atoms
     appRunInfoAtomCache: Map<string, Atom<AppRunInfo>> = new Map();
 
