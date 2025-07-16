@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"time"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 func worker(id int, duration time.Duration) {
@@ -28,6 +31,11 @@ func periodicTask(name string, interval time.Duration, totalDuration time.Durati
 }
 
 func main() {
+
+	go func() {
+		http.ListenAndServe(":6060", nil)
+	}()
+
 	fmt.Println("Starting dynamic 30-second test...")
 	start := time.Now()
 
@@ -94,7 +102,7 @@ func main() {
 		fmt.Println("Late tasks starting...")
 		//outrig name="late-worker"
 		go worker(200, 8*time.Second)
-		
+
 		//outrig name="final-sprint"
 		go func() {
 			for i := 0; i < 3; i++ {
@@ -113,7 +121,7 @@ func main() {
 	}()
 
 	fmt.Println("All initial workers started, test will run for 30 seconds...")
-	
+
 	// Progress indicator
 	go func() {
 		for elapsed := 5; elapsed <= 30; elapsed += 5 {
