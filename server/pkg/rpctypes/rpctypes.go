@@ -360,9 +360,9 @@ type StackFrame struct {
 type TimeSpan struct {
 	Label    string `json:"label,omitempty"`    // Label for the time span (e.g., "Running", "Waiting")
 	Start    int64  `json:"start"`              // Start time in milliseconds
-	StartIdx int    `json:"startidx,omitempty"` // Start index in the logical time sequence (if applicable)
-	End      int64  `json:"end,omitempty"`      // End time in milliseconds (-1 means ongoing)
-	EndIdx   int    `json:"endidx,omitempty"`   // End index in the logical time sequence (-1 means ongoing)
+	StartIdx int    `json:"startidx"`           // Start index in the logical time sequence (if applicable)
+	End      int64  `json:"end"`                // End time in milliseconds (-1 means ongoing)
+	EndIdx   int    `json:"endidx"`             // End index in the logical time sequence (-1 means ongoing)
 	Exact    bool   `json:"exact,omitempty"`    // True if the start and end times are exact (not approximate)
 }
 

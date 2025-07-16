@@ -305,3 +305,13 @@ export function formatMemorySize(bytes: number, sigFigs = 3): FormattedMemory {
         membytes: originalBytes, // Use the original bytes value
     };
 }
+
+/**
+ * Pads a number up to the next multiple of the given padding value
+ * @param value The value to pad
+ * @param padding The padding amount (multiple to round up to)
+ * @returns The padded value, ensuring it's at least the padding amount
+ */
+export function padToMultiple(value: number, padding: number): number {
+    return Math.max(Math.ceil(value / padding) * padding, padding);
+}

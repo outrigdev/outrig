@@ -36,7 +36,7 @@ func main() {
 		http.ListenAndServe(":6060", nil)
 	}()
 
-	fmt.Println("Starting dynamic 30-second test...")
+	fmt.Println("Starting dynamic 35-second test...")
 	start := time.Now()
 
 	// Initial batch of workers with different durations
@@ -120,16 +120,16 @@ func main() {
 		}()
 	}()
 
-	fmt.Println("All initial workers started, test will run for 30 seconds...")
+	fmt.Println("All initial workers started, test will run for 35 seconds...")
 
 	// Progress indicator
 	go func() {
-		for elapsed := 5; elapsed <= 30; elapsed += 5 {
+		for elapsed := 5; elapsed <= 35; elapsed += 5 {
 			time.Sleep(5 * time.Second)
-			fmt.Printf("Test progress: %d/30 seconds elapsed\n", elapsed)
+			fmt.Printf("Test progress: %d/35 seconds elapsed\n", elapsed)
 		}
 	}()
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(35 * time.Second)
 	fmt.Printf("Test completed after %v\n", time.Since(start))
 }

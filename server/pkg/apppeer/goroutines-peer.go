@@ -86,8 +86,9 @@ func MakeGoRoutinePeer(appRunId string) *GoRoutinePeer {
 }
 
 // getOrCreateGoRoutine gets or creates a goroutine with the given ID and timestamp
+// Returns the goroutine and a boolean indicating if it was found (true) or created (false)
 func (gp *GoRoutinePeer) getOrCreateGoRoutine(goId int64, timestamp int64, logicalTime int) (GoRoutine, bool) {
-	goroutine, wasCreated := gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
+	goroutine, wasFound := gp.goRoutines.GetOrCreate(goId, func() GoRoutine {
 		return GoRoutine{
 			GoId:        goId,
 			StackTraces: utilds.MakeCirBuf[ds.GoRoutineStack](GoRoutineStackBufferSize),
@@ -102,11 +103,11 @@ func (gp *GoRoutinePeer) getOrCreateGoRoutine(goId int64, timestamp int64, logic
 	})
 
 	// If this was a new goroutine, update the timespan map
-	if wasCreated {
+	if !wasFound {
 		gp.updateTimeSpanMap(goId, goroutine)
 	}
 
-	return goroutine, wasCreated
+	return goroutine, wasFound
 }
 
 // updateTimeSpanMap updates the versioned map with the current timespan for a goroutine
@@ -381,11 +382,11 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 	if effectiveTimestamp == 0 {
 		effectiveTimestamp = gp.timeSpan.End
 	}
-	
+
 	// Always get all goroutine IDs for total count
 	allGoroutineIds := gp.goRoutines.Keys()
 	totalCount := len(allGoroutineIds)
-	
+
 	// Calculate total non-outrig goroutines count
 	totalNonOutrig := 0
 	for _, goId := range allGoroutineIds {
@@ -398,7 +399,7 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 			totalNonOutrig++
 		}
 	}
-	
+
 	var goroutineIds []int64
 	if activeOnly && timestamp == 0 {
 		// If activeOnly and timestamp is 0, use currently active goroutines
@@ -409,7 +410,7 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 		goroutineIds = allGoroutineIds
 	}
 	parsedGoRoutines := gp.getParsedGoRoutinesAtTimestamp_nolock(moduleName, goroutineIds, timestamp, activeOnly)
-	
+
 	return GoRoutinesAtTimestampResult{
 		GoRoutines:         parsedGoRoutines,
 		TotalCount:         totalCount,

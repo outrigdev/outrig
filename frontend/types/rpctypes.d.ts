@@ -393,9 +393,9 @@ declare global {
     type TimeSpan = {
         label?: string;
         start: number;
-        startidx?: number;
-        end?: number;
-        endidx?: number;
+        startidx: number;
+        end: number;
+        endidx: number;
         exact?: boolean;
     };
 

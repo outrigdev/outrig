@@ -4,11 +4,21 @@
 import { AppModel } from "@/appmodel";
 import { DefaultRpcClient } from "@/init";
 import { SearchStore } from "@/store/searchstore";
+import { padToMultiple } from "@/util/util";
 import { Atom, atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcApi } from "../rpc/rpcclientapi";
 
-// Maximum time range for the slider (10 minutes minus small buffer for valid searches)
-const MAX_TIME_RANGE_SECONDS = 600 - 5;
+// Maximum timeline range in seconds (10 minutes)
+const MaxTimelineRangeSeconds = 600;
+const TimelinePaddingSeconds = 15;
+
+// Type for timeline range using timeidx values
+export type TimelineRange = {
+    startTs: number;
+    minTimeIdx: number;
+    maxTimeIdx: number;
+    paddedMaxTimeIdx: number;
+};
 
 // Type for search result info
 export type SearchResultInfo = {
@@ -46,6 +56,30 @@ class GoRoutinesModel {
     fullTimeSpan: PrimitiveAtom<TimeSpan> = atom<TimeSpan>(null) as PrimitiveAtom<TimeSpan>;
     droppedCount: PrimitiveAtom<number> = atom(0);
     activeCounts: PrimitiveAtom<GoRoutineActiveCount[]> = atom<GoRoutineActiveCount[]>([]);
+
+    // Timeline range using timeidx values (derived from fullTimeSpan)
+    timelineRangeAtom: Atom<TimelineRange> = atom((get) => {
+        const fullTimeSpan = get(this.fullTimeSpan);
+        if (!fullTimeSpan?.endidx) {
+            return { minTimeIdx: 0, maxTimeIdx: 0, paddedMaxTimeIdx: 0 };
+        }
+
+        const startTs = fullTimeSpan.start;
+        const maxTimeIdx = fullTimeSpan.endidx;
+        const minTimeIdx = maxTimeIdx < MaxTimelineRangeSeconds ? 0 : maxTimeIdx - MaxTimelineRangeSeconds + 1;
+
+        // Calculate padded max for running apps (pad to 15s boundary)
+        const timeIdxRange = maxTimeIdx - minTimeIdx;
+        const paddedTimeIdxRange = padToMultiple(timeIdxRange, TimelinePaddingSeconds);
+        const paddedMaxTimeIdx = minTimeIdx + paddedTimeIdxRange;
+
+        return {
+            startTs,
+            minTimeIdx,
+            maxTimeIdx,
+            paddedMaxTimeIdx,
+        };
+    });
 
     // State filters
     showAll: PrimitiveAtom<boolean> = atom(true);
@@ -224,7 +258,7 @@ class GoRoutinesModel {
     toggleShowActiveOnly(): void {
         const store = getDefaultStore();
         const showActiveOnly = store.get(this.showActiveOnly);
-        
+
         if (showActiveOnly) {
             // If active is currently on, turn it off and enable show all
             store.set(this.showActiveOnly, false);
@@ -574,6 +608,34 @@ class GoRoutinesModel {
         } catch (error) {
             console.error(`Failed to poll time spans for app run ${this.appRunId}:`, error);
         }
+    }
+
+    // Helper function to convert timeidx to timestamp using activeCounts
+    timeIdxToTimestamp(timeIdx: number): number {
+        const store = getDefaultStore();
+        const activeCounts = store.get(this.activeCounts);
+        const activeCount = activeCounts.find((count) => count.timeidx === timeIdx);
+        return activeCount ? activeCount.tsts : 0;
+    }
+
+    // Helper function to find the closest timeidx for a given timestamp
+    timestampToTimeIdx(timestamp: number): number {
+        const store = getDefaultStore();
+        const activeCounts = store.get(this.activeCounts);
+        const timelineRange = store.get(this.timelineRangeAtom);
+
+        let closestIdx = timelineRange.minTimeIdx;
+        let closestDiff = Infinity;
+
+        for (const count of activeCounts) {
+            const diff = Math.abs(count.tsts - timestamp);
+            if (diff < closestDiff) {
+                closestDiff = diff;
+                closestIdx = count.timeidx;
+            }
+        }
+
+        return closestIdx;
     }
 }
 
