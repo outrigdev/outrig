@@ -8,10 +8,10 @@ import { checkKeyPressed } from "@/util/keyutil";
 import { useAtom, useAtomValue } from "jotai";
 import React from "react";
 import { Tag } from "../elements/tag";
+import { GoRoutineTimelineScrubber } from "./goroutine-timeline-scrubber";
 import { GoRoutinesModel } from "./goroutines-model";
 import { StacktraceModeToggle } from "./stacktrace-mode-toggle";
 import { TimeSlider } from "./timeslider";
-import { GoRoutineTimelineScrubber } from "./goroutine-timeline-scrubber";
 
 interface GoRoutinesFiltersProps {
     model: GoRoutinesModel;
@@ -22,6 +22,7 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
     const [showAll, setShowAll] = useAtom(model.showAll);
     const [showOutrig, setShowOutrig] = useAtom(model.showOutrigGoroutines);
     const [selectedStates, setSelectedStates] = useAtom(model.selectedStates);
+    const [showActiveOnly, setShowActiveOnly] = useAtom(model.showActiveOnly);
     const searchResultInfo = useAtomValue(model.searchResultInfo);
     const resultCount = useAtomValue(model.resultCount);
     const lastSearchTimestamp = useAtomValue(model.lastSearchTimestamp);
@@ -30,7 +31,13 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
 
     const goroutineStateCounts = searchResultInfo.goroutinestatecounts || {};
 
-    const availableStates = Object.keys(goroutineStateCounts).sort();
+    const availableStates = Object.keys(goroutineStateCounts)
+        .filter((state) => state !== "inactive")
+        .sort();
+
+    const activeCount = Object.entries(goroutineStateCounts)
+        .filter(([state]) => state !== "inactive")
+        .reduce((sum, [, count]) => sum + count, 0);
 
     const handleToggleShowAll = () => {
         model.toggleShowAll();
@@ -100,21 +107,28 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
 
             <div className="px-4 py-2 border-b border-border">
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-secondary whitespace-nowrap">
-                        @ +{timeOffsetSeconds}s
-                    </span>
+                    <span className="text-xs text-secondary whitespace-nowrap">@ +{timeOffsetSeconds}s</span>
                 </div>
                 <div className="flex items-start gap-x-2">
                     <div className="flex items-start shrink-0">
                         <Tag
                             label="Show All"
                             count={showOutrig ? searchResultInfo.searchedCount : searchResultInfo.totalnonoutrig}
-                            isSelected={showAll}
+                            isSelected={showAll && selectedStates.size === 0 && !showActiveOnly}
                             onToggle={handleToggleShowAll}
                         />
                     </div>
 
                     <div className="flex-grow flex flex-wrap items-start gap-1.5">
+                        {activeCount > 0 && (
+                            <Tag
+                                key="active"
+                                label="Active"
+                                count={activeCount}
+                                isSelected={showActiveOnly}
+                                onToggle={() => model.toggleShowActiveOnly()}
+                            />
+                        )}
                         {availableStates.map((state) => (
                             <Tag
                                 key={state}

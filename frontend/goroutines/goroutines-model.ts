@@ -180,10 +180,12 @@ class GoRoutinesModel {
             // If clicking the already selected state, deselect it and enable "show all"
             store.set(this.selectedStates, new Set<string>());
             store.set(this.showAll, true);
+            store.set(this.showActiveOnly, false);
         } else {
-            // Replace any existing selection with this state and disable "show all"
+            // Replace any existing selection with this state and disable "show all" and "active only"
             store.set(this.selectedStates, new Set([state]));
             store.set(this.showAll, false);
+            store.set(this.showActiveOnly, false);
         }
 
         // Trigger a new search with the current search term to apply the filter
@@ -196,8 +198,9 @@ class GoRoutinesModel {
         const showAll = store.get(this.showAll);
 
         if (!showAll) {
-            // If enabling "show all", clear selected states
+            // If enabling "show all", clear selected states and active only
             store.set(this.selectedStates, new Set<string>());
+            store.set(this.showActiveOnly, false);
             // Note: We do NOT reset showOutrigGoroutines here
         }
 
@@ -221,7 +224,17 @@ class GoRoutinesModel {
     toggleShowActiveOnly(): void {
         const store = getDefaultStore();
         const showActiveOnly = store.get(this.showActiveOnly);
-        store.set(this.showActiveOnly, !showActiveOnly);
+        
+        if (showActiveOnly) {
+            // If active is currently on, turn it off and enable show all
+            store.set(this.showActiveOnly, false);
+            store.set(this.showAll, true);
+        } else {
+            // If active is off, turn it on and clear other filters
+            store.set(this.showActiveOnly, true);
+            store.set(this.selectedStates, new Set<string>());
+            store.set(this.showAll, false);
+        }
 
         // Trigger a new search with the current search term
         this.searchGoroutines(store.get(this.searchTerm));
@@ -269,13 +282,15 @@ class GoRoutinesModel {
             const effectiveTimestamp = this.getEffectiveTimestamp();
 
             // Call the search RPC to get matching goroutine IDs
+            // When state filters are active, automatically use activeonly search
+            const effectiveActiveOnly = showActiveOnly || selectedStates.size > 0;
             const fullQuery = {
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
                 systemquery: systemQuery,
                 timestamp: effectiveTimestamp,
                 showoutrig: showOutrig,
-                activeonly: showActiveOnly,
+                activeonly: effectiveActiveOnly,
             };
             const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, fullQuery);
 
