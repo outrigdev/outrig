@@ -112,8 +112,8 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
                 <div className="flex items-start gap-x-2">
                     <div className="flex items-start shrink-0">
                         <Tag
-                            label="Show All"
-                            count={showOutrig ? searchResultInfo.searchedCount : searchResultInfo.totalnonoutrig}
+                            label="All"
+                            count={showOutrig ? searchResultInfo.totalCount : searchResultInfo.totalnonoutrig}
                             isSelected={showAll && selectedStates.size === 0 && !showActiveOnly}
                             onToggle={handleToggleShowAll}
                         />

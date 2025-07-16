@@ -49,6 +49,14 @@ type GoRoutinePeer struct {
 	droppedCount      atomic.Int64                                    // Count of goroutines dropped during pruning (synchronized with atomic operations)
 }
 
+// GoRoutinesAtTimestampResult contains the result of GetParsedGoRoutinesAtTimestamp
+type GoRoutinesAtTimestampResult struct {
+	GoRoutines         []rpctypes.ParsedGoRoutine
+	TotalCount         int   // Total count of all goroutines (not filtered by activeOnly)
+	TotalNonOutrig     int   // Total count of non-outrig goroutines (not filtered by activeOnly)
+	EffectiveTimestamp int64 // The timestamp that was actually used for the query
+}
+
 // mergeGoRoutineStacks combines a base stack with a delta stack to create a complete stack
 // If deltaStack.Same is true, returns the base stack unchanged
 // Otherwise, returns the delta stack (which contains all current field values)
@@ -365,7 +373,7 @@ func (gp *GoRoutinePeer) GetGoRoutineCounts() (int, int, int) {
 // If timestamp is provided, returns all goroutines that were active at that timestamp by finding
 // the stack trace with the largest timestamp <= the provided timestamp
 // If activeOnly is false, returns all goroutines regardless of active status
-func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, timestamp int64, activeOnly bool) ([]rpctypes.ParsedGoRoutine, int64) {
+func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, timestamp int64, activeOnly bool) GoRoutinesAtTimestampResult {
 	gp.lock.RLock()
 	defer gp.lock.RUnlock()
 
@@ -373,6 +381,24 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 	if effectiveTimestamp == 0 {
 		effectiveTimestamp = gp.timeSpan.End
 	}
+	
+	// Always get all goroutine IDs for total count
+	allGoroutineIds := gp.goRoutines.Keys()
+	totalCount := len(allGoroutineIds)
+	
+	// Calculate total non-outrig goroutines count
+	totalNonOutrig := 0
+	for _, goId := range allGoroutineIds {
+		goroutineObj, exists := gp.goRoutines.GetEx(goId)
+		if !exists {
+			continue
+		}
+		isOutrig := slices.Contains(goroutineObj.Tags, "outrig")
+		if !isOutrig {
+			totalNonOutrig++
+		}
+	}
+	
 	var goroutineIds []int64
 	if activeOnly && timestamp == 0 {
 		// If activeOnly and timestamp is 0, use currently active goroutines
@@ -380,10 +406,16 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 		goroutineIds = utilfn.GetKeys(activeGoRoutinesCopy)
 	} else {
 		// For all other cases: use all goroutines (either activeOnly with timestamp, or not activeOnly)
-		goroutineIds = gp.goRoutines.Keys()
+		goroutineIds = allGoroutineIds
 	}
 	parsedGoRoutines := gp.getParsedGoRoutinesAtTimestamp_nolock(moduleName, goroutineIds, timestamp, activeOnly)
-	return parsedGoRoutines, effectiveTimestamp
+	
+	return GoRoutinesAtTimestampResult{
+		GoRoutines:         parsedGoRoutines,
+		TotalCount:         totalCount,
+		TotalNonOutrig:     totalNonOutrig,
+		EffectiveTimestamp: effectiveTimestamp,
+	}
 }
 
 // createParsedGoRoutine creates a ParsedGoRoutine from a GoRoutine and stack trace

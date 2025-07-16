@@ -164,8 +164,10 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	}
 
 	// Get goroutines based on ActiveOnly flag and timestamp
-	allGoRoutines, effectiveTimestamp := peer.GoRoutines.GetParsedGoRoutinesAtTimestamp(moduleName, data.Timestamp, data.ActiveOnly)
-	totalCount := len(allGoRoutines)
+	result := peer.GoRoutines.GetParsedGoRoutinesAtTimestamp(moduleName, data.Timestamp, data.ActiveOnly)
+	allGoRoutines := result.GoRoutines
+	totalCount := result.TotalCount
+	effectiveTimestamp := result.EffectiveTimestamp
 
 	// Create user searcher based on search term and get any error spans
 	userSearcher, errorSpans, err := gensearch.GetSearcherWithErrors(data.SearchTerm)
@@ -219,14 +221,10 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 		results = results[:MaxGoRoutineSearchResults]
 	}
 
-	// Calculate total non-outrig goroutines count and state counts
-	totalNonOutrig := 0
+	// Calculate state counts from filtered goroutines
 	stateCounts := make(map[string]int)
 	for _, gr := range allGoRoutines {
 		isOutrig := slices.Contains(gr.Tags, "outrig")
-		if !isOutrig {
-			totalNonOutrig++
-		}
 
 		// Include in state counts based on ShowOutrig flag
 		if gr.PrimaryState != "" && (data.ShowOutrig || !isOutrig) {
@@ -237,7 +235,7 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	return rpctypes.GoRoutineSearchResultData{
 		SearchedCount:            stats.SearchedCount,
 		TotalCount:               stats.TotalCount,
-		TotalNonOutrig:           totalNonOutrig,
+		TotalNonOutrig:           result.TotalNonOutrig,
 		GoRoutineStateCounts:     stateCounts,
 		Results:                  results,
 		ErrorSpans:               errorSpans,
