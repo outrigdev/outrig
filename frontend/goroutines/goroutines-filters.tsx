@@ -10,8 +10,8 @@ import React from "react";
 import { Tag } from "../elements/tag";
 import { GoRoutineTimelineScrubber } from "./goroutine-timeline-scrubber";
 import { GoRoutinesModel } from "./goroutines-model";
+import { SearchLatestButton } from "./search-latest-button";
 import { StacktraceModeToggle } from "./stacktrace-mode-toggle";
-import { TimeSlider } from "./timeslider";
 
 interface GoRoutinesFiltersProps {
     model: GoRoutinesModel;
@@ -100,15 +100,21 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
 
             {lastSearchTimestamp > 0 && (
                 <div className="px-4 py-2 space-y-3">
-                    <TimeSlider model={model} />
-                    <GoRoutineTimelineScrubber model={model} />
+                    <div className="flex gap-3">
+                        <div className="flex-1">
+                            <GoRoutineTimelineScrubber model={model} />
+                        </div>
+                        <div className="flex flex-col">
+                            <div className="text-xs text-muted font-medium h-[16px]"></div>
+                            <div className="flex items-center h-8 mt-4">
+                                <SearchLatestButton model={model} />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            <div className="px-4 py-2 border-b border-border">
-                <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-secondary whitespace-nowrap">@ +{timeOffsetSeconds}s</span>
-                </div>
+            <div className="px-4 py-2 border-b border-border mt-1">
                 <div className="flex items-start gap-x-2">
                     <div className="flex items-start shrink-0">
                         <Tag
