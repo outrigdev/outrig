@@ -11,6 +11,7 @@ import { Tag } from "../elements/tag";
 import { GoRoutinesModel } from "./goroutines-model";
 import { StacktraceModeToggle } from "./stacktrace-mode-toggle";
 import { TimeSlider } from "./timeslider";
+import { GoRoutineTimelineScrubber } from "./goroutine-timeline-scrubber";
 
 interface GoRoutinesFiltersProps {
     model: GoRoutinesModel;
@@ -91,8 +92,9 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
             </div>
 
             {lastSearchTimestamp > 0 && (
-                <div className="px-4 py-2">
+                <div className="px-4 py-2 space-y-3">
                     <TimeSlider model={model} />
+                    <GoRoutineTimelineScrubber model={model} />
                 </div>
             )}
 
