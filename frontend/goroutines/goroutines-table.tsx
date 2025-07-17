@@ -30,6 +30,30 @@ const cleanFuncName = (funcname: string): string => {
     return cleaned;
 };
 
+// Helper function to parse and format duration strings into condensed format
+const formatDurationCondensed = (durationStr: string): string | null => {
+    if (!durationStr) return null;
+
+    const patterns = [
+        { regex: /^(\d+)\s*days?$/i, suffix: "d" },
+        { regex: /^(\d+)\s*hours?$/i, suffix: "h" },
+        { regex: /^(\d+)\s*minutes?$/i, suffix: "m" },
+        { regex: /^(\d+)\s*seconds?$/i, suffix: "s" },
+        { regex: /^(\d+)\s*(milliseconds?|ms)$/i, suffix: "ms" },
+        { regex: /^(\d+)\s*(microseconds?|us|µs)$/i, suffix: "us" },
+        { regex: /^(\d+)\s*(nanoseconds?|ns)$/i, suffix: "ns" },
+    ];
+
+    for (const pattern of patterns) {
+        const match = durationStr.match(pattern.regex);
+        if (match) {
+            return `${match[1]}${pattern.suffix}`;
+        }
+    }
+
+    return null;
+};
+
 // Helper function to format goroutine name according to the pattern [pkg].[func]:[line] or [pkg].[name]
 const formatGoroutineName = (goroutine: ParsedGoRoutine): React.ReactNode => {
     const createdByFrame = goroutine.createdbyframe;
@@ -103,6 +127,8 @@ function cell_name(info: any, tableModel: GrTableModel, expandedRows: Set<number
 function cell_primarystate(info: any, model: GoRoutinesModel) {
     const state = info.getValue();
     const goroutine = info.row.original;
+    const formattedDuration = goroutine.stateduration ? formatDurationCondensed(goroutine.stateduration) : null;
+
     return (
         <div className="flex">
             {state ? (
@@ -111,6 +137,7 @@ function cell_primarystate(info: any, model: GoRoutinesModel) {
                 ) : (
                     <Tag
                         label={state}
+                        count={formattedDuration}
                         isSelected={false}
                         variant="secondary"
                         compact={true}

@@ -11,7 +11,7 @@ interface TagProps {
     isSelected: boolean;
     onToggle?: () => void;
     variant?: TagVariant;
-    count?: number;
+    count?: number | string;
     className?: string;
     compact?: boolean;
 }
