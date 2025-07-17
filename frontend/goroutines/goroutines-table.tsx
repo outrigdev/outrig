@@ -3,9 +3,9 @@
 
 import { AppModel } from "@/appmodel";
 import { cn } from "@/util/util";
-import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { useAtomValue } from "jotai";
-import { List } from "lucide-react";
+import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
+import { useAtomValue, getDefaultStore } from "jotai";
+import { ChevronDown, ChevronUp, List } from "lucide-react";
 import React from "react";
 import { Tag } from "../elements/tag";
 import { Tooltip } from "../elements/tooltip";
@@ -289,32 +289,103 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         return column?.grow || 0;
     };
 
+    // Sort functions for each column
+    const sortByName = (rowA: any, rowB: any): number => {
+        const a = rowA.original as ParsedGoRoutine;
+        const b = rowB.original as ParsedGoRoutine;
+        
+        const getNameForSort = (gr: ParsedGoRoutine): string => {
+            if (gr.name && gr.name.length > 0) {
+                return gr.name.toLowerCase();
+            }
+            if (gr.createdbyframe) {
+                const pkg = gr.createdbyframe.package.split("/").pop() || gr.createdbyframe.package;
+                const func = cleanFuncName(gr.createdbyframe.funcname);
+                return `${pkg}.${func}`.toLowerCase();
+            }
+            return "";
+        };
+        
+        return getNameForSort(a).localeCompare(getNameForSort(b));
+    };
+
+    const sortByState = (rowA: any, rowB: any): number => {
+        const a = rowA.original as ParsedGoRoutine;
+        const b = rowB.original as ParsedGoRoutine;
+        
+        const aState = a.primarystate || "";
+        const bState = b.primarystate || "";
+        
+        // "inactive" should sort to the bottom (be the "largest" value)
+        if (aState === "inactive" && bState !== "inactive") return 1;
+        if (bState === "inactive" && aState !== "inactive") return -1;
+        if (aState === "inactive" && bState === "inactive") return a.goid - b.goid;
+        
+        // For other states, sort alphabetically with sub-sort by goid
+        const comparison = aState.localeCompare(bState);
+        return comparison === 0 ? a.goid - b.goid : comparison;
+    };
+
+    const sortByTimeline = (rowA: any, rowB: any): number => {
+        const a = rowA.original as ParsedGoRoutine;
+        const b = rowB.original as ParsedGoRoutine;
+        
+        const store = getDefaultStore();
+        const aSpanAtom = model.getGRTimeSpanAtom(a.goid);
+        const bSpanAtom = model.getGRTimeSpanAtom(b.goid);
+        const aSpan = store.get(aSpanAtom);
+        const bSpan = store.get(bSpanAtom);
+        
+        // Handle cases where timespan might not exist
+        if (!aSpan && !bSpan) return a.goid - b.goid; // Sub-sort by goid
+        if (!aSpan) return 1;
+        if (!bSpan) return -1;
+        
+        // Sort by start time (startidx)
+        const aStart = aSpan.startidx ?? 0;
+        const bStart = bSpan.startidx ?? 0;
+        
+        // If start times are equal, sub-sort by goid
+        if (aStart === bStart) {
+            return a.goid - b.goid;
+        }
+        
+        return aStart - bStart;
+    };
+
     const tableColumns = [
         columnHelper.accessor("goid", {
             header: "GoID",
             cell: cell_goid,
             size: tableModel.getColumnWidth("goid"),
             enableResizing: true,
+            enableSorting: true,
         }),
-        columnHelper.display({
+        columnHelper.accessor((row) => row, {
             id: "name",
             header: "Name",
             cell: (info) => cell_name(info, tableModel, expandedRows),
             size: tableModel.getColumnWidth("name"),
             enableResizing: true,
+            enableSorting: true,
+            sortingFn: sortByName,
         }),
         columnHelper.accessor("primarystate", {
             header: "State",
             cell: (info) => cell_primarystate(info, model),
             size: tableModel.getColumnWidth("state"),
             enableResizing: true,
+            enableSorting: true,
+            sortingFn: sortByState,
         }),
-        columnHelper.display({
+        columnHelper.accessor((row) => row, {
             id: "timeline",
             header: "Timeline",
             cell: (info) => cell_timeline(info, timelineRange, model),
             size: tableModel.getColumnWidth("timeline"),
             enableResizing: true,
+            enableSorting: true,
+            sortingFn: sortByTimeline,
         }),
     ];
 
@@ -322,8 +393,19 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         data: sortedGoroutines,
         columns: tableColumns,
         getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
         columnResizeMode: "onChange",
         enableColumnResizing: true,
+        enableSorting: true,
+        sortDescFirst: false,
+        initialState: {
+            sorting: [
+                {
+                    id: "timeline",
+                    desc: false,
+                },
+            ],
+        },
         defaultColumn: {
             minSize: 50,
         },
@@ -339,14 +421,30 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
                                 <div
                                     key={header.id}
                                     className={cn(
-                                        "text-left p-3 text-sm font-medium text-secondary",
-                                        getColumnGrow(header.id) > 0 ? "flex-grow" : ""
+                                        "text-left p-3 text-sm font-medium text-secondary flex items-center gap-1",
+                                        getColumnGrow(header.id) > 0 ? "flex-grow" : "",
+                                        header.column.getCanSort() ? "cursor-pointer hover:text-primary" : ""
                                     )}
                                     style={getColumnGrow(header.id) > 0 ? {} : { width: header.getSize() }}
+                                    onClick={header.column.getToggleSortingHandler()}
                                 >
                                     {header.isPlaceholder
                                         ? null
                                         : flexRender(header.column.columnDef.header, header.getContext())}
+                                    {header.column.getCanSort() && (
+                                        <div className="flex flex-col">
+                                            {header.column.getIsSorted() === "asc" ? (
+                                                <ChevronUp className="w-3 h-3" />
+                                            ) : header.column.getIsSorted() === "desc" ? (
+                                                <ChevronDown className="w-3 h-3" />
+                                            ) : (
+                                                <div className="w-3 h-3 opacity-30">
+                                                    <ChevronUp className="w-3 h-3 absolute" />
+                                                    <ChevronDown className="w-3 h-3 absolute translate-y-1" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
