@@ -3,7 +3,7 @@
 
 import { AppModel } from "@/appmodel";
 import { useAtomValue } from "jotai";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { GoRoutinesModel } from "./goroutines-model";
 
 const Debug = false;
@@ -88,6 +88,7 @@ interface GoRoutineTimelineScrubberProps {
 }
 
 export const GoRoutineTimelineScrubber: React.FC<GoRoutineTimelineScrubberProps> = ({ model }) => {
+    const scrubberRef = useRef<HTMLInputElement>(null);
     const activeCounts = useAtomValue(model.activeCounts);
     const selectedTimestamp = useAtomValue(model.selectedTimestamp);
     const searchLatestMode = useAtomValue(model.searchLatestMode);
@@ -96,6 +97,11 @@ export const GoRoutineTimelineScrubber: React.FC<GoRoutineTimelineScrubberProps>
     const appRunInfoAtom = AppModel.getAppRunInfoAtom(model.appRunId);
     const appRunInfo = useAtomValue(appRunInfoAtom);
     const isAppRunning = useAtomValue(AppModel.selectedAppRunIsRunningAtom);
+
+    // Set the scrubber ref in the model on mount
+    useEffect(() => {
+        model.setScrubberRef(scrubberRef);
+    }, [model]);
 
     if (!appRunInfo || !fullTimeSpan || activeCounts.length === 0) {
         return null;
@@ -262,6 +268,7 @@ export const GoRoutineTimelineScrubber: React.FC<GoRoutineTimelineScrubberProps>
 
                     {/* Hidden range slider for accessibility and precise control */}
                     <input
+                        ref={scrubberRef}
                         type="range"
                         min={minTimeIdx}
                         max={maxTimeIdx}

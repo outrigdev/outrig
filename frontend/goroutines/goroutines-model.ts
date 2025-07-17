@@ -46,6 +46,7 @@ class GoRoutinesModel {
     selectedTimestamp: PrimitiveAtom<number> = atom(0);
     searchLatestMode: PrimitiveAtom<boolean> = atom(true);
     contentRef: React.RefObject<HTMLDivElement> = null;
+    scrubberRef: React.RefObject<HTMLInputElement> = null;
     currentSearchId: string = "";
     pinnedAtomCache: Map<number, Atom<boolean>> = new Map();
 
@@ -183,6 +184,16 @@ class GoRoutinesModel {
     // Set the content div reference for scrolling
     setContentRef(ref: React.RefObject<HTMLDivElement>) {
         this.contentRef = ref;
+    }
+
+    // Set the scrubber input reference for focusing
+    setScrubberRef(ref: React.RefObject<HTMLInputElement>) {
+        this.scrubberRef = ref;
+    }
+
+    // Focus the scrubber input for keyboard navigation
+    focusScrubber() {
+        this.scrubberRef?.current?.focus();
     }
 
     // Page up in the content view

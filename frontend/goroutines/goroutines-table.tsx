@@ -178,6 +178,7 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
 
         if (clickedTimestamp > 0) {
             model.setSelectedTimestampAndSearch(clickedTimestamp);
+            model.focusScrubber();
         }
     };
 
