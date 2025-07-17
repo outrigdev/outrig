@@ -94,13 +94,23 @@ function cell_name(info: any, tableModel: GrTableModel, expandedRows: Set<number
     );
 }
 
-function cell_primarystate(info: any) {
+function cell_primarystate(info: any, model: GoRoutinesModel) {
     const state = info.getValue();
     const goroutine = info.row.original;
     return (
         <div className="flex">
             {state ? (
-                <Tag label={state} isSelected={false} variant="secondary" compact={true} />
+                state === "inactive" ? (
+                    <span className="text-muted">-</span>
+                ) : (
+                    <Tag
+                        label={state}
+                        isSelected={false}
+                        variant="secondary"
+                        compact={true}
+                        onToggle={() => model.toggleStateFilter(state)}
+                    />
+                )
             ) : (
                 <span className="text-muted">-</span>
             )}
@@ -293,7 +303,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         }),
         columnHelper.accessor("primarystate", {
             header: "State",
-            cell: cell_primarystate,
+            cell: (info) => cell_primarystate(info, model),
             size: tableModel.getColumnWidth("state"),
             enableResizing: true,
         }),
