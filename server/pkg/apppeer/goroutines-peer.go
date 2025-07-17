@@ -144,6 +144,7 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		fmt.Printf("WARNING: [AppRun: %s] TimeSampleAligner error: %v\n", gp.appRunId, err)
 		return // Drop this sample
 	}
+	firstSampleTs := gp.timeAligner.GetFirstTimestamp()
 
 	// Set the version to match the logical time
 	gp.timeSpanMap.SetVersion(int64(logicalTime))
@@ -196,6 +197,9 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 
 		// If GoDecl has StartTs set, this is the exact start time for the goroutine
 		if decl.StartTs != 0 {
+			if decl.StartTs < firstSampleTs {
+				decl.StartTs = firstSampleTs
+			}
 			goroutine.TimeSpan.Start = decl.StartTs
 			goroutine.TimeSpan.StartIdx = gp.timeAligner.GetLogicalTimeFromRealTimestamp(decl.StartTs)
 			goroutine.TimeSpan.Exact = true
@@ -203,6 +207,9 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 
 		// If GoDecl has EndTs set, this is the exact end time for the goroutine
 		if decl.EndTs != 0 {
+			if decl.EndTs < firstSampleTs {
+				decl.EndTs = firstSampleTs
+			}
 			goroutine.TimeSpan.End = decl.EndTs
 			goroutine.TimeSpan.EndIdx = gp.timeAligner.GetLogicalTimeFromRealTimestamp(decl.EndTs)
 		}

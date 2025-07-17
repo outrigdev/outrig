@@ -187,3 +187,9 @@ func (tsa *TimeSampleAligner) GetLogicalTimeFromRealTimestamp(ts int64) int {
 	// ts >= all timestamps in buffer
 	return tsa.baseLogical + len(tsa.ringBuffer) - 1
 }
+
+func (tsa *TimeSampleAligner) GetFirstTimestamp() int64 {
+	tsa.lock.Lock()
+	defer tsa.lock.Unlock()
+	return tsa.firstTs
+}

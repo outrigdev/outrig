@@ -214,7 +214,9 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
 
     const tooltipContent = (
         <div className="text-xs">
-            <div>Start: {absoluteStartTime} ({relativeStartTimeFormatted}s)</div>
+            <div>
+                Start: {absoluteStartTime} ({relativeStartTimeFormatted}s)
+            </div>
             <div>
                 Duration: {duration}
                 {duration !== "ongoing" ? "s" : ""}
