@@ -3,8 +3,14 @@
 
 import { AppModel } from "@/appmodel";
 import { cn } from "@/util/util";
-import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
-import { useAtomValue, getDefaultStore } from "jotai";
+import {
+    createColumnHelper,
+    flexRender,
+    getCoreRowModel,
+    getSortedRowModel,
+    useReactTable,
+} from "@tanstack/react-table";
+import { getDefaultStore, useAtomValue } from "jotai";
 import { ChevronDown, ChevronUp, List } from "lucide-react";
 import React from "react";
 import { Tag } from "../elements/tag";
@@ -293,7 +299,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
     const sortByName = (rowA: any, rowB: any): number => {
         const a = rowA.original as ParsedGoRoutine;
         const b = rowB.original as ParsedGoRoutine;
-        
+
         const getNameForSort = (gr: ParsedGoRoutine): string => {
             if (gr.name && gr.name.length > 0) {
                 return gr.name.toLowerCase();
@@ -305,22 +311,22 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
             }
             return "";
         };
-        
+
         return getNameForSort(a).localeCompare(getNameForSort(b));
     };
 
     const sortByState = (rowA: any, rowB: any): number => {
         const a = rowA.original as ParsedGoRoutine;
         const b = rowB.original as ParsedGoRoutine;
-        
+
         const aState = a.primarystate || "";
         const bState = b.primarystate || "";
-        
+
         // "inactive" should sort to the bottom (be the "largest" value)
         if (aState === "inactive" && bState !== "inactive") return 1;
         if (bState === "inactive" && aState !== "inactive") return -1;
         if (aState === "inactive" && bState === "inactive") return a.goid - b.goid;
-        
+
         // For other states, sort alphabetically with sub-sort by goid
         const comparison = aState.localeCompare(bState);
         return comparison === 0 ? a.goid - b.goid : comparison;
@@ -329,27 +335,27 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
     const sortByTimeline = (rowA: any, rowB: any): number => {
         const a = rowA.original as ParsedGoRoutine;
         const b = rowB.original as ParsedGoRoutine;
-        
+
         const store = getDefaultStore();
         const aSpanAtom = model.getGRTimeSpanAtom(a.goid);
         const bSpanAtom = model.getGRTimeSpanAtom(b.goid);
         const aSpan = store.get(aSpanAtom);
         const bSpan = store.get(bSpanAtom);
-        
+
         // Handle cases where timespan might not exist
         if (!aSpan && !bSpan) return a.goid - b.goid; // Sub-sort by goid
         if (!aSpan) return 1;
         if (!bSpan) return -1;
-        
+
         // Sort by start time (startidx)
         const aStart = aSpan.startidx ?? 0;
         const bStart = bSpan.startidx ?? 0;
-        
+
         // If start times are equal, sub-sort by goid
         if (aStart === bStart) {
             return a.goid - b.goid;
         }
-        
+
         return aStart - bStart;
     };
 
@@ -483,7 +489,17 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
                                 {isExpanded && (
                                     <div key="stacktracediv" className="border-b border-border bg-panel/50">
                                         <div className="px-3 py-2">
-                                            <StackTrace goroutine={goroutine} model={model} simpleMode={simpleMode} />
+                                            {goroutine.active ? (
+                                                <StackTrace
+                                                    goroutine={goroutine}
+                                                    model={model}
+                                                    simpleMode={simpleMode}
+                                                />
+                                            ) : (
+                                                <div className="text-secondary italic text-sm ml-1.5">
+                                                    Goroutine was inactive at this time, no stack trace available
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
