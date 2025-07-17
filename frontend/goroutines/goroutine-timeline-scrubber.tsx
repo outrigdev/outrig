@@ -126,7 +126,7 @@ export const GoRoutineTimelineScrubber: React.FC<GoRoutineTimelineScrubberProps>
     // Helper function to convert timeidx to timestamp
     const timeIdxToTimestamp = (timeIdx: number): number => {
         const activeCount = timeIdxToCountMap.get(timeIdx);
-        return activeCount?.tsts ?? 0;
+        return activeCount?.ts ?? 0;
     };
 
     // Helper function to find the closest timeidx for a given timestamp
@@ -135,7 +135,7 @@ export const GoRoutineTimelineScrubber: React.FC<GoRoutineTimelineScrubberProps>
         let closestDiff = Infinity;
 
         for (const count of sortedActiveCounts) {
-            const diff = Math.abs(count.tsts - timestamp);
+            const diff = Math.abs(count.ts - timestamp);
             if (diff < closestDiff) {
                 closestDiff = diff;
                 closestIdx = count.timeidx;
@@ -275,7 +275,7 @@ export const GoRoutineTimelineScrubber: React.FC<GoRoutineTimelineScrubberProps>
                     <div className="relative">
                         {/* Start time */}
                         <span className="absolute left-0 text-[10px] text-muted">
-                            {formatTime(sortedActiveCounts[0].tsts)}
+                            {formatTime(sortedActiveCounts[0].ts)}
                         </span>
 
                         {/* Intermediate labels with relative time */}
@@ -294,7 +294,7 @@ export const GoRoutineTimelineScrubber: React.FC<GoRoutineTimelineScrubberProps>
 
                         {/* End time */}
                         <span className="absolute right-0 text-[10px] text-muted">
-                            {formatTime(sortedActiveCounts[sortedActiveCounts.length - 1].tsts)}
+                            {formatTime(sortedActiveCounts[sortedActiveCounts.length - 1].ts)}
                         </span>
                     </div>
                 </div>

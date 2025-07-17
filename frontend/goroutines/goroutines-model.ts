@@ -61,7 +61,7 @@ class GoRoutinesModel {
     timelineRangeAtom: Atom<TimelineRange> = atom((get) => {
         const fullTimeSpan = get(this.fullTimeSpan);
         if (!fullTimeSpan?.endidx) {
-            return { minTimeIdx: 0, maxTimeIdx: 0, paddedMaxTimeIdx: 0 };
+            return { startTs: 0, minTimeIdx: 0, maxTimeIdx: 0, paddedMaxTimeIdx: 0 };
         }
 
         const startTs = fullTimeSpan.start;
@@ -615,7 +615,7 @@ class GoRoutinesModel {
         const store = getDefaultStore();
         const activeCounts = store.get(this.activeCounts);
         const activeCount = activeCounts.find((count) => count.timeidx === timeIdx);
-        return activeCount ? activeCount.tsts : 0;
+        return activeCount ? activeCount.ts : 0;
     }
 
     // Helper function to find the closest timeidx for a given timestamp
@@ -628,7 +628,7 @@ class GoRoutinesModel {
         let closestDiff = Infinity;
 
         for (const count of activeCounts) {
-            const diff = Math.abs(count.tsts - timestamp);
+            const diff = Math.abs(count.ts - timestamp);
             if (diff < closestDiff) {
                 closestDiff = diff;
                 closestIdx = count.timeidx;

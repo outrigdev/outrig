@@ -436,7 +436,7 @@ type GoRoutineTimeSpansRequest struct {
 type GoRoutineActiveCount struct {
 	Count   int   `json:"count"`
 	TimeIdx int   `json:"timeidx"` // Index in the logical time sequence
-	Ts      int64 `json:"tsts"`    // Timestamp in milliseconds
+	Ts      int64 `json:"ts"`      // Timestamp in milliseconds
 }
 
 type Tick struct {

@@ -132,7 +132,7 @@ declare global {
     type GoRoutineActiveCount = {
         count: number;
         timeidx: number;
-        tsts: number;
+        ts: number;
     };
 
     // rpctypes.GoRoutineSearchRequestData

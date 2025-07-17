@@ -97,6 +97,7 @@ type GoRoutineStack struct {
 }
 
 type GoDecl struct {
+	GoId        int64    `json:"goid,omitempty"`
 	Name        string   `json:"name"`
 	Group       string   `json:"group,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
@@ -105,7 +106,6 @@ type GoDecl struct {
 	NewLine     string   `json:"newline,omitempty"`
 	RunLine     string   `json:"runline,omitempty"`
 	NoRecover   bool     `json:"norecover,omitempty"`
-	GoId        int64    `json:"goid,omitempty"`
 	ParentGoId  int64    `json:"parentgoid,omitempty"` // ID of the parent goroutine that created this one
 	NumSpawned  int64    `json:"numspawned,omitempty"` // Number of goroutines spawned by this one
 	State       int32    `json:"state,omitempty"`      // 0 = running, 1 = waiting, 2 = dead
@@ -113,7 +113,7 @@ type GoDecl struct {
 	EndTs       int64    `json:"endts,omitempty"`      // exact end time (from .Run() API)
 	FirstPollTs int64    `json:"firstpollts,omitempty"`
 	LastPollTs  int64    `json:"lastpollts,omitempty"`
-	CSNum       int      `json:"csnum,omitempty"`      // call site number for goroutines spawned from the same location
+	CSNum       int      `json:"csnum,omitempty"` // call site number for goroutines spawned from the same location
 
 	RealCreatedBy string `json:"-"` // the real creator of this goroutine (for routines created by the SDK Run() func)
 }
