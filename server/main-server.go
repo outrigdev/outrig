@@ -159,13 +159,13 @@ func main() {
 			trayPid, _ := cmd.Flags().GetInt("tray-pid")
 
 			// Create CLI config
-			config := boot.CLIConfig{
+			cfg := boot.CLIConfig{
 				Port:         port,
 				CloseOnStdin: closeOnStdin,
 				TrayAppPid:   trayPid,
 			}
 
-			return boot.RunServer(config)
+			return boot.RunServer(cfg)
 		},
 	}
 	// Add flags to monitor command
@@ -212,11 +212,11 @@ Example: outrig --dev --verbose run main.go`,
 				return fmt.Errorf("run command requires at least one argument")
 			}
 
-			config := runmode.Config{
+			cfg := runmode.RunModeConfig{
 				Args:      specialArgs.Args,
 				IsVerbose: specialArgs.IsVerbose,
 			}
-			return runmode.ExecRunMode(config)
+			return runmode.ExecRunMode(cfg)
 		},
 		// Disable flag parsing for this command so all flags are passed to the go command
 		DisableFlagParsing: true,
@@ -260,14 +260,14 @@ Example: outrig --dev exec ls -latrh`,
 			port, _ := cmd.Flags().GetInt("port")
 			closeOnStdin, _ := cmd.Flags().GetBool("close-on-stdin")
 
-			config := demo.Config{
+			cfg := demo.Config{
 				DevMode:         devMode,
 				NoBrowserLaunch: noBrowserLaunch,
 				Port:            port,
 				CloseOnStdin:    closeOnStdin,
 			}
 
-			demo.RunOutrigAcres(config)
+			demo.RunOutrigAcres(cfg)
 			return nil
 		},
 	}
