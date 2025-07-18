@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
 	"github.com/outrigdev/outrig/server/pkg/runmode/gr"
@@ -223,12 +222,6 @@ func runWithOverlay(overlayMap map[string]string, tempDir string, goFiles []stri
 // runGoCommand executes a go command with the given arguments using execlogwrap
 // for log capture and exits with the same exit code as the go command
 func runGoCommand(args []string, cfg Config) error {
-	// Set up environment variables for external log capture
-	if os.Getenv(config.AppRunIdEnvName) != config.GetAppRunId() {
-		os.Setenv(config.AppRunIdEnvName, config.GetAppRunId())
-	}
-	os.Setenv(config.ExternalLogCaptureEnvName, "1")
-
 	// Prepare the full command arguments
 	goArgs := append([]string{"go"}, args...)
 

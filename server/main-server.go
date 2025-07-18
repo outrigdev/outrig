@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/server/demo"
 	"github.com/outrigdev/outrig/server/pkg/boot"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
@@ -78,7 +77,7 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 		{Input: os.Stdin, Output: os.Stdout, Source: source},
 		{Input: stderrIn, Output: os.Stderr, Source: "/dev/stderr"},
 	}
-	return execlogwrap.ProcessExistingStreams(streams)
+	return execlogwrap.ProcessExistingStreams(streams, nil)
 }
 
 func runPostinstall(cmd *cobra.Command, args []string) {
@@ -237,10 +236,6 @@ Example: outrig --dev exec ls -latrh`,
 			if len(specialArgs.Args) == 0 {
 				return fmt.Errorf("exec command requires at least one argument")
 			}
-			if os.Getenv(config.AppRunIdEnvName) != config.GetAppRunId() {
-				os.Setenv(config.AppRunIdEnvName, config.GetAppRunId())
-			}
-			os.Setenv(config.ExternalLogCaptureEnvName, "1")
 			return execlogwrap.ExecCommand(specialArgs.Args)
 		},
 		// Disable flag parsing for this command so all flags are passed to the executed command

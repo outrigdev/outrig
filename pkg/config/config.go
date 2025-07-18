@@ -25,6 +25,8 @@ const (
 	DisableDockerProbeEnvName = "OUTRIG_DISABLEDOCKERPROBE"
 	ExternalLogCaptureEnvName = "OUTRIG_EXTERNALLOGCAPTURE"
 	AppRunIdEnvName           = "OUTRIG_APPRUNID"
+	ConfigFileEnvName         = "OUTRIG_CONFIGFILE"
+	ConfigJsonEnvName         = "OUTRIG_CONFIGJSON"
 )
 
 // Home directory paths
