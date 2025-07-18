@@ -47,29 +47,15 @@ func findAndTransformMainFile(transformState *astutil.TransformState) error {
 	return nil
 }
 
-// transformGoStatementsInAllFiles iterates over all files in the transform state and applies go statement transformations
+// transformGoStatementsInAllFiles iterates over all packages in the transform state and applies go statement transformations
 func transformGoStatementsInAllFiles(transformState *astutil.TransformState) error {
 	var hasTransformations bool
 
 	// Iterate over all packages
 	for _, pkg := range transformState.Packages {
-		// Iterate over all AST files in each package
-		for _, astFile := range pkg.Syntax {
-			if astFile == nil {
-				continue
-			}
-
-			// Apply go statement transformations
-			if gr.TransformGoStatements(transformState, astFile) {
-				// Mark the file as modified if transformations were applied
-				transformState.MarkFileModified(astFile)
-				hasTransformations = true
-
-				if transformState.Verbose {
-					filePath := transformState.GetFilePath(astFile)
-					log.Printf("Applied go statement transformations to: %s", filePath)
-				}
-			}
+		// Apply go statement transformations to the entire package
+		if gr.TransformGoStatementsInPackage(transformState, pkg) {
+			hasTransformations = true
 		}
 	}
 

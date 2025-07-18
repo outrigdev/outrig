@@ -7,13 +7,30 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"log"
 	"regexp"
 	"strings"
 
 	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
+	"golang.org/x/tools/go/packages"
 )
 
 const outrigCommentPrefix = "//outrig "
+
+// isPackageBlacklisted checks if a package path should be blacklisted from transformation
+func isPackageBlacklisted(pkgPath string) bool {
+	// Exact match for github.com/outrigdev/outrig
+	if pkgPath == "github.com/outrigdev/outrig" {
+		return true
+	}
+
+	// Prefix match for github.com/outrigdev/outrig/pkg/**
+	if strings.HasPrefix(pkgPath, "github.com/outrigdev/outrig/pkg/") {
+		return true
+	}
+
+	return false
+}
 
 // outrigDirectiveRegex matches lines that start with //outrig followed by key="value" pairs
 var outrigDirectiveRegex = regexp.MustCompile(`^//outrig\s+(\w+="[^"]*"\s*)+$`)
@@ -100,7 +117,7 @@ func createOutrigGoCall(directive *OutrigDirective, goStmt *ast.GoStmt) *ast.Exp
 
 	// Create the expression statement and preserve the position from the original go statement
 	result := &ast.ExprStmt{X: runCall}
-	
+
 	// Set positions to match the original go statement
 	if goStmt.Pos().IsValid() {
 		outrigGoCall.Fun.(*ast.SelectorExpr).X.(*ast.Ident).NamePos = goStmt.Pos()
@@ -109,6 +126,37 @@ func createOutrigGoCall(directive *OutrigDirective, goStmt *ast.GoStmt) *ast.Exp
 	}
 
 	return result
+}
+
+// TransformGoStatementsInPackage iterates over all files in a package and applies go statement transformations
+func TransformGoStatementsInPackage(transformState *astutil.TransformState, pkg *packages.Package) bool {
+	// Skip blacklisted packages
+	if isPackageBlacklisted(pkg.PkgPath) {
+		return false
+	}
+
+	var hasTransformations bool
+
+	// Iterate over all AST files in the package
+	for _, astFile := range pkg.Syntax {
+		if astFile == nil {
+			continue
+		}
+
+		// Apply go statement transformations
+		if TransformGoStatements(transformState, astFile) {
+			// Mark the file as modified if transformations were applied
+			transformState.MarkFileModified(astFile)
+			hasTransformations = true
+
+			if transformState.Verbose {
+				filePath := transformState.GetFilePath(astFile)
+				log.Printf("Applied go statement transformations to: %s", filePath)
+			}
+		}
+	}
+
+	return hasTransformations
 }
 
 // TransformGoStatements finds all go statements preceded by //outrig directives and transforms them
