@@ -63,7 +63,7 @@ var instanceOnce sync.Once
 func GetInstance() *WatchCollector {
 	instanceOnce.Do(func() {
 		instance = &WatchCollector{
-			config:           utilds.NewSetOnceConfig(config.DefaultConfig().WatchConfig),
+			config:           utilds.NewSetOnceConfig(config.DefaultConfig().Collectors.Watch),
 			watchDecls:       make(map[string]*ds.WatchDecl),
 			lastWatchSamples: make(map[string]ds.WatchSample),
 			nextSendFull:     true, // First send is always a full update

@@ -70,7 +70,7 @@ var instanceOnce sync.Once
 func GetInstance() *GoroutineCollector {
 	instanceOnce.Do(func() {
 		instance = &GoroutineCollector{
-			config:              utilds.NewSetOnceConfig(config.DefaultConfig().GoRoutineConfig),
+			config:              utilds.NewSetOnceConfig(config.DefaultConfig().Collectors.Goroutine),
 			goroutineDecls:      make(map[int64]*ds.GoDecl),
 			lastGoroutineStacks: make(map[int64]ds.GoRoutineStack),
 			nextSendFull:        true,               // First send is always a full update

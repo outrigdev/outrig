@@ -4,6 +4,7 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 	"sync"
@@ -52,94 +53,91 @@ func init() {
 }
 
 type Config struct {
-	Quiet bool // If true, suppresses init, connect, and disconnect messages
+	Quiet bool `json:"quiet"` // If true, suppresses init, connect, and disconnect messages
 
 	// DomainSocketPath is the path to the Unix domain socket. If "" => use default.
 	// If "-" => disable domain socket.
-	DomainSocketPath string
+	DomainSocketPath string `json:"domainsocketpath"`
 
 	// TcpAddr is the TCP address to connect to the Outrig server.  If "" => use default.
 	// If "-" => disable TCP connection. Domain socket will be tried first (except on Windows where domain sockets are not supported).)
-	TcpAddr string
+	TcpAddr string `json:"tcpaddr"`
 
 	// By default the SDK will probe host.docker.internal:5005 to see if the Outrig monitor is running on the host machine
 	// We do an initial DNS lookup at startup and only try this host/port if the DNS lookup succeeds.
 	// Setting this to true will disable the initial probe.
-	DisableDockerProbe bool
+	DisableDockerProbe bool `json:"disabledockerprobe"`
 
 	// ModuleName is the name of the Go module. If not specified, it will be determined
 	// from the go.mod file.
-	ModuleName string
+	ModuleName string `json:"modulename"`
 
 	// If true, try to synchronously connect to the server on Init
-	ConnectOnInit bool
-
-	Dev bool
+	ConnectOnInit bool `json:"connectoninit"`
 
 	// Collector configurations
-	LogProcessorConfig LogProcessorConfig
-	WatchConfig        WatchConfig
-	GoRoutineConfig    GoRoutineConfig
-	RuntimeStatsConfig RuntimeStatsConfig
+	Collectors CollectorConfig `json:"collectors"`
 }
 
 type LogProcessorConfig struct {
 	// Enabled indicates whether the log processor is enabled
-	Enabled    bool
-	WrapStdout bool
-	WrapStderr bool
+	Enabled    bool `json:"enabled"`
+	WrapStdout bool `json:"wrapstdout"`
+	WrapStderr bool `json:"wrapstderr"`
 	// OutrigPath is the full path to the outrig executable (including the executable name)
 	// If empty, the system will look for "outrig" in the PATH
-	OutrigPath string
+	OutrigPath string `json:"outrigpath"`
 	// AdditionalArgs are additional arguments to pass to the outrig command
 	// These are inserted before the "capturelogs" argument
-	AdditionalArgs []string
+	AdditionalArgs []string `json:"additionalargs"`
 }
 
 type WatchConfig struct {
 	// Enabled indicates whether the watch collector is enabled
-	Enabled bool
+	Enabled bool `json:"enabled"`
 }
 
 type GoRoutineConfig struct {
 	// Enabled indicates whether the goroutine collector is enabled
-	Enabled bool
+	Enabled bool `json:"enabled"`
 }
 
 type RuntimeStatsConfig struct {
 	// Enabled indicates whether the runtime stats collector is enabled
-	Enabled bool
+	Enabled bool `json:"enabled"`
+}
+
+type CollectorConfig struct {
+	Logs         LogProcessorConfig `json:"logs"`
+	RuntimeStats RuntimeStatsConfig `json:"runtimestats"`
+	Watch        WatchConfig        `json:"watch"`
+	Goroutine    GoRoutineConfig    `json:"goroutine"`
+
+	Plugins map[string]any `json:"-"`
 }
 
 // getDefaultConfig returns a default configuration with the specified dev mode
 func getDefaultConfig(isDev bool) *Config {
-	wrapStdout := true
-	wrapStderr := true
-
-	if os.Getenv(ExternalLogCaptureEnvName) != "" {
-		wrapStdout = false
-		wrapStderr = false
-	}
-
 	return &Config{
 		DomainSocketPath: GetDomainSocketNameForClient(),
 		TcpAddr:          GetTcpAddrForClient(),
 		ModuleName:       "",
-		Dev:              isDev,
 		ConnectOnInit:    true,
-		LogProcessorConfig: LogProcessorConfig{
-			Enabled:    true,
-			WrapStdout: wrapStdout,
-			WrapStderr: wrapStderr,
-		},
-		WatchConfig: WatchConfig{
-			Enabled: true,
-		},
-		GoRoutineConfig: GoRoutineConfig{
-			Enabled: true,
-		},
-		RuntimeStatsConfig: RuntimeStatsConfig{
-			Enabled: true,
+		Collectors: CollectorConfig{
+			Logs: LogProcessorConfig{
+				Enabled:    true,
+				WrapStdout: true,
+				WrapStderr: true,
+			},
+			Watch: WatchConfig{
+				Enabled: true,
+			},
+			Goroutine: GoRoutineConfig{
+				Enabled: true,
+			},
+			RuntimeStats: RuntimeStatsConfig{
+				Enabled: true,
+			},
 		},
 	}
 }
@@ -213,4 +211,106 @@ func GetOutrigHomeForClient() string {
 // GetDomainSocketNameForClient returns the full domain socket path for client
 func GetDomainSocketNameForClient() string {
 	return GetOutrigHomeForClient() + DefaultDomainSocketName
+}
+
+// UnmarshalJSON implements custom unmarshaling for Config with defaults
+func (c *Config) UnmarshalJSON(data []byte) error {
+	// Set defaults first
+	defaultConfig := getDefaultConfig(UseDevConfig())
+	*c = *defaultConfig
+
+	// Then unmarshal user values
+	type alias Config
+	return json.Unmarshal(data, (*alias)(c))
+}
+
+// UnmarshalJSON implements custom unmarshaling for LogProcessorConfig with defaults
+func (c *LogProcessorConfig) UnmarshalJSON(data []byte) error {
+	// Set defaults first
+	defaultConfig := getDefaultConfig(UseDevConfig())
+	*c = defaultConfig.Collectors.Logs
+
+	// Then unmarshal user values
+	type alias LogProcessorConfig
+	return json.Unmarshal(data, (*alias)(c))
+}
+
+// UnmarshalJSON implements custom unmarshaling for WatchConfig with defaults
+func (c *WatchConfig) UnmarshalJSON(data []byte) error {
+	// Set defaults first
+	defaultConfig := getDefaultConfig(UseDevConfig())
+	*c = defaultConfig.Collectors.Watch
+
+	// Then unmarshal user values
+	type alias WatchConfig
+	return json.Unmarshal(data, (*alias)(c))
+}
+
+// UnmarshalJSON implements custom unmarshaling for GoRoutineConfig with defaults
+func (c *GoRoutineConfig) UnmarshalJSON(data []byte) error {
+	// Set defaults first
+	defaultConfig := getDefaultConfig(UseDevConfig())
+	*c = defaultConfig.Collectors.Goroutine
+
+	// Then unmarshal user values
+	type alias GoRoutineConfig
+	return json.Unmarshal(data, (*alias)(c))
+}
+
+// UnmarshalJSON implements custom unmarshaling for RuntimeStatsConfig with defaults
+func (c *RuntimeStatsConfig) UnmarshalJSON(data []byte) error {
+	// Set defaults first
+	defaultConfig := getDefaultConfig(UseDevConfig())
+	*c = defaultConfig.Collectors.RuntimeStats
+
+	// Then unmarshal user values
+	type alias RuntimeStatsConfig
+	return json.Unmarshal(data, (*alias)(c))
+}
+
+// UnmarshalJSON implements custom unmarshaling for CollectorConfig with defaults
+func (c *CollectorConfig) UnmarshalJSON(data []byte) error {
+	// Set defaults first
+	defaultConfig := getDefaultConfig(UseDevConfig())
+	*c = defaultConfig.Collectors
+
+	// First unmarshal into a generic map
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// Handle known fields
+	if logs, ok := raw["logs"]; ok {
+		if err := json.Unmarshal(logs, &c.Logs); err != nil {
+			return err
+		}
+		delete(raw, "logs")
+	}
+	if runtimestats, ok := raw["runtimestats"]; ok {
+		if err := json.Unmarshal(runtimestats, &c.RuntimeStats); err != nil {
+			return err
+		}
+		delete(raw, "runtimestats")
+	}
+	if watch, ok := raw["watch"]; ok {
+		if err := json.Unmarshal(watch, &c.Watch); err != nil {
+			return err
+		}
+		delete(raw, "watch")
+	}
+	if goroutine, ok := raw["goroutine"]; ok {
+		if err := json.Unmarshal(goroutine, &c.Goroutine); err != nil {
+			return err
+		}
+		delete(raw, "goroutine")
+	}
+
+	// Everything else goes into Plugins as RawMessage
+	c.Plugins = make(map[string]any)
+	for k, v := range raw {
+		c.Plugins[k] = v // v is json.RawMessage
+	}
+
+	return nil
 }

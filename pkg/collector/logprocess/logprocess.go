@@ -5,6 +5,7 @@ package logprocess
 
 import (
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/outrigdev/outrig/pkg/collector"
@@ -24,7 +25,7 @@ type LogCollector struct {
 
 // CollectorName returns the unique name of the collector
 func (lc *LogCollector) CollectorName() string {
-	return "logprocess"
+	return "logs"
 }
 
 // singleton instance
@@ -35,7 +36,7 @@ var instanceOnce sync.Once
 func GetInstance() *LogCollector {
 	instanceOnce.Do(func() {
 		instance = &LogCollector{
-			config: utilds.NewSetOnceConfig(config.DefaultConfig().LogProcessorConfig),
+			config: utilds.NewSetOnceConfig(config.DefaultConfig().Collectors.Logs),
 		}
 	})
 	return instance
@@ -55,16 +56,21 @@ func Init(cfg *config.LogProcessorConfig) error {
 }
 
 func (lc *LogCollector) Enable() {
+	// Check if external log capture is disabled via environment variable
+	if os.Getenv(config.ExternalLogCaptureEnvName) != "" {
+		return
+	}
+
 	cfg := lc.config.Get()
 	if !cfg.Enabled {
 		return
 	}
-	
+
 	// Check if already enabled
 	if loginitex.IsExternalLogWrapActive() {
 		return
 	}
-	
+
 	// Enable external log wrapping if controller is available
 	// Get the appRunId from the config
 	appRunId := config.GetAppRunId()
@@ -101,15 +107,25 @@ func (lc *LogCollector) OnNewConnection() {
 // GetStatus returns the current status of the log collector
 func (lc *LogCollector) GetStatus() ds.CollectorStatus {
 	cfg := lc.config.Get()
+	
+	// Check if external log capture is disabled via environment variable
+	if os.Getenv(config.ExternalLogCaptureEnvName) != "" {
+		status := ds.CollectorStatus{
+			Running: false,
+			Info:    "Disabled by environment variable " + config.ExternalLogCaptureEnvName,
+		}
+		return status
+	}
+
+	// Check if external log wrapping is actually active
+	isExternalActive := loginitex.IsExternalLogWrapActive()
 	status := ds.CollectorStatus{
-		Running: cfg.Enabled,
+		Running: isExternalActive,
 	}
 
 	if !cfg.Enabled {
 		status.Info = "Disabled in configuration"
 	} else {
-		// Check if external log wrapping is active
-		isExternalActive := loginitex.IsExternalLogWrapActive()
 		if isExternalActive {
 			status.Info = "Log processing active (external log wrapping enabled)"
 		} else {

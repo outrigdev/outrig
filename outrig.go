@@ -90,10 +90,10 @@ func Init(appName string, cfgParam *config.Config) (bool, error) {
 		wasFirstCall = true
 
 		// init/register the collectors
-		logprocess.Init(&finalCfg.LogProcessorConfig)
-		goroutine.Init(&finalCfg.GoRoutineConfig)
-		watch.Init(&finalCfg.WatchConfig)
-		runtimestats.Init(&finalCfg.RuntimeStatsConfig)
+		logprocess.Init(&finalCfg.Collectors.Logs)
+		goroutine.Init(&finalCfg.Collectors.Goroutine)
+		watch.Init(&finalCfg.Collectors.Watch)
+		runtimestats.Init(&finalCfg.Collectors.RuntimeStats)
 
 		// Create and initialize the controller
 		// (collectors are now initialized inside MakeController)

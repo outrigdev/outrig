@@ -36,7 +36,7 @@ var instanceOnce sync.Once
 func GetInstance() *RuntimeStatsCollector {
 	instanceOnce.Do(func() {
 		instance = &RuntimeStatsCollector{
-			config: utilds.NewSetOnceConfig(config.DefaultConfig().RuntimeStatsConfig),
+			config: utilds.NewSetOnceConfig(config.DefaultConfig().Collectors.RuntimeStats),
 		}
 		instance.executor = collector.MakePeriodicExecutor("RuntimeStatsCollector", 1*time.Second, instance.CollectRuntimeStats)
 	})
