@@ -61,7 +61,10 @@ var (
 	// Appcast update checking
 	latestAppcastVersion string
 	appcastVersionLock   sync.RWMutex
-	lastAppcastCheck     int64
+	lastAppcastCheck     atomic.Int64
+
+	// Sparkle update checking
+	lastSparkleCheck atomic.Int64
 )
 
 const (
@@ -80,6 +83,7 @@ const (
 
 	// Update check interval
 	AppcastUpdateCheckInterval = 8 * time.Hour
+	SparkleUpdateCheckInterval = 8 * time.Hour
 )
 
 // LinkState represents the current state of the CLI symlink
@@ -621,11 +625,7 @@ func rebuildMenu(status ServerStatus) {
 	}
 	go func() {
 		for range mCheckUpdatesGlobal.ClickedCh {
-			if isUpdaterRunning.Load() {
-				foregroundUpdater()
-			} else {
-				checkForUpdates(false)
-			}
+			checkForUpdates(false)
 		}
 	}()
 
@@ -684,10 +684,23 @@ func runAppcastUpdateCheckLoop() {
 	defer ticker.Stop()
 	for range ticker.C {
 		now := time.Now().UnixMilli()
-		lastCheck := atomic.LoadInt64(&lastAppcastCheck)
+		lastCheck := lastAppcastCheck.Load()
 
 		if now-lastCheck >= AppcastUpdateCheckInterval.Milliseconds() {
 			checkAppcastUpdates()
+		}
+	}
+}
+
+func runBackgroundSparkleUpdaterLoop() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		now := time.Now().UnixMilli()
+		lastCheck := lastSparkleCheck.Load()
+
+		if now-lastCheck >= SparkleUpdateCheckInterval.Milliseconds() {
+			checkForUpdates(true)
 		}
 	}
 }
@@ -712,6 +725,9 @@ func onReady() {
 	updateIcon(IconTypeError)
 	rebuildMenu(ServerStatus{})
 
+	// Initialize sparkle check timestamp to prevent race condition
+	lastSparkleCheck.Store(time.Now().UnixMilli())
+
 	// Check for updates on startup
 	go func() {
 		checkForUpdates(true)
@@ -720,6 +736,7 @@ func onReady() {
 
 	go runServerStatusCheckLoop()
 	go runAppcastUpdateCheckLoop()
+	go runBackgroundSparkleUpdaterLoop()
 	go startServerOnStartup()
 }
 
@@ -835,9 +852,13 @@ func foregroundUpdater() {
 
 // checkForUpdates launches the OutrigUpdater to check for updates
 func checkForUpdates(first bool) {
+	// Update the last check time first to be safe
+	lastSparkleCheck.Store(time.Now().UnixMilli())
+
 	// Test and set - only proceed if no updater is currently running
 	if !isUpdaterRunning.CompareAndSwap(false, true) {
-		log.Printf("Update check already in progress, skipping\n")
+		log.Printf("Update check already in progress, bringing updater to foreground")
+		foregroundUpdater()
 		return
 	}
 
@@ -962,7 +983,7 @@ func checkAppcastUpdates() {
 	appcastVersionLock.Unlock()
 
 	// Update the last check time
-	atomic.StoreInt64(&lastAppcastCheck, time.Now().UnixMilli())
+	lastAppcastCheck.Store(time.Now().UnixMilli())
 
 	// Update the menu item to reflect changes
 	updateCheckUpdatesMenuItem()
