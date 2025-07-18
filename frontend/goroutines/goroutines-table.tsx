@@ -4,6 +4,7 @@
 import { AppModel } from "@/appmodel";
 import { cn } from "@/util/util";
 import {
+    CellContext,
     createColumnHelper,
     flexRender,
     getCoreRowModel,
@@ -81,6 +82,30 @@ const formatGoroutineName = (goroutine: ParsedGoRoutine): React.ReactNode => {
     );
 };
 
+// Helper function to get goroutine name as text string
+const getGoroutineNameText = (goroutine: ParsedGoRoutine): string => {
+    const createdByFrame = goroutine.createdbyframe;
+    const hasName = goroutine.name && goroutine.name.length > 0;
+
+    if (!createdByFrame) {
+        if (hasName) {
+            return goroutine.name;
+        } else {
+            return "(unnamed)";
+        }
+    }
+
+    const pkg = createdByFrame.package.split("/").pop() || createdByFrame.package;
+    const nameOrFunc = hasName ? `[${goroutine.name}]` : cleanFuncName(createdByFrame.funcname);
+
+    if (hasName) {
+        return nameOrFunc;
+    } else {
+        const lineNumber = createdByFrame.linenumber ? `:${createdByFrame.linenumber}` : "";
+        return `${pkg}.${nameOrFunc}${lineNumber}`;
+    }
+};
+
 // Goroutine states: "running", "runnable", "syscall", "waiting", "IO wait", "chan send", "chan receive", "select", "sleep",
 //   "sync.Mutex", "sync.RWMutex", "semacquire", "GC assist wait", "GC sweep wait", "force gc (idle)", "timer goroutine (idle)",
 //   "trace reader (blocked)", "sync.WaitGroup.Wait"
@@ -88,15 +113,76 @@ const goroutineStateColors: { [state: string]: string } = {
     default: "bg-accent",
 };
 
+interface TableMeta {
+    tableModel: GrTableModel;
+    expandedRows: Set<number>;
+    model: GoRoutinesModel;
+    timelineRange: TimelineRange;
+}
+
+// Sort functions for table columns
+const sortByName = (rowA: any, rowB: any): number => {
+    const a = rowA.original as ParsedGoRoutine;
+    const b = rowB.original as ParsedGoRoutine;
+    return getGoroutineNameText(a).toLowerCase().localeCompare(getGoroutineNameText(b).toLowerCase());
+};
+
+const sortByState = (rowA: any, rowB: any): number => {
+    const a = rowA.original as ParsedGoRoutine;
+    const b = rowB.original as ParsedGoRoutine;
+
+    const aState = a.primarystate || "";
+    const bState = b.primarystate || "";
+
+    // "inactive" should sort to the bottom (be the "largest" value)
+    if (aState === "inactive" && bState !== "inactive") return 1;
+    if (bState === "inactive" && aState !== "inactive") return -1;
+    if (aState === "inactive" && bState === "inactive") return a.goid - b.goid;
+
+    // For other states, sort alphabetically with sub-sort by goid
+    const comparison = aState.localeCompare(bState);
+    return comparison === 0 ? a.goid - b.goid : comparison;
+};
+
+const sortByTimeline = (rowA: any, rowB: any, model: GoRoutinesModel): number => {
+    const a = rowA.original as ParsedGoRoutine;
+    const b = rowB.original as ParsedGoRoutine;
+
+    const store = getDefaultStore();
+    const aSpanAtom = model.getGRTimeSpanAtom(a.goid);
+    const bSpanAtom = model.getGRTimeSpanAtom(b.goid);
+    const aSpan = store.get(aSpanAtom);
+    const bSpan = store.get(bSpanAtom);
+
+    // Handle cases where timespan might not exist
+    if (!aSpan && !bSpan) return a.goid - b.goid; // Sub-sort by goid
+    if (!aSpan) return 1;
+    if (!bSpan) return -1;
+
+    // Sort by start time (startidx)
+    const aStart = aSpan.startidx ?? 0;
+    const bStart = bSpan.startidx ?? 0;
+
+    // If start times are equal, sub-sort by goid
+    if (aStart === bStart) {
+        return a.goid - b.goid;
+    }
+
+    return aStart - bStart;
+};
+
 const columnHelper = createColumnHelper<ParsedGoRoutine>();
 
-function cell_goid(info: any) {
+function cell_goid(info: CellContext<ParsedGoRoutine, number>) {
     return <span className="font-mono text-sm text-secondary">{info.getValue()}</span>;
 }
 
-function cell_name(info: any, tableModel: GrTableModel, expandedRows: Set<number>) {
+function cell_name(info: CellContext<ParsedGoRoutine, ParsedGoRoutine>) {
     const goroutine = info.row.original;
     const tags = goroutine.tags;
+    const meta = info.table.options.meta as TableMeta;
+    const tableModel = meta.tableModel;
+    const expandedRows = meta.expandedRows;
     const isExpanded = expandedRows.has(goroutine.goid);
 
     return (
@@ -124,9 +210,11 @@ function cell_name(info: any, tableModel: GrTableModel, expandedRows: Set<number
     );
 }
 
-function cell_primarystate(info: any, model: GoRoutinesModel) {
+function cell_primarystate(info: CellContext<ParsedGoRoutine, string>) {
     const state = info.getValue();
     const goroutine = info.row.original;
+    const meta = info.table.options.meta as TableMeta;
+    const model = meta.model;
     const formattedDuration = goroutine.stateduration ? formatDurationCondensed(goroutine.stateduration) : null;
 
     return (
@@ -300,91 +388,41 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
 
 GoTimeline.displayName = "GoTimeline";
 
-function cell_timeline(info: any, timelineRange: TimelineRange, model: GoRoutinesModel) {
+function cell_timeline(info: CellContext<ParsedGoRoutine, ParsedGoRoutine>) {
     const goroutine: ParsedGoRoutine = info.row.original;
+    const meta = info.table.options.meta as TableMeta;
+    const timelineRange = meta.timelineRange;
+    const model = meta.model;
     return <GoTimeline goroutine={goroutine} timelineRange={timelineRange} model={model} />;
 }
 
 interface GoRoutinesTableProps {
-    sortedGoroutines: ParsedGoRoutine[];
     tableModel: GrTableModel;
     model: GoRoutinesModel;
 }
 
-export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutines, tableModel, model }) => {
-    const containerSize = useAtomValue(tableModel.containerSize);
+export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ tableModel, model }) => {
+    const sortedGoroutines = useAtomValue(model.sortedGoRoutines);
     const columns = useAtomValue(tableModel.columns);
     const simpleMode = useAtomValue(model.effectiveSimpleStacktraceMode);
     const expandedRows = useAtomValue(tableModel.expandedRows);
     const timelineRange = useAtomValue(model.timelineRangeAtom);
 
+    const metaRef = React.useRef<TableMeta>({
+        tableModel,
+        expandedRows,
+        model,
+        timelineRange,
+    });
+
+    metaRef.current.tableModel = tableModel;
+    metaRef.current.expandedRows = expandedRows;
+    metaRef.current.model = model;
+    metaRef.current.timelineRange = timelineRange;
+
     const getColumnGrow = (columnId: string): number => {
         const column = columns.find((col) => col.id === columnId);
         return column?.grow || 0;
-    };
-
-    // Sort functions for each column
-    const sortByName = (rowA: any, rowB: any): number => {
-        const a = rowA.original as ParsedGoRoutine;
-        const b = rowB.original as ParsedGoRoutine;
-
-        const getNameForSort = (gr: ParsedGoRoutine): string => {
-            if (gr.name && gr.name.length > 0) {
-                return gr.name.toLowerCase();
-            }
-            if (gr.createdbyframe) {
-                const pkg = gr.createdbyframe.package.split("/").pop() || gr.createdbyframe.package;
-                const func = cleanFuncName(gr.createdbyframe.funcname);
-                return `${pkg}.${func}`.toLowerCase();
-            }
-            return "";
-        };
-
-        return getNameForSort(a).localeCompare(getNameForSort(b));
-    };
-
-    const sortByState = (rowA: any, rowB: any): number => {
-        const a = rowA.original as ParsedGoRoutine;
-        const b = rowB.original as ParsedGoRoutine;
-
-        const aState = a.primarystate || "";
-        const bState = b.primarystate || "";
-
-        // "inactive" should sort to the bottom (be the "largest" value)
-        if (aState === "inactive" && bState !== "inactive") return 1;
-        if (bState === "inactive" && aState !== "inactive") return -1;
-        if (aState === "inactive" && bState === "inactive") return a.goid - b.goid;
-
-        // For other states, sort alphabetically with sub-sort by goid
-        const comparison = aState.localeCompare(bState);
-        return comparison === 0 ? a.goid - b.goid : comparison;
-    };
-
-    const sortByTimeline = (rowA: any, rowB: any): number => {
-        const a = rowA.original as ParsedGoRoutine;
-        const b = rowB.original as ParsedGoRoutine;
-
-        const store = getDefaultStore();
-        const aSpanAtom = model.getGRTimeSpanAtom(a.goid);
-        const bSpanAtom = model.getGRTimeSpanAtom(b.goid);
-        const aSpan = store.get(aSpanAtom);
-        const bSpan = store.get(bSpanAtom);
-
-        // Handle cases where timespan might not exist
-        if (!aSpan && !bSpan) return a.goid - b.goid; // Sub-sort by goid
-        if (!aSpan) return 1;
-        if (!bSpan) return -1;
-
-        // Sort by start time (startidx)
-        const aStart = aSpan.startidx ?? 0;
-        const bStart = bSpan.startidx ?? 0;
-
-        // If start times are equal, sub-sort by goid
-        if (aStart === bStart) {
-            return a.goid - b.goid;
-        }
-
-        return aStart - bStart;
     };
 
     const tableColumns = [
@@ -398,7 +436,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         columnHelper.accessor((row) => row, {
             id: "name",
             header: "Name",
-            cell: (info) => cell_name(info, tableModel, expandedRows),
+            cell: cell_name,
             size: tableModel.getColumnWidth("name"),
             enableResizing: true,
             enableSorting: true,
@@ -406,7 +444,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         }),
         columnHelper.accessor("primarystate", {
             header: "State",
-            cell: (info) => cell_primarystate(info, model),
+            cell: cell_primarystate,
             size: tableModel.getColumnWidth("state"),
             enableResizing: true,
             enableSorting: true,
@@ -415,11 +453,11 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         columnHelper.accessor((row) => row, {
             id: "timeline",
             header: "Timeline",
-            cell: (info) => cell_timeline(info, timelineRange, model),
+            cell: cell_timeline,
             size: tableModel.getColumnWidth("timeline"),
             enableResizing: true,
             enableSorting: true,
-            sortingFn: sortByTimeline,
+            sortingFn: (rowA: any, rowB: any) => sortByTimeline(rowA, rowB, model),
         }),
     ];
 
@@ -443,6 +481,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ sortedGoroutin
         defaultColumn: {
             minSize: 50,
         },
+        meta: metaRef.current,
     });
 
     return (

@@ -67,7 +67,7 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model, tableModel
                     {search || !showAll ? "no goroutines match the filter" : "no goroutines found"}
                 </div>
             ) : containerSize.width > 0 ? (
-                <GoRoutinesTable sortedGoroutines={sortedGoroutines} tableModel={tableModel} model={model} />
+                <GoRoutinesTable tableModel={tableModel} model={model} />
             ) : null}
             <DroppedGoroutinesIndicator model={model} />
         </div>
