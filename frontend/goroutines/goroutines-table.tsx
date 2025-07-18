@@ -271,17 +271,17 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     };
 
     if (grTimeSpan?.startidx == null) {
-        return <div className="h-4 bg-muted/20 rounded-sm">no startidx</div>;
+        return <div className="h-4 bg-muted/20 rounded-sm"></div>;
     }
 
     // If no valid time range, show empty bar
     if (timelineRange.minTimeIdx === 0 && timelineRange.maxTimeIdx === 0) {
-        return <div className="h-4 bg-muted/20 rounded-sm">empty range</div>;
+        return <div className="h-4 bg-muted/20 rounded-sm"></div>;
     }
 
     const timeIdxRange = timelineRange.maxTimeIdx - timelineRange.minTimeIdx;
     if (timeIdxRange <= 0) {
-        return <div className="h-4 bg-muted/20 rounded-sm">empty range 2</div>;
+        return <div className="h-4 bg-muted/20 rounded-sm"></div>;
     }
 
     // Calculate the actual goroutine range in timeidx
@@ -408,6 +408,13 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ tableModel, mo
     const expandedRows = useAtomValue(tableModel.expandedRows);
     const timelineRange = useAtomValue(model.timelineRangeAtom);
 
+    const timelineSortingFn = React.useMemo(() => (rowA: any, rowB: any) => sortByTimeline(rowA, rowB, model), [model]);
+
+    const goidWidth = tableModel.getColumnWidth("goid");
+    const nameWidth = tableModel.getColumnWidth("name");
+    const stateWidth = tableModel.getColumnWidth("state");
+    const timelineWidth = tableModel.getColumnWidth("timeline");
+
     const metaRef = React.useRef<TableMeta>({
         tableModel,
         expandedRows,
@@ -420,46 +427,53 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ tableModel, mo
     metaRef.current.model = model;
     metaRef.current.timelineRange = timelineRange;
 
-    const getColumnGrow = (columnId: string): number => {
-        const column = columns.find((col) => col.id === columnId);
-        return column?.grow || 0;
-    };
+    const getColumnGrow = React.useMemo(
+        () =>
+            (columnId: string): number => {
+                const column = columns.find((col) => col.id === columnId);
+                return column?.grow || 0;
+            },
+        [columns]
+    );
 
-    const tableColumns = [
-        columnHelper.accessor("goid", {
-            header: "GoID",
-            cell: cell_goid,
-            size: tableModel.getColumnWidth("goid"),
-            enableResizing: true,
-            enableSorting: true,
-        }),
-        columnHelper.accessor((row) => row, {
-            id: "name",
-            header: "Name",
-            cell: cell_name,
-            size: tableModel.getColumnWidth("name"),
-            enableResizing: true,
-            enableSorting: true,
-            sortingFn: sortByName,
-        }),
-        columnHelper.accessor("primarystate", {
-            header: "State",
-            cell: cell_primarystate,
-            size: tableModel.getColumnWidth("state"),
-            enableResizing: true,
-            enableSorting: true,
-            sortingFn: sortByState,
-        }),
-        columnHelper.accessor((row) => row, {
-            id: "timeline",
-            header: "Timeline",
-            cell: cell_timeline,
-            size: tableModel.getColumnWidth("timeline"),
-            enableResizing: true,
-            enableSorting: true,
-            sortingFn: (rowA: any, rowB: any) => sortByTimeline(rowA, rowB, model),
-        }),
-    ];
+    const tableColumns = React.useMemo(
+        () => [
+            columnHelper.accessor("goid", {
+                header: "GoID",
+                cell: cell_goid,
+                size: goidWidth,
+                enableResizing: true,
+                enableSorting: true,
+            }),
+            columnHelper.accessor((row) => row, {
+                id: "name",
+                header: "Name",
+                cell: cell_name,
+                size: nameWidth,
+                enableResizing: true,
+                enableSorting: true,
+                sortingFn: sortByName,
+            }),
+            columnHelper.accessor("primarystate", {
+                header: "State",
+                cell: cell_primarystate,
+                size: stateWidth,
+                enableResizing: true,
+                enableSorting: true,
+                sortingFn: sortByState,
+            }),
+            columnHelper.accessor((row) => row, {
+                id: "timeline",
+                header: "Timeline",
+                cell: cell_timeline,
+                size: timelineWidth,
+                enableResizing: true,
+                enableSorting: true,
+                sortingFn: timelineSortingFn,
+            }),
+        ],
+        [goidWidth, nameWidth, stateWidth, timelineWidth, timelineSortingFn]
+    );
 
     const table = useReactTable({
         data: sortedGoroutines,
