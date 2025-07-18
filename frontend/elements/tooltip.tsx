@@ -18,9 +18,20 @@ interface TooltipProps {
     content: React.ReactNode;
     placement?: "top" | "bottom" | "left" | "right";
     forceOpen?: boolean;
+    divClassName?: string;
+    divStyle?: React.CSSProperties;
+    divOnClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
-export function Tooltip({ children, content, placement = "top", forceOpen = false }: TooltipProps) {
+export function Tooltip({
+    children,
+    content,
+    placement = "top",
+    forceOpen = false,
+    divClassName,
+    divStyle,
+    divOnClick,
+}: TooltipProps) {
     const [isOpen, setIsOpen] = useState(forceOpen);
     const [isVisible, setIsVisible] = useState(false);
     const timeoutRef = useRef<number | null>(null);
@@ -117,7 +128,13 @@ export function Tooltip({ children, content, placement = "top", forceOpen = fals
 
     return (
         <>
-            <div ref={refs.setReference} {...getReferenceProps()}>
+            <div
+                ref={refs.setReference}
+                {...getReferenceProps()}
+                className={divClassName}
+                style={divStyle}
+                onClick={divOnClick}
+            >
                 {children}
             </div>
             {isOpen && (
