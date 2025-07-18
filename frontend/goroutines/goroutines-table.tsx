@@ -96,7 +96,7 @@ const getGoroutineNameText = (goroutine: ParsedGoRoutine): string => {
     }
 
     const pkg = createdByFrame.package.split("/").pop() || createdByFrame.package;
-    const nameOrFunc = hasName ? `[${goroutine.name}]` : cleanFuncName(createdByFrame.funcname);
+    const nameOrFunc = hasName ? goroutine.name : cleanFuncName(createdByFrame.funcname);
 
     if (hasName) {
         return nameOrFunc;
