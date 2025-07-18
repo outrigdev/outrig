@@ -9,10 +9,11 @@ import (
 	"go/ast"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/outrigdev/outrig/pkg/config"
+	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
 	"github.com/outrigdev/outrig/server/pkg/runmode/gr"
 	"golang.org/x/tools/go/packages"
@@ -21,7 +22,6 @@ import (
 // Config holds configuration for ExecRunMode
 type Config struct {
 	Args      []string
-	IsDev     bool
 	IsVerbose bool
 }
 
@@ -81,14 +81,6 @@ func transformGoStatementsInAllFiles(transformState *astutil.TransformState) err
 
 // setupBuildArgs prepares build arguments from the config
 func setupBuildArgs(config Config) (astutil.BuildArgs, error) {
-	// Set dev environment variable if needed
-	if config.IsDev {
-		if config.IsVerbose {
-			log.Println("Running in development mode, setting OUTRIG_DEVCONFIG")
-		}
-		os.Setenv("OUTRIG_DEVCONFIG", "1")
-	}
-
 	// Check if user already provided -overlay flag
 	for _, arg := range config.Args {
 		if arg == "-overlay" || strings.HasPrefix(arg, "-overlay=") {
@@ -225,23 +217,21 @@ func runWithOverlay(overlayMap map[string]string, tempDir string, goFiles []stri
 		log.Printf("Executing go command with args: %v", goArgs)
 	}
 
-	return runGoCommand(goArgs)
+	return runGoCommand(goArgs, config)
 }
 
-// runGoCommand executes a go command with the given arguments
-// and exits with the same exit code as the go command
-func runGoCommand(args []string) error {
-	cmd := exec.Command("go", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	err := cmd.Run()
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			os.Exit(exitError.ExitCode())
-		}
-		return err
+// runGoCommand executes a go command with the given arguments using execlogwrap
+// for log capture and exits with the same exit code as the go command
+func runGoCommand(args []string, cfg Config) error {
+	// Set up environment variables for external log capture
+	if os.Getenv(config.AppRunIdEnvName) != config.GetAppRunId() {
+		os.Setenv(config.AppRunIdEnvName, config.GetAppRunId())
 	}
-	return nil
+	os.Setenv(config.ExternalLogCaptureEnvName, "1")
+
+	// Prepare the full command arguments
+	goArgs := append([]string{"go"}, args...)
+
+	// Use execlogwrap to execute the command with log capture
+	return execlogwrap.ExecCommand(goArgs)
 }

@@ -4,6 +4,7 @@
 package utilds
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -48,13 +49,10 @@ func min(a, b int) int {
 	return b
 }
 
-// Write adds an element to the circular buffer.
-// If the buffer is full, the oldest element will be overwritten.
+// write_nolock adds an element to the circular buffer without acquiring the lock.
+// This is an internal helper function and should only be called when the lock is already held.
 // Returns a pointer to the element that was kicked out, or nil if no element was kicked out.
-func (cb *CirBuf[T]) Write(element T) *T {
-	cb.Lock.Lock()
-	defer cb.Lock.Unlock()
-
+func (cb *CirBuf[T]) write_nolock(element T) *T {
 	cb.TotalCount++
 	if cb.Head == cb.Tail {
 		// buffer is full (this also correctly handles the case when the buffer is nil, and size == 0)
@@ -80,6 +78,15 @@ func (cb *CirBuf[T]) Write(element T) *T {
 	cb.Buf[cb.Tail] = element
 	cb.Tail = (cb.Tail + 1) % len(cb.Buf)
 	return nil
+}
+
+// Write adds an element to the circular buffer.
+// If the buffer is full, the oldest element will be overwritten.
+// Returns a pointer to the element that was kicked out, or nil if no element was kicked out.
+func (cb *CirBuf[T]) Write(element T) *T {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+	return cb.write_nolock(element)
 }
 
 // Read removes and returns the oldest element from the circular buffer.
@@ -232,6 +239,22 @@ func (cb *CirBuf[T]) GetLast() (T, int, bool) {
 	return cb.Buf[lastPos], lastOffset, true
 }
 
+// GetFirst returns the first element in the buffer, its offset, and a boolean indicating
+// whether the buffer has any elements. If the buffer is empty, the zero value of T,
+// 0, and false are returned.
+func (cb *CirBuf[T]) GetFirst() (T, int, bool) {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+
+	size := cb.size_nolock()
+	if size == 0 {
+		var zero T
+		return zero, 0, false
+	}
+
+	return cb.Buf[cb.Head], cb.HeadOffset, true
+}
+
 // FilterItems returns a slice of items for which the provided filter function returns true.
 // The filter function takes the item and its absolute index (TotalCount-based) and returns a boolean.
 // This is useful for filtering items based on custom criteria, such as timestamp.
@@ -289,4 +312,61 @@ func (cb *CirBuf[T]) ForEach(fn func(item T) bool) {
 			break
 		}
 	}
+}
+
+// WriteAt writes an element at a specific index in the buffer.
+// Returns an error if the index is before the current buffer range.
+// If the index is beyond the current range, fills with zero values up to that index.
+// If the index is within the current range, overwrites the element at that position.
+func (cb *CirBuf[T]) WriteAt(element T, index int) error {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+
+	// Error if trying to write before the current buffer range
+	if index < cb.HeadOffset {
+		return fmt.Errorf("cannot write at index %d: before buffer range (starts at %d)", index, cb.HeadOffset)
+	}
+
+	// If writing within the current range, just overwrite
+	if index < cb.TotalCount {
+		bufferIndex := index - cb.HeadOffset
+		pos := (cb.Head + bufferIndex) % len(cb.Buf)
+		cb.Buf[pos] = element
+		return nil
+	}
+
+	// If writing beyond current range, fill with zeros up to the target index
+	var zero T
+	gapSize := index - cb.TotalCount
+
+	// Write zeros to fill the gap
+	for i := 0; i < gapSize; i++ {
+		cb.write_nolock(zero)
+	}
+
+	// Write the actual element
+	cb.write_nolock(element)
+
+	return nil
+}
+
+// GetAt returns the element at the specified absolute index and a boolean indicating
+// whether the element exists. The index is absolute (based on TotalCount), not relative
+// to the current buffer position. Returns the zero value of T and false if the index
+// is out of bounds.
+func (cb *CirBuf[T]) GetAt(index int) (T, bool) {
+	cb.Lock.Lock()
+	defer cb.Lock.Unlock()
+
+	// Check if index is within valid range
+	if index < cb.HeadOffset || index >= cb.TotalCount {
+		var zero T
+		return zero, false
+	}
+
+	// Convert absolute index to buffer position
+	bufferIndex := index - cb.HeadOffset
+	pos := (cb.Head + bufferIndex) % len(cb.Buf)
+
+	return cb.Buf[pos], true
 }

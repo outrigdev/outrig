@@ -90,7 +90,7 @@ tasks:
     test:transformgr:
         desc: run main-transformgr.go to test goroutine transformation
         cmds:
-            - go run server/main-server.go -v --dev run server/cmd/transformgr/main-transformgr.go
+            - OUTRIG_DEVCONFIG=1 go run server/main-server.go -v run server/cmd/transformgr/main-transformgr.go
 
     test:docker:
         desc: Build and run 'test:small' in a Docker container

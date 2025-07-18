@@ -9,6 +9,7 @@ declare global {
     type AppRunGoRoutinesByIdsRequest = {
         apprunid: string;
         goids: number[];
+        timestamp: number;
     };
 
     // rpctypes.AppRunGoRoutinesData
@@ -127,6 +128,13 @@ declare global {
         | (EventCommonFields & { event: "route:up"; data?: null })
     ;
 
+    // rpctypes.GoRoutineActiveCount
+    type GoRoutineActiveCount = {
+        count: number;
+        timeidx: number;
+        ts: number;
+    };
+
     // rpctypes.GoRoutineSearchRequestData
     type GoRoutineSearchRequestData = {
         apprunid: string;
@@ -134,6 +142,7 @@ declare global {
         systemquery?: string;
         timestamp?: number;
         showoutrig: boolean;
+        activeonly: boolean;
     };
 
     // rpctypes.GoRoutineSearchResultData
@@ -144,6 +153,28 @@ declare global {
         goroutinestatecounts?: {[key: string]: number};
         results: number[];
         errorspans?: SearchErrorSpan[];
+        effectivesearchtimestamp: number;
+    };
+
+    // rpctypes.GoRoutineTimeSpansRequest
+    type GoRoutineTimeSpansRequest = {
+        apprunid: string;
+        sincetickidx: number;
+    };
+
+    // rpctypes.GoRoutineTimeSpansResponse
+    type GoRoutineTimeSpansResponse = {
+        data: GoTimeSpan[];
+        activecounts: GoRoutineActiveCount[];
+        fulltimespan: TimeSpan;
+        lasttick: Tick;
+        droppedcount: number;
+    };
+
+    // rpctypes.GoTimeSpan
+    type GoTimeSpan = {
+        goid: number;
+        span: TimeSpan;
     };
 
     // ds.LogLine
@@ -215,8 +246,7 @@ declare global {
         name?: string;
         tags?: string[];
         csnum?: number;
-        firstseen?: number;
-        lastseen?: number;
+        activetimespan: TimeSpan;
         active: boolean;
         rawstacktrace: string;
         rawstate: string;
@@ -351,6 +381,22 @@ declare global {
         "frontend:searchlatency"?: number;
         "frontend:searchitems"?: number;
         "frontend:clicktype"?: string;
+    };
+
+    // rpctypes.Tick
+    type Tick = {
+        idx: number;
+        ts: number;
+    };
+
+    // rpctypes.TimeSpan
+    type TimeSpan = {
+        label?: string;
+        start: number;
+        startidx: number;
+        end: number;
+        endidx: number;
+        exact?: boolean;
     };
 
     // rpctypes.UpdateCheckData

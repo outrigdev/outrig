@@ -22,7 +22,6 @@ import (
 )
 
 type specialArgs struct {
-	IsDev     bool
 	IsVerbose bool
 	Args      []string
 }
@@ -43,12 +42,10 @@ func parseSpecialArgs(keyArg string) (specialArgs, error) {
 		return result, fmt.Errorf("key argument '%s' not found in command line", keyArg)
 	}
 
-	// Look for --dev and -v flags before keyArg
+	// Look for -v flags before keyArg
 	for i := 1; i < keyArgIndex; i++ {
 		arg := os.Args[i]
-		if arg == "--dev" {
-			result.IsDev = true
-		} else if arg == "-v" {
+		if arg == "-v" {
 			result.IsVerbose = true
 		}
 	}
@@ -74,7 +71,6 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 
 	stderrIn := os.NewFile(3, "stderr-in")
 	source, _ := cmd.Flags().GetString("source")
-	isDev, _ := cmd.Flags().GetBool("dev")
 	if source == "" {
 		source = "/dev/stdout"
 	}
@@ -82,7 +78,7 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 		{Input: os.Stdin, Output: os.Stdout, Source: source},
 		{Input: stderrIn, Output: os.Stderr, Source: "/dev/stderr"},
 	}
-	return execlogwrap.ProcessExistingStreams(streams, isDev)
+	return execlogwrap.ProcessExistingStreams(streams)
 }
 
 func runPostinstall(cmd *cobra.Command, args []string) {
@@ -219,7 +215,6 @@ Example: outrig --dev --verbose run main.go`,
 
 			config := runmode.Config{
 				Args:      specialArgs.Args,
-				IsDev:     specialArgs.IsDev,
 				IsVerbose: specialArgs.IsVerbose,
 			}
 			return runmode.ExecRunMode(config)
@@ -246,7 +241,7 @@ Example: outrig --dev exec ls -latrh`,
 				os.Setenv(config.AppRunIdEnvName, config.GetAppRunId())
 			}
 			os.Setenv(config.ExternalLogCaptureEnvName, "1")
-			return execlogwrap.ExecCommand(specialArgs.Args, specialArgs.IsDev)
+			return execlogwrap.ExecCommand(specialArgs.Args)
 		},
 		// Disable flag parsing for this command so all flags are passed to the executed command
 		DisableFlagParsing: true,

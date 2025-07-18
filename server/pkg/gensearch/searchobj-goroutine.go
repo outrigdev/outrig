@@ -17,13 +17,20 @@ type GoRoutineSearchObject struct {
 	Stack string
 	State string
 
+	// CreatedBy frame data for name formatting
+	CreatedByPackage  string
+	CreatedByFuncName string
+	CreatedByLineNum  int
+
 	// Cached values for searches
-	NameToLower     string
-	GoIdStr         string
-	StackToLower    string
-	StateToLower    string
-	Combined        string
-	CombinedToLower string
+	NameToLower          string
+	GoIdStr              string
+	StackToLower         string
+	StateToLower         string
+	Combined             string
+	CombinedToLower      string
+	FormattedName        string
+	FormattedNameToLower string
 }
 
 func (gso *GoRoutineSearchObject) GetTags() []string {
@@ -32,6 +39,56 @@ func (gso *GoRoutineSearchObject) GetTags() []string {
 
 func (gso *GoRoutineSearchObject) GetId() int64 {
 	return gso.GoId
+}
+
+// cleanFuncName removes parens, asterisks, and .func suffixes from function names
+func cleanFuncName(funcname string) string {
+	cleaned := strings.ReplaceAll(funcname, "(", "")
+	cleaned = strings.ReplaceAll(cleaned, ")", "")
+	cleaned = strings.ReplaceAll(cleaned, "*", "")
+	// Remove .func suffixes like .func1, .func2, etc.
+	if idx := strings.Index(cleaned, ".func"); idx != -1 {
+		cleaned = cleaned[:idx]
+	}
+	return cleaned
+}
+
+// GetName returns the formatted name for the goroutine, matching the frontend formatGoroutineName logic
+func (gso *GoRoutineSearchObject) GetName() string {
+	if gso.FormattedName != "" {
+		return gso.FormattedName
+	}
+
+	hasName := gso.Name != ""
+	hasCreatedByFrame := gso.CreatedByPackage != "" && gso.CreatedByFuncName != ""
+
+	if !hasCreatedByFrame {
+		if hasName {
+			gso.FormattedName = gso.Name
+		} else {
+			gso.FormattedName = "(unnamed)"
+		}
+		return gso.FormattedName
+	}
+
+	// Extract package name (last part after /)
+	pkg := gso.CreatedByPackage
+	if idx := strings.LastIndex(pkg, "/"); idx != -1 {
+		pkg = pkg[idx+1:]
+	}
+
+	if hasName {
+		gso.FormattedName = "[" + gso.Name + "]"
+	} else {
+		nameOrFunc := cleanFuncName(gso.CreatedByFuncName)
+		if gso.CreatedByLineNum > 0 {
+			gso.FormattedName = pkg + "." + nameOrFunc + ":" + strconv.Itoa(gso.CreatedByLineNum)
+		} else {
+			gso.FormattedName = pkg + "." + nameOrFunc
+		}
+	}
+
+	return gso.FormattedName
 }
 
 func (gso *GoRoutineSearchObject) GetField(fieldName string, fieldMods int) string {
@@ -43,12 +100,12 @@ func (gso *GoRoutineSearchObject) GetField(fieldName string, fieldMods int) stri
 	}
 	if fieldName == "name" {
 		if fieldMods&FieldMod_ToLower != 0 {
-			if gso.NameToLower == "" {
-				gso.NameToLower = strings.ToLower(gso.Name)
+			if gso.FormattedNameToLower == "" {
+				gso.FormattedNameToLower = strings.ToLower(gso.GetName())
 			}
-			return gso.NameToLower
+			return gso.FormattedNameToLower
 		}
-		return gso.Name
+		return gso.GetName()
 	}
 	if fieldName == "stack" {
 		if fieldMods&FieldMod_ToLower != 0 {
@@ -69,9 +126,9 @@ func (gso *GoRoutineSearchObject) GetField(fieldName string, fieldMods int) stri
 		return gso.State
 	}
 	if fieldName == "" {
-		// Combine name, state, and stack with a newline delimiter
+		// Combine formatted name, state, and stack with a newline delimiter
 		if gso.Combined == "" {
-			gso.Combined = gso.Name + "\n" + gso.State + "\n" + gso.Stack
+			gso.Combined = gso.GetName() + "\n" + gso.State
 		}
 
 		if fieldMods&FieldMod_ToLower != 0 {
@@ -87,11 +144,20 @@ func (gso *GoRoutineSearchObject) GetField(fieldName string, fieldMods int) stri
 
 // ParsedGoRoutineToSearchObject converts a ParsedGoRoutine to a GoRoutineSearchObject
 func ParsedGoRoutineToSearchObject(gr rpctypes.ParsedGoRoutine) SearchObject {
-	return &GoRoutineSearchObject{
+	gso := &GoRoutineSearchObject{
 		GoId:  gr.GoId,
 		Name:  gr.Name,
 		Tags:  gr.Tags,
 		Stack: gr.RawStackTrace,
 		State: gr.RawState,
 	}
+
+	// Populate CreatedBy frame data if available
+	if gr.CreatedByFrame != nil {
+		gso.CreatedByPackage = gr.CreatedByFrame.Package
+		gso.CreatedByFuncName = gr.CreatedByFrame.FuncName
+		gso.CreatedByLineNum = gr.CreatedByFrame.LineNumber
+	}
+
+	return gso
 }

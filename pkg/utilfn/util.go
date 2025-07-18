@@ -114,6 +114,14 @@ func GetOrderedMapKeys[V any](m map[string]V) []string {
 	return keys
 }
 
+func GetKeys[K comparable, V any](m map[K]V) []K {
+	keys := make([]K, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
 func GetJsonTag(field reflect.StructField) string {
 	jsonTag := field.Tag.Get("json")
 	if jsonTag == "" {
@@ -339,7 +347,6 @@ func ParseTags(input string) []string {
 	return tags
 }
 
-
 // CalculateDeltas converts a slice of values to deltas between consecutive values
 // The first value is kept as is, and subsequent values are the difference from the previous value
 // If a value is exactly 0, it's treated as a counter reset and outputs 0 (not a negative delta)
@@ -496,26 +503,26 @@ func NormalizeName(name string) string {
 	if len(name) > MaxNameLen {
 		name = name[:MaxNameLen]
 	}
-	
+
 	// Fast path: if it already matches, return as-is
 	if NameRegex.MatchString(name) {
 		return name
 	}
-	
+
 	// Slow path: replace invalid characters
 	var result strings.Builder
 	result.Grow(len(name))
-	
+
 	for _, r := range name {
 		if (r >= 'a' && r <= 'z') ||
-		   (r >= 'A' && r <= 'Z') ||
-		   (r >= '0' && r <= '9') ||
-		   r == '_' || r == '.' || r == '#' || r == '-' || r == '[' || r == ']' || r == '/' {
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '_' || r == '.' || r == '#' || r == '-' || r == '[' || r == ']' || r == '/' {
 			result.WriteRune(r)
 		} else {
 			result.WriteByte('_')
 		}
 	}
-	
+
 	return result.String()
 }

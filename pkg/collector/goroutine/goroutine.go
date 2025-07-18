@@ -210,6 +210,17 @@ func (gc *GoroutineCollector) UpdateGoRoutinePkg(decl *ds.GoDecl, newPkg string)
 	gc.updatedDecls = append(gc.updatedDecls, declCopy)
 }
 
+func (gc *GoroutineCollector) UpdateGoRoutineGroup(decl *ds.GoDecl, newGroup string) {
+	// we use the gc.Lock to synchronize access to existing decls
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	decl.Group = newGroup
+
+	// Add to updated declarations (make a copy to avoid reference issues)
+	declCopy := *decl
+	gc.updatedDecls = append(gc.updatedDecls, declCopy)
+}
+
 func (gc *GoroutineCollector) setInitialGoDeclInfo(decl *ds.GoDecl, stack []byte) {
 	if decl.GoId != 0 && decl.ParentGoId != 0 && decl.Pkg != "" && decl.Func != "" && decl.CSNum != 0 {
 		return // all fields are already set

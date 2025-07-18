@@ -4,18 +4,28 @@
 import { AppModel } from "@/appmodel";
 import { DefaultRpcClient } from "@/init";
 import { SearchStore } from "@/store/searchstore";
+import { padToMultiple } from "@/util/util";
 import { Atom, atom, getDefaultStore, PrimitiveAtom } from "jotai";
 import { RpcApi } from "../rpc/rpcclientapi";
 
-// Maximum time range for the slider (10 minutes minus small buffer for valid searches)
-const MAX_TIME_RANGE_SECONDS = 600 - 5;
+// Maximum timeline range in seconds (10 minutes)
+const MaxTimelineRangeSeconds = 600;
+const TimelinePaddingSeconds = 15;
+
+// Type for timeline range using timeidx values
+export type TimelineRange = {
+    startTs: number;
+    minTimeIdx: number;
+    maxTimeIdx: number;
+    paddedMaxTimeIdx: number;
+};
 
 // Type for search result info
 export type SearchResultInfo = {
     searchedCount: number;
     totalCount: number;
     totalnonoutrig?: number;
-    goroutinestatecounts?: {[key: string]: number};
+    goroutinestatecounts?: { [key: string]: number };
     errorSpans?: SearchErrorSpan[];
 };
 
@@ -36,8 +46,41 @@ class GoRoutinesModel {
     selectedTimestamp: PrimitiveAtom<number> = atom(0);
     searchLatestMode: PrimitiveAtom<boolean> = atom(true);
     contentRef: React.RefObject<HTMLDivElement> = null;
+    scrubberRef: React.RefObject<HTMLInputElement> = null;
     currentSearchId: string = "";
     pinnedAtomCache: Map<number, Atom<boolean>> = new Map();
+
+    // Time spans polling state
+    timeSpanAtomCache: Map<number, PrimitiveAtom<TimeSpan>> = new Map();
+    timeSpansLastTickIdx: number = -1;
+    timeSpansPollingInterval: NodeJS.Timeout = null;
+    fullTimeSpan: PrimitiveAtom<TimeSpan> = atom<TimeSpan>(null) as PrimitiveAtom<TimeSpan>;
+    droppedCount: PrimitiveAtom<number> = atom(0);
+    activeCounts: PrimitiveAtom<GoRoutineActiveCount[]> = atom<GoRoutineActiveCount[]>([]);
+
+    // Timeline range using timeidx values (derived from fullTimeSpan)
+    timelineRangeAtom: Atom<TimelineRange> = atom((get) => {
+        const fullTimeSpan = get(this.fullTimeSpan);
+        if (!fullTimeSpan?.endidx) {
+            return { startTs: 0, minTimeIdx: 0, maxTimeIdx: 0, paddedMaxTimeIdx: 0 };
+        }
+
+        const startTs = fullTimeSpan.start;
+        const maxTimeIdx = fullTimeSpan.endidx;
+        const minTimeIdx = maxTimeIdx < MaxTimelineRangeSeconds ? 0 : maxTimeIdx - MaxTimelineRangeSeconds + 1;
+
+        // Calculate padded max for running apps (pad to 15s boundary)
+        const timeIdxRange = maxTimeIdx - minTimeIdx;
+        const paddedTimeIdxRange = padToMultiple(timeIdxRange, TimelinePaddingSeconds);
+        const paddedMaxTimeIdx = minTimeIdx + paddedTimeIdxRange;
+
+        return {
+            startTs,
+            minTimeIdx,
+            maxTimeIdx,
+            paddedMaxTimeIdx,
+        };
+    });
 
     // State filters
     showAll: PrimitiveAtom<boolean> = atom(true);
@@ -45,6 +88,9 @@ class GoRoutinesModel {
 
     // Toggle for showing/hiding #outrig goroutines
     showOutrigGoroutines: PrimitiveAtom<boolean> = atom(false);
+
+    // Toggle for showing all goroutines vs only active ones
+    showActiveOnly: PrimitiveAtom<boolean> = atom(false);
 
     // Stacktrace display settings - can be "raw", "simplified", or "simplified:files"
     simpleStacktraceMode: PrimitiveAtom<string> = atom("simplified");
@@ -62,6 +108,18 @@ class GoRoutinesModel {
 
         // Otherwise use the user-selected mode
         return userSelectedMode;
+    });
+
+    // Calculate the time offset from the start for display (derived atom)
+    timeOffsetSeconds: Atom<number> = atom((get) => {
+        const lastSearchTimestamp = get(this.lastSearchTimestamp);
+        const fullTimeSpan = get(this.fullTimeSpan);
+
+        if (!fullTimeSpan || lastSearchTimestamp === 0) {
+            return 0;
+        }
+
+        return Math.floor((lastSearchTimestamp - fullTimeSpan.start) / 1000);
     });
 
     // Total count of goroutines (derived from appRunGoRoutines)
@@ -85,9 +143,18 @@ class GoRoutinesModel {
         const pinnedGoroutines = goroutines.filter((gr) => pinnedGoRoutineIds.has(gr.goid));
         const unpinnedGoroutines = goroutines.filter((gr) => !pinnedGoRoutineIds.has(gr.goid));
 
-        // Sort each group by goid
-        pinnedGoroutines.sort((a, b) => a.goid - b.goid);
-        unpinnedGoroutines.sort((a, b) => a.goid - b.goid);
+        // Sort each group by start time, then by goid if start times are equal
+        const sortByStartTime = (a: ParsedGoRoutine, b: ParsedGoRoutine) => {
+            const aStart = a.activetimespan?.start || 0;
+            const bStart = b.activetimespan?.start || 0;
+            if (aStart !== bStart) {
+                return aStart - bStart;
+            }
+            return a.goid - b.goid;
+        };
+
+        pinnedGoroutines.sort(sortByStartTime);
+        unpinnedGoroutines.sort(sortByStartTime);
 
         // Combine with pinned first
         return [...pinnedGoroutines, ...unpinnedGoroutines];
@@ -105,18 +172,28 @@ class GoRoutinesModel {
         // Get search term atom from SearchStore
         this.searchTerm = SearchStore.getSearchTermAtom(appName, appRunId, "goroutines");
 
+        this.startTimeSpansPolling();
         this.loadAppRunGoroutines();
     }
 
     // Clean up resources when component unmounts
     dispose() {
-        // Currently no resources to clean up, but this method is added
-        // for consistency with other models and future-proofing
+        this.stopTimeSpansPolling();
     }
 
     // Set the content div reference for scrolling
     setContentRef(ref: React.RefObject<HTMLDivElement>) {
         this.contentRef = ref;
+    }
+
+    // Set the scrubber input reference for focusing
+    setScrubberRef(ref: React.RefObject<HTMLInputElement>) {
+        this.scrubberRef = ref;
+    }
+
+    // Focus the scrubber input for keyboard navigation
+    focusScrubber() {
+        this.scrubberRef?.current?.focus();
     }
 
     // Page up in the content view
@@ -139,7 +216,6 @@ class GoRoutinesModel {
         });
     }
 
-
     // Toggle a state filter (single selection mode)
     toggleStateFilter(state: string): void {
         const store = getDefaultStore();
@@ -149,10 +225,12 @@ class GoRoutinesModel {
             // If clicking the already selected state, deselect it and enable "show all"
             store.set(this.selectedStates, new Set<string>());
             store.set(this.showAll, true);
+            store.set(this.showActiveOnly, false);
         } else {
-            // Replace any existing selection with this state and disable "show all"
+            // Replace any existing selection with this state and disable "show all" and "active only"
             store.set(this.selectedStates, new Set([state]));
             store.set(this.showAll, false);
+            store.set(this.showActiveOnly, false);
         }
 
         // Trigger a new search with the current search term to apply the filter
@@ -165,8 +243,9 @@ class GoRoutinesModel {
         const showAll = store.get(this.showAll);
 
         if (!showAll) {
-            // If enabling "show all", clear selected states
+            // If enabling "show all", clear selected states and active only
             store.set(this.selectedStates, new Set<string>());
+            store.set(this.showActiveOnly, false);
             // Note: We do NOT reset showOutrigGoroutines here
         }
 
@@ -186,6 +265,26 @@ class GoRoutinesModel {
         this.searchGoroutines(store.get(this.searchTerm));
     }
 
+    // Toggle showing all vs active only goroutines
+    toggleShowActiveOnly(): void {
+        const store = getDefaultStore();
+        const showActiveOnly = store.get(this.showActiveOnly);
+
+        if (showActiveOnly) {
+            // If active is currently on, turn it off and enable show all
+            store.set(this.showActiveOnly, false);
+            store.set(this.showAll, true);
+        } else {
+            // If active is off, turn it on and clear other filters
+            store.set(this.showActiveOnly, true);
+            store.set(this.selectedStates, new Set<string>());
+            store.set(this.showAll, false);
+        }
+
+        // Trigger a new search with the current search term
+        this.searchGoroutines(store.get(this.searchTerm));
+    }
+
     // Search for goroutines matching the search term
     async searchGoroutines(searchTerm: string) {
         const store = getDefaultStore();
@@ -193,6 +292,7 @@ class GoRoutinesModel {
         this.currentSearchId = searchId;
         const showOutrig = store.get(this.showOutrigGoroutines);
         const selectedStates = store.get(this.selectedStates);
+        const showActiveOnly = store.get(this.showActiveOnly);
 
         try {
             // Build the systemQuery based on selected states and showOutrig setting
@@ -227,13 +327,17 @@ class GoRoutinesModel {
             const effectiveTimestamp = this.getEffectiveTimestamp();
 
             // Call the search RPC to get matching goroutine IDs
-            const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, {
+            // When state filters are active, automatically use activeonly search
+            const effectiveActiveOnly = showActiveOnly || selectedStates.size > 0;
+            const fullQuery = {
                 apprunid: this.appRunId,
                 searchterm: searchTerm,
                 systemquery: systemQuery,
-                timestamp: effectiveTimestamp > 0 ? effectiveTimestamp : undefined,
+                timestamp: effectiveTimestamp,
                 showoutrig: showOutrig,
-            });
+                activeonly: effectiveActiveOnly,
+            };
+            const searchResult = await RpcApi.GoRoutineSearchRequestCommand(DefaultRpcClient, fullQuery);
 
             // Check if this search is still the current one
             if (this.currentSearchId !== searchId) {
@@ -249,16 +353,7 @@ class GoRoutinesModel {
                 errorSpans: searchResult.errorspans || [],
             });
             // Set the timestamp to the actual timestamp that was searched for
-            let searchedTimestamp: number;
-            if (effectiveTimestamp > 0) {
-                searchedTimestamp = effectiveTimestamp;
-            } else {
-                // When effectiveTimestamp is 0 (search latest), use the app run's lastmodtime
-                const appRunInfoAtom = AppModel.getAppRunInfoAtom(this.appRunId);
-                const appRunInfo = store.get(appRunInfoAtom);
-                searchedTimestamp = appRunInfo?.lastmodtime || 0;
-            }
-            store.set(this.lastSearchTimestamp, searchedTimestamp);
+            store.set(this.lastSearchTimestamp, searchResult.effectivesearchtimestamp);
 
             // Convert int64 IDs to numbers and store them
             const goIds = searchResult.results;
@@ -266,7 +361,7 @@ class GoRoutinesModel {
 
             // If we have matching IDs, fetch the goroutine details
             if (goIds.length > 0) {
-                await this.fetchGoRoutinesByIds(goIds);
+                await this.fetchGoRoutinesByIds(goIds, effectiveTimestamp);
             } else {
                 // Clear goroutines if no matches
                 store.set(this.appRunGoRoutines, []);
@@ -283,7 +378,7 @@ class GoRoutinesModel {
     }
 
     // Fetch goroutine details by IDs
-    async fetchGoRoutinesByIds(goIds: number[]) {
+    async fetchGoRoutinesByIds(goIds: number[], timestamp?: number) {
         const searchId = this.currentSearchId;
 
         try {
@@ -295,6 +390,7 @@ class GoRoutinesModel {
             const result = await RpcApi.GetAppRunGoRoutinesByIdsCommand(DefaultRpcClient, {
                 apprunid: this.appRunId,
                 goids: goIds,
+                timestamp: timestamp,
             });
 
             // Check if this search is still the current one
@@ -402,51 +498,30 @@ class GoRoutinesModel {
         await this.searchGoroutines(term);
     }
 
-    // Get time range for the slider based on app run info
-    getTimeRange(): { startTime: number; endTime: number; maxRange: number } {
-        const store = getDefaultStore();
-        const appRunInfoAtom = AppModel.getAppRunInfoAtom(this.appRunId);
-        const appRunInfo = store.get(appRunInfoAtom);
-
-        if (!appRunInfo || !appRunInfo.firstgoroutinecollectionts) {
-            return { startTime: 0, endTime: 0, maxRange: MAX_TIME_RANGE_SECONDS };
-        }
-
-        const startTime = appRunInfo.firstgoroutinecollectionts;
-        const endTime = appRunInfo.lastmodtime;
-
-        // Calculate actual duration in seconds
-        const actualDurationSeconds = Math.floor((endTime - startTime) / 1000);
-
-        // If the actual duration is less than our max range, use the actual duration
-        if (actualDurationSeconds <= MAX_TIME_RANGE_SECONDS) {
-            return {
-                startTime,
-                endTime,
-                maxRange: actualDurationSeconds,
-            };
-        }
-
-        // If duration exceeds max range, adjust start time and use max range
-        const adjustedStartTime = endTime - MAX_TIME_RANGE_SECONDS * 1000;
-        return {
-            startTime: adjustedStartTime,
-            endTime,
-            maxRange: MAX_TIME_RANGE_SECONDS,
-        };
-    }
-
     // Set the selected timestamp and disable search latest mode
     setSelectedTimestamp(timestamp: number) {
         const store = getDefaultStore();
-        store.set(this.selectedTimestamp, timestamp);
+        // Ensure timestamp is an integer to avoid backend marshalling errors
+        const normalizedTimestamp = Math.round(timestamp);
+        store.set(this.selectedTimestamp, normalizedTimestamp);
         store.set(this.searchLatestMode, false);
+    }
+
+    // Set the selected timestamp and trigger a new search
+    setSelectedTimestampAndSearch(timestamp: number) {
+        this.setSelectedTimestamp(timestamp);
+
+        // Trigger a new search with the current search term
+        const store = getDefaultStore();
+        const searchTerm = store.get(this.searchTerm);
+        this.searchGoroutines(searchTerm);
     }
 
     // Enable search latest mode and update to current time
     enableSearchLatest() {
         const store = getDefaultStore();
-        const { endTime } = this.getTimeRange();
+        const timeSpan = store.get(this.fullTimeSpan);
+        const endTime = timeSpan?.end || 0;
         store.set(this.selectedTimestamp, endTime);
         store.set(this.searchLatestMode, true);
     }
@@ -460,7 +535,118 @@ class GoRoutinesModel {
             return 0; // 0 means use latest timestamp
         }
 
-        return store.get(this.selectedTimestamp);
+        return store.get(this.selectedTimestamp) || 0;
+    }
+
+    // Get or create a time span atom for a specific goroutine
+    getGRTimeSpanAtom(goid: number): PrimitiveAtom<TimeSpan> {
+        if (!this.timeSpanAtomCache.has(goid)) {
+            const timeSpanAtom = atom<TimeSpan>(null) as PrimitiveAtom<TimeSpan>;
+            this.timeSpanAtomCache.set(goid, timeSpanAtom);
+        }
+        return this.timeSpanAtomCache.get(goid)!;
+    }
+
+    // Start polling for goroutine time spans
+    startTimeSpansPolling() {
+        // Initial call with version 0
+        this.pollTimeSpans();
+
+        // Set up interval to poll every second
+        this.timeSpansPollingInterval = setInterval(() => {
+            this.pollTimeSpans();
+        }, 1000);
+    }
+
+    // Stop polling for goroutine time spans
+    stopTimeSpansPolling() {
+        if (this.timeSpansPollingInterval) {
+            clearInterval(this.timeSpansPollingInterval);
+            this.timeSpansPollingInterval = null;
+        }
+    }
+
+    // Poll for goroutine time spans using the current version
+    async pollTimeSpans() {
+        try {
+            const response = await RpcApi.GoRoutineTimeSpansCommand(DefaultRpcClient, {
+                apprunid: this.appRunId,
+                sincetickidx: this.timeSpansLastTickIdx,
+            });
+
+            // Check if we got a new tick index (new time spans available)
+            const hasNewTimeIdx = response.lasttick.idx !== this.timeSpansLastTickIdx;
+
+            // Update version for next call
+            this.timeSpansLastTickIdx = response.lasttick.idx;
+
+            // Update individual atoms
+            const store = getDefaultStore();
+
+            for (const goTimeSpan of response.data) {
+                const timeSpanAtom = this.getGRTimeSpanAtom(goTimeSpan.goid);
+                store.set(timeSpanAtom, goTimeSpan.span);
+            }
+
+            // Update full time span if it changed
+            if (response.fulltimespan) {
+                const currentFullTimeSpan = store.get(this.fullTimeSpan);
+                if (
+                    response.fulltimespan.start !== currentFullTimeSpan?.start ||
+                    response.fulltimespan.end !== currentFullTimeSpan?.end
+                ) {
+                    store.set(this.fullTimeSpan, response.fulltimespan);
+                }
+            }
+
+            // Update dropped count
+            store.set(this.droppedCount, response.droppedcount || 0);
+
+            // Update active counts - append new counts to existing ones
+            if (response.activecounts && response.activecounts.length > 0) {
+                const currentActiveCounts = store.get(this.activeCounts);
+                const updatedActiveCounts = [...currentActiveCounts, ...response.activecounts];
+                store.set(this.activeCounts, updatedActiveCounts);
+            }
+
+            // If we got new time spans, re-run the search to find new goroutines
+            if (hasNewTimeIdx) {
+                const searchTerm = store.get(this.searchTerm);
+                setTimeout(() => {
+                    this.searchGoroutines(searchTerm);
+                }, 0);
+            }
+        } catch (error) {
+            console.error(`Failed to poll time spans for app run ${this.appRunId}:`, error);
+        }
+    }
+
+    // Helper function to convert timeidx to timestamp using activeCounts
+    timeIdxToTimestamp(timeIdx: number): number {
+        const store = getDefaultStore();
+        const activeCounts = store.get(this.activeCounts);
+        const activeCount = activeCounts.find((count) => count.timeidx === timeIdx);
+        return activeCount ? activeCount.ts : 0;
+    }
+
+    // Helper function to find the closest timeidx for a given timestamp
+    timestampToTimeIdx(timestamp: number): number {
+        const store = getDefaultStore();
+        const activeCounts = store.get(this.activeCounts);
+        const timelineRange = store.get(this.timelineRangeAtom);
+
+        let closestIdx = timelineRange.minTimeIdx;
+        let closestDiff = Infinity;
+
+        for (const count of activeCounts) {
+            const diff = Math.abs(count.ts - timestamp);
+            if (diff < closestDiff) {
+                closestDiff = diff;
+                closestIdx = count.timeidx;
+            }
+        }
+
+        return closestIdx;
     }
 }
 

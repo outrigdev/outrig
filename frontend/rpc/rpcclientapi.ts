@@ -66,6 +66,11 @@ class RpcApiType {
         return client.rpcCall("goroutinesearchrequest", data, opts);
     }
 
+    // command "goroutinetimespans" [call]
+    GoRoutineTimeSpansCommand(client: RpcClient, data: GoRoutineTimeSpansRequest, opts?: RpcOpts): Promise<GoRoutineTimeSpansResponse> {
+        return client.rpcCall("goroutinetimespans", data, opts);
+    }
+
     // command "killdemoapp" [call]
     KillDemoAppCommand(client: RpcClient, opts?: RpcOpts): Promise<void> {
         return client.rpcCall("killdemoapp", null, opts);

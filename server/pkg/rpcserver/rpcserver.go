@@ -98,7 +98,7 @@ func (*RpcServerImpl) GetAppRunGoRoutinesByIdsCommand(ctx context.Context, data 
 	}
 
 	// Get parsed goroutines by IDs from the GoRoutinePeer
-	parsedGoRoutines := peer.GoRoutines.GetParsedGoRoutinesByIds(moduleName, data.GoIds)
+	parsedGoRoutines := peer.GoRoutines.GetParsedGoRoutinesByIds(moduleName, data.GoIds, data.Timestamp)
 
 	return rpctypes.AppRunGoRoutinesData{
 		AppRunId:   peer.AppRunId,
@@ -163,9 +163,11 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 		moduleName = peer.AppInfo.ModuleName
 	}
 
-	// Get all goroutines (use timestamp if provided, otherwise get latest)
-	allGoRoutines := peer.GoRoutines.GetParsedGoRoutinesAtTimestamp(moduleName, data.Timestamp)
-	totalCount := len(allGoRoutines)
+	// Get goroutines based on ActiveOnly flag and timestamp
+	result := peer.GoRoutines.GetParsedGoRoutinesAtTimestamp(moduleName, data.Timestamp, data.ActiveOnly)
+	allGoRoutines := result.GoRoutines
+	totalCount := result.TotalCount
+	effectiveTimestamp := result.EffectiveTimestamp
 
 	// Create user searcher based on search term and get any error spans
 	userSearcher, errorSpans, err := gensearch.GetSearcherWithErrors(data.SearchTerm)
@@ -219,15 +221,11 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 		results = results[:MaxGoRoutineSearchResults]
 	}
 
-	// Calculate total non-outrig goroutines count and state counts
-	totalNonOutrig := 0
+	// Calculate state counts from filtered goroutines
 	stateCounts := make(map[string]int)
 	for _, gr := range allGoRoutines {
 		isOutrig := slices.Contains(gr.Tags, "outrig")
-		if !isOutrig {
-			totalNonOutrig++
-		}
-		
+
 		// Include in state counts based on ShowOutrig flag
 		if gr.PrimaryState != "" && (data.ShowOutrig || !isOutrig) {
 			stateCounts[gr.PrimaryState]++
@@ -235,13 +233,27 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	}
 
 	return rpctypes.GoRoutineSearchResultData{
-		SearchedCount:        stats.SearchedCount,
-		TotalCount:           stats.TotalCount,
-		TotalNonOutrig:       totalNonOutrig,
-		GoRoutineStateCounts: stateCounts,
-		Results:              results,
-		ErrorSpans:           errorSpans,
+		SearchedCount:            stats.SearchedCount,
+		TotalCount:               stats.TotalCount,
+		TotalNonOutrig:           result.TotalNonOutrig,
+		GoRoutineStateCounts:     stateCounts,
+		Results:                  results,
+		ErrorSpans:               errorSpans,
+		EffectiveSearchTimestamp: effectiveTimestamp,
 	}, nil
+}
+
+// GoRoutineTimeSpansCommand handles requests for goroutine time spans since a tick index
+func (*RpcServerImpl) GoRoutineTimeSpansCommand(ctx context.Context, data rpctypes.GoRoutineTimeSpansRequest) (rpctypes.GoRoutineTimeSpansResponse, error) {
+	// Get the app run peer
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	if peer == nil {
+		return rpctypes.GoRoutineTimeSpansResponse{}, fmt.Errorf("app run not found: %s", data.AppRunId)
+	}
+
+	// Get the complete response from the peer (with proper locking)
+	response := peer.GoRoutines.GetTimeSpansSinceTickIdx(data.SinceTickIdx)
+	return response, nil
 }
 
 // combinedWatchSampleToSearchObject converts a CombinedWatchSample to a WatchSearchObject

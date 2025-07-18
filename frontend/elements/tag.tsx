@@ -11,18 +11,19 @@ interface TagProps {
     isSelected: boolean;
     onToggle?: () => void;
     variant?: TagVariant;
-    count?: number;
+    count?: number | string;
     className?: string;
+    compact?: boolean;
 }
 
-export const Tag: React.FC<TagProps> = ({ label, isSelected, onToggle, variant = "primary", count, className }) => {
+export const Tag: React.FC<TagProps> = ({ label, isSelected, onToggle, variant = "primary", count, className, compact = false }) => {
     const baseClasses = cn("text-xs rounded-md transition-colors", getTagStyles(variant, isSelected), className);
     
     const content = (
         <div className="flex items-center h-full">
-            <span className="px-2 py-1">{label}</span>
+            <span className={compact ? "px-1.5 py-0.5" : "px-2 py-1"}>{label}</span>
             {count != null && (
-                <span className="count px-1.5 py-1 font-medium border-l border-current/30">{count}</span>
+                <span className={cn("count font-medium border-l border-current/30", compact ? "px-1 py-0.5" : "px-1.5 py-1")}>{count}</span>
             )}
         </div>
     );
