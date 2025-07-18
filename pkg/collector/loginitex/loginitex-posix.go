@@ -39,7 +39,7 @@ type extCaptureProc struct {
 	closing                  atomic.Bool   // Flag to indicate that disableExternalLogWrapImpl is running
 }
 
-func enableExternalLogWrapImpl(appRunId string, cfg config.LogProcessorConfig, isDev bool) error {
+func enableExternalLogWrapImpl(appRunId string, cfg config.LogProcessorConfig) error {
 	externalCaptureLock.Lock()
 	defer externalCaptureLock.Unlock()
 
@@ -55,6 +55,8 @@ func enableExternalLogWrapImpl(appRunId string, cfg config.LogProcessorConfig, i
 	// Set which streams to wrap
 	wrapStdout = cfg.WrapStdout
 	wrapStderr = cfg.WrapStderr
+
+	isDev := config.UseDevConfig()
 
 	// Determine the outrig executable path
 	outrigPath, err := resolveOutrigPath(cfg, isDev)
@@ -108,11 +110,8 @@ func enableExternalLogWrapImpl(appRunId string, cfg config.LogProcessorConfig, i
 	localProc.cmd = cmd // Store command in the struct
 
 	// Set the AppRunId environment variable
-	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", config.AppRunIdEnvName, appRunId))
-	// Set dev config environment variable if in dev mode
-	if isDev {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=1", config.DevConfigEnvName))
-	}
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", config.AppRunIdEnvName, appRunId))
 
 	// Add any additional arguments before "capturelogs"
 	if len(cfg.AdditionalArgs) > 0 {
@@ -121,9 +120,6 @@ func enableExternalLogWrapImpl(appRunId string, cfg config.LogProcessorConfig, i
 
 	// Add the "capturelogs" command and any flags
 	cmd.Args = append(cmd.Args, "capturelogs")
-	if isDev {
-		cmd.Args = append(cmd.Args, "--dev")
-	}
 
 	// Set up file descriptors for the external process
 	cmd.Stdin = stdoutPipeR
@@ -335,6 +331,12 @@ func resolveOutrigPath(cfg config.LogProcessorConfig, isDev bool) (string, error
 	if cfg.OutrigPath != "" {
 		return cfg.OutrigPath, nil
 	}
+	if isDev {
+		// check bin/outrig first
+		if _, err := os.Stat("bin/outrig"); err == nil {
+			return "bin/outrig", nil
+		}
+	}
 
 	// Check if outrig is in the PATH
 	if _, lookPathErr := exec.LookPath("outrig"); lookPathErr == nil {
@@ -342,16 +344,11 @@ func resolveOutrigPath(cfg config.LogProcessorConfig, isDev bool) (string, error
 	}
 
 	// Try backup directories that might not be in PATH
-	var backupPaths []string
-	if isDev {
-		// in development mode try bin/outrig first
-		backupPaths = append(backupPaths, utilfn.ExpandHomeDir("bin/outrig"))
-	}
-	backupPaths = append(backupPaths,
+	backupPaths := []string{
 		"/opt/homebrew/bin/outrig",
 		"/usr/local/bin/outrig",
 		utilfn.ExpandHomeDir("~/.local/bin/outrig"),
-	)
+	}
 
 	for _, backupPath := range backupPaths {
 		if _, err := os.Stat(backupPath); err == nil {

@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/server/demo"
 	"github.com/outrigdev/outrig/server/pkg/boot"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
@@ -21,8 +22,9 @@ import (
 )
 
 type specialArgs struct {
-	IsVerbose bool
-	Args      []string
+	IsVerbose  bool
+	ConfigFile string
+	Args       []string
 }
 
 func parseSpecialArgs(keyArg string) (specialArgs, error) {
@@ -41,11 +43,14 @@ func parseSpecialArgs(keyArg string) (specialArgs, error) {
 		return result, fmt.Errorf("key argument '%s' not found in command line", keyArg)
 	}
 
-	// Look for -v flags before keyArg
+	// Look for -v and --config flags before keyArg
 	for i := 1; i < keyArgIndex; i++ {
 		arg := os.Args[i]
 		if arg == "-v" {
 			result.IsVerbose = true
+		} else if arg == "--config" && i+1 < keyArgIndex {
+			result.ConfigFile = os.Args[i+1]
+			i++ // Skip the next argument since it's the config file value
 		}
 	}
 
@@ -55,6 +60,18 @@ func parseSpecialArgs(keyArg string) (specialArgs, error) {
 	}
 
 	return result, nil
+}
+
+// loadOutrigConfig loads the Outrig configuration using the same logic as outrig.Init()
+func loadOutrigConfig(configFile string) (*config.Config, error) {
+	loadedCfg, err := config.LoadConfig(configFile)
+	if err != nil {
+		return nil, err
+	}
+	if loadedCfg == nil {
+		return config.DefaultConfig(), nil
+	}
+	return loadedCfg, nil
 }
 
 var (
@@ -68,6 +85,11 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 	// This ensures the sidecar process doesn't terminate prematurely before the main process
 	signal.Ignore(syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
+	cfg, err := loadOutrigConfig("")
+	if err != nil {
+		return err
+	}
+
 	stderrIn := os.NewFile(3, "stderr-in")
 	source, _ := cmd.Flags().GetString("source")
 	if source == "" {
@@ -77,7 +99,7 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 		{Input: os.Stdin, Output: os.Stdout, Source: source},
 		{Input: stderrIn, Output: os.Stderr, Source: "/dev/stderr"},
 	}
-	return execlogwrap.ProcessExistingStreams(streams, nil)
+	return execlogwrap.ProcessExistingStreams(streams, config.GetExternalAppRunId(), cfg)
 }
 
 func runPostinstall(cmd *cobra.Command, args []string) {
@@ -194,7 +216,6 @@ func main() {
 		Hidden: true,
 	}
 	captureLogsCmd.Flags().String("source", "", "Override the source name for stdout logs (default: /dev/stdout)")
-	captureLogsCmd.Flags().Bool("dev", false, "Run in development mode")
 
 	runCmd := &cobra.Command{
 		Use:   "run [go-args]",
@@ -212,9 +233,15 @@ Example: outrig --dev --verbose run main.go`,
 				return fmt.Errorf("run command requires at least one argument")
 			}
 
+			outrigCfg, err := loadOutrigConfig(specialArgs.ConfigFile)
+			if err != nil {
+				return err
+			}
+
 			cfg := runmode.RunModeConfig{
 				Args:      specialArgs.Args,
 				IsVerbose: specialArgs.IsVerbose,
+				Config:    outrigCfg,
 			}
 			return runmode.ExecRunMode(cfg)
 		},
@@ -236,7 +263,11 @@ Example: outrig --dev exec ls -latrh`,
 			if len(specialArgs.Args) == 0 {
 				return fmt.Errorf("exec command requires at least one argument")
 			}
-			return execlogwrap.ExecCommand(specialArgs.Args)
+			cfg, err := loadOutrigConfig(specialArgs.ConfigFile)
+			if err != nil {
+				return err
+			}
+			return execlogwrap.ExecCommand(specialArgs.Args, config.GetAppRunId(), cfg)
 		},
 		// Disable flag parsing for this command so all flags are passed to the executed command
 		DisableFlagParsing: true,

@@ -74,10 +74,9 @@ func (lc *LogCollector) Enable() {
 	// Enable external log wrapping if controller is available
 	// Get the appRunId from the config
 	appRunId := config.GetAppRunId()
-	isDev := config.UseDevConfig()
 
 	// Use the new external log capture mechanism
-	err := loginitex.EnableExternalLogWrap(appRunId, cfg, isDev)
+	err := loginitex.EnableExternalLogWrap(appRunId, cfg)
 	lc.setExternalLogWrapError(err)
 
 	ctl := global.GetController()
@@ -107,7 +106,7 @@ func (lc *LogCollector) OnNewConnection() {
 // GetStatus returns the current status of the log collector
 func (lc *LogCollector) GetStatus() ds.CollectorStatus {
 	cfg := lc.config.Get()
-	
+
 	// Check if external log capture is disabled via environment variable
 	if os.Getenv(config.ExternalLogCaptureEnvName) != "" {
 		status := ds.CollectorStatus{

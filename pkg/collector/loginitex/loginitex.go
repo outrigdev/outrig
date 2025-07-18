@@ -10,9 +10,9 @@ import "github.com/outrigdev/outrig/pkg/config"
 // appRunId is the unique identifier for the application run
 // config specifies which streams to wrap (stdout/stderr)
 // isDev specifies whether to run the process in development mode
-func EnableExternalLogWrap(appRunId string, cfg config.LogProcessorConfig, isDev bool) error {
+func EnableExternalLogWrap(appRunId string, cfg config.LogProcessorConfig) error {
 	// Platform-specific implementation will be provided
-	return enableExternalLogWrapImpl(appRunId, cfg, isDev)
+	return enableExternalLogWrapImpl(appRunId, cfg)
 }
 
 // DisableExternalLogWrap stops the external log capture process and restores original file descriptors

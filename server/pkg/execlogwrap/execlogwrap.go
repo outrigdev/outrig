@@ -4,6 +4,7 @@
 package execlogwrap
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -61,12 +62,12 @@ func (ldw *LogDataWrap) processLogData(data []byte) {
 }
 
 // ensureConnection ensures that we have a connection to the Outrig server
-func (ldw *LogDataWrap) ensureConnection(cfg *config.Config) {
+func (ldw *LogDataWrap) ensureConnection(appRunId string, cfg *config.Config) {
 	ldw.lock.Lock()
 	defer ldw.lock.Unlock()
 
 	if ldw.conn == nil {
-		if conn := tryConnect(ldw.source, cfg); conn != nil {
+		if conn := tryConnect(ldw.source, appRunId, cfg); conn != nil {
 			ldw.conn = conn
 			// fmt.Printf("#outrig connected %s via %s\n", ldw.source, conn.PeerName)
 		}
@@ -86,10 +87,8 @@ func (ldw *LogDataWrap) closeConnection() {
 
 // tryConnect attempts to connect to the Outrig server for the specified source
 // It returns the connection if successful, or nil if it fails
-func tryConnect(source string, cfg *config.Config) *comm.ConnWrap {
-	appRunId := config.GetExternalAppRunId()
+func tryConnect(source string, appRunId string, cfg *config.Config) *comm.ConnWrap {
 	if appRunId == "" {
-		// it is an error if we don't have an _external_ apprunid
 		return nil
 	}
 
@@ -102,17 +101,17 @@ func tryConnect(source string, cfg *config.Config) *comm.ConnWrap {
 
 // ensureConnections ensures that we have connections to the Outrig server
 // for both stdout and stderr
-func ensureConnections(cfg *config.Config) {
-	stdoutWrap.ensureConnection(cfg)
-	stderrWrap.ensureConnection(cfg)
+func ensureConnections(appRunId string, cfg *config.Config) {
+	stdoutWrap.ensureConnection(appRunId, cfg)
+	stderrWrap.ensureConnection(appRunId, cfg)
 }
 
 // startConnPoller starts a goroutine that periodically tries to establish
 // connections to the Outrig server if they don't already exist
-func startConnPoller(cfg *config.Config) {
+func startConnPoller(appRunId string, cfg *config.Config) {
 	go func() {
 		for {
-			ensureConnections(cfg)
+			ensureConnections(appRunId, cfg)
 			time.Sleep(ConnPollTime)
 		}
 	}()
@@ -141,15 +140,15 @@ func processStream(wg *sync.WaitGroup, decl TeeStreamDecl) {
 }
 
 // ProcessExistingStreams handles capturing logs from provided input/output streams
-func ProcessExistingStreams(streams []TeeStreamDecl, cfg *config.Config) error {
+// cfg cannot be nil
+func ProcessExistingStreams(streams []TeeStreamDecl, appRunId string, cfg *config.Config) error {
 	if cfg == nil {
-		cfg = config.DefaultConfig()
+		return fmt.Errorf("config cannot be nil")
 	}
 
-	appRunId := config.GetExternalAppRunId()
 	if appRunId != "" {
-		ensureConnections(cfg)
-		startConnPoller(cfg)
+		ensureConnections(appRunId, cfg)
+		startConnPoller(appRunId, cfg)
 	}
 
 	var wg sync.WaitGroup
@@ -163,16 +162,25 @@ func ProcessExistingStreams(streams []TeeStreamDecl, cfg *config.Config) error {
 }
 
 // ExecCommand executes a command with the provided arguments
-func ExecCommand(args []string) error {
+// cfg cannot be nil
+func ExecCommand(args []string, appRunId string, cfg *config.Config) error {
+	if cfg == nil {
+		return fmt.Errorf("config cannot be nil")
+	}
+
 	execCmd := exec.Command(args[0], args[1:]...)
 
 	// Set up environment variables for external log capture on the command
 	execCmd.Env = os.Environ()
-	appRunId := config.GetAppRunId()
-	if appRunId != "" {
-		execCmd.Env = append(execCmd.Env, config.AppRunIdEnvName+"="+appRunId)
-	}
+	execCmd.Env = append(execCmd.Env, config.AppRunIdEnvName+"="+appRunId)
 	execCmd.Env = append(execCmd.Env, config.ExternalLogCaptureEnvName+"=1")
+
+	// Serialize config to JSON and set as environment variable
+	configJson, err := json.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to serialize config to JSON: %v", err)
+	}
+	execCmd.Env = append(execCmd.Env, config.ConfigJsonEnvName+"="+string(configJson))
 
 	stdoutPipe, err := execCmd.StdoutPipe()
 	if err != nil {
@@ -194,7 +202,7 @@ func ExecCommand(args []string) error {
 		{Input: stdoutPipe, Output: os.Stdout, Source: "/dev/stdout"},
 		{Input: stderrPipe, Output: os.Stderr, Source: "/dev/stderr"},
 	}
-	ProcessExistingStreams(streams, nil)
+	ProcessExistingStreams(streams, appRunId, cfg)
 
 	err = execCmd.Wait()
 	if exitErr, ok := err.(*exec.ExitError); ok {

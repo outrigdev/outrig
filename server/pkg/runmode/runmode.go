@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
 	"github.com/outrigdev/outrig/server/pkg/runmode/gr"
@@ -22,6 +23,7 @@ import (
 type RunModeConfig struct {
 	Args      []string
 	IsVerbose bool
+	Config    *config.Config
 }
 
 // findAndTransformMainFile finds the main file AST and transforms it by adding outrig import and modifying main function
@@ -226,5 +228,5 @@ func runGoCommand(args []string, cfg RunModeConfig) error {
 	goArgs := append([]string{"go"}, args...)
 
 	// Use execlogwrap to execute the command with log capture
-	return execlogwrap.ExecCommand(goArgs)
+	return execlogwrap.ExecCommand(goArgs, config.GetAppRunId(), cfg.Config)
 }

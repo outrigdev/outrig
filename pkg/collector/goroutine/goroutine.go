@@ -433,6 +433,18 @@ func (gc *GoroutineCollector) GetGoRoutineDecl(goId int64) *ds.GoDecl {
 	return decl
 }
 
+// GetGoRoutineDeclCopy gets a copy of the declaration for a goroutine by ID
+// Returns a zero-value GoDecl and false if no declaration exists for the given ID
+func (gc *GoroutineCollector) GetGoRoutineDeclCopy(goId int64) (ds.GoDecl, bool) {
+	gc.lock.Lock()
+	defer gc.lock.Unlock()
+	decl, ok := gc.goroutineDecls[goId]
+	if !ok {
+		return ds.GoDecl{}, false
+	}
+	return *decl, true
+}
+
 var startRe = regexp.MustCompile(`(?m)^goroutine\s+\d+`)
 var stackRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\].*\n((?s).*)`)
 var goCreationRe = regexp.MustCompile(`goroutine (\d+) \[([^\]]+)\]`)
@@ -569,13 +581,13 @@ func (gc *GoroutineCollector) parseGoroutineStacks(stackData []byte, delta bool,
 			StackTrace: stackTrace,
 		}
 
-		if decl, ok := gc.goroutineDecls[id]; ok {
+		if decl, ok := gc.GetGoRoutineDeclCopy(id); ok {
 			if decl.Name != "" {
 				grStack.Name = decl.Name
 				grStack.Tags = decl.Tags
 			}
 			// Patch the stack trace to replace Outrig SDK frames with real creator
-			grStack.StackTrace = patchCreatedByStack(decl, grStack.StackTrace)
+			grStack.StackTrace = patchCreatedByStack(&decl, grStack.StackTrace)
 		}
 
 		currentStacks[id] = grStack
@@ -646,12 +658,14 @@ func (gc *GoroutineCollector) setLastGoroutineStacksAndCleanupNames(stacks map[i
 		}
 
 		// Check grace periods before removing
-		withinStartGrace := decl.StartTs > 0 && (now-decl.StartTs) < int64(GoroutineGracePeriod.Milliseconds())
+		startTs := atomic.LoadInt64(&decl.StartTs)
+		withinStartGrace := startTs > 0 && (now-startTs) < int64(GoroutineGracePeriod.Milliseconds())
 		if withinStartGrace {
 			continue
 		}
 
-		withinPollGrace := decl.LastPollTs > 0 && (now-decl.LastPollTs) < int64(GoroutineGracePeriod.Milliseconds())
+		lastPollTs := atomic.LoadInt64(&decl.LastPollTs)
+		withinPollGrace := lastPollTs > 0 && (now-lastPollTs) < int64(GoroutineGracePeriod.Milliseconds())
 		if withinPollGrace {
 			continue
 		}
@@ -697,8 +711,8 @@ func (gc *GoroutineCollector) recordPolledGoroutine(goId int64, goroutineData []
 
 	// First time we've seen this goroutine
 	decl = NewRunningGoDecl(goId)
-	decl.FirstPollTs = now
-	decl.LastPollTs = now
+	atomic.StoreInt64(&decl.FirstPollTs, now)
+	atomic.StoreInt64(&decl.LastPollTs, now)
 	gc.RecordGoRoutineStart(decl, goroutineData)
 }
 
@@ -732,7 +746,7 @@ func (gc *GoroutineCollector) GetStatus() ds.CollectorStatus {
 
 // patchCreatedByStack patches the stack trace to replace Outrig SDK frames with the real creator
 func patchCreatedByStack(decl *ds.GoDecl, stack string) string {
-	if decl.RealCreatedBy == "" {
+	if decl == nil || decl.RealCreatedBy == "" {
 		return stack
 	}
 

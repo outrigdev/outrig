@@ -12,7 +12,7 @@ import (
 	"github.com/outrigdev/outrig/pkg/config"
 )
 
-func enableExternalLogWrapImpl(_ string, _ config.LogProcessorConfig, _ bool) error {
+func enableExternalLogWrapImpl(_ string, _ config.LogProcessorConfig) error {
 	return errors.New("external log wrapping not supported on Windows")
 }
 
