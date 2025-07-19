@@ -32,6 +32,7 @@ func periodicTask(name string, interval time.Duration, totalDuration time.Durati
 
 func main() {
 
+	//outrig name="http-6060"
 	go func() {
 		http.ListenAndServe(":6060", nil)
 	}()
