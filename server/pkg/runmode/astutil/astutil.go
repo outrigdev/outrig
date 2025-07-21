@@ -67,7 +67,7 @@ func HasImport(node *ast.File, importPath string) bool {
 
 // AddOutrigImport checks if the outrig import exists in the AST node and adds it if not present.
 // Returns true if the import was added, false if it already existed.
-func AddOutrigImport(node *ast.File) bool {
+func AddOutrigImport(fset *token.FileSet, node *ast.File) bool {
 	// Check if outrig import already exists
 	if HasImport(node, OutrigImportPath) {
 		return false

@@ -35,7 +35,7 @@ func findAndTransformMainFile(transformState *astutil.TransformState) error {
 	}
 
 	// Transform the main file: add outrig import and modify main function
-	astutil.AddOutrigImport(mainFileAST)
+	astutil.AddOutrigImport(transformState.FileSet, mainFileAST)
 	if !modifyMainFunction(mainFileAST) {
 		mainFilePath := transformState.GetFilePath(mainFileAST)
 		return fmt.Errorf("unable to find main entry point in %s. Ensure your application has a valid main()", mainFilePath)
@@ -98,40 +98,74 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 		}
 	}
 
-	// Separate Go files/packages from other arguments using flagsWithArgs
+	// Parse arguments in three phases: flags, go files/package, program args
 	var goFiles []string
-	var otherArgs []string
-
+	var programArgs []string
+	var buildFlags []string
+	
+	const (
+		parseFlags = iota
+		parseGoFiles
+		parseProgArgs
+	)
+	
+	state := parseFlags
+	
 	for i := 0; i < len(cfg.Args); i++ {
 		arg := cfg.Args[i]
-
-		if strings.HasPrefix(arg, "-") {
-			// This is a flag
-			otherArgs = append(otherArgs, arg)
-
-			// Check if this flag takes an argument
-			flagName := arg
-			if strings.Contains(arg, "=") {
-				// Flag is in -flag=value format, no need to consume next arg
-				continue
+		
+		switch state {
+		case parseFlags:
+			if strings.HasPrefix(arg, "-") {
+				// This is a flag
+				buildFlags = append(buildFlags, arg)
+				
+				// Check if this flag takes an argument
+				flagName := arg
+				if strings.Contains(arg, "=") {
+					// Flag is in -flag=value format, no need to consume next arg
+					continue
+				}
+				
+				if flagsWithArgs[flagName] && i+1 < len(cfg.Args) {
+					// This flag takes an argument, consume the next argument too
+					i++
+					buildFlags = append(buildFlags, cfg.Args[i])
+				}
+			} else {
+				// Hit first non-flag, switch to parsing go files/package
+				state = parseGoFiles
+				i-- // Re-process this argument in the new state
 			}
-
-			if flagsWithArgs[flagName] && i+1 < len(cfg.Args) {
-				// This flag takes an argument, consume the next argument too
-				i++
-				otherArgs = append(otherArgs, cfg.Args[i])
+			
+		case parseGoFiles:
+			if strings.HasSuffix(arg, ".go") {
+				// This is a .go file, collect it
+				goFiles = append(goFiles, arg)
+			} else {
+				// This is either a package or the first program arg
+				if len(goFiles) == 0 {
+					// No .go files seen yet, this must be a package
+					goFiles = append(goFiles, arg)
+				} else {
+					// We already have .go files, this is a program arg
+					state = parseProgArgs
+					i-- // Re-process this argument in the new state
+				}
 			}
-		} else {
-			// This is not a flag, so it's likely a Go file or package
-			goFiles = append(goFiles, arg)
+			
+		case parseProgArgs:
+			// Everything from here on is a program argument
+			programArgs = append(programArgs, arg)
 		}
 	}
 
 	// Load the specified Go files using the new astutil.LoadGoFiles function
 	buildArgs := astutil.BuildArgs{
-		GoFiles:    goFiles,
-		BuildFlags: otherArgs,
-		Verbose:    cfg.IsVerbose,
+		GoFiles:     goFiles,
+		BuildFlags:  buildFlags,
+		ProgramArgs: programArgs,
+		Verbose:     cfg.IsVerbose,
 	}
 
 	return buildArgs, nil
@@ -209,11 +243,11 @@ func ExecRunMode(cfg RunModeConfig) error {
 	}
 
 	// Create overlay file mapping and run
-	return runWithOverlay(transformState.OverlayMap, transformState.TempDir, buildArgs.GoFiles, buildArgs.BuildFlags, cfg)
+	return runWithOverlay(transformState.OverlayMap, transformState.TempDir, buildArgs.GoFiles, buildArgs.BuildFlags, buildArgs.ProgramArgs, cfg)
 }
 
 // runWithOverlay creates the overlay file and runs the go command
-func runWithOverlay(overlayMap map[string]string, tempDir string, goFiles []string, otherArgs []string, cfg RunModeConfig) error {
+func runWithOverlay(overlayMap map[string]string, tempDir string, goFiles []string, otherArgs []string, programArgs []string, cfg RunModeConfig) error {
 	// Create overlay file mapping
 	overlayData := map[string]interface{}{
 		"Replace": overlayMap,
@@ -240,6 +274,7 @@ func runWithOverlay(overlayMap map[string]string, tempDir string, goFiles []stri
 	goArgs := []string{"run", "-overlay", overlayFilePath}
 	goArgs = append(goArgs, otherArgs...)
 	goArgs = append(goArgs, goFiles...)
+	goArgs = append(goArgs, programArgs...)
 
 	if cfg.IsVerbose {
 		log.Printf("Executing go command with args: %v", goArgs)

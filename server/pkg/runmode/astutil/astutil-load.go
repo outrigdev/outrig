@@ -8,16 +8,18 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
 
 // BuildArgs contains the build configuration for loading Go files
 type BuildArgs struct {
-	GoFiles    []string
-	BuildFlags []string
-	WorkingDir string
-	Verbose    bool
+	GoFiles     []string
+	BuildFlags  []string
+	ProgramArgs []string
+	WorkingDir  string
+	Verbose     bool
 }
 
 // TransformState contains the state for AST transformations including FileSet and packages
@@ -27,6 +29,7 @@ type TransformState struct {
 	Packages      []*packages.Package
 	OverlayMap    map[string]string
 	ModifiedFiles map[string]*ast.File
+	GoModPath     string
 	TempDir       string
 	Verbose       bool
 }
@@ -57,7 +60,11 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	// Prepare file patterns with "file=" prefix
 	var filePatterns []string
 	for _, goFile := range buildArgs.GoFiles {
-		filePatterns = append(filePatterns, "file="+goFile)
+		if strings.HasSuffix(goFile, ".go") {
+			filePatterns = append(filePatterns, "file="+goFile)
+		} else {
+			filePatterns = append(filePatterns, goFile)
+		}
 	}
 
 	// Load packages using the file patterns

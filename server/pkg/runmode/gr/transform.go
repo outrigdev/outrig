@@ -152,7 +152,7 @@ func TransformGoStatements(transformState *astutil.TransformState, node *ast.Fil
 
 	// Add outrig import if we made any transformations and it's not already present
 	if transformCount > 0 {
-		astutil.AddOutrigImport(node)
+		astutil.AddOutrigImport(transformState.FileSet, node)
 		if transformState.Verbose {
 			fileName := transformState.GetFilePath(node)
 			log.Printf("Transformed %d go statements in file: %s\n", transformCount, filepath.Base(fileName))
