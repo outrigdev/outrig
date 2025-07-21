@@ -103,6 +103,24 @@ func MakeConnectAddrs(cfg *config.Config) []ConnectAddr {
 	return connectAddrs
 }
 
+// tryConnect attempts to establish a connection to a single address.
+// Returns connWrap on success, or nil if should continue to next address.
+func tryConnect(connectAddr ConnectAddr) *ConnWrap {
+	// For domain sockets, check if the file exists
+	if connectAddr.Network == "unix" {
+		if _, errStat := os.Stat(connectAddr.DialAddr); errStat != nil {
+			return nil
+		}
+	}
+
+	conn, err := net.DialTimeout(connectAddr.Network, connectAddr.DialAddr, ConnectDialTimeout)
+	if err != nil {
+		return nil
+	}
+
+	return MakeConnWrap(conn, connectAddr.DialAddr)
+}
+
 // Connect attempts to connect to addresses based on the provided config,
 // performs the handshake with the specified mode, submode, and appRunId,
 // and returns a new ConnWrap if successful.
@@ -118,24 +136,13 @@ func Connect(mode string, submode string, appRunId string, cfg *config.Config) (
 
 	// log.Printf("Connecting to Outrig server with mode: %s, submode: %s, appRunId: %s, connectAddrs: %v\n", mode, submode, appRunId, connectAddrsToStrings(connectAddrs))
 	for _, connectAddr := range connectAddrs {
-		if connectAddr.DialAddr == "" || connectAddr.DialAddr == "-" {
-			continue
-		}
-
 		triedConnect = true
 		attemptedAddrs = append(attemptedAddrs, connectAddr.DialAddr)
 
-		// For domain sockets, check if the file exists
-		if connectAddr.Network == "unix" {
-			if _, errStat := os.Stat(connectAddr.DialAddr); errStat != nil {
-				continue
-			}
-		}
-		conn, err := net.DialTimeout(connectAddr.Network, connectAddr.DialAddr, ConnectDialTimeout)
-		if err != nil {
+		connWrap := tryConnect(connectAddr)
+		if connWrap == nil {
 			continue
 		}
-		connWrap := MakeConnWrap(conn, connectAddr.DialAddr)
 		sresp, err := connWrap.ClientHandshake(mode, submode, appRunId, connectAddr.IsTcp())
 		if err != nil {
 			connWrap.Close()
@@ -149,4 +156,32 @@ func Connect(mode string, submode string, appRunId string, cfg *config.Config) (
 	}
 	errMsg := fmt.Sprintf("failed to connect to outrig addresses: %v", attemptedAddrs)
 	return nil, nil, errors.New(errMsg)
+}
+
+// GetServerVersion connects to the Outrig server, retrieves the server version, and closes the connection.
+// It uses the provided configuration to determine connection addresses.
+// Returns (version, peerAddr, error).
+func GetServerVersion(cfg *config.Config) (string, string, error) {
+	if cfg == nil {
+		cfg = config.DefaultConfig()
+	}
+
+	connectAddrs := MakeConnectAddrs(cfg)
+
+	for _, connectAddr := range connectAddrs {
+		connWrap := tryConnect(connectAddr)
+		if connWrap == nil {
+			continue
+		}
+		defer connWrap.Close()
+		
+		version, err := connWrap.GetServerVersion(connectAddr.IsTcp())
+		if err != nil {
+			continue
+		}
+		
+		return version, connectAddr.DialAddr, nil
+	}
+
+	return "", "", errors.New("failed to connect to any Outrig server")
 }
