@@ -66,6 +66,29 @@ func transformGoStatementsInAllFiles(transformState *astutil.TransformState) err
 	return nil
 }
 
+var flagsWithArgs = map[string]bool{
+	"-C":             true,
+	"-p":             true,
+	"-covermode":     true,
+	"-coverpkg":      true,
+	"-asmflags":      true,
+	"-buildmode":     true,
+	"-buildvcs":      true,
+	"-compiler":      true,
+	"-gccgoflags":    true,
+	"-gcflags":       true,
+	"-installsuffix": true,
+	"-ldflags":       true,
+	"-mod":           true,
+	"-modfile":       true,
+	"-overlay":       true,
+	"-pgo":           true,
+	"-pkgdir":        true,
+	"-tags":          true,
+	"-toolexec":      true,
+	"-o":             true,
+}
+
 // setupBuildArgs prepares build arguments from the config
 func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 	// Check if user already provided -overlay flag
@@ -75,14 +98,32 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 		}
 	}
 
-	// Separate Go files from other arguments
+	// Separate Go files/packages from other arguments using flagsWithArgs
 	var goFiles []string
 	var otherArgs []string
-	for _, arg := range cfg.Args {
-		if strings.HasSuffix(arg, ".go") && !strings.HasPrefix(arg, "-") {
-			goFiles = append(goFiles, arg)
-		} else {
+
+	for i := 0; i < len(cfg.Args); i++ {
+		arg := cfg.Args[i]
+
+		if strings.HasPrefix(arg, "-") {
+			// This is a flag
 			otherArgs = append(otherArgs, arg)
+
+			// Check if this flag takes an argument
+			flagName := arg
+			if strings.Contains(arg, "=") {
+				// Flag is in -flag=value format, no need to consume next arg
+				continue
+			}
+
+			if flagsWithArgs[flagName] && i+1 < len(cfg.Args) {
+				// This flag takes an argument, consume the next argument too
+				i++
+				otherArgs = append(otherArgs, cfg.Args[i])
+			}
+		} else {
+			// This is not a flag, so it's likely a Go file or package
+			goFiles = append(goFiles, arg)
 		}
 	}
 
