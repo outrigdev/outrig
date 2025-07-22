@@ -326,10 +326,9 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
 
     // Calculate tooltip information
     const absoluteStartTime = new Date(grTimeSpan.start).toLocaleTimeString();
-    const duration =
-        grTimeSpan.end != null && grTimeSpan.end !== -1
-            ? ((grTimeSpan.end - grTimeSpan.start) / 1000).toFixed(2)
-            : "ongoing";
+    const durationMs = grTimeSpan.end != null && grTimeSpan.end !== -1 ? grTimeSpan.end - grTimeSpan.start : null;
+    const duration = durationMs != null ? (durationMs / 1000).toFixed(2) : "ongoing";
+    const isShortGoroutine = durationMs != null && durationMs < 1000; // Less than 1 second
     const relativeStartTimeMs = grTimeSpan.start - timelineRange.startTs;
     const relativeStartTime = (relativeStartTimeMs / 1000).toFixed(3);
     const relativeStartTimeFormatted = relativeStartTimeMs >= 0 ? `+${relativeStartTime}` : relativeStartTime;
@@ -340,7 +339,8 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
                 Start: {absoluteStartTime} ({relativeStartTimeFormatted}s)
             </div>
             <div>
-                Duration: {duration}
+                Duration: {!grTimeSpan.exact ? "~" : ""}
+                {duration}
                 {duration !== "ongoing" ? "s" : ""}
             </div>
             {Debug && (
@@ -365,7 +365,10 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
         >
             <Tooltip content={tooltipContent}>
                 <div
-                    className="absolute h-full bg-accent rounded-sm cursor-pointer"
+                    className={cn(
+                        "absolute h-full rounded-sm cursor-pointer",
+                        isShortGoroutine ? "bg-green-500" : "bg-accent"
+                    )}
                     style={{
                         left: `${startPercent}%`,
                         width: `${finalWidthPercent}%`,
