@@ -98,7 +98,7 @@ func StartUpdateChecker(trayPid int) {
 
 	// Start the update checker goroutine
 	go func() {
-		outrig.SetGoRoutineName("UpdateChecker")
+		outrig.SetGoRoutineName("updatecheck.checker")
 		// Wait for the initial delay before the first check
 		time.Sleep(InitialDelay)
 

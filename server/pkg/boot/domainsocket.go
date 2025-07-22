@@ -164,7 +164,7 @@ func runDomainSocketServer(ctx context.Context, webServerPort int) error {
 
 	// Accept connections in a loop.
 	go func() {
-		outrig.SetGoRoutineName("boot.DomainSocketServer.Waiter")
+		outrig.SetGoRoutineName("boot.sock/wait")
 		defer func() {
 			listener.Close()
 			log.Printf("Domain socket server shutdown complete\n")
@@ -177,7 +177,7 @@ func runDomainSocketServer(ctx context.Context, webServerPort int) error {
 
 		// Start a goroutine to accept connections
 		go func() {
-			outrig.SetGoRoutineName("DomainSocketServer")
+			outrig.SetGoRoutineName("boot.sock/accept")
 			for {
 				conn, err := listener.Accept()
 				if err != nil {
@@ -189,7 +189,7 @@ func runDomainSocketServer(ctx context.Context, webServerPort int) error {
 					return
 				}
 				go func() {
-					outrig.SetGoRoutineName("DomainSocketServer.HandleConn")
+					outrig.SetGoRoutineName("boot.sock/conn")
 					handleServerConn(conn, webServerPort, false)
 				}()
 			}

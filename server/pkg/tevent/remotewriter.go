@@ -215,7 +215,7 @@ func UploadEventsAsync() {
 		return
 	}
 	go func() {
-		outrig.SetGoRoutineName("TEventUploader")
+		outrig.SetGoRoutineName("tevent.uploader")
 		_ = UploadEvents() // ignore error, written to status
 	}()
 }

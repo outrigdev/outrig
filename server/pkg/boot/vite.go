@@ -41,7 +41,7 @@ func startViteServer(ctx context.Context) (*exec.Cmd, error) {
 
 	// Copy stdout to our stdout
 	go func() {
-		outrig.SetGoRoutineName("vite-stdout")
+		outrig.SetGoRoutineName("boot.vite/out")
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			fmt.Printf("[vite] %s\n", scanner.Text())
@@ -50,7 +50,7 @@ func startViteServer(ctx context.Context) (*exec.Cmd, error) {
 
 	// Copy stderr to our stderr
 	go func() {
-		outrig.SetGoRoutineName("vite-stderr")
+		outrig.SetGoRoutineName("boot.vite/err")
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			fmt.Fprintln(os.Stderr, "[vite]", scanner.Text())

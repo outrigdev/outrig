@@ -169,7 +169,7 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 		Lines:         []ds.LogLine{line},
 	}
 	go func() {
-		outrig.SetGoRoutineName("searchmanager.StreamUpdate")
+		outrig.SetGoRoutineName("search.stream")
 		rpcclient.LogStreamUpdateCommand(rpcclient.GetBareClient(), streamUpdate, &rpc.RpcOpts{Route: m.RpcSource, NoResponse: true})
 	}()
 }
@@ -199,7 +199,7 @@ var widgetManagers = utilds.MakeSyncMap[string, *SearchManager]()
 // init starts the background cleanup routine and registers watches
 func init() {
 	go func() {
-		outrig.SetGoRoutineName("searchmanager.cleanup")
+		outrig.SetGoRoutineName("search.cleanup")
 		cleanupRoutine()
 	}()
 

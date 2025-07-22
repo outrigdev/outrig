@@ -30,7 +30,7 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
     },
     {
         id: "state",
-        width: 150,
+        width: 175,
         grow: 0,
     },
     {

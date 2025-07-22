@@ -142,7 +142,7 @@ func generateStructuredLog() string {
 }
 
 func testForGoRoutine() {
-	outrig.SetGoRoutineName("test-goroutine")
+	outrig.SetGoRoutineName("test.goroutine")
 	time.Sleep(10 * time.Second)
 }
 

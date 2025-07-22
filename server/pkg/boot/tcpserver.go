@@ -15,7 +15,7 @@ import (
 // runTCPAcceptLoop handles incoming TCP connections from the multiplexer
 func runTCPAcceptLoop(ctx context.Context, tcpListener net.Listener, webServerPort int) error {
 	go func() {
-		outrig.SetGoRoutineName("boot.TCPAcceptLoop.Waiter")
+		outrig.SetGoRoutineName("boot.tcp/wait")
 		var shutdown atomic.Bool
 
 		defer func() {
@@ -28,7 +28,7 @@ func runTCPAcceptLoop(ctx context.Context, tcpListener net.Listener, webServerPo
 
 		// Start a goroutine to accept connections
 		go func() {
-			outrig.SetGoRoutineName("TCPAcceptLoop")
+			outrig.SetGoRoutineName("boot.tcp/accept")
 			for {
 				conn, err := tcpListener.Accept()
 				if err != nil {
@@ -40,7 +40,7 @@ func runTCPAcceptLoop(ctx context.Context, tcpListener net.Listener, webServerPo
 					return
 				}
 				go func() {
-					outrig.SetGoRoutineName("TCPAcceptLoop.HandleConn")
+					outrig.SetGoRoutineName("boot.tcp/conn")
 					handleServerConn(conn, webServerPort, true)
 				}()
 			}

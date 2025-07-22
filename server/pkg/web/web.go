@@ -200,7 +200,7 @@ func runWebServerInternal(ctx context.Context, listener net.Listener) {
 
 	// Start the server in a goroutine
 	go func() {
-		outrig.SetGoRoutineName("WebServer")
+		outrig.SetGoRoutineName("web.server")
 		err := server.Serve(listener)
 		if err != nil && err != http.ErrServerClosed {
 			log.Printf("HTTP server error: %v\n", err)
@@ -229,7 +229,7 @@ func runWebServerInternal(ctx context.Context, listener net.Listener) {
 // RunWebServerWithListener runs the HTTP server using the provided listener
 func RunWebServerWithListener(ctx context.Context, httpListener net.Listener) {
 	go func() {
-		outrig.SetGoRoutineName("WebServer.Waiter")
+		outrig.SetGoRoutineName("web.wait")
 		runWebServerInternal(ctx, httpListener)
 	}()
 }
