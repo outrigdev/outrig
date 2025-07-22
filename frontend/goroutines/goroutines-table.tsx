@@ -69,7 +69,7 @@ const formatGoroutineName = (goroutine: ParsedGoRoutine): React.ReactNode => {
     }
 
     const pkg = createdByFrame.package.split("/").pop() || createdByFrame.package;
-    const nameOrFunc = hasName ? `[${goroutine.name}]` : cleanFuncName(createdByFrame.funcname);
+    const nameOrFunc = hasName ? goroutine.name : cleanFuncName(createdByFrame.funcname);
 
     return (
         <>
