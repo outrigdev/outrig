@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -212,6 +213,11 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 			}
 			goroutine.TimeSpan.End = decl.EndTs
 			goroutine.TimeSpan.EndIdx = gp.timeAligner.GetLogicalTimeFromRealTimestamp(decl.EndTs)
+		}
+
+		// If GoDecl has RealCreatedBy set, extract created by information
+		if decl.RealCreatedBy != "" && goroutine.CreatedByFrame == nil {
+			gp.parseRealCreatedBy(&decl, &goroutine)
 		}
 
 		gp.goRoutines.Set(goId, goroutine)
@@ -586,5 +592,21 @@ func (gp *GoRoutinePeer) GetTimeSpansSinceTickIdx(sinceTickIdx int64) rpctypes.G
 		LastTick:     lastTick,
 		ActiveCounts: activeCounts,
 		DroppedCount: gp.droppedCount.Load(),
+	}
+}
+
+// parseRealCreatedBy extracts created by information from decl.RealCreatedBy and sets it in the goroutine
+func (gp *GoRoutinePeer) parseRealCreatedBy(decl *ds.GoDecl, goroutine *GoRoutine) {
+	// Split RealCreatedBy into function line and file line
+	lines := strings.Split(decl.RealCreatedBy, "\n")
+	if len(lines) >= 2 {
+		funcLine := strings.TrimSpace(lines[0])
+		fileLine := strings.TrimSpace(lines[1])
+		frame, createdByGoId, ok := stacktrace.ParseCreatedByFrame(funcLine, fileLine)
+		if ok {
+			stacktrace.AnnotateFrame(frame, "")
+			goroutine.CreatedByGoId = int64(createdByGoId)
+			goroutine.CreatedByFrame = frame
+		}
 	}
 }

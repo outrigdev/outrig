@@ -86,7 +86,7 @@ func ParseGoRoutineStackTrace(stackTrace string, moduleName string, goId int64, 
 
 	// Parse created by information
 	if preprocessed.CreatedBy.FuncLine != "" {
-		frame, goId, ok := parseCreatedByFrame(preprocessed.CreatedBy.FuncLine, preprocessed.CreatedBy.FileLine)
+		frame, goId, ok := ParseCreatedByFrame(preprocessed.CreatedBy.FuncLine, preprocessed.CreatedBy.FileLine)
 		if ok {
 			// Annotate the created by frame
 			AnnotateFrame(frame, moduleName)
@@ -226,9 +226,9 @@ func parseFrame(funcLine, fileLine string, argsRequired bool) (StackFrame, bool)
 
 var inGoRoutineRe = regexp.MustCompile(`\s*in goroutine (\d+)`)
 
-// parseCreatedByFrame parses the "created by" frame of a goroutine stack trace
+// ParseCreatedByFrame parses the "created by" frame of a goroutine stack trace
 // returns a Frame struct, goId, and a boolean indicating success
-func parseCreatedByFrame(funcLine string, fileLine string) (*StackFrame, int, bool) {
+func ParseCreatedByFrame(funcLine string, fileLine string) (*StackFrame, int, bool) {
 	// the trick is just removing "created by" off the front and "in goroutine X" off the end
 	if !strings.HasPrefix(funcLine, "created by ") {
 		return nil, 0, false

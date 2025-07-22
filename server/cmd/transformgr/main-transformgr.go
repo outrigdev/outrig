@@ -79,12 +79,21 @@ func main() {
 		}
 	}()
 
-	// Anonymous tasks with varying patterns
-	//outrig name="quick-task"
+	// Anonymous tasks with varying patterns - spawn 6 quick tasks at various times
+	//outrig name="quick-task-launcher"
 	go func() {
 		for i := 0; i < 6; i++ {
-			fmt.Printf("Quick task iteration %d\n", i)
-			time.Sleep(1 * time.Second)
+			taskNum := i + 1
+			//outrig name="quick-task"
+			go func(num int) {
+				fmt.Printf("Quick task %d running\n", num)
+				time.Sleep(20 * time.Millisecond)
+				fmt.Printf("Quick task %d completed\n", num)
+			}(taskNum)
+
+			// Vary the spawn timing
+			sleepTime := (time.Duration(10+i*15) * time.Millisecond) + time.Second
+			time.Sleep(sleepTime)
 		}
 	}()
 

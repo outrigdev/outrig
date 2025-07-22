@@ -578,10 +578,6 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ tableModel, mo
                                                 />
                                             ) : (
                                                 <div>
-                                                    <div className="text-secondary italic text-sm ml-1.5 mb-2">
-                                                        Goroutine was inactive, no stack trace available at this
-                                                        timestamp
-                                                    </div>
                                                     {goroutine.createdbyframe && (
                                                         <div className="ml-1.5 text-xs font-mono">
                                                             <SimplifiedStackFrame

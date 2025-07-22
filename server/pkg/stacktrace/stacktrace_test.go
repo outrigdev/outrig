@@ -597,7 +597,7 @@ func TestParseCreatedByFrame(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			frame, goId, ok := parseCreatedByFrame(tt.funcLine, tt.fileLine)
+			frame, goId, ok := ParseCreatedByFrame(tt.funcLine, tt.fileLine)
 
 			if ok != tt.expectSuccess {
 				t.Fatalf("parseCreatedByFrame() success = %v, expected %v", ok, tt.expectSuccess)
