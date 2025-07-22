@@ -51,6 +51,25 @@ func (mf *ModifiedFile) AddLineDirective(pos int64, fileName string, lineNum int
 	mf.Replacements = append(mf.Replacements, replacement)
 }
 
+// BackupToLineStart backs up from the given position to find the start of the line.
+// Returns either position 0 (start of file) or the position right after a newline character.
+func (mf *ModifiedFile) BackupToLineStart(pos int64) int64 {
+	if pos <= 0 {
+		return 0
+	}
+
+	// Search backwards from pos-1 to find a newline
+	for i := pos - 1; i >= 0; i-- {
+		if mf.RawBytes[i] == '\n' {
+			// Return position right after the newline
+			return i + 1
+		}
+	}
+
+	// If no newline found, return start of file
+	return 0
+}
+
 // StatementBoundary represents the result of finding a statement boundary
 type StatementBoundary struct {
 	AdvanceBytes    int64 // Number of bytes to advance past the boundary
@@ -215,21 +234,18 @@ func MakeModifiedFile(state *TransformState, fileAST *ast.File) (*ModifiedFile, 
 		return nil, fmt.Errorf("failed to read file %s: %w", originalFilePath, err)
 	}
 
-	// Create the initial line directive to mark the original file
-	lineDirective := "//line " + originalFilePath + ":1\n"
-
-	// Create the initial replacement at position 0
-	initialReplacement := Replacement{
-		Mode:     ReplacementModeInsert,
-		StartPos: 0,
-		NewText:  []byte(lineDirective),
+	mf := &ModifiedFile{
+		FileAST:      fileAST,
+		Replacements: []Replacement{},
+		RawBytes:     rawBytes,
 	}
 
-	return &ModifiedFile{
-		FileAST:      fileAST,
-		Replacements: []Replacement{initialReplacement},
-		RawBytes:     rawBytes,
-	}, nil
+	// Add line directive before the package declaration
+	packagePos := state.FileSet.Position(fileAST.Name.Pos())
+	lineStartPos := mf.BackupToLineStart(int64(packagePos.Offset))
+	mf.AddLineDirective(lineStartPos, originalFilePath, packagePos.Line)
+
+	return mf, nil
 }
 
 // WriteModifiedFile applies the replacements to the original file content,
