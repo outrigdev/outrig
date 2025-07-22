@@ -281,19 +281,27 @@ func (gp *GoRoutinePeer) ProcessGoroutineStacks(info ds.GoroutineInfo) {
 		gp.updateTimeSpanMap(goId, goroutine)
 	}
 
-	// Before updating active goroutines, check for goroutines that were previously active
-	// but are no longer active, and set their End timestamp
-	for prevActiveGoId := range gp.activeGoRoutines {
-		if !activeGoroutines[prevActiveGoId] {
-			// This goroutine was active but is no longer active - set End timestamp if not already set
-			if goroutine, exists := gp.goRoutines.GetEx(prevActiveGoId); exists {
-				if goroutine.TimeSpan.End == -1 {
-					goroutine.TimeSpan.End = timestamp
-					goroutine.TimeSpan.EndIdx = logicalTime
-					gp.goRoutines.Set(prevActiveGoId, goroutine)
-					gp.updateTimeSpanMap(prevActiveGoId, goroutine)
-				}
-			}
+	// Check for goroutines that should be marked as ended:
+	// 1. Previously active goroutines no longer in current active set
+	// 2. Goroutines with StartTs before current timestamp but not in current active set
+	allGoRoutineIds := gp.goRoutines.Keys()
+	for _, goId := range allGoRoutineIds {
+		if activeGoroutines[goId] {
+			continue
+		}
+		goroutine, exists := gp.goRoutines.GetEx(goId)
+		if !exists {
+			continue
+		}
+		if goroutine.TimeSpan.End != -1 {
+			continue
+		}
+		// Mark as ended if StartTs is before current timestamp (not in future due to clock skew)
+		if goroutine.TimeSpan.Start > 0 && goroutine.TimeSpan.Start < timestamp {
+			goroutine.TimeSpan.End = timestamp
+			goroutine.TimeSpan.EndIdx = logicalTime
+			gp.goRoutines.Set(goId, goroutine)
+			gp.updateTimeSpanMap(goId, goroutine)
 		}
 	}
 
