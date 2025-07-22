@@ -158,6 +158,39 @@ type TransformState struct {
 	Verbose          bool
 }
 
+// addPackageToMap adds a package to the packageMap if not already present
+// and processes its imports to add them as well
+func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Package, visited map[string]bool, transformMods map[string]bool) {
+	if pkg == nil {
+		return
+	}
+
+	key := pkg.PkgPath
+	if pkg.Name == "main" {
+		key = "main"
+	}
+
+	// Skip if already visited
+	if visited[key] {
+		return
+	}
+	visited[key] = true
+
+	if pkg.Module == nil || !transformMods[pkg.Module.Dir] {
+		return
+	}
+
+	// Add to map if not already present
+	if _, exists := packageMap[key]; !exists {
+		packageMap[key] = pkg
+	}
+
+	// Process imports
+	for _, importedPkg := range pkg.Imports {
+		addPackageToMap(importedPkg, packageMap, visited, transformMods)
+	}
+}
+
 // LoadGoFiles loads the specified Go files using packages.Load with "file=" prefix
 // and returns a TransformState containing the FileSet and package information
 func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
@@ -170,7 +203,7 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 
 	// Configure packages.Config
 	pkgConfig := &packages.Config{
-		Mode:       packages.LoadSyntax,
+		Mode:       packages.LoadSyntax | packages.NeedImports | packages.NeedDeps | packages.NeedModule,
 		Fset:       fileSet,
 		BuildFlags: buildArgs.BuildFlags,
 		Env:        os.Environ(),
@@ -197,20 +230,40 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 		return nil, fmt.Errorf("failed to load packages: %w", err)
 	}
 
-	// Create package map
+	// Create package map and populate with all packages recursively
 	packageMap := make(map[string]*packages.Package)
+	visited := make(map[string]bool)
+	transformMods := make(map[string]bool)
+
+	// First, populate transformMods with the main module and find main package
+	var mainPkg *packages.Package
 	for _, pkg := range pkgs {
-		key := pkg.PkgPath
-		if pkg.Name == "main" {
-			key = "main"
+		if pkg.Name == "main" && pkg.Module != nil {
+			transformMods[pkg.Module.Dir] = true
+			mainPkg = pkg
 		}
-		packageMap[key] = pkg
+	}
+
+	// Process each package and its imports
+	for _, pkg := range pkgs {
+		addPackageToMap(pkg, packageMap, visited, transformMods)
+	}
+
+	// Convert packageMap to slice for Packages field, with main package first
+	var packages []*packages.Package
+	if mainPkg != nil {
+		packages = append(packages, mainPkg)
+	}
+	for _, pkg := range packageMap {
+		if pkg != mainPkg {
+			packages = append(packages, pkg)
+		}
 	}
 
 	return &TransformState{
 		FileSet:    fileSet,
 		PackageMap: packageMap,
-		Packages:   pkgs,
+		Packages:   packages,
 	}, nil
 }
 

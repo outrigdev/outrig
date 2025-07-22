@@ -153,10 +153,6 @@ func TransformGoStatements(transformState *astutil.TransformState, node *ast.Fil
 	// Add outrig import if we made any transformations and it's not already present
 	if transformCount > 0 {
 		astutil.AddOutrigImport(transformState.FileSet, node)
-		if transformState.Verbose {
-			fileName := transformState.GetFilePath(node)
-			log.Printf("Transformed %d go statements in file: %s\n", transformCount, filepath.Base(fileName))
-		}
 	}
 
 	return transformCount > 0
@@ -235,13 +231,9 @@ func TransformGoStatementsInPackageWithReplacement(transformState *astutil.Trans
 		}
 
 		// Apply go statement transformations using replacements
-		if TransformGoStatementsWithReplacement(transformState, modifiedFile) {
+		if transformCount := TransformGoStatementsWithReplacement(transformState, modifiedFile); transformCount > 0 {
 			hasTransformations = true
 			modifiedFile.Modified = true
-
-			if transformState.Verbose {
-				log.Printf("Applied go statement transformations to: %s", filePath)
-			}
 		}
 	}
 
@@ -252,9 +244,6 @@ func TransformGoStatementsInPackageWithReplacement(transformState *astutil.Trans
 func transformSingleGoStatement(transformState *astutil.TransformState, modifiedFile *astutil.ModifiedFile, goStmt *ast.GoStmt) bool {
 	// Look for an outrig directive in the comments before this go statement
 	directive := astutil.ParseOutrigDirectiveForStmt(transformState.FileSet, modifiedFile.FileAST, goStmt, astutil.ScopeGo)
-	if directive.Go.Name == "" {
-		return false // No directive found, skip this go statement
-	}
 
 	// Get the position of the "go" keyword and the end of the call
 	goPos := transformState.FileSet.Position(goStmt.Pos())
@@ -283,7 +272,7 @@ func transformSingleGoStatement(transformState *astutil.TransformState, modified
 }
 
 // TransformGoStatementsWithReplacement finds all go statements preceded by //outrig directives and transforms them using the replacement system
-func TransformGoStatementsWithReplacement(transformState *astutil.TransformState, modifiedFile *astutil.ModifiedFile) bool {
+func TransformGoStatementsWithReplacement(transformState *astutil.TransformState, modifiedFile *astutil.ModifiedFile) int {
 	var transformCount int
 
 	// Find all go statements that need transformation
@@ -313,5 +302,5 @@ func TransformGoStatementsWithReplacement(transformState *astutil.TransformState
 		}
 	}
 
-	return transformCount > 0
+	return transformCount
 }
