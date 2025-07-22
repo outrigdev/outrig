@@ -18,7 +18,7 @@ import { Tag } from "../elements/tag";
 import { Tooltip } from "../elements/tooltip";
 import { GoRoutinesModel, TimelineRange } from "./goroutines-model";
 import { GrTableModel } from "./grtable-model";
-import { StackTrace } from "./stacktrace";
+import { SimplifiedStackFrame, StackTrace } from "./stacktrace";
 
 const Debug = false;
 
@@ -577,8 +577,20 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ tableModel, mo
                                                     simpleMode={simpleMode}
                                                 />
                                             ) : (
-                                                <div className="text-secondary italic text-sm ml-1.5">
-                                                    Goroutine was inactive at this time, no stack trace available
+                                                <div>
+                                                    <div className="text-secondary italic text-sm ml-1.5 mb-2">
+                                                        Goroutine was inactive, no stack trace available at this
+                                                        timestamp
+                                                    </div>
+                                                    {goroutine.createdbyframe && (
+                                                        <div className="ml-1.5 text-xs font-mono">
+                                                            <SimplifiedStackFrame
+                                                                frame={goroutine.createdbyframe}
+                                                                createdByGoid={goroutine.createdbygoid}
+                                                                showFileLink={false}
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

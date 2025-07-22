@@ -18,7 +18,7 @@ const getBaseFileName = (filepath: string): string => {
     return parts[parts.length - 1];
 };
 
-const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
+export const SimplifiedStackFrame: React.FC<SimplifiedStackFrameProps> = ({
     frame,
     createdByGoid,
     showFileLink = true, // Default to showing file link (for backward compatibility)
