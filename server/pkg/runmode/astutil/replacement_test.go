@@ -104,6 +104,24 @@ func TestApplyReplacements(t *testing.T) {
 			},
 			expected: []byte("hello "),
 		},
+		{
+			name:      "delete then insert at same position",
+			fileBytes: []byte("happy"),
+			replacements: []Replacement{
+				{Mode: ReplacementModeDelete, StartPos: 1, EndPos: 2}, // delete "a" -> "hppy"
+				{Mode: ReplacementModeInsert, StartPos: 1, NewText: []byte("oo")}, // insert "oo" at pos 1 -> "hooppy"
+			},
+			expected: []byte("hooppy"),
+		},
+		{
+			name:      "insert then delete at same position",
+			fileBytes: []byte("happy"),
+			replacements: []Replacement{
+				{Mode: ReplacementModeInsert, StartPos: 1, NewText: []byte("oo")}, // insert "oo" at pos 1 -> "hooappy"
+				{Mode: ReplacementModeDelete, StartPos: 1, EndPos: 2}, // delete "a" (now at pos 3) -> should still work
+			},
+			expected: []byte("hooppy"),
+		},
 	}
 
 	for _, tt := range tests {

@@ -28,6 +28,13 @@ func sortReplacementsByStartPos(rs []Replacement) []Replacement {
 		} else if a.StartPos > b.StartPos {
 			return 1
 		}
+		// Same position: inserts come before deletes
+		if a.Mode == ReplacementModeInsert && b.Mode == ReplacementModeDelete {
+			return -1
+		}
+		if a.Mode == ReplacementModeDelete && b.Mode == ReplacementModeInsert {
+			return 1
+		}
 		return 0
 	})
 	return result
