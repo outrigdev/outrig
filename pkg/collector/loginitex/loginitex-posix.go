@@ -327,10 +327,16 @@ func OrigStderr() *os.File {
 
 // resolveOutrigPath determines the path to the outrig executable
 func resolveOutrigPath(cfg config.LogProcessorConfig, isDev bool) (string, error) {
-	// If a custom path is provided, use it
+	// Check environment variable for custom outrig binary path first
+	if envPath := os.Getenv(config.OutrigPathEnvName); envPath != "" {
+		return envPath, nil
+	}
+	
+	// If a custom path is provided in config, use it
 	if cfg.OutrigPath != "" {
 		return cfg.OutrigPath, nil
 	}
+	
 	if isDev {
 		// check bin/outrig first
 		if _, err := os.Stat("bin/outrig"); err == nil {

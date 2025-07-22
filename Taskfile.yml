@@ -11,7 +11,7 @@ tasks:
         cmds:
             - mkdir -p server/pkg/web/dist
             - touch server/pkg/web/dist/.gitkeep
-            - OUTRIG_DEV=1 go run -ldflags "-X main.OutrigBuildTime=$(date +%Y%m%d%H%M%S) -X main.OutrigCommit=$(git rev-parse --short HEAD)" server/main-server.go monitor
+            - OUTRIG_DEV=1 OUTRIG_OUTRIGBINPATH="bin/outrig" go run -ldflags "-X main.OutrigBuildTime=$(date +%Y%m%d%H%M%S) -X main.OutrigCommit=$(git rev-parse --short HEAD)" server/main-server.go monitor
 
     clean:webdist:
         desc: Clean the web embed directory for Go server

@@ -27,6 +27,7 @@ const (
 	AppRunIdEnvName           = "OUTRIG_APPRUNID"
 	ConfigFileEnvName         = "OUTRIG_CONFIGFILE"
 	ConfigJsonEnvName         = "OUTRIG_CONFIGJSON"
+	OutrigPathEnvName         = "OUTRIG_OUTRIGBINPATH"
 )
 
 // Home directory paths
