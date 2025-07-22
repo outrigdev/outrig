@@ -52,7 +52,7 @@ func main() {
 	go longRunningTask("background-processor", 25*time.Second)
 
 	// Periodic task that runs throughout most of the test
-	//outrig name="periodic-heartbeat"
+	//outrig name="periodic-heartbeat-with-long-name-testing"
 	go periodicTask("heartbeat", 3*time.Second, 28*time.Second)
 
 	// Staggered short tasks

@@ -198,10 +198,10 @@ function cell_name(info: CellContext<ParsedGoRoutine, ParsedGoRoutine>) {
                     <List className="w-3 h-3" />
                 </button>
             </Tooltip>
-            <div className="flex-1 flex items-center gap-2">
-                <div className="text-primary">{formatGoroutineName(goroutine)}</div>
+            <div className="flex-1 flex items-center gap-2 min-w-0">
+                <div className="text-primary truncate">{formatGoroutineName(goroutine)}</div>
                 {tags && tags.length > 0 && (
-                    <div className="text-xs text-muted hover:text-primary transition-colors cursor-default">
+                    <div className="text-xs text-muted hover:text-primary transition-colors cursor-default flex-shrink-0">
                         {tags.map((tag: string) => `#${tag}`).join(" ")}
                     </div>
                 )}
@@ -554,7 +554,7 @@ export const GoRoutinesTable: React.FC<GoRoutinesTableProps> = ({ tableModel, mo
                                         <div
                                             key={cell.id}
                                             className={cn(
-                                                "px-3 text-sm flex items-center",
+                                                "px-3 text-sm flex items-center overflow-hidden",
                                                 getColumnGrow(cell.column.id) > 0 ? "flex-grow" : ""
                                             )}
                                             style={
