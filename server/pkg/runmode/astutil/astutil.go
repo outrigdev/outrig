@@ -66,6 +66,11 @@ func HasImport(node *ast.File, importPath string) bool {
 }
 
 func AddOutrigImportReplacement(state *TransformState, file *ModifiedFile) error {
+	// Check if outrig import already added via replacement
+	if file.OutrigImportAdded {
+		return nil
+	}
+
 	// Check if outrig import already exists
 	if HasImport(file.FileAST, OutrigImportPath) {
 		return nil
@@ -80,6 +85,9 @@ func AddOutrigImportReplacement(state *TransformState, file *ModifiedFile) error
 	// Add the import statement using the new AddInsertStmt method
 	importText := "import \"" + OutrigImportPath + "\""
 	file.AddInsertStmt(position, importText)
+
+	// Mark that we've added the outrig import
+	file.OutrigImportAdded = true
 
 	return nil
 }

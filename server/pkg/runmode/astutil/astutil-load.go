@@ -25,9 +25,11 @@ type BuildArgs struct {
 }
 
 type ModifiedFile struct {
-	FileAST      *ast.File
-	Replacements []Replacement
-	RawBytes     []byte
+	FileAST           *ast.File
+	Replacements      []Replacement
+	RawBytes          []byte
+	Modified          bool
+	OutrigImportAdded bool
 }
 
 // AddInsert adds an insert replacement at the specified position

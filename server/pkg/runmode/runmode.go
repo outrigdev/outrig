@@ -53,6 +53,9 @@ func findAndTransformMainFileWithReplacement(transformState *astutil.TransformSt
 		return fmt.Errorf("unable to find main entry point in %s. Ensure your application has a valid main()", mainFilePath)
 	}
 
+	// Mark the main file as modified since we added import and modified main function
+	modifiedFile.Modified = true
+
 	// Store the modified file in the transform state
 	transformState.ModifiedFiles[mainFilePath] = modifiedFile
 
@@ -82,8 +85,13 @@ func findAndTransformMainFile(transformState *astutil.TransformState) error {
 
 // writeModifiedFilesWithReplacements writes all modified files using the new replacement system
 func writeModifiedFilesWithReplacements(transformState *astutil.TransformState) error {
-	// Write all modified files to temp directory using the replacement system
+	// Write only actually modified files to temp directory using the replacement system
 	for originalPath, modifiedFile := range transformState.ModifiedFiles {
+		// Skip files that weren't actually modified
+		if !modifiedFile.Modified {
+			continue
+		}
+
 		tempFilePath, err := astutil.WriteModifiedFile(transformState, modifiedFile)
 		if err != nil {
 			return fmt.Errorf("failed to write modified file %s: %w", originalPath, err)
@@ -109,6 +117,25 @@ func transformGoStatementsInAllFiles(transformState *astutil.TransformState) err
 
 	if transformState.Verbose && hasTransformations {
 		log.Printf("Completed go statement transformations across all files")
+	}
+
+	return nil
+}
+
+// transformGoStatementsInAllFilesWithReplacement iterates over all packages in the transform state and applies go statement transformations using the replacement system
+func transformGoStatementsInAllFilesWithReplacement(transformState *astutil.TransformState) error {
+	var hasTransformations bool
+
+	// Iterate over all packages
+	for _, pkg := range transformState.Packages {
+		// Apply go statement transformations to the entire package using replacements
+		if gr.TransformGoStatementsInPackageWithReplacement(transformState, pkg) {
+			hasTransformations = true
+		}
+	}
+
+	if transformState.Verbose && hasTransformations {
+		log.Printf("Completed go statement transformations across all files using replacement system")
 	}
 
 	return nil
@@ -272,11 +299,11 @@ func ExecRunMode(cfg RunModeConfig) error {
 		return fmt.Errorf("main file transformation failed: %w", err)
 	}
 
-	// Second pass: transform go statements in all files (commented out for now)
-	// err = transformGoStatementsInAllFiles(transformState)
-	// if err != nil {
-	// 	return fmt.Errorf("go statement transformation failed: %w", err)
-	// }
+	// Second pass: transform go statements in all files using replacement system
+	err = transformGoStatementsInAllFilesWithReplacement(transformState)
+	if err != nil {
+		return fmt.Errorf("go statement transformation failed: %w", err)
+	}
 
 	// Write all modified files to temp directory using new replacement system
 	err = writeModifiedFilesWithReplacements(transformState)
