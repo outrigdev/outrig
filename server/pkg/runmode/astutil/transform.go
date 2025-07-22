@@ -32,7 +32,7 @@ func FindMainFileAST(transformState *TransformState) (*ast.File, error) {
 // WriteModifiedFiles writes all modified files from TransformState to temporary files for overlay
 func WriteModifiedFiles(transformState *TransformState) error {
 	// Write all modified files to temp directory
-	for originalPath, astFile := range transformState.ModifiedFiles {
+	for originalPath, astFile := range transformState.OldModifiedFiles {
 		tempFileName := GenerateTempFileName(originalPath)
 		tempFilePath := filepath.Join(transformState.TempDir, tempFileName)
 

@@ -24,6 +24,7 @@ import (
 type specialArgs struct {
 	IsVerbose  bool
 	ConfigFile string
+	NoRun      bool
 	Args       []string
 }
 
@@ -43,7 +44,7 @@ func parseSpecialArgs(keyArg string) (specialArgs, error) {
 		return result, fmt.Errorf("key argument '%s' not found in command line", keyArg)
 	}
 
-	// Look for -v and --config flags before keyArg
+	// Look for -v, --config, and --norun flags before keyArg
 	for i := 1; i < keyArgIndex; i++ {
 		arg := os.Args[i]
 		if arg == "-v" {
@@ -51,6 +52,8 @@ func parseSpecialArgs(keyArg string) (specialArgs, error) {
 		} else if arg == "--config" && i+1 < keyArgIndex {
 			result.ConfigFile = os.Args[i+1]
 			i++ // Skip the next argument since it's the config file value
+		} else if arg == "--norun" {
+			result.NoRun = true
 		}
 	}
 
@@ -241,6 +244,7 @@ Example: outrig --dev --verbose run main.go`,
 			cfg := runmode.RunModeConfig{
 				Args:      specialArgs.Args,
 				IsVerbose: specialArgs.IsVerbose,
+				NoRun:     specialArgs.NoRun,
 				Config:    outrigCfg,
 			}
 			return runmode.ExecRunMode(cfg)
@@ -318,6 +322,8 @@ Example: outrig --dev exec ls -latrh`,
 	rootCmd.PersistentFlags().MarkHidden("dev")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose output")
 	rootCmd.PersistentFlags().MarkHidden("verbose")
+	rootCmd.PersistentFlags().Bool("norun", false, "Stop 'run' mode after generating new source files")
+	rootCmd.PersistentFlags().MarkHidden("norun")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

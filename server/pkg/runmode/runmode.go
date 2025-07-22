@@ -23,7 +23,40 @@ import (
 type RunModeConfig struct {
 	Args      []string
 	IsVerbose bool
+	NoRun     bool
 	Config    *config.Config
+}
+
+// findAndTransformMainFileWithReplacement finds the main file AST and adds replacements for outrig import and main function modification
+func findAndTransformMainFileWithReplacement(transformState *astutil.TransformState) error {
+	// Find the main file AST
+	mainFileAST, err := astutil.FindMainFileAST(transformState)
+	if err != nil {
+		return err
+	}
+
+	// Create a ModifiedFile for the main file
+	mainFilePath := transformState.GetFilePath(mainFileAST)
+	modifiedFile, err := astutil.MakeModifiedFile(transformState, mainFileAST)
+	if err != nil {
+		return fmt.Errorf("failed to create modified file for %s: %w", mainFilePath, err)
+	}
+
+	// Add outrig import replacement
+	err = astutil.AddOutrigImportReplacement(transformState, modifiedFile)
+	if err != nil {
+		return fmt.Errorf("failed to add outrig import replacement: %w", err)
+	}
+
+	// Add main function modification replacement
+	if !modifyMainFunctionWithReplacement(transformState, modifiedFile) {
+		return fmt.Errorf("unable to find main entry point in %s. Ensure your application has a valid main()", mainFilePath)
+	}
+
+	// Store the modified file in the transform state
+	transformState.ModifiedFiles[mainFilePath] = modifiedFile
+
+	return nil
 }
 
 // findAndTransformMainFile finds the main file AST and transforms it by adding outrig import and modifying main function
@@ -43,6 +76,21 @@ func findAndTransformMainFile(transformState *astutil.TransformState) error {
 
 	// Mark the file as modified
 	transformState.MarkFileModified(mainFileAST)
+
+	return nil
+}
+
+// writeModifiedFilesWithReplacements writes all modified files using the new replacement system
+func writeModifiedFilesWithReplacements(transformState *astutil.TransformState) error {
+	// Write all modified files to temp directory using the replacement system
+	for originalPath, modifiedFile := range transformState.ModifiedFiles {
+		tempFilePath, err := astutil.WriteModifiedFile(transformState, modifiedFile)
+		if err != nil {
+			return fmt.Errorf("failed to write modified file %s: %w", originalPath, err)
+		}
+
+		transformState.OverlayMap[originalPath] = tempFilePath
+	}
 
 	return nil
 }
@@ -102,31 +150,31 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 	var goFiles []string
 	var programArgs []string
 	var buildFlags []string
-	
+
 	const (
 		parseFlags = iota
 		parseGoFiles
 		parseProgArgs
 	)
-	
+
 	state := parseFlags
-	
+
 	for i := 0; i < len(cfg.Args); i++ {
 		arg := cfg.Args[i]
-		
+
 		switch state {
 		case parseFlags:
 			if strings.HasPrefix(arg, "-") {
 				// This is a flag
 				buildFlags = append(buildFlags, arg)
-				
+
 				// Check if this flag takes an argument
 				flagName := arg
 				if strings.Contains(arg, "=") {
 					// Flag is in -flag=value format, no need to consume next arg
 					continue
 				}
-				
+
 				if flagsWithArgs[flagName] && i+1 < len(cfg.Args) {
 					// This flag takes an argument, consume the next argument too
 					i++
@@ -137,7 +185,7 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 				state = parseGoFiles
 				i-- // Re-process this argument in the new state
 			}
-			
+
 		case parseGoFiles:
 			if strings.HasSuffix(arg, ".go") {
 				// This is a .go file, collect it
@@ -153,7 +201,7 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 					i-- // Re-process this argument in the new state
 				}
 			}
-			
+
 		case parseProgArgs:
 			// Everything from here on is a program argument
 			programArgs = append(programArgs, arg)
@@ -202,7 +250,8 @@ func loadFilesAndSetupTransformState(buildArgs astutil.BuildArgs, cfg RunModeCon
 
 	// Initialize overlay map, modified files map, temp dir, and verbose flag in transform state
 	transformState.OverlayMap = make(map[string]string)
-	transformState.ModifiedFiles = make(map[string]*ast.File)
+	transformState.ModifiedFiles = make(map[string]*astutil.ModifiedFile)
+	transformState.OldModifiedFiles = make(map[string]*ast.File)
 	transformState.TempDir = tempDir
 	transformState.Verbose = cfg.IsVerbose
 
@@ -217,29 +266,35 @@ func ExecRunMode(cfg RunModeConfig) error {
 	}
 	transformState := loadFilesAndSetupTransformState(buildArgs, cfg)
 
-	// Find and transform the main file
-	err = findAndTransformMainFile(transformState)
+	// Find and transform the main file using new replacement flow
+	err = findAndTransformMainFileWithReplacement(transformState)
 	if err != nil {
 		return fmt.Errorf("main file transformation failed: %w", err)
 	}
 
-	// Second pass: transform go statements in all files
-	err = transformGoStatementsInAllFiles(transformState)
-	if err != nil {
-		return fmt.Errorf("go statement transformation failed: %w", err)
-	}
+	// Second pass: transform go statements in all files (commented out for now)
+	// err = transformGoStatementsInAllFiles(transformState)
+	// if err != nil {
+	// 	return fmt.Errorf("go statement transformation failed: %w", err)
+	// }
 
-	// Write all modified files to temp directory
-	err = astutil.WriteModifiedFiles(transformState)
+	// Write all modified files to temp directory using new replacement system
+	err = writeModifiedFilesWithReplacements(transformState)
 	if err != nil {
 		return fmt.Errorf("failed to write modified files: %w", err)
 	}
 
-	if cfg.IsVerbose {
+	if cfg.IsVerbose || cfg.NoRun {
 		log.Printf("Created %d temporary files for overlay", len(transformState.OverlayMap))
 		for originalFile, tempFile := range transformState.OverlayMap {
 			log.Printf("  %s -> %s", originalFile, tempFile)
 		}
+	}
+
+	// If NoRun is set, exit early after transforms are complete
+	if cfg.NoRun {
+		log.Printf("--norun flag set: transforms completed, temporary files written to %s", transformState.TempDir)
+		return nil
 	}
 
 	// Create overlay file mapping and run

@@ -65,6 +65,25 @@ func HasImport(node *ast.File, importPath string) bool {
 	return false
 }
 
+func AddOutrigImportReplacement(state *TransformState, file *ModifiedFile) error {
+	// Check if outrig import already exists
+	if HasImport(file.FileAST, OutrigImportPath) {
+		return nil
+	}
+
+	// Find the position after the package declaration
+	packagePos := file.FileAST.Name.End()
+
+	// Convert token position to file position
+	position := state.FileSet.Position(packagePos)
+
+	// Add the import statement using the new AddInsertStmt method
+	importText := "import \"" + OutrigImportPath + "\""
+	file.AddInsertStmt(position, importText)
+
+	return nil
+}
+
 // AddOutrigImport checks if the outrig import exists in the AST node and adds it if not present.
 // Returns true if the import was added, false if it already existed.
 func AddOutrigImport(fset *token.FileSet, node *ast.File) bool {
@@ -297,4 +316,9 @@ func ParseOutrigDirectiveForStmt(fset *token.FileSet, file *ast.File, stmt ast.S
 	}
 
 	return ParseOutrigDirective([]*ast.CommentGroup{commentGroup}, scope)
+}
+
+// MakeLineDirective creates a //line directive string for the given file path and line number
+func MakeLineDirective(filePath string, lineNum int) string {
+	return fmt.Sprintf("//line %s:%d\n", filePath, lineNum)
 }
