@@ -163,7 +163,7 @@ func ProcessExistingStreams(streams []TeeStreamDecl, appRunId string, cfg *confi
 
 // ExecCommand executes a command with the provided arguments
 // cfg cannot be nil
-func ExecCommand(args []string, appRunId string, cfg *config.Config) error {
+func ExecCommand(args []string, appRunId string, cfg *config.Config, extraEnv map[string]string) error {
 	if cfg == nil {
 		return fmt.Errorf("config cannot be nil")
 	}
@@ -174,6 +174,11 @@ func ExecCommand(args []string, appRunId string, cfg *config.Config) error {
 	execCmd.Env = os.Environ()
 	execCmd.Env = append(execCmd.Env, config.AppRunIdEnvName+"="+appRunId)
 	execCmd.Env = append(execCmd.Env, config.ExternalLogCaptureEnvName+"=1")
+
+	// Add extra environment variables
+	for key, value := range extraEnv {
+		execCmd.Env = append(execCmd.Env, key+"="+value)
+	}
 
 	// Serialize config to JSON and set as environment variable
 	configJson, err := json.Marshal(cfg)

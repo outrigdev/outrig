@@ -5,7 +5,6 @@ package gr
 
 import (
 	"go/parser"
-	"go/printer"
 	"go/token"
 	"strings"
 	"testing"
@@ -44,9 +43,11 @@ func main() {
 		println("test")
 	}()
 }`,
-			expected: `go func() {
-		println("test")
-	}()`,
+			expected: `outrig.Go("").Run(func() {
+		func() {
+			println("test")
+		}()
+	})`,
 		},
 		{
 			name: "outrig directive with function call",
@@ -92,20 +93,27 @@ func main() {
 
 			// Create a minimal TransformState for testing
 			transformState := &astutil.TransformState{
-				FileSet: fset,
-				Verbose: false,
+				FileSet:       fset,
+				Verbose:       false,
+				ModifiedFiles: make(map[string]*astutil.ModifiedFile),
 			}
 
-			transformed := TransformGoStatements(transformState, node)
-
-			var buf strings.Builder
-			config := &printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
-			err = config.Fprint(&buf, fset, node)
-			if err != nil {
-				t.Fatalf("Failed to print AST: %v", err)
+			// Create a ModifiedFile manually for testing
+			modifiedFile := &astutil.ModifiedFile{
+				FileAST:      node,
+				Replacements: []astutil.Replacement{},
+				RawBytes:     []byte(tt.input),
+				Modified:     false,
 			}
+			transformState.ModifiedFiles["test.go"] = modifiedFile
 
-			result := buf.String()
+			// Apply transformations using the replacement system
+			transformCount := TransformGoStatementsWithReplacement(transformState, modifiedFile)
+			transformed := transformCount > 0
+
+			// Apply replacements to get the final result
+			resultBytes := astutil.ApplyReplacements(modifiedFile.RawBytes, modifiedFile.Replacements)
+			result := string(resultBytes)
 
 			// Check if transformation occurred as expected
 			if strings.Contains(tt.expected, "outrig.Go") {

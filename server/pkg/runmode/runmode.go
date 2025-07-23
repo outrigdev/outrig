@@ -6,7 +6,6 @@ package runmode
 import (
 	"encoding/json"
 	"fmt"
-	"go/ast"
 	"log"
 	"os"
 	"path/filepath"
@@ -17,6 +16,7 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
 	"github.com/outrigdev/outrig/server/pkg/runmode/gr"
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -63,27 +63,6 @@ func findAndTransformMainFileWithReplacement(transformState *astutil.TransformSt
 	return nil
 }
 
-// findAndTransformMainFile finds the main file AST and transforms it by adding outrig import and modifying main function
-func findAndTransformMainFile(transformState *astutil.TransformState) error {
-	// Find the main file AST
-	mainFileAST, err := astutil.FindMainFileAST(transformState)
-	if err != nil {
-		return err
-	}
-
-	// Transform the main file: add outrig import and modify main function
-	astutil.AddOutrigImport(transformState.FileSet, mainFileAST)
-	if !modifyMainFunction(mainFileAST) {
-		mainFilePath := transformState.GetFilePath(mainFileAST)
-		return fmt.Errorf("unable to find main entry point in %s. Ensure your application has a valid main()", mainFilePath)
-	}
-
-	// Mark the file as modified
-	transformState.MarkFileModified(mainFileAST)
-
-	return nil
-}
-
 // writeModifiedFilesWithReplacements writes all modified files using the new replacement system
 func writeModifiedFilesWithReplacements(transformState *astutil.TransformState) error {
 	// Write only actually modified files to temp directory using the replacement system
@@ -99,25 +78,6 @@ func writeModifiedFilesWithReplacements(transformState *astutil.TransformState) 
 		}
 
 		transformState.OverlayMap[originalPath] = tempFilePath
-	}
-
-	return nil
-}
-
-// transformGoStatementsInAllFiles iterates over all packages in the transform state and applies go statement transformations
-func transformGoStatementsInAllFiles(transformState *astutil.TransformState) error {
-	var hasTransformations bool
-
-	// Iterate over all packages
-	for _, pkg := range transformState.Packages {
-		// Apply go statement transformations to the entire package
-		if gr.TransformGoStatementsInPackage(transformState, pkg) {
-			hasTransformations = true
-		}
-	}
-
-	if transformState.Verbose && hasTransformations {
-		log.Printf("Completed go statement transformations across all files")
 	}
 
 	return nil
@@ -166,12 +126,12 @@ var flagsWithArgs = map[string]bool{
 }
 
 // copyGoModFiles copies go.mod and go.sum to the temp directory
-func copyGoModFiles(goModPath, tempDir string, verbose bool) (string, error) {
+func copyGoModFiles(goModPath, tempDir string, verbose bool) error {
 	// Copy go.mod
 	tempGoModPath := filepath.Join(tempDir, "go.mod")
 	err := utilfn.CopyFile(goModPath, tempGoModPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to copy go.mod: %w", err)
+		return fmt.Errorf("failed to copy go.mod: %w", err)
 	}
 
 	if verbose {
@@ -184,7 +144,7 @@ func copyGoModFiles(goModPath, tempDir string, verbose bool) (string, error) {
 		tempGoSumPath := filepath.Join(tempDir, "go.sum")
 		err = utilfn.CopyFile(goSumPath, tempGoSumPath)
 		if err != nil {
-			return "", fmt.Errorf("failed to copy go.sum: %w", err)
+			return fmt.Errorf("failed to copy go.sum: %w", err)
 		}
 
 		if verbose {
@@ -192,7 +152,115 @@ func copyGoModFiles(goModPath, tempDir string, verbose bool) (string, error) {
 		}
 	}
 
-	return tempGoModPath, nil
+	return nil
+}
+
+// addGoWorkReplaceDirectives modifies the copied go.mod file to include replace directives
+// that mimic the go.work file's use directives
+func addGoWorkReplaceDirectives(transformState *astutil.TransformState, tempGoModPath string) error {
+	// Check if go.work exists
+	if transformState.GoWorkPath == "" {
+		return nil // No go.work file, nothing to do
+	}
+
+	if transformState.Verbose {
+		log.Printf("Found go.work file, parsing for use directives")
+	}
+
+	// Parse go.work file
+	modules, err := astutil.ParseGoWorkFile(transformState.GoWorkPath)
+	if err != nil {
+		return fmt.Errorf("failed to parse go.work file: %w", err)
+	}
+
+	if len(modules) == 0 {
+		return nil // No modules to process
+	}
+
+	// Check if our current module is listed in go.work
+	isCurrentModuleInWorkspace, err := astutil.IsModuleInWorkspace(transformState)
+	if err != nil {
+		return fmt.Errorf("failed to check if module is in workspace: %w", err)
+	}
+
+	if !isCurrentModuleInWorkspace {
+		if transformState.Verbose {
+			log.Printf("Current module not found in go.work, skipping replace directives")
+		}
+		return nil // Our module is not in the workspace, don't add replace directives
+	}
+
+	if transformState.Verbose {
+		log.Printf("Current module found in go.work, adding replace directives")
+	}
+
+	// Read and parse the current go.mod file
+	goModData, err := os.ReadFile(tempGoModPath)
+	if err != nil {
+		return fmt.Errorf("failed to read temp go.mod: %w", err)
+	}
+
+	goModFile, err := modfile.Parse(tempGoModPath, goModData, nil)
+	if err != nil {
+		return fmt.Errorf("failed to parse temp go.mod: %w", err)
+	}
+
+	// Generate replace directives for each module in go.work
+	var addedReplaces int
+	for _, absModulePath := range modules {
+		// Skip the current module (self-reference)
+		currentModuleRoot := filepath.Dir(transformState.GoModPath)
+
+		if absModulePath == currentModuleRoot {
+			continue
+		}
+
+		// Use absolute path for the replace directive
+		modulePath := absModulePath
+
+		// Get the target module's name from its go.mod file
+		targetGoModPath := filepath.Join(absModulePath, "go.mod")
+		targetModuleName, err := astutil.GetModuleName(targetGoModPath)
+		if err != nil {
+			if transformState.Verbose {
+				log.Printf("Skipping module %s: %v", absModulePath, err)
+			}
+			continue
+		}
+
+		// Add replace directive using modfile API
+		err = goModFile.AddReplace(targetModuleName, "", modulePath, "")
+		if err != nil {
+			return fmt.Errorf("failed to add replace directive for %s: %w", targetModuleName, err)
+		}
+
+		addedReplaces++
+
+		if transformState.Verbose {
+			log.Printf("Adding replace directive: %s => %s", targetModuleName, modulePath)
+		}
+	}
+
+	if addedReplaces == 0 {
+		return nil // No replace directives to add
+	}
+
+	// Format and write the modified go.mod file
+	formattedData, err := goModFile.Format()
+	if err != nil {
+		return fmt.Errorf("failed to format modified go.mod: %w", err)
+	}
+
+	err = os.WriteFile(tempGoModPath, formattedData, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write modified go.mod: %w", err)
+	}
+
+	if transformState.Verbose {
+		log.Printf("Added %d replace directives to temp go.mod from go.work", addedReplaces)
+	}
+
+	return nil
 }
 
 // hasModfileFlag checks if the build flags already contain a -modfile flag
@@ -333,7 +401,6 @@ func loadFilesAndSetupTransformState(buildArgs astutil.BuildArgs, cfg RunModeCon
 	// Initialize overlay map, modified files map, temp dir, and verbose flag in transform state
 	transformState.OverlayMap = make(map[string]string)
 	transformState.ModifiedFiles = make(map[string]*astutil.ModifiedFile)
-	transformState.OldModifiedFiles = make(map[string]*ast.File)
 	transformState.TempDir = tempDir
 	transformState.Verbose = cfg.IsVerbose
 
@@ -349,9 +416,16 @@ func ExecRunMode(cfg RunModeConfig) error {
 	transformState := loadFilesAndSetupTransformState(buildArgs, cfg)
 
 	// Copy go.mod and go.sum to temp directory
-	_, err = copyGoModFiles(transformState.GoModPath, transformState.TempDir, cfg.IsVerbose)
+	err = copyGoModFiles(transformState.GoModPath, transformState.TempDir, cfg.IsVerbose)
 	if err != nil {
 		return fmt.Errorf("failed to copy go.mod files: %w", err)
+	}
+
+	// If we have a go.work file, modify the copied go.mod with replace directives
+	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
+	err = addGoWorkReplaceDirectives(transformState, tempGoModPath)
+	if err != nil {
+		return fmt.Errorf("failed to add go.work replace directives: %w", err)
 	}
 
 	// Find and transform the main file using new replacement flow
@@ -440,6 +514,11 @@ func runGoCommand(args []string, cfg RunModeConfig) error {
 	// Prepare the full command arguments
 	goArgs := append([]string{"go"}, args...)
 
+	// Set GOWORK=off to disable workspace mode when using replace directives
+	extraEnv := map[string]string{
+		"GOWORK": "off",
+	}
+
 	// Use execlogwrap to execute the command with log capture
-	return execlogwrap.ExecCommand(goArgs, config.GetAppRunId(), cfg.Config)
+	return execlogwrap.ExecCommand(goArgs, config.GetAppRunId(), cfg.Config, extraEnv)
 }

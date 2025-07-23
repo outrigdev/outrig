@@ -271,7 +271,7 @@ Example: outrig --dev exec ls -latrh`,
 			if err != nil {
 				return err
 			}
-			return execlogwrap.ExecCommand(specialArgs.Args, config.GetAppRunId(), cfg)
+			return execlogwrap.ExecCommand(specialArgs.Args, config.GetAppRunId(), cfg, nil)
 		},
 		// Disable flag parsing for this command so all flags are passed to the executed command
 		DisableFlagParsing: true,

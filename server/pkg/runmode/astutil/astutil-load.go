@@ -12,22 +12,22 @@ import (
 	"regexp"
 	"strings"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 )
 
 // TransformState contains the state for AST transformations including FileSet and packages
 type TransformState struct {
-	FileSet          *token.FileSet
-	PackageMap       map[string]*packages.Package
-	Packages         []*packages.Package
-	MainPkg          *packages.Package
-	OverlayMap       map[string]string
-	ModifiedFiles    map[string]*ModifiedFile
-	OldModifiedFiles map[string]*ast.File
-	GoModPath        string
-	GoWorkPath       string
-	TempDir          string
-	Verbose          bool
+	FileSet       *token.FileSet
+	PackageMap    map[string]*packages.Package
+	Packages      []*packages.Package
+	MainPkg       *packages.Package
+	OverlayMap    map[string]string
+	ModifiedFiles map[string]*ModifiedFile
+	GoModPath     string // absolute path to go.mod file
+	GoWorkPath    string // absolute path to go.work file (empty if not found)
+	TempDir       string
+	Verbose       bool
 }
 
 // BuildArgs contains the build configuration for loading Go files
@@ -37,6 +37,89 @@ type BuildArgs struct {
 	ProgramArgs []string
 	WorkingDir  string
 	Verbose     bool
+}
+
+// ParseGoWorkFile parses a go.work file and returns the absolute paths of modules listed in the use directive
+func ParseGoWorkFile(goWorkPath string) ([]string, error) {
+	data, err := os.ReadFile(goWorkPath)
+	if err != nil {
+		return nil, err
+	}
+
+	workFile, err := modfile.ParseWork(goWorkPath, data, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse go.work file: %w", err)
+	}
+
+	// Get project root from go.work path
+	goWorkRoot := filepath.Dir(goWorkPath)
+
+	var modules []string
+	for _, use := range workFile.Use {
+		module := strings.Trim(use.Path, `"`)
+
+		// Resolve the module path relative to go.work
+		var modulePath string
+		if !filepath.IsAbs(module) {
+			modulePath = filepath.Join(goWorkRoot, module)
+		} else {
+			modulePath = module
+		}
+
+		// Convert to absolute path
+		absModulePath, err := filepath.Abs(modulePath)
+		if err != nil {
+			continue
+		}
+
+		modules = append(modules, absModulePath)
+	}
+
+	return modules, nil
+}
+
+// GetModuleName reads a go.mod file and returns the module name
+func GetModuleName(goModPath string) (string, error) {
+	data, err := os.ReadFile(goModPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read go.mod file %s: %w", goModPath, err)
+	}
+
+	modFile, err := modfile.Parse(goModPath, data, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse go.mod file %s: %w", goModPath, err)
+	}
+
+	if modFile.Module == nil {
+		return "", fmt.Errorf("no module declaration found in %s", goModPath)
+	}
+
+	return modFile.Module.Mod.Path, nil
+}
+
+// IsModuleInWorkspace checks if the current module is listed in the go.work file
+func IsModuleInWorkspace(transformState *TransformState) (bool, error) {
+	if transformState.GoWorkPath == "" {
+		return false, nil // No go.work file
+	}
+
+	// Parse go.work file to get absolute module paths
+	modules, err := ParseGoWorkFile(transformState.GoWorkPath)
+	if err != nil {
+		return false, err
+	}
+
+	// Get current module root (GoModPath is already absolute)
+	currentModuleRoot := filepath.Dir(transformState.GoModPath)
+
+	// Check if our current module is listed in go.work
+	for _, modulePath := range modules {
+		if modulePath == currentModuleRoot {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 type ModifiedFile struct {
@@ -196,6 +279,7 @@ func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Pack
 // findGoWorkPath searches for a go.work file starting from the given directory
 // and working up through parent directories. It also handles the GOWORK environment variable.
 // If GOWORK is set to "off", it returns an empty string.
+// Returns an absolute path to the go.work file if found.
 func findGoWorkPath(startDir string) (string, error) {
 	// Check GOWORK environment variable first
 	gowork := os.Getenv("GOWORK")
@@ -326,8 +410,11 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 		return nil, fmt.Errorf("main package module has no go.mod file")
 	}
 
-	// Set GoModPath from the main package's module
-	goModPath := mainPkg.Module.GoMod
+	// Set GoModPath from the main package's module (make it absolute)
+	goModPath, err := filepath.Abs(mainPkg.Module.GoMod)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path for go.mod: %w", err)
+	}
 
 	// Find GoWorkPath starting from the main package's directory
 	goWorkPath, err := findGoWorkPath(mainPkg.Module.Dir)
@@ -348,12 +435,6 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 // GetFilePath returns the file path for the given AST file using the FileSet
 func (ts *TransformState) GetFilePath(astFile *ast.File) string {
 	return ts.FileSet.Position(astFile.Pos()).Filename
-}
-
-// MarkFileModified adds the AST file to the ModifiedFiles map using its file path
-func (ts *TransformState) MarkFileModified(astFile *ast.File) {
-	filePath := ts.GetFilePath(astFile)
-	ts.OldModifiedFiles[filePath] = astFile
 }
 
 func MakeModifiedFile(state *TransformState, fileAST *ast.File) (*ModifiedFile, error) {
