@@ -395,13 +395,13 @@ func AddOutrigSDKDependency(tempGoModPath string, verbose bool) error {
 	}
 
 	// Add the Outrig SDK dependency with the specified version
-	err = goModFile.AddRequire("github.com/outrigdev/outrig", config.OutrigSDKVersion)
+	err = goModFile.AddRequire(OutrigImportPath, config.OutrigSDKVersion)
 	if err != nil {
 		return fmt.Errorf("failed to add outrig SDK dependency: %w", err)
 	}
 
 	if verbose {
-		log.Printf("Adding outrig SDK dependency: github.com/outrigdev/outrig %s", config.OutrigSDKVersion)
+		log.Printf("Adding outrig SDK dependency: %s %s", OutrigImportPath, config.OutrigSDKVersion)
 	}
 
 	// Format and write the modified go.mod file

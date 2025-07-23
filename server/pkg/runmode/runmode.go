@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -404,6 +405,38 @@ func loadFilesAndSetupTransformState(buildArgs astutil.BuildArgs, cfg RunModeCon
 	return transformState
 }
 
+// downloadDependencies runs go mod download to populate go.sum in the temp directory
+func downloadDependencies(tempGoModPath string, verbose bool) error {
+	if verbose {
+		log.Printf("Running go mod download to populate go.sum")
+	}
+
+	// Run go mod download with -modfile flag pointing to temp go.mod
+	args := []string{"mod", "download", "-modfile", tempGoModPath, "github.com/outrigdev/outrig"}
+	
+	cmd := exec.Command("go", args...)
+	
+	// Set GOWORK=off to disable workspace mode
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	
+	if verbose {
+		log.Printf("Executing: go %v", strings.Join(args, " "))
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+	
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("go mod download failed: %w", err)
+	}
+	
+	if verbose {
+		log.Printf("Successfully downloaded dependencies and updated go.sum")
+	}
+	
+	return nil
+}
+
 // ExecRunMode handles the "outrig run" command with AST rewriting
 func ExecRunMode(cfg RunModeConfig) error {
 	buildArgs, err := setupBuildArgs(cfg)
@@ -429,6 +462,12 @@ func ExecRunMode(cfg RunModeConfig) error {
 	err = astutil.AddOutrigSDKDependency(tempGoModPath, cfg.IsVerbose)
 	if err != nil {
 		return fmt.Errorf("failed to add outrig SDK dependency: %w", err)
+	}
+
+	// Download dependencies to populate go.sum in temp directory
+	err = downloadDependencies(tempGoModPath, cfg.IsVerbose)
+	if err != nil {
+		return fmt.Errorf("failed to download dependencies: %w", err)
 	}
 
 	// Find and transform the main file using new replacement flow
