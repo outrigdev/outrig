@@ -425,6 +425,12 @@ func ExecRunMode(cfg RunModeConfig) error {
 		return fmt.Errorf("failed to add go.work replace directives: %w", err)
 	}
 
+	// Add the version locked Outrig SDK dependency to the temp go.mod
+	err = astutil.AddOutrigSDKDependency(tempGoModPath, cfg.IsVerbose)
+	if err != nil {
+		return fmt.Errorf("failed to add outrig SDK dependency: %w", err)
+	}
+
 	// Find and transform the main file using new replacement flow
 	err = findAndTransformMainFileWithReplacement(transformState)
 	if err != nil {

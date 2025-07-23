@@ -9,10 +9,17 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/Masterminds/semver/v3"
+	"github.com/outrigdev/outrig/pkg/comm"
+	"github.com/outrigdev/outrig/pkg/config"
+	"github.com/outrigdev/outrig/server/pkg/serverbase"
+	"golang.org/x/mod/modfile"
 )
 
 const outrigCommentPrefix = "//outrig"
@@ -329,4 +336,96 @@ func ParseOutrigDirectiveForStmt(fset *token.FileSet, file *ast.File, stmt ast.S
 // MakeLineDirective creates a //line directive string for the given file path and line number
 func MakeLineDirective(filePath string, lineNum int) string {
 	return fmt.Sprintf("//line %s:%d\n", filePath, lineNum)
+}
+
+// getExistingOutrigSDKVersion returns the version of the outrig SDK if it exists in the go.mod file, empty string otherwise
+func getExistingOutrigSDKVersion(goModFile *modfile.File) string {
+	for _, req := range goModFile.Require {
+		if req.Mod.Path == "github.com/outrigdev/outrig" {
+			return req.Mod.Version
+		}
+	}
+	return ""
+}
+
+// validateSDKVersionCompatibility validates that the SDK version is compatible with the server
+// Checks for both too old versions (using ValidateClientVersion) and too new versions (major/minor comparison)
+// Returns nil if sdkVersion is empty string
+func validateSDKVersionCompatibility(sdkVersion string) error {
+	if sdkVersion == "" {
+		return nil
+	}
+
+	// Validate the existing SDK version for compatibility (checks for too old versions)
+	if err := comm.ValidateClientVersion(sdkVersion); err != nil {
+		return err
+	}
+
+	// Check if the existing SDK version is too new (higher major/minor than server version)
+	serverVersion := serverbase.OutrigServerVersion
+
+	existingVer, err := semver.NewVersion(sdkVersion)
+	if err != nil {
+		return fmt.Errorf("invalid SDK version format %s: %w", sdkVersion, err)
+	}
+
+	serverVer, err := semver.NewVersion(serverVersion)
+	if err != nil {
+		return fmt.Errorf("invalid server version format %s: %w", serverVersion, err)
+	}
+
+	// Compare major and minor versions only
+	if existingVer.Major() > serverVer.Major() ||
+		(existingVer.Major() == serverVer.Major() && existingVer.Minor() > serverVer.Minor()) {
+		return fmt.Errorf("SDK version %s is newer than server version %s (major/minor mismatch)", sdkVersion, serverVersion)
+	}
+
+	return nil
+}
+
+// AddOutrigSDKDependency adds the version locked Outrig SDK to the temp go.mod file
+func AddOutrigSDKDependency(tempGoModPath string, verbose bool) error {
+	// Read and parse the current go.mod file
+	goModData, err := os.ReadFile(tempGoModPath)
+	if err != nil {
+		return fmt.Errorf("failed to read temp go.mod: %w", err)
+	}
+
+	goModFile, err := modfile.Parse(tempGoModPath, goModData, nil)
+	if err != nil {
+		return fmt.Errorf("failed to parse temp go.mod: %w", err)
+	}
+
+	// Check if the outrig SDK dependency already exists and validate version
+	existingVersion := getExistingOutrigSDKVersion(goModFile)
+	if err := validateSDKVersionCompatibility(existingVersion); err != nil {
+		return fmt.Errorf("incompatible SDK version %s: %w", existingVersion, err)
+	}
+
+	// Add the Outrig SDK dependency with the specified version
+	err = goModFile.AddRequire("github.com/outrigdev/outrig", config.OutrigSDKVersion)
+	if err != nil {
+		return fmt.Errorf("failed to add outrig SDK dependency: %w", err)
+	}
+
+	if verbose {
+		log.Printf("Adding outrig SDK dependency: github.com/outrigdev/outrig %s", config.OutrigSDKVersion)
+	}
+
+	// Format and write the modified go.mod file
+	formattedData, err := goModFile.Format()
+	if err != nil {
+		return fmt.Errorf("failed to format modified go.mod: %w", err)
+	}
+
+	err = os.WriteFile(tempGoModPath, formattedData, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write modified go.mod: %w", err)
+	}
+
+	if verbose {
+		log.Printf("Added outrig SDK dependency to temp go.mod")
+	}
+
+	return nil
 }

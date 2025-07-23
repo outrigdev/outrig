@@ -187,6 +187,22 @@ func sendSuccessResponse(cw *ConnWrap, webServerPort int) error {
 	return cw.WriteLine(string(jsonData))
 }
 
+// ValidateClientVersion validates that the client version meets minimum requirements
+func ValidateClientVersion(clientVersion string) error {
+	// Validate the client SDK version using semver core comparison
+	comparison, err := utilfn.CompareSemVerCore(clientVersion, MinClientVersion)
+	if err != nil {
+		return fmt.Errorf("invalid client SDK version format: %s", clientVersion)
+	}
+
+	if comparison < 0 {
+		return fmt.Errorf("client SDK version %s is less than minimum required version %s",
+			clientVersion, MinClientVersion)
+	}
+
+	return nil
+}
+
 // ServerHandshake performs the server side of the handshake protocol.
 // If isTcp is true, it first reads the "OUTRIG\n" identifier from TCP clients.
 // It then sends a ServerHandshakePacket, reads a ClientHandshakePacket,
@@ -246,19 +262,10 @@ func (cw *ConnWrap) ServerHandshake(webServerPort int, isTcp bool) (*ClientHands
 		return nil, missingFieldErr
 	}
 
-	// Validate the client SDK version using semver core comparison
-	comparison, err := utilfn.CompareSemVerCore(packet.OutrigSDK, MinClientVersion)
-	if err != nil {
-		versionFormatErr := fmt.Errorf("invalid client SDK version format: %s", packet.OutrigSDK)
-		sendErrorResponse(cw, versionFormatErr)
-		return nil, versionFormatErr
-	}
-
-	if comparison < 0 {
-		versionErr := fmt.Errorf("client SDK version %s is less than minimum required version %s",
-			packet.OutrigSDK, MinClientVersion)
-		sendErrorResponse(cw, versionErr)
-		return nil, versionErr
+	// Validate the client SDK version
+	if err := ValidateClientVersion(packet.OutrigSDK); err != nil {
+		sendErrorResponse(cw, err)
+		return nil, err
 	}
 
 	// Validate the mode
