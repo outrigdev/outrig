@@ -42,9 +42,7 @@ type ControllerImpl struct {
 
 // this is idempotent
 func MakeController(appName string, cfg config.Config) (*ControllerImpl, error) {
-	if appName == "" {
-		appName = determineAppName()
-	}
+	appName = determineAppName(appName)
 	c := &ControllerImpl{
 		InternalLogBuf: utilds.MakeCirBuf[string](MaxInternalLog),
 	}
@@ -87,9 +85,6 @@ func (c *ControllerImpl) createAppInfo(appName string, cfg *config.Config) ds.Ap
 
 	// Initialize basic AppInfo
 	appInfo.AppRunId = config.GetAppRunId()
-	if appName == "" {
-		appName = determineAppName()
-	}
 	appInfo.AppName = appName
 
 	// Set module name
@@ -338,7 +333,16 @@ func (c *ControllerImpl) determineModuleName() string {
 	return "" // No go.mod found
 }
 
-func determineAppName() string {
+func determineAppName(appNameParam string) string {
+	// Check environment variable first
+	if envAppName := os.Getenv(config.AppNameEnvName); envAppName != "" {
+		return envAppName
+	}
+
+	if appNameParam != "" {
+		return appNameParam
+	}
+
 	execPath, err := os.Executable()
 	if err != nil {
 		return "unknown"

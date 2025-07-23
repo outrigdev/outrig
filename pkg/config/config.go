@@ -28,6 +28,7 @@ const (
 	ConfigFileEnvName         = "OUTRIG_CONFIGFILE"
 	ConfigJsonEnvName         = "OUTRIG_CONFIGJSON"
 	OutrigPathEnvName         = "OUTRIG_OUTRIGBINPATH"
+	AppNameEnvName            = "OUTRIG_APPNAME"
 )
 
 // Home directory paths
@@ -57,6 +58,9 @@ func init() {
 
 type Config struct {
 	Quiet bool `json:"quiet"` // If true, suppresses init, connect, and disconnect messages
+
+	// AppName is the name of the application
+	AppName string `json:"appname"`
 
 	// DomainSocketPath is the path to the Unix domain socket. If "" => use default.
 	// If "-" => disable domain socket.

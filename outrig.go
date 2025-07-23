@@ -91,6 +91,11 @@ func Init(appName string, cfgParam *config.Config) (bool, error) {
 	// copy to avoid cross contamination with original
 	finalCfg := *cfgParam
 
+	// Override AppName if provided
+	if appName != "" {
+		finalCfg.AppName = appName
+	}
+
 	var initErr error
 	var wasFirstCall bool
 
@@ -105,7 +110,7 @@ func Init(appName string, cfgParam *config.Config) (bool, error) {
 
 		// Create and initialize the controller
 		// (collectors are now initialized inside MakeController)
-		ctrlImpl, err := controller.MakeController(appName, finalCfg)
+		ctrlImpl, err := controller.MakeController(finalCfg.AppName, finalCfg)
 		if err != nil {
 			initErr = err
 			return
