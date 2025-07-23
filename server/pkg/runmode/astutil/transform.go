@@ -11,10 +11,7 @@ import (
 
 // FindMainFileAST finds the main file AST from the parsed packages
 func FindMainFileAST(transformState *TransformState) (*ast.File, error) {
-	mainPkg := transformState.PackageMap["main"]
-	if mainPkg == nil {
-		return nil, fmt.Errorf("no main package found")
-	}
+	mainPkg := transformState.MainPkg
 
 	for _, astFile := range mainPkg.Syntax {
 		if astFile == nil {

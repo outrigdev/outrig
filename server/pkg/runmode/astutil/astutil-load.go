@@ -15,6 +15,21 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// TransformState contains the state for AST transformations including FileSet and packages
+type TransformState struct {
+	FileSet          *token.FileSet
+	PackageMap       map[string]*packages.Package
+	Packages         []*packages.Package
+	MainPkg          *packages.Package
+	OverlayMap       map[string]string
+	ModifiedFiles    map[string]*ModifiedFile
+	OldModifiedFiles map[string]*ast.File
+	GoModPath        string
+	GoWorkPath       string
+	TempDir          string
+	Verbose          bool
+}
+
 // BuildArgs contains the build configuration for loading Go files
 type BuildArgs struct {
 	GoFiles     []string
@@ -145,19 +160,6 @@ func (mf *ModifiedFile) AddInsertStmt(pos token.Position, text string) {
 	mf.AddLineDirective(insertOffset, pos.Filename, nextLineNum)
 }
 
-// TransformState contains the state for AST transformations including FileSet and packages
-type TransformState struct {
-	FileSet          *token.FileSet
-	PackageMap       map[string]*packages.Package
-	Packages         []*packages.Package
-	OverlayMap       map[string]string
-	ModifiedFiles    map[string]*ModifiedFile
-	OldModifiedFiles map[string]*ast.File
-	GoModPath        string
-	TempDir          string
-	Verbose          bool
-}
-
 // addPackageToMap adds a package to the packageMap if not already present
 // and processes its imports to add them as well
 func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Package, visited map[string]bool, transformMods map[string]bool) {
@@ -166,7 +168,7 @@ func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Pack
 	}
 
 	key := pkg.PkgPath
-	if pkg.Name == "main" {
+	if pkg.Module != nil && pkg.Module.Main {
 		key = "main"
 	}
 
@@ -189,6 +191,59 @@ func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Pack
 	for _, importedPkg := range pkg.Imports {
 		addPackageToMap(importedPkg, packageMap, visited, transformMods)
 	}
+}
+
+// findGoWorkPath searches for a go.work file starting from the given directory
+// and working up through parent directories. It also handles the GOWORK environment variable.
+// If GOWORK is set to "off", it returns an empty string.
+func findGoWorkPath(startDir string) (string, error) {
+	// Check GOWORK environment variable first
+	gowork := os.Getenv("GOWORK")
+	if gowork == "off" {
+		return "", nil
+	}
+	if gowork != "" {
+		// If GOWORK is set to a specific path, use it
+		if filepath.IsAbs(gowork) {
+			return gowork, nil
+		}
+		// If relative path, resolve it relative to current working directory
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to get current working directory: %w", err)
+		}
+		goWorkPath := filepath.Join(cwd, gowork)
+		// Make it absolute
+		absPath, err := filepath.Abs(goWorkPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to get absolute path for %s: %w", goWorkPath, err)
+		}
+		return absPath, nil
+	}
+
+	// Start from the given directory and work up
+	currentDir := startDir
+	for {
+		goWorkPath := filepath.Join(currentDir, "go.work")
+		if _, err := os.Stat(goWorkPath); err == nil {
+			// Make it absolute
+			absPath, err := filepath.Abs(goWorkPath)
+			if err != nil {
+				return "", fmt.Errorf("failed to get absolute path for %s: %w", goWorkPath, err)
+			}
+			return absPath, nil
+		}
+
+		// Move to parent directory
+		parentDir := filepath.Dir(currentDir)
+		if parentDir == currentDir {
+			// Reached the root directory
+			break
+		}
+		currentDir = parentDir
+	}
+
+	return "", nil
 }
 
 // LoadGoFiles loads the specified Go files using packages.Load with "file=" prefix
@@ -238,7 +293,7 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	// First, populate transformMods with the main module and find main package
 	var mainPkg *packages.Package
 	for _, pkg := range pkgs {
-		if pkg.Name == "main" && pkg.Module != nil {
+		if pkg.Module != nil && pkg.Module.Main {
 			transformMods[pkg.Module.Dir] = true
 			mainPkg = pkg
 		}
@@ -260,10 +315,33 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 		}
 	}
 
+	// Validate that we have a main package with module information
+	if mainPkg == nil {
+		return nil, fmt.Errorf("no main package found")
+	}
+	if mainPkg.Module == nil {
+		return nil, fmt.Errorf("main package has no module information")
+	}
+	if mainPkg.Module.GoMod == "" {
+		return nil, fmt.Errorf("main package module has no go.mod file")
+	}
+
+	// Set GoModPath from the main package's module
+	goModPath := mainPkg.Module.GoMod
+
+	// Find GoWorkPath starting from the main package's directory
+	goWorkPath, err := findGoWorkPath(mainPkg.Module.Dir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find go.work path: %w", err)
+	}
+
 	return &TransformState{
 		FileSet:    fileSet,
 		PackageMap: packageMap,
 		Packages:   packages,
+		MainPkg:    mainPkg,
+		GoModPath:  goModPath,
+		GoWorkPath: goWorkPath,
 	}, nil
 }
 

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/outrigdev/outrig/pkg/config"
+	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
 	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
 	"github.com/outrigdev/outrig/server/pkg/runmode/gr"
@@ -164,12 +165,66 @@ var flagsWithArgs = map[string]bool{
 	"-o":             true,
 }
 
+// copyGoModFiles copies go.mod and go.sum to the temp directory
+func copyGoModFiles(goModPath, tempDir string, verbose bool) (string, error) {
+	// Copy go.mod
+	tempGoModPath := filepath.Join(tempDir, "go.mod")
+	err := utilfn.CopyFile(goModPath, tempGoModPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to copy go.mod: %w", err)
+	}
+
+	if verbose {
+		log.Printf("Copied go.mod from %s to %s", goModPath, tempGoModPath)
+	}
+
+	// Copy go.sum if it exists
+	goSumPath := filepath.Join(filepath.Dir(goModPath), "go.sum")
+	if _, err := os.Stat(goSumPath); err == nil {
+		tempGoSumPath := filepath.Join(tempDir, "go.sum")
+		err = utilfn.CopyFile(goSumPath, tempGoSumPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to copy go.sum: %w", err)
+		}
+
+		if verbose {
+			log.Printf("Copied go.sum from %s to %s", goSumPath, tempGoSumPath)
+		}
+	}
+
+	return tempGoModPath, nil
+}
+
+// hasModfileFlag checks if the build flags already contain a -modfile flag
+func hasModfileFlag(buildFlags []string) bool {
+	for i, flag := range buildFlags {
+		if flag == "-modfile" {
+			return true
+		}
+		if strings.HasPrefix(flag, "-modfile=") {
+			return true
+		}
+		// Check if this is a flag that takes an argument and the next arg is the modfile
+		if flag == "-modfile" && i+1 < len(buildFlags) {
+			return true
+		}
+	}
+	return false
+}
+
 // setupBuildArgs prepares build arguments from the config
 func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 	// Check if user already provided -overlay flag
 	for _, arg := range cfg.Args {
 		if arg == "-overlay" || strings.HasPrefix(arg, "-overlay=") {
 			return astutil.BuildArgs{}, fmt.Errorf("cannot use -overlay flag with 'outrig run' as it conflicts with AST rewriting")
+		}
+	}
+
+	// Check if user already provided -modfile flag
+	for _, arg := range cfg.Args {
+		if arg == "-modfile" || strings.HasPrefix(arg, "-modfile=") {
+			return astutil.BuildArgs{}, fmt.Errorf("cannot use -modfile flag with 'outrig run' as it conflicts with go.mod handling")
 		}
 	}
 
@@ -293,6 +348,12 @@ func ExecRunMode(cfg RunModeConfig) error {
 	}
 	transformState := loadFilesAndSetupTransformState(buildArgs, cfg)
 
+	// Copy go.mod and go.sum to temp directory
+	_, err = copyGoModFiles(transformState.GoModPath, transformState.TempDir, cfg.IsVerbose)
+	if err != nil {
+		return fmt.Errorf("failed to copy go.mod files: %w", err)
+	}
+
 	// Find and transform the main file using new replacement flow
 	err = findAndTransformMainFileWithReplacement(transformState)
 	if err != nil {
@@ -325,14 +386,14 @@ func ExecRunMode(cfg RunModeConfig) error {
 	}
 
 	// Create overlay file mapping and run
-	return runWithOverlay(transformState.OverlayMap, transformState.TempDir, buildArgs.GoFiles, buildArgs.BuildFlags, buildArgs.ProgramArgs, cfg)
+	return runWithOverlay(transformState, buildArgs.GoFiles, buildArgs.BuildFlags, buildArgs.ProgramArgs, cfg)
 }
 
 // runWithOverlay creates the overlay file and runs the go command
-func runWithOverlay(overlayMap map[string]string, tempDir string, goFiles []string, otherArgs []string, programArgs []string, cfg RunModeConfig) error {
+func runWithOverlay(transformState *astutil.TransformState, goFiles []string, otherArgs []string, programArgs []string, cfg RunModeConfig) error {
 	// Create overlay file mapping
 	overlayData := map[string]interface{}{
-		"Replace": overlayMap,
+		"Replace": transformState.OverlayMap,
 	}
 
 	overlayBytes, err := json.Marshal(overlayData)
@@ -341,7 +402,7 @@ func runWithOverlay(overlayMap map[string]string, tempDir string, goFiles []stri
 	}
 
 	// Create overlay file in the same temp directory
-	overlayFilePath := filepath.Join(tempDir, "overlay.json")
+	overlayFilePath := filepath.Join(transformState.TempDir, "overlay.json")
 	err = os.WriteFile(overlayFilePath, overlayBytes, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write overlay file: %w", err)
@@ -350,6 +411,14 @@ func runWithOverlay(overlayMap map[string]string, tempDir string, goFiles []stri
 	if cfg.IsVerbose {
 		log.Printf("Using overlay file: %s", overlayFilePath)
 		log.Printf("Overlay content: %s", string(overlayBytes))
+	}
+
+	// Add -modfile flag to use the copied go.mod in temp directory
+	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
+	otherArgs = append([]string{"-modfile", tempGoModPath}, otherArgs...)
+
+	if cfg.IsVerbose {
+		log.Printf("Using -modfile flag: %s", tempGoModPath)
 	}
 
 	// Build the go run command with overlay
