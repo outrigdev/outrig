@@ -274,15 +274,7 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
         return <div className="h-4 bg-muted/20 rounded-sm"></div>;
     }
 
-    // If no valid time range, show empty bar
-    if (timelineRange.minTimeIdx === 0 && timelineRange.maxTimeIdx === 0) {
-        return <div className="h-4 bg-muted/20 rounded-sm"></div>;
-    }
-
     const timeIdxRange = timelineRange.maxTimeIdx - timelineRange.minTimeIdx;
-    if (timeIdxRange <= 0) {
-        return <div className="h-4 bg-muted/20 rounded-sm"></div>;
-    }
 
     // Calculate the actual goroutine range in timeidx
     const grStartIdx = Math.max(grTimeSpan.startidx, timelineRange.minTimeIdx);
@@ -295,8 +287,28 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     const isGoroutineRunning = (grTimeSpan.endidx == null || grTimeSpan.endidx === -1) && isAppRunning;
 
     // Calculate positions and widths using timeidx
-    const startPercent = ((grStartIdx - timelineRange.minTimeIdx) / timeIdxRange) * 100;
-    const widthPercent = ((grEndIdx - grStartIdx) / timeIdxRange) * 100;
+    let startPercent: number;
+    let widthPercent: number;
+
+    if (timeIdxRange <= 0) {
+        // Single data point case - check if goroutine was active at this point
+        if (
+            grTimeSpan.startidx <= timelineRange.minTimeIdx &&
+            (grTimeSpan.endidx == null || grTimeSpan.endidx === -1 || grTimeSpan.endidx >= timelineRange.minTimeIdx)
+        ) {
+            // Goroutine was active at this single point - show full width bar
+            startPercent = 0;
+            widthPercent = 100;
+        } else {
+            // Goroutine was not active at this point - show empty bar
+            startPercent = 0;
+            widthPercent = 0;
+        }
+    } else {
+        startPercent = ((grStartIdx - timelineRange.minTimeIdx) / timeIdxRange) * 100;
+        widthPercent = ((grEndIdx - grStartIdx) / timeIdxRange) * 100;
+    }
+
     const minWidthPercent = 2;
     const finalWidthPercent = Math.max(widthPercent, minWidthPercent);
 
@@ -307,20 +319,29 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     } else {
         // For running app: calculate width = actual timeline / padded timeline
         const paddedTimeIdxRange = timelineRange.paddedMaxTimeIdx - timelineRange.minTimeIdx;
-        const widthPercent = (timeIdxRange / paddedTimeIdxRange) * 100;
-        containerWidthStyle = `${widthPercent}%`;
+        if (paddedTimeIdxRange <= 0) {
+            containerWidthStyle = "100%";
+        } else {
+            const widthPercent = (timeIdxRange / paddedTimeIdxRange) * 100;
+            containerWidthStyle = `${widthPercent}%`;
+        }
     }
 
     // Calculate slider position marker using timeidx
     let sliderMarkerPercent: number | null = null;
     if (searchLatestMode) {
-        // In search latest mode, show marker at the end
-        sliderMarkerPercent = 100;
+        // In search latest mode, show marker at the end (or beginning for single data point)
+        sliderMarkerPercent = timeIdxRange <= 0 ? 0 : 100;
     } else if (selectedTimestamp > 0) {
         // Convert timestamp to timeidx and show marker at that position
         const selectedTimeIdx = model.timestampToTimeIdx(selectedTimestamp);
         if (selectedTimeIdx >= timelineRange.minTimeIdx && selectedTimeIdx <= timelineRange.maxTimeIdx) {
-            sliderMarkerPercent = ((selectedTimeIdx - timelineRange.minTimeIdx) / timeIdxRange) * 100;
+            if (timeIdxRange <= 0) {
+                // Single data point case - show marker at the beginning
+                sliderMarkerPercent = 0;
+            } else {
+                sliderMarkerPercent = ((selectedTimeIdx - timelineRange.minTimeIdx) / timeIdxRange) * 100;
+            }
         }
     }
 
@@ -329,7 +350,16 @@ const GoTimeline: React.FC<GoTimelineProps> = React.memo(({ goroutine, timelineR
     const durationMs = grTimeSpan.end != null && grTimeSpan.end !== -1 ? grTimeSpan.end - grTimeSpan.start : null;
     const duration = durationMs != null ? (durationMs / 1000).toFixed(2) : "ongoing";
     const isShortGoroutine = durationMs != null && durationMs < 1000; // Less than 1 second
-    const relativeStartTimeMs = grTimeSpan.start - timelineRange.startTs;
+    
+    // Handle relative start time calculation for single data point case
+    let relativeStartTimeMs: number;
+    if (timeIdxRange <= 0) {
+        // Single data point case - relative start time should be 0
+        relativeStartTimeMs = 0;
+    } else {
+        relativeStartTimeMs = grTimeSpan.start - timelineRange.startTs;
+    }
+    
     const relativeStartTime = (relativeStartTimeMs / 1000).toFixed(3);
     const relativeStartTimeFormatted = relativeStartTimeMs >= 0 ? `+${relativeStartTime}` : relativeStartTime;
 

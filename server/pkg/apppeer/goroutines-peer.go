@@ -532,19 +532,33 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesByIds(moduleName string, goIds []int
 	return gp.getParsedGoRoutinesAtTimestamp_nolock(moduleName, goIds, timestamp, false)
 }
 
-// getActiveCountAtTimeIdx returns the number of goroutines active at the given logical time index
-func (gp *GoRoutinePeer) getActiveCountAtTimeIdx(timeIdx int) int {
+// getOutrigGoIds_nolock returns a map of goroutine IDs that are tagged with "outrig"
+func (gp *GoRoutinePeer) getOutrigGoIds_nolock() map[int64]bool {
+	outrigGoIds := make(map[int64]bool)
+	gp.goRoutines.ForEach(func(goId int64, goroutine GoRoutine) {
+		if slices.Contains(goroutine.Tags, "outrig") {
+			outrigGoIds[goId] = true
+		}
+	})
+	return outrigGoIds
+}
+
+// getActiveCountAtTimeIdx returns the number of goroutines active at the given logical time index,
+// optionally filtering out outrig-tagged goroutines
+func (gp *GoRoutinePeer) getActiveCountAtTimeIdx(timeIdx int, showOutrig bool, outrigGoIds map[int64]bool) int {
 	activeCount := 0
 	gp.timeSpanMap.ForEach(func(goId uint64, timeSpan rpctypes.TimeSpan, version int64) {
 		if timeSpan.IsWithinSpanIdx(timeIdx) {
-			activeCount++
+			if showOutrig || !outrigGoIds[int64(goId)] {
+				activeCount++
+			}
 		}
 	})
 	return activeCount
 }
 
 // GetTimeSpansSinceTickIdx returns the complete GoRoutineTimeSpansResponse for the given tick index
-func (gp *GoRoutinePeer) GetTimeSpansSinceTickIdx(sinceTickIdx int64) rpctypes.GoRoutineTimeSpansResponse {
+func (gp *GoRoutinePeer) GetTimeSpansSinceTickIdx(sinceTickIdx int64, showOutrig bool) rpctypes.GoRoutineTimeSpansResponse {
 	gp.lock.Lock()
 	defer gp.lock.Unlock()
 
@@ -566,11 +580,14 @@ func (gp *GoRoutinePeer) GetTimeSpansSinceTickIdx(sinceTickIdx int64) rpctypes.G
 	filteredTimestamps := timestamps[startIdx:]
 	baseLogical += startIdx
 
+	// Get outrig goroutine IDs once for efficiency
+	outrigGoIds := gp.getOutrigGoIds_nolock()
+
 	// Create ActiveCounts for each filtered timestamp
 	activeCounts := make([]rpctypes.GoRoutineActiveCount, 0, len(filteredTimestamps))
 	for i, ts := range filteredTimestamps {
 		logicalIdx := baseLogical + i
-		activeCount := gp.getActiveCountAtTimeIdx(logicalIdx)
+		activeCount := gp.getActiveCountAtTimeIdx(logicalIdx, showOutrig, outrigGoIds)
 		activeCounts = append(activeCounts, rpctypes.GoRoutineActiveCount{
 			TimeIdx: logicalIdx,
 			Ts:      ts,

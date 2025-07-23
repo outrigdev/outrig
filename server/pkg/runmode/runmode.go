@@ -278,6 +278,45 @@ func hasModfileFlag(buildFlags []string) bool {
 	return false
 }
 
+// stripGoFlag removes any -[flag] or -[flag]= flags from the given arguments
+func stripGoFlag(flag string, args []string) []string {
+	var result []string
+	flagArg := "-" + flag
+	flagPrefix := "-" + flag + "="
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == flagArg {
+			// Skip this flag and its argument
+			if i+1 < len(args) {
+				i++ // Skip the next argument too
+			}
+		} else if strings.HasPrefix(arg, flagPrefix) {
+			// Skip this flag (argument is embedded)
+			continue
+		} else {
+			result = append(result, arg)
+		}
+	}
+	return result
+}
+
+// getRelativeMainPkgDir calculates the relative path from the module directory to the main package directory
+func getRelativeMainPkgDir(transformState *astutil.TransformState) (string, error) {
+	// Get the main module directory
+	mainModuleDir := filepath.Dir(transformState.GoModPath)
+
+	// Calculate relative path from module directory to package directory
+	relPath, err := filepath.Rel(mainModuleDir, transformState.MainPkg.Dir)
+	if err != nil {
+		return "", fmt.Errorf("failed to calculate relative path: %w", err)
+	}
+	if relPath == "." {
+		return ".", nil
+	}
+	return "./" + relPath, nil
+}
+
 // setupBuildArgs prepares build arguments from the config
 func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 	// Check if user already provided -overlay flag
@@ -412,28 +451,28 @@ func downloadDependencies(tempGoModPath string, verbose bool) error {
 	}
 
 	// Run go mod download with -modfile flag pointing to temp go.mod
-	args := []string{"mod", "download", "-modfile", tempGoModPath, "github.com/outrigdev/outrig"}
-	
+	args := []string{"get", "-modfile", tempGoModPath, "github.com/outrigdev/outrig@" + config.OutrigSDKVersion}
+
 	cmd := exec.Command("go", args...)
-	
+
 	// Set GOWORK=off to disable workspace mode
 	cmd.Env = append(os.Environ(), "GOWORK=off")
-	
+
 	if verbose {
 		log.Printf("Executing: go %v", strings.Join(args, " "))
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
-	
+
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("go mod download failed: %w", err)
 	}
-	
+
 	if verbose {
 		log.Printf("Successfully downloaded dependencies and updated go.sum")
 	}
-	
+
 	return nil
 }
 
@@ -529,36 +568,46 @@ func runWithOverlay(transformState *astutil.TransformState, goFiles []string, ot
 		log.Printf("Overlay content: %s", string(overlayBytes))
 	}
 
+	// Get the main module directory
+	mainModuleDir := filepath.Dir(transformState.GoModPath)
+
 	// Add -modfile flag to use the copied go.mod in temp directory
 	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
-	otherArgs = append([]string{"-modfile", tempGoModPath}, otherArgs...)
 
-	if cfg.IsVerbose {
-		log.Printf("Using -modfile flag: %s", tempGoModPath)
+	// Strip any existing -C flags from otherArgs since we're controlling it
+	otherArgs = stripGoFlag("C", otherArgs)
+
+	// Calculate the relative path from module directory to the main package
+	packagePath, err := getRelativeMainPkgDir(transformState)
+	if err != nil {
+		return fmt.Errorf("failed to get relative main package directory: %w", err)
 	}
 
-	// Build the go run command with overlay
-	goArgs := []string{"run", "-overlay", overlayFilePath}
+	// Build the go run command with -C to change to main module directory
+	goArgs := []string{"run", "-C", mainModuleDir, "-overlay", overlayFilePath, "-modfile", tempGoModPath}
 	goArgs = append(goArgs, otherArgs...)
-	goArgs = append(goArgs, goFiles...)
+	goArgs = append(goArgs, packagePath)
 	goArgs = append(goArgs, programArgs...)
 
 	if cfg.IsVerbose {
-		log.Printf("Executing go command with args: %v", goArgs)
+		log.Printf("Using -C flag to change to main module directory: %s", mainModuleDir)
+		log.Printf("Using -modfile flag: %s", tempGoModPath)
+		log.Printf("Executing go command with args: %v", append([]string{"go"}, goArgs...))
 	}
 
-	return runGoCommand(goArgs, cfg)
+	return runGoCommand(goArgs, transformState, cfg)
 }
 
 // runGoCommand executes a go command with the given arguments using execlogwrap
 // for log capture and exits with the same exit code as the go command
-func runGoCommand(args []string, cfg RunModeConfig) error {
+func runGoCommand(args []string, transformState *astutil.TransformState, cfg RunModeConfig) error {
 	// Prepare the full command arguments
 	goArgs := append([]string{"go"}, args...)
 
 	// Set GOWORK=off to disable workspace mode when using replace directives
 	extraEnv := map[string]string{
-		"GOWORK": "off",
+		"GOWORK":      "off",
+		"GOTOOLCHAIN": transformState.ToolchainVersion,
 	}
 
 	// Use execlogwrap to execute the command with log capture

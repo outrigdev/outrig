@@ -252,7 +252,7 @@ func (*RpcServerImpl) GoRoutineTimeSpansCommand(ctx context.Context, data rpctyp
 	}
 
 	// Get the complete response from the peer (with proper locking)
-	response := peer.GoRoutines.GetTimeSpansSinceTickIdx(data.SinceTickIdx)
+	response := peer.GoRoutines.GetTimeSpansSinceTickIdx(data.SinceTickIdx, data.ShowOutrig)
 	return response, nil
 }
 

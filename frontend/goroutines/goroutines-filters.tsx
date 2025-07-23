@@ -27,6 +27,7 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
     const resultCount = useAtomValue(model.resultCount);
     const lastSearchTimestamp = useAtomValue(model.lastSearchTimestamp);
     const timeOffsetSeconds = useAtomValue(model.timeOffsetSeconds);
+    const timelineRange = useAtomValue(model.timelineRangeAtom);
     const errorSpans = searchResultInfo.errorSpans || [];
 
     const goroutineStateCounts = searchResultInfo.goroutinestatecounts || {};
@@ -98,7 +99,7 @@ export const GoRoutinesFilters: React.FC<GoRoutinesFiltersProps> = ({ model }) =
                 </div>
             </div>
 
-            {lastSearchTimestamp > 0 && (
+            {lastSearchTimestamp > 0 && timelineRange.maxTimeIdx > timelineRange.minTimeIdx && (
                 <div className="px-4 py-2 space-y-3">
                     <div className="flex gap-3">
                         <div className="flex-1">

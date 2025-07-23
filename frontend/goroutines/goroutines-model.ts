@@ -569,9 +569,11 @@ class GoRoutinesModel {
     // Poll for goroutine time spans using the current version
     async pollTimeSpans() {
         try {
+            const store = getDefaultStore();
             const response = await RpcApi.GoRoutineTimeSpansCommand(DefaultRpcClient, {
                 apprunid: this.appRunId,
                 sincetickidx: this.timeSpansLastTickIdx,
+                showoutrig: false,
             });
 
             // Check if we got a new tick index (new time spans available)
@@ -581,7 +583,6 @@ class GoRoutinesModel {
             this.timeSpansLastTickIdx = response.lasttick.idx;
 
             // Update individual atoms
-            const store = getDefaultStore();
 
             for (const goTimeSpan of response.data) {
                 const timeSpanAtom = this.getGRTimeSpanAtom(goTimeSpan.goid);

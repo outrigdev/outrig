@@ -431,6 +431,7 @@ type GoTimeSpan struct {
 type GoRoutineTimeSpansRequest struct {
 	AppRunId      string `json:"apprunid"`
 	SinceTickIdx  int64  `json:"sincetickidx"`
+	ShowOutrig    bool   `json:"showoutrig"` // Whether to include outrig-tagged goroutines in time spans
 }
 
 type GoRoutineActiveCount struct {

@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -18,16 +20,17 @@ import (
 
 // TransformState contains the state for AST transformations including FileSet and packages
 type TransformState struct {
-	FileSet       *token.FileSet
-	PackageMap    map[string]*packages.Package
-	Packages      []*packages.Package
-	MainPkg       *packages.Package
-	OverlayMap    map[string]string
-	ModifiedFiles map[string]*ModifiedFile
-	GoModPath     string // absolute path to go.mod file
-	GoWorkPath    string // absolute path to go.work file (empty if not found)
-	TempDir       string
-	Verbose       bool
+	FileSet           *token.FileSet
+	PackageMap        map[string]*packages.Package
+	Packages          []*packages.Package
+	MainPkg           *packages.Package // never nil - always contains the main package
+	OverlayMap        map[string]string
+	ModifiedFiles     map[string]*ModifiedFile
+	GoModPath         string // absolute path to go.mod file
+	GoWorkPath        string // absolute path to go.work file (empty if not found)
+	ToolchainVersion  string // Go toolchain version from "go env GOVERSION"
+	TempDir           string
+	Verbose           bool
 }
 
 // BuildArgs contains the build configuration for loading Go files
@@ -330,6 +333,20 @@ func findGoWorkPath(startDir string) (string, error) {
 	return "", nil
 }
 
+// DetectToolchainVersion runs "go env GOVERSION" to get the Go toolchain version
+func DetectToolchainVersion(pkgDir string) (string, error) {
+	cmd := exec.Command("go", "env", "GOVERSION")
+	cmd.Dir = pkgDir
+	
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get Go version: %w", err)
+	}
+	
+	version := strings.TrimSpace(string(output))
+	return version, nil
+}
+
 // LoadGoFiles loads the specified Go files using packages.Load with "file=" prefix
 // and returns a TransformState containing the FileSet and package information
 func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
@@ -422,13 +439,24 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 		return nil, fmt.Errorf("failed to find go.work path: %w", err)
 	}
 
+	// Detect toolchain version
+	toolchainVersion, err := DetectToolchainVersion(mainPkg.Module.Dir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect toolchain version: %w", err)
+	}
+
+	if buildArgs.Verbose {
+		log.Printf("Detected Go toolchain version: %s", toolchainVersion)
+	}
+
 	return &TransformState{
-		FileSet:    fileSet,
-		PackageMap: packageMap,
-		Packages:   packages,
-		MainPkg:    mainPkg,
-		GoModPath:  goModPath,
-		GoWorkPath: goWorkPath,
+		FileSet:          fileSet,
+		PackageMap:       packageMap,
+		Packages:         packages,
+		MainPkg:          mainPkg,
+		GoModPath:        goModPath,
+		GoWorkPath:       goWorkPath,
+		ToolchainVersion: toolchainVersion,
 	}, nil
 }
 

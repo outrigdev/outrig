@@ -160,6 +160,7 @@ declare global {
     type GoRoutineTimeSpansRequest = {
         apprunid: string;
         sincetickidx: number;
+        showoutrig: boolean;
     };
 
     // rpctypes.GoRoutineTimeSpansResponse
