@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/server/pkg/serverbase"
 	"golang.org/x/mod/modfile"
@@ -349,19 +348,13 @@ func getExistingOutrigSDKVersion(goModFile *modfile.File) string {
 }
 
 // validateSDKVersionCompatibility validates that the SDK version is compatible with the server
-// Checks for both too old versions (using ValidateClientVersion) and too new versions (major/minor comparison)
+// Requires exact major/minor version match between SDK and server
 // Returns nil if sdkVersion is empty string
 func validateSDKVersionCompatibility(sdkVersion string) error {
 	if sdkVersion == "" {
 		return nil
 	}
 
-	// Validate the existing SDK version for compatibility (checks for too old versions)
-	if err := comm.ValidateClientVersion(sdkVersion); err != nil {
-		return err
-	}
-
-	// Check if the existing SDK version is too new (higher major/minor than server version)
 	serverVersion := serverbase.OutrigServerVersion
 
 	existingVer, err := semver.NewVersion(sdkVersion)
@@ -374,10 +367,9 @@ func validateSDKVersionCompatibility(sdkVersion string) error {
 		return fmt.Errorf("invalid server version format %s: %w", serverVersion, err)
 	}
 
-	// Compare major and minor versions only
-	if existingVer.Major() > serverVer.Major() ||
-		(existingVer.Major() == serverVer.Major() && existingVer.Minor() > serverVer.Minor()) {
-		return fmt.Errorf("SDK version %s is newer than server version %s (major/minor mismatch)", sdkVersion, serverVersion)
+	// Require exact major and minor version match
+	if existingVer.Major() != serverVer.Major() || existingVer.Minor() != serverVer.Minor() {
+		return fmt.Errorf("SDK version %s major/minor does not match server version %s", sdkVersion, serverVersion)
 	}
 
 	return nil
