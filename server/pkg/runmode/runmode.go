@@ -200,30 +200,27 @@ func addGoWorkReplaceDirectives(transformState *astutil.TransformState, tempGoMo
 		return fmt.Errorf("failed to read temp go.mod: %w", err)
 	}
 
-	goModFile, err := modfile.Parse(tempGoModPath, goModData, nil)
+	goModFile, err := modfile.Parse(transformState.GoModPath, goModData, nil)
 	if err != nil {
 		return fmt.Errorf("failed to parse temp go.mod: %w", err)
 	}
+	currentModuleRoot := filepath.Dir(transformState.GoModPath)
 
 	// Generate replace directives for each module in go.work
 	var addedReplaces int
-	for _, absModulePath := range modules {
+	for _, modulePath := range modules {
 		// Skip the current module (self-reference)
-		currentModuleRoot := filepath.Dir(transformState.GoModPath)
 
-		if absModulePath == currentModuleRoot {
+		if modulePath == currentModuleRoot {
 			continue
 		}
 
-		// Use absolute path for the replace directive
-		modulePath := absModulePath
-
 		// Get the target module's name from its go.mod file
-		targetGoModPath := filepath.Join(absModulePath, "go.mod")
+		targetGoModPath := filepath.Join(modulePath, "go.mod")
 		targetModuleName, err := astutil.GetModuleName(targetGoModPath)
 		if err != nil {
 			if transformState.Verbose {
-				log.Printf("Skipping module %s: %v", absModulePath, err)
+				log.Printf("Skipping module %s: %v", modulePath, err)
 			}
 			continue
 		}
