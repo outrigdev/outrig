@@ -451,7 +451,7 @@ func downloadDependencies(tempGoModPath string, verbose bool) error {
 	}
 
 	// Run go mod download with -modfile flag pointing to temp go.mod
-	args := []string{"get", "-modfile", tempGoModPath, "github.com/outrigdev/outrig@" + config.OutrigSDKVersion}
+	args := []string{"get", "-modfile", tempGoModPath, astutil.OutrigImportPath + "@" + config.OutrigSDKVersion}
 
 	cmd := exec.Command("go", args...)
 
@@ -498,7 +498,7 @@ func ExecRunMode(cfg RunModeConfig) error {
 	}
 
 	// Add the version locked Outrig SDK dependency to the temp go.mod
-	err = astutil.AddOutrigSDKDependency(tempGoModPath, cfg.IsVerbose)
+	err = astutil.AddOutrigSDKDependency(tempGoModPath, cfg.IsVerbose, cfg.Config)
 	if err != nil {
 		return fmt.Errorf("failed to add outrig SDK dependency: %w", err)
 	}

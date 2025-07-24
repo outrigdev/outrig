@@ -29,6 +29,7 @@ const (
 	ConfigJsonEnvName         = "OUTRIG_CONFIGJSON"
 	OutrigPathEnvName         = "OUTRIG_OUTRIGBINPATH"
 	AppNameEnvName            = "OUTRIG_APPNAME"
+	RunSDKReplacePathEnvName  = "OUTRIG_RUN_SDKREPLACEPATH"
 )
 
 // Home directory paths
@@ -84,6 +85,9 @@ type Config struct {
 
 	// Collector configurations
 	Collectors CollectorConfig `json:"collectors"`
+
+	// RunMode configuration
+	RunMode RunModeConfig `json:"runmode,omitempty"`
 }
 
 type LogProcessorConfig struct {
@@ -121,6 +125,12 @@ type CollectorConfig struct {
 	Goroutine    GoRoutineConfig    `json:"goroutine"`
 
 	Plugins map[string]any `json:"-"`
+}
+
+type RunModeConfig struct {
+	// SDKReplacePath specifies an absolute path to replace the outrig SDK import.
+	// This must be an absolute path to a local outrig SDK directory.
+	SDKReplacePath string `json:"sdkreplacepath,omitempty"`
 }
 
 // getDefaultConfig returns a default configuration with the specified dev mode
@@ -272,6 +282,17 @@ func (c *RuntimeStatsConfig) UnmarshalJSON(data []byte) error {
 
 	// Then unmarshal user values
 	type alias RuntimeStatsConfig
+	return json.Unmarshal(data, (*alias)(c))
+}
+
+// UnmarshalJSON implements custom unmarshaling for RunModeConfig with defaults
+func (c *RunModeConfig) UnmarshalJSON(data []byte) error {
+	// Set defaults first
+	defaultConfig := getDefaultConfig(UseDevConfig())
+	*c = defaultConfig.RunMode
+
+	// Then unmarshal user values
+	type alias RunModeConfig
 	return json.Unmarshal(data, (*alias)(c))
 }
 
