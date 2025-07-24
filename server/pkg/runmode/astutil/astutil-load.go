@@ -132,18 +132,14 @@ func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Pack
 		return
 	}
 
-	key := pkg.PkgPath
-	if pkg.Module != nil && pkg.Module.Main {
-		key = "main"
-	}
-
-	// Skip if already visited
+	key := pkg.ID
 	if visited[key] {
 		return
 	}
 	visited[key] = true
 
 	if !transformMods[pkg.Module.Dir] {
+		// by default we only transform files in the same module as the main pkg
 		return
 	}
 
@@ -284,7 +280,7 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	}
 
 	// Make MainDir absolute
-	absMainDir, err := filepath.Abs(mainDir)
+	mainDir, err := filepath.Abs(mainDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path for main directory: %w", err)
 	}
@@ -303,8 +299,10 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	// First, populate transformMods with the main module and find main package
 	var mainPkg *packages.Package
 	for _, pkg := range pkgs {
-		if pkg.Module != nil && pkg.Module.Main {
-			transformMods[pkg.Module.Dir] = true
+		if pkg.Name == "main" && pkg.Dir == mainDir {
+			if pkg.Module != nil {
+				transformMods[pkg.Module.Dir] = true
+			}
 			mainPkg = pkg
 		}
 	}
@@ -366,7 +364,7 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 		GoModPath:        goModPath,
 		GoWorkPath:       goWorkPath,
 		ToolchainVersion: toolchainVersion,
-		MainDir:          absMainDir,
+		MainDir:          mainDir,
 	}, nil
 }
 
