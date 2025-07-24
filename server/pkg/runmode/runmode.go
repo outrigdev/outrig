@@ -86,18 +86,18 @@ func writeModifiedFilesWithReplacements(transformState *astutil.TransformState) 
 
 // transformGoStatementsInAllFilesWithReplacement iterates over all packages in the transform state and applies go statement transformations using the replacement system
 func transformGoStatementsInAllFilesWithReplacement(transformState *astutil.TransformState) error {
-	var hasTransformations bool
-
 	// Iterate over all packages
 	for _, pkg := range transformState.Packages {
 		// Apply go statement transformations to the entire package using replacements
-		if gr.TransformGoStatementsInPackageWithReplacement(transformState, pkg) {
-			hasTransformations = true
+		hasTransformations := gr.TransformGoStatementsInPackageWithReplacement(transformState, pkg)
+		if transformState.Verbose {
+			log.Printf("pkg %q transformed:%v\n", pkg.Name, hasTransformations)
 		}
+
 	}
 
-	if transformState.Verbose && hasTransformations {
-		log.Printf("Completed go statement transformations across all files using replacement system")
+	if transformState.Verbose {
+		log.Printf("Completed go statement transformations across all files using replacement system (%d packages)", len(transformState.Packages))
 	}
 
 	return nil
@@ -158,7 +158,7 @@ func copyGoModFiles(goModPath, tempDir string, verbose bool) error {
 
 // addGoWorkReplaceDirectives modifies the copied go.mod file to include replace directives
 // that mimic the go.work file's use directives
-func addGoWorkReplaceDirectives(transformState *astutil.TransformState, tempGoModPath string) error {
+func addGoWorkReplaceDirectives(transformState *astutil.TransformState) error {
 	// Check if go.work exists
 	if transformState.GoWorkPath == "" {
 		return nil // No go.work file, nothing to do
@@ -194,6 +194,9 @@ func addGoWorkReplaceDirectives(transformState *astutil.TransformState, tempGoMo
 	if transformState.Verbose {
 		log.Printf("Current module found in go.work, adding replace directives")
 	}
+
+	// Create temp go.mod path from transform state
+	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
 
 	// Read and parse the current go.mod file
 	goModData, err := os.ReadFile(tempGoModPath)
@@ -279,26 +282,30 @@ func hasModfileFlag(buildFlags []string) bool {
 }
 
 // stripGoFlag removes any -[flag] or -[flag]= flags from the given arguments
-func stripGoFlag(flag string, args []string) []string {
+// Returns the extracted flag value (last one found if multiple) and the filtered arguments
+func stripGoFlag(flag string, args []string) (string, []string) {
 	var result []string
+	var extractedValue string
 	flagArg := "-" + flag
 	flagPrefix := "-" + flag + "="
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == flagArg {
-			// Skip this flag and its argument
+			// Extract the flag value from the next argument
 			if i+1 < len(args) {
+				extractedValue = args[i+1]
 				i++ // Skip the next argument too
 			}
 		} else if strings.HasPrefix(arg, flagPrefix) {
-			// Skip this flag (argument is embedded)
+			// Extract the flag value from the embedded format
+			extractedValue = strings.TrimPrefix(arg, flagPrefix)
 			continue
 		} else {
 			result = append(result, arg)
 		}
 	}
-	return result
+	return extractedValue, result
 }
 
 // getRelativeMainPkgDir calculates the relative path from the module directory to the main package directory
@@ -395,11 +402,30 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 		}
 	}
 
+	// Determine working directory
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return astutil.BuildArgs{}, fmt.Errorf("failed to get current working directory: %w", err)
+	}
+
+	// Extract -C flag value and strip it from buildFlags
+	extractedWorkingDir, buildFlags := stripGoFlag("C", buildFlags)
+	if extractedWorkingDir != "" {
+		workingDir = extractedWorkingDir
+	}
+
+	// Convert working directory to absolute path
+	absWorkingDir, err := filepath.Abs(workingDir)
+	if err != nil {
+		return astutil.BuildArgs{}, fmt.Errorf("failed to get absolute path for working directory %s: %w", workingDir, err)
+	}
+
 	// Load the specified Go files using the new astutil.LoadGoFiles function
 	buildArgs := astutil.BuildArgs{
 		GoFiles:     goFiles,
 		BuildFlags:  buildFlags,
 		ProgramArgs: programArgs,
+		WorkingDir:  absWorkingDir,
 		Verbose:     cfg.IsVerbose,
 	}
 
@@ -419,10 +445,6 @@ func loadFilesAndSetupTransformState(buildArgs astutil.BuildArgs, cfg RunModeCon
 	if packages.PrintErrors(transformState.Packages) > 0 {
 		log.Printf("#outrig cannot proceed with AST rewriting due to compilation errors")
 		os.Exit(1)
-	}
-
-	if cfg.IsVerbose {
-		log.Printf("Successfully loaded %d packages with FileSet", len(transformState.Packages))
 	}
 
 	// Create temporary directory for all temp files
@@ -445,18 +467,21 @@ func loadFilesAndSetupTransformState(buildArgs astutil.BuildArgs, cfg RunModeCon
 }
 
 // downloadDependencies runs go mod download to populate go.sum in the temp directory
-func downloadDependencies(tempGoModPath string, verbose bool) error {
+func downloadDependencies(transformState *astutil.TransformState, verbose bool) error {
 	if verbose {
 		log.Printf("Running go mod download to populate go.sum")
 	}
+
+	// Create temp go.mod path from transform state
+	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
 
 	// Run go mod download with -modfile flag pointing to temp go.mod
 	args := []string{"get", "-modfile", tempGoModPath, astutil.OutrigImportPath + "@" + config.OutrigSDKVersion}
 
 	cmd := exec.Command("go", args...)
 
-	// Set GOWORK=off to disable workspace mode
-	cmd.Env = append(os.Environ(), "GOWORK=off")
+	// Set GOWORK=off to disable workspace mode and GOTOOLCHAIN for version consistency
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOTOOLCHAIN="+transformState.ToolchainVersion)
 
 	if verbose {
 		log.Printf("Executing: go %v", strings.Join(args, " "))
@@ -466,7 +491,7 @@ func downloadDependencies(tempGoModPath string, verbose bool) error {
 
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("go mod download failed: %w", err)
+		return fmt.Errorf("go get for outrig SDK failed: %w", err)
 	}
 
 	if verbose {
@@ -491,20 +516,20 @@ func ExecRunMode(cfg RunModeConfig) error {
 	}
 
 	// If we have a go.work file, modify the copied go.mod with replace directives
-	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
-	err = addGoWorkReplaceDirectives(transformState, tempGoModPath)
+	err = addGoWorkReplaceDirectives(transformState)
 	if err != nil {
 		return fmt.Errorf("failed to add go.work replace directives: %w", err)
 	}
 
 	// Add the version locked Outrig SDK dependency to the temp go.mod
+	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
 	err = astutil.AddOutrigSDKDependency(tempGoModPath, cfg.IsVerbose, cfg.Config)
 	if err != nil {
 		return fmt.Errorf("failed to add outrig SDK dependency: %w", err)
 	}
 
 	// Download dependencies to populate go.sum in temp directory
-	err = downloadDependencies(tempGoModPath, cfg.IsVerbose)
+	err = downloadDependencies(transformState, cfg.IsVerbose)
 	if err != nil {
 		return fmt.Errorf("failed to download dependencies: %w", err)
 	}
@@ -574,16 +599,13 @@ func runWithOverlay(transformState *astutil.TransformState, goFiles []string, ot
 	// Add -modfile flag to use the copied go.mod in temp directory
 	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
 
-	// Strip any existing -C flags from otherArgs since we're controlling it
-	otherArgs = stripGoFlag("C", otherArgs)
-
 	// Calculate the relative path from module directory to the main package
 	packagePath, err := getRelativeMainPkgDir(transformState)
 	if err != nil {
 		return fmt.Errorf("failed to get relative main package directory: %w", err)
 	}
 
-	// Build the go run command with -C to change to main module directory
+	// Build the go run command with -C to change to main module directory (note that -C was already stripped from otherArgs)
 	goArgs := []string{"run", "-C", mainModuleDir, "-overlay", overlayFilePath, "-modfile", tempGoModPath}
 	goArgs = append(goArgs, otherArgs...)
 	goArgs = append(goArgs, packagePath)

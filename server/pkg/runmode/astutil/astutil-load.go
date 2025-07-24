@@ -20,17 +20,18 @@ import (
 
 // TransformState contains the state for AST transformations including FileSet and packages
 type TransformState struct {
-	FileSet           *token.FileSet
-	PackageMap        map[string]*packages.Package
-	Packages          []*packages.Package
-	MainPkg           *packages.Package // never nil - always contains the main package
-	OverlayMap        map[string]string
-	ModifiedFiles     map[string]*ModifiedFile
-	GoModPath         string // absolute path to go.mod file
-	GoWorkPath        string // absolute path to go.work file (empty if not found)
-	ToolchainVersion  string // Go toolchain version from "go env GOVERSION"
-	TempDir           string
-	Verbose           bool
+	FileSet          *token.FileSet
+	PackageMap       map[string]*packages.Package
+	Packages         []*packages.Package
+	MainPkg          *packages.Package // never nil - always contains the main package
+	OverlayMap       map[string]string
+	ModifiedFiles    map[string]*ModifiedFile
+	GoModPath        string // absolute path to go.mod file
+	GoWorkPath       string // absolute path to go.work file (empty if not found)
+	ToolchainVersion string // Go toolchain version from "go env GOVERSION"
+	MainDir          string // absolute path to main directory
+	TempDir          string
+	Verbose          bool
 }
 
 // BuildArgs contains the build configuration for loading Go files
@@ -38,7 +39,7 @@ type BuildArgs struct {
 	GoFiles     []string
 	BuildFlags  []string
 	ProgramArgs []string
-	WorkingDir  string
+	WorkingDir  string // will always be set (will not be empty)
 	Verbose     bool
 }
 
@@ -249,7 +250,7 @@ func (mf *ModifiedFile) AddInsertStmt(pos token.Position, text string) {
 // addPackageToMap adds a package to the packageMap if not already present
 // and processes its imports to add them as well
 func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Package, visited map[string]bool, transformMods map[string]bool) {
-	if pkg == nil {
+	if pkg == nil || pkg.Module == nil {
 		return
 	}
 
@@ -264,7 +265,7 @@ func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Pack
 	}
 	visited[key] = true
 
-	if pkg.Module == nil || !transformMods[pkg.Module.Dir] {
+	if !transformMods[pkg.Module.Dir] {
 		return
 	}
 
@@ -337,12 +338,12 @@ func findGoWorkPath(startDir string) (string, error) {
 func DetectToolchainVersion(pkgDir string) (string, error) {
 	cmd := exec.Command("go", "env", "GOVERSION")
 	cmd.Dir = pkgDir
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get Go version: %w", err)
 	}
-	
+
 	version := strings.TrimSpace(string(output))
 	return version, nil
 }
@@ -363,6 +364,7 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 		Fset:       fileSet,
 		BuildFlags: buildArgs.BuildFlags,
 		Env:        os.Environ(),
+		Dir:        buildArgs.WorkingDir,
 	}
 
 	// Set working directory if provided
@@ -370,14 +372,43 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 		pkgConfig.Dir = buildArgs.WorkingDir
 	}
 
-	// Prepare file patterns with "file=" prefix
+	// Prepare file patterns with "file=" prefix and determine MainDir
 	var filePatterns []string
+	var mainDir string
 	for _, goFile := range buildArgs.GoFiles {
 		if strings.HasSuffix(goFile, ".go") {
+			// Validate .go file exists
+			filePath := filepath.Join(buildArgs.WorkingDir, goFile)
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				return nil, fmt.Errorf("Go file does not exist: %s", filePath)
+			}
+
 			filePatterns = append(filePatterns, "file="+goFile)
+			if mainDir == "" {
+				mainDir = filepath.Dir(goFile)
+			}
 		} else {
+			// Validate directory exists
+			dirPath := filepath.Join(buildArgs.WorkingDir, goFile)
+			if stat, err := os.Stat(dirPath); os.IsNotExist(err) {
+				return nil, fmt.Errorf("directory does not exist: %s", dirPath)
+			} else if err != nil {
+				return nil, fmt.Errorf("error checking directory %s: %w", dirPath, err)
+			} else if !stat.IsDir() {
+				return nil, fmt.Errorf("path is not a directory: %s (full module paths are not supported)", dirPath)
+			}
+
 			filePatterns = append(filePatterns, goFile)
+			if mainDir == "" {
+				mainDir = goFile
+			}
 		}
+	}
+
+	// Make MainDir absolute
+	absMainDir, err := filepath.Abs(mainDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path for main directory: %w", err)
 	}
 
 	// Load packages using the file patterns
@@ -457,6 +488,7 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 		GoModPath:        goModPath,
 		GoWorkPath:       goWorkPath,
 		ToolchainVersion: toolchainVersion,
+		MainDir:          absMainDir,
 	}, nil
 }
 
