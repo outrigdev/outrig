@@ -14,17 +14,18 @@ const ConfigFileName = "outrig.json"
 // LoadConfig loads configuration from various sources in priority order.
 // The overrideFileName parameter, if provided, takes highest priority and overrides all other sources.
 // This is typically used when a config file is explicitly specified via CLI arguments.
+// The cwd parameter specifies the working directory to use for config discovery. If empty, uses os.Getwd().
 //
 // Configuration loading priority (highest to lowest):
 //  1. overrideFileName parameter (if not empty) - returns error if file doesn't exist
 //  2. OUTRIG_CONFIGJSON environment variable - JSON string
 //  3. OUTRIG_CONFIGFILE environment variable - file path
-//  4. outrig.json files found by walking up directory tree from current working directory,
+//  4. outrig.json files found by walking up directory tree from specified working directory,
 //     stopping at project root markers (go.mod, .git) or home directory
 //
 // Returns nil config (not an error) if no configuration is found through automatic discovery.
 // Returns an error if an explicitly specified config source fails to load or parse.
-func LoadConfig(overrideFileName string) (*Config, error) {
+func LoadConfig(overrideFileName string, cwd string) (*Config, error) {
 	// 1. Check explicit filename parameter first (overrides everything)
 	if overrideFileName != "" {
 		cfg, err := tryLoadConfig(overrideFileName)
@@ -61,7 +62,7 @@ func LoadConfig(overrideFileName string) (*Config, error) {
 	}
 
 	// 4. Walk up directories looking for project root (includes current dir)
-	cfg, err := findConfigInParents()
+	cfg, err := findConfigInParents(cwd)
 	if err != nil {
 		return nil, err
 	}
@@ -73,8 +74,20 @@ func LoadConfig(overrideFileName string) (*Config, error) {
 	return nil, nil
 }
 
-func findConfigInParents() (*Config, error) {
-	dir, err := os.Getwd()
+func findConfigInParents(cwd string) (*Config, error) {
+	var dir string
+	var err error
+	
+	if cwd != "" {
+		dir = cwd
+	} else {
+		dir, err = os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+	}
+	
+	dir, err = filepath.Abs(dir)
 	if err != nil {
 		return nil, err
 	}

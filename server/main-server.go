@@ -66,8 +66,8 @@ func parseSpecialArgs(keyArg string) (specialArgs, error) {
 }
 
 // loadOutrigConfig loads the Outrig configuration using the same logic as outrig.Init()
-func loadOutrigConfig(configFile string) (*config.Config, error) {
-	loadedCfg, err := config.LoadConfig(configFile)
+func loadOutrigConfig(configFile string, cwd string) (*config.Config, error) {
+	loadedCfg, err := config.LoadConfig(configFile, cwd)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func runCaptureLogs(cmd *cobra.Command, args []string) error {
 	// This ensures the sidecar process doesn't terminate prematurely before the main process
 	signal.Ignore(syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
-	cfg, err := loadOutrigConfig("")
+	cfg, err := loadOutrigConfig("", "")
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ Example: outrig --dev --verbose run main.go`,
 				return fmt.Errorf("run command requires at least one argument")
 			}
 
-			outrigCfg, err := loadOutrigConfig(specialArgs.ConfigFile)
+			outrigCfg, err := loadOutrigConfig(specialArgs.ConfigFile, "")
 			if err != nil {
 				return err
 			}
@@ -267,7 +267,7 @@ Example: outrig --dev exec ls -latrh`,
 			if len(specialArgs.Args) == 0 {
 				return fmt.Errorf("exec command requires at least one argument")
 			}
-			cfg, err := loadOutrigConfig(specialArgs.ConfigFile)
+			cfg, err := loadOutrigConfig(specialArgs.ConfigFile, "")
 			if err != nil {
 				return err
 			}
