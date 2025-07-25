@@ -26,7 +26,6 @@ type RunModeConfig struct {
 	Args      []string
 	IsVerbose bool
 	NoRun     bool
-	Config    *config.Config
 }
 
 // findAndTransformMainFileWithReplacement finds the main file AST and adds replacements for outrig import and main function modification
@@ -435,7 +434,7 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 // loadFilesAndSetupTransformState loads Go files and sets up transform state
 // Note: This function may call os.Exit() on errors
 func loadFilesAndSetupTransformState(buildArgs astutil.BuildArgs, cfg RunModeConfig) *astutil.TransformState {
-	transformState, err := astutil.LoadGoFiles(buildArgs, *cfg.Config)
+	transformState, err := astutil.LoadGoFiles(buildArgs)
 	if err != nil {
 		log.Printf("#outrig failed to load Go files for AST rewriting: %v", err)
 		os.Exit(1)
@@ -523,7 +522,7 @@ func ExecRunMode(cfg RunModeConfig) error {
 
 	// Add the version locked Outrig SDK dependency to the temp go.mod
 	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
-	err = astutil.AddOutrigSDKDependency(tempGoModPath, cfg.IsVerbose, cfg.Config)
+	err = astutil.AddOutrigSDKDependency(tempGoModPath, cfg.IsVerbose, transformState.Config)
 	if err != nil {
 		return fmt.Errorf("failed to add outrig SDK dependency: %w", err)
 	}
@@ -633,5 +632,5 @@ func runGoCommand(args []string, transformState *astutil.TransformState, cfg Run
 	}
 
 	// Use execlogwrap to execute the command with log capture
-	return execlogwrap.ExecCommand(goArgs, config.GetAppRunId(), cfg.Config, extraEnv)
+	return execlogwrap.ExecCommand(goArgs, config.GetAppRunId(), &transformState.Config, extraEnv)
 }

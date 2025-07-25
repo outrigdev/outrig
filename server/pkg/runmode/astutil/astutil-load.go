@@ -19,52 +19,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// shouldTransformPackage checks if a package should be transformed based on the transform patterns
-func shouldTransformPackage(pkgPath string, transformPkgs []string) bool {
-	if len(transformPkgs) == 0 {
-		return false
-	}
-
-	// Check excludes first
-	for _, pattern := range transformPkgs {
-		if !strings.HasPrefix(pattern, "!") {
-			continue
-		}
-		exclude := pattern[1:] // Remove the "!" prefix
-		// Handle patterns ending with /** to also match the base path
-		if strings.HasSuffix(exclude, "/**") {
-			basePath := exclude[:len(exclude)-3] // Remove "/**"
-			if pkgPath == basePath {
-				return false
-			}
-		}
-		matched, err := doublestar.Match(exclude, pkgPath)
-		if err == nil && matched {
-			return false
-		}
-	}
-
-	// Check includes
-	for _, pattern := range transformPkgs {
-		if strings.HasPrefix(pattern, "!") {
-			continue
-		}
-		// Handle patterns ending with /** to also match the base path
-		if strings.HasSuffix(pattern, "/**") {
-			basePath := pattern[:len(pattern)-3] // Remove "/**"
-			if pkgPath == basePath {
-				return true
-			}
-		}
-		matched, err := doublestar.Match(pattern, pkgPath)
-		if err == nil && matched {
-			return true
-		}
-	}
-
-	return false
-}
-
 // TransformState contains the state for AST transformations including FileSet and packages
 type TransformState struct {
 	FileSet          *token.FileSet
@@ -79,6 +33,7 @@ type TransformState struct {
 	MainDir          string // absolute path to main directory
 	TempDir          string
 	Verbose          bool
+	Config           config.Config
 }
 
 // BuildArgs contains the build configuration for loading Go files
@@ -273,7 +228,7 @@ func DetectToolchainVersion(pkgDir string) (string, error) {
 
 // LoadGoFiles loads the specified Go files using packages.Load with "file=" prefix
 // and returns a TransformState containing the FileSet and package information
-func LoadGoFiles(buildArgs BuildArgs, cfg config.Config) (*TransformState, error) {
+func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	if len(buildArgs.GoFiles) == 0 {
 		return nil, fmt.Errorf("no Go files provided")
 	}
@@ -332,6 +287,18 @@ func LoadGoFiles(buildArgs BuildArgs, cfg config.Config) (*TransformState, error
 	mainDir, err := filepath.Abs(mainDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path for main directory: %w", err)
+	}
+
+	// Load config after we have MainDir
+	loadedCfg, err := config.LoadConfig("", mainDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config (rootdir: %q): %w", mainDir, err)
+	}
+	var cfg config.Config
+	if loadedCfg == nil {
+		cfg = *config.DefaultConfig()
+	} else {
+		cfg = *loadedCfg
 	}
 
 	// Load packages using the file patterns
@@ -422,10 +389,57 @@ func LoadGoFiles(buildArgs BuildArgs, cfg config.Config) (*TransformState, error
 		GoWorkPath:       goWorkPath,
 		ToolchainVersion: toolchainVersion,
 		MainDir:          mainDir,
+		Config:           cfg,
 	}, nil
 }
 
 // GetFilePath returns the file path for the given AST file using the FileSet
 func (ts *TransformState) GetFilePath(astFile *ast.File) string {
 	return ts.FileSet.Position(astFile.Pos()).Filename
+}
+
+// shouldTransformPackage checks if a package should be transformed based on the transform patterns
+func shouldTransformPackage(pkgPath string, transformPkgs []string) bool {
+	if len(transformPkgs) == 0 {
+		return false
+	}
+
+	// Check excludes first
+	for _, pattern := range transformPkgs {
+		if !strings.HasPrefix(pattern, "!") {
+			continue
+		}
+		exclude := pattern[1:] // Remove the "!" prefix
+		// Handle patterns ending with /** to also match the base path
+		if strings.HasSuffix(exclude, "/**") {
+			basePath := exclude[:len(exclude)-3] // Remove "/**"
+			if pkgPath == basePath {
+				return false
+			}
+		}
+		matched, err := doublestar.Match(exclude, pkgPath)
+		if err == nil && matched {
+			return false
+		}
+	}
+
+	// Check includes
+	for _, pattern := range transformPkgs {
+		if strings.HasPrefix(pattern, "!") {
+			continue
+		}
+		// Handle patterns ending with /** to also match the base path
+		if strings.HasSuffix(pattern, "/**") {
+			basePath := pattern[:len(pattern)-3] // Remove "/**"
+			if pkgPath == basePath {
+				return true
+			}
+		}
+		matched, err := doublestar.Match(pattern, pkgPath)
+		if err == nil && matched {
+			return true
+		}
+	}
+
+	return false
 }

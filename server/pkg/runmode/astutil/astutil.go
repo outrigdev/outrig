@@ -376,7 +376,7 @@ func validateSDKVersionCompatibility(sdkVersion string) error {
 }
 
 // AddOutrigSDKDependency adds the version locked Outrig SDK to the temp go.mod file
-func AddOutrigSDKDependency(tempGoModPath string, verbose bool, cfg *config.Config) error {
+func AddOutrigSDKDependency(tempGoModPath string, verbose bool, cfg config.Config) error {
 	// Read and parse the current go.mod file
 	goModData, err := os.ReadFile(tempGoModPath)
 	if err != nil {
@@ -407,7 +407,7 @@ func AddOutrigSDKDependency(tempGoModPath string, verbose bool, cfg *config.Conf
 	// Add replace directive if SDKReplacePath is configured
 	// Check environment variable first, then config
 	sdkReplacePath := os.Getenv(config.RunSDKReplacePathEnvName)
-	if sdkReplacePath == "" && cfg != nil {
+	if sdkReplacePath == "" {
 		sdkReplacePath = cfg.RunMode.SDKReplacePath
 	}
 

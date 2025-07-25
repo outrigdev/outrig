@@ -237,16 +237,10 @@ Example: outrig --dev --verbose run main.go`,
 				return fmt.Errorf("run command requires at least one argument")
 			}
 
-			outrigCfg, err := loadOutrigConfig(specialArgs.ConfigFile, "")
-			if err != nil {
-				return err
-			}
-
 			cfg := runmode.RunModeConfig{
 				Args:      specialArgs.Args,
 				IsVerbose: specialArgs.IsVerbose,
 				NoRun:     specialArgs.NoRun,
-				Config:    outrigCfg,
 			}
 			return runmode.ExecRunMode(cfg)
 		},
