@@ -187,7 +187,8 @@ func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Pack
 	visited[key] = true
 
 	// Check if we should transform this package
-	if !shouldTransformPackage(pkg.Module.Path, transformPkgs) {
+	transformAllowed := shouldTransformPackage(pkg.PkgPath, transformPkgs)
+	if !transformAllowed {
 		return
 	}
 
