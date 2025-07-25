@@ -433,9 +433,5 @@ func AddOutrigSDKDependency(tempGoModPath string, verbose bool, cfg config.Confi
 		return fmt.Errorf("failed to write modified go.mod: %w", err)
 	}
 
-	if verbose {
-		log.Printf("Added outrig SDK dependency to temp go.mod")
-	}
-
 	return nil
 }

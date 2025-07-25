@@ -78,7 +78,7 @@ func DefaultConfig() *config.Config {
 // Init initializes Outrig, returns (enabled, error)
 func Init(appName string, cfgParam *config.Config) (bool, error) {
 	if cfgParam == nil {
-		loadedCfg, err := config.LoadConfig("", "")
+		loadedCfg, _, err := config.LoadConfig("", "")
 		if err != nil {
 			return false, err
 		}

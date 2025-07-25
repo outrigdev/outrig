@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"go/ast"
 	"log"
-	"path/filepath"
 	"strings"
 
 	"github.com/outrigdev/outrig/server/pkg/runmode/astutil"
@@ -51,13 +50,14 @@ func createOutrigGoCallPrelude(directive *astutil.OutrigDirective) string {
 }
 
 // TransformGoStatementsInPackageWithReplacement iterates over all files in a package and applies go statement transformations using the replacement system
-func TransformGoStatementsInPackageWithReplacement(transformState *astutil.TransformState, pkg *packages.Package) bool {
+func TransformGoStatementsInPackageWithReplacement(transformState *astutil.TransformState, pkg *packages.Package) (int, int) {
 	// Skip blacklisted packages
 	if isPackageBlacklisted(pkg.PkgPath) {
-		return false
+		return 0, 0
 	}
 
-	var hasTransformations bool
+	var totalTransformCount int
+	var filesTransformed int
 
 	// Iterate over all AST files in the package
 	for _, astFile := range pkg.Syntax {
@@ -82,12 +82,13 @@ func TransformGoStatementsInPackageWithReplacement(transformState *astutil.Trans
 
 		// Apply go statement transformations using replacements
 		if transformCount := TransformGoStatementsWithReplacement(transformState, modifiedFile); transformCount > 0 {
-			hasTransformations = true
+			totalTransformCount += transformCount
+			filesTransformed++
 			modifiedFile.Modified = true
 		}
 	}
 
-	return hasTransformations
+	return totalTransformCount, filesTransformed
 }
 
 // transformSingleGoStatement processes a single go statement and applies the outrig transformation if needed
@@ -144,11 +145,6 @@ func TransformGoStatementsWithReplacement(transformState *astutil.TransformState
 		err := astutil.AddOutrigImportReplacement(transformState, modifiedFile)
 		if err != nil && transformState.Verbose {
 			log.Printf("Failed to add outrig import replacement: %v", err)
-		}
-
-		if transformState.Verbose {
-			fileName := transformState.GetFilePath(modifiedFile.FileAST)
-			log.Printf("Transformed %d go statements in file: %s\n", transformCount, filepath.Base(fileName))
 		}
 	}
 

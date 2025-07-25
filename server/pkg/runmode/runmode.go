@@ -86,17 +86,18 @@ func writeModifiedFilesWithReplacements(transformState *astutil.TransformState) 
 // transformGoStatementsInAllFilesWithReplacement iterates over all packages in the transform state and applies go statement transformations using the replacement system
 func transformGoStatementsInAllFilesWithReplacement(transformState *astutil.TransformState) error {
 	// Iterate over all packages
+	totalTransformCount := 0
 	for _, pkg := range transformState.Packages {
 		// Apply go statement transformations to the entire package using replacements
-		hasTransformations := gr.TransformGoStatementsInPackageWithReplacement(transformState, pkg)
-		if transformState.Verbose {
-			log.Printf("pkg %q transformed:%v\n", pkg.Name, hasTransformations)
+		transformCount, filesTransformed := gr.TransformGoStatementsInPackageWithReplacement(transformState, pkg)
+		if transformState.Verbose && transformCount > 0 {
+			log.Printf("go-transform pkg:%q files:%d go-statements:%d\n", pkg.PkgPath, filesTransformed, transformCount)
 		}
-
+		totalTransformCount += transformCount
 	}
 
 	if transformState.Verbose {
-		log.Printf("Completed go statement transformations across all files using replacement system (%d packages)", len(transformState.Packages))
+		log.Printf("Completed go-transform across all files using replacement system (%d total packages, %d transforms)", len(transformState.Packages), totalTransformCount)
 	}
 
 	return nil
@@ -134,10 +135,6 @@ func copyGoModFiles(goModPath, tempDir string, verbose bool) error {
 		return fmt.Errorf("failed to copy go.mod: %w", err)
 	}
 
-	if verbose {
-		log.Printf("Copied go.mod from %s to %s", goModPath, tempGoModPath)
-	}
-
 	// Copy go.sum if it exists
 	goSumPath := filepath.Join(filepath.Dir(goModPath), "go.sum")
 	if _, err := os.Stat(goSumPath); err == nil {
@@ -145,10 +142,6 @@ func copyGoModFiles(goModPath, tempDir string, verbose bool) error {
 		err = utilfn.CopyFile(goSumPath, tempGoSumPath)
 		if err != nil {
 			return fmt.Errorf("failed to copy go.sum: %w", err)
-		}
-
-		if verbose {
-			log.Printf("Copied go.sum from %s to %s", goSumPath, tempGoSumPath)
 		}
 	}
 
@@ -164,7 +157,7 @@ func addGoWorkReplaceDirectives(transformState *astutil.TransformState) error {
 	}
 
 	if transformState.Verbose {
-		log.Printf("Found go.work file, parsing for use directives")
+		log.Printf("Found go.work (%q) file, parsing for use directives", transformState.GoWorkPath)
 	}
 
 	// Parse go.work file
@@ -237,7 +230,7 @@ func addGoWorkReplaceDirectives(transformState *astutil.TransformState) error {
 		addedReplaces++
 
 		if transformState.Verbose {
-			log.Printf("Adding replace directive: %s => %s", targetModuleName, modulePath)
+			log.Printf("Adding replace directive (from go.work): %s => %s", targetModuleName, modulePath)
 		}
 	}
 
@@ -254,10 +247,6 @@ func addGoWorkReplaceDirectives(transformState *astutil.TransformState) error {
 	err = os.WriteFile(tempGoModPath, formattedData, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write modified go.mod: %w", err)
-	}
-
-	if transformState.Verbose {
-		log.Printf("Added %d replace directives to temp go.mod from go.work", addedReplaces)
 	}
 
 	return nil
@@ -465,18 +454,10 @@ func loadFilesAndSetupTransformState(buildArgs astutil.BuildArgs, cfg RunModeCon
 	return transformState
 }
 
-// downloadDependencies runs go mod download to populate go.sum in the temp directory
-func downloadDependencies(transformState *astutil.TransformState, verbose bool) error {
-	if verbose {
-		log.Printf("Running go mod download to populate go.sum")
-	}
-
-	// Create temp go.mod path from transform state
+// downloadOutrigSDK runs go mod download to populate go.sum in the temp directory
+func downloadOutrigSDK(transformState *astutil.TransformState, verbose bool) error {
 	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
-
-	// Run go mod download with -modfile flag pointing to temp go.mod
 	args := []string{"get", "-modfile", tempGoModPath, astutil.OutrigImportPath + "@" + config.OutrigSDKVersion}
-
 	cmd := exec.Command("go", args...)
 
 	// Set GOWORK=off to disable workspace mode and GOTOOLCHAIN for version consistency
@@ -487,16 +468,10 @@ func downloadDependencies(transformState *astutil.TransformState, verbose bool) 
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
-
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("go get for outrig SDK failed: %w", err)
 	}
-
-	if verbose {
-		log.Printf("Successfully downloaded dependencies and updated go.sum")
-	}
-
 	return nil
 }
 
@@ -528,7 +503,7 @@ func ExecRunMode(cfg RunModeConfig) error {
 	}
 
 	// Download dependencies to populate go.sum in temp directory
-	err = downloadDependencies(transformState, cfg.IsVerbose)
+	err = downloadOutrigSDK(transformState, cfg.IsVerbose)
 	if err != nil {
 		return fmt.Errorf("failed to download dependencies: %w", err)
 	}
@@ -551,16 +526,18 @@ func ExecRunMode(cfg RunModeConfig) error {
 		return fmt.Errorf("failed to write modified files: %w", err)
 	}
 
-	if cfg.IsVerbose || cfg.NoRun {
-		log.Printf("Created %d temporary files for overlay", len(transformState.OverlayMap))
-		for originalFile, tempFile := range transformState.OverlayMap {
-			log.Printf("  %s -> %s", originalFile, tempFile)
+	if cfg.IsVerbose {
+		log.Printf("Instrumented %d files for overlay\n", len(transformState.OverlayMap))
+		if cfg.IsVerbose {
+			for originalFile, tempFile := range transformState.OverlayMap {
+				log.Printf("  %s -> %s", originalFile, tempFile)
+			}
 		}
 	}
 
 	// If NoRun is set, exit early after transforms are complete
 	if cfg.NoRun {
-		log.Printf("--norun flag set: transforms completed, temporary files written to %s", transformState.TempDir)
+		log.Printf("--norun flag set: transforms complete, tempdir %s", transformState.TempDir)
 		return nil
 	}
 
@@ -587,11 +564,6 @@ func runWithOverlay(transformState *astutil.TransformState, goFiles []string, ot
 		return fmt.Errorf("failed to write overlay file: %w", err)
 	}
 
-	if cfg.IsVerbose {
-		log.Printf("Using overlay file: %s", overlayFilePath)
-		log.Printf("Overlay content: %s", string(overlayBytes))
-	}
-
 	// Get the main module directory
 	mainModuleDir := filepath.Dir(transformState.GoModPath)
 
@@ -611,6 +583,7 @@ func runWithOverlay(transformState *astutil.TransformState, goFiles []string, ot
 	goArgs = append(goArgs, programArgs...)
 
 	if cfg.IsVerbose {
+		log.Printf("Using overlay file: %s", overlayFilePath)
 		log.Printf("Using -C flag to change to main module directory: %s", mainModuleDir)
 		log.Printf("Using -modfile flag: %s", tempGoModPath)
 		log.Printf("Executing go command with args: %v", append([]string{"go"}, goArgs...))

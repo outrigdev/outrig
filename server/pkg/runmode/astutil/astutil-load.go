@@ -288,17 +288,25 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path for main directory: %w", err)
 	}
+	if buildArgs.Verbose {
+		log.Printf("main-directory: %q\n", mainDir)
+	}
 
 	// Load config after we have MainDir
-	loadedCfg, err := config.LoadConfig("", mainDir)
+	loadedCfg, configSource, err := config.LoadConfig("", mainDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config (rootdir: %q): %w", mainDir, err)
 	}
 	var cfg config.Config
 	if loadedCfg == nil {
 		cfg = *config.DefaultConfig()
+		configSource = "default-config"
 	} else {
 		cfg = *loadedCfg
+	}
+
+	if buildArgs.Verbose {
+		log.Printf("config loaded from: %s\n", configSource)
 	}
 
 	// Load packages using the file patterns
@@ -314,8 +322,8 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	// Create combined transform patterns including main module and configured patterns
 	transformPkgs := make([]string, len(cfg.RunMode.TransformPkgs))
 	copy(transformPkgs, cfg.RunMode.TransformPkgs)
-	if len(transformPkgs) >= 0 && buildArgs.Verbose {
-		log.Printf("transformpkgs overrides: %v\n", transformPkgs)
+	if len(transformPkgs) > 0 && buildArgs.Verbose {
+		log.Printf("transformpkgs (from config): %v\n", transformPkgs)
 	}
 
 	// Find main package and add its module to transform patterns
@@ -323,7 +331,6 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	for _, pkg := range pkgs {
 		if pkg.Name == "main" && pkg.Dir == mainDir {
 			if pkg.Module != nil {
-				log.Printf("transforming %q\n", pkg.Module.Path)
 				transformPkgs = append(transformPkgs, pkg.Module.Path)
 				transformPkgs = append(transformPkgs, pkg.Module.Path+"/**")
 			}
@@ -363,6 +370,9 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path for go.mod: %w", err)
 	}
+	if buildArgs.Verbose {
+		log.Printf("detected go.mod path: %s\n", goModPath)
+	}
 
 	// Find GoWorkPath starting from the main package's directory
 	goWorkPath, err := findGoWorkPath(mainPkg.Module.Dir)
@@ -375,9 +385,8 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect toolchain version: %w", err)
 	}
-
 	if buildArgs.Verbose {
-		log.Printf("Detected Go toolchain version: %s", toolchainVersion)
+		log.Printf("detected Go toolchain version: %s", toolchainVersion)
 	}
 
 	return &TransformState{

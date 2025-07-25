@@ -67,7 +67,7 @@ func parseSpecialArgs(keyArg string) (specialArgs, error) {
 
 // loadOutrigConfig loads the Outrig configuration using the same logic as outrig.Init()
 func loadOutrigConfig(configFile string, cwd string) (*config.Config, error) {
-	loadedCfg, err := config.LoadConfig(configFile, cwd)
+	loadedCfg, _, err := config.LoadConfig(configFile, cwd)
 	if err != nil {
 		return nil, err
 	}
