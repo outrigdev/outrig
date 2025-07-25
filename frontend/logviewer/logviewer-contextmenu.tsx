@@ -29,7 +29,15 @@ async function copySelectionText(): Promise<string> {
         textParts.push(text.trim());
     });
 
-    const textToCopy = textParts.join("\n").replace(/\n+$/, "");
+    let textToCopy: string;
+    if (textParts.length > 0) {
+        // Found .data-copy elements (multi-line selection)
+        textToCopy = textParts.join("\n").replace(/\n+$/, "");
+    } else {
+        // No .data-copy elements found (single-line selection), use plain text
+        textToCopy = selection.toString();
+    }
+
     await navigator.clipboard.writeText(textToCopy);
     return textToCopy;
 }
