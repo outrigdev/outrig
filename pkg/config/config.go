@@ -131,6 +131,9 @@ type RunModeConfig struct {
 	// SDKReplacePath specifies an absolute path to replace the outrig SDK import.
 	// This must be an absolute path to a local outrig SDK directory.
 	SDKReplacePath string `json:"sdkreplacepath,omitempty"`
+
+	// TransformPkgs specifies a list of additional package patterns to transform
+	TransformPkgs []string `json:"transformpkgs,omitempty"`
 }
 
 // getDefaultConfig returns a default configuration with the specified dev mode

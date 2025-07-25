@@ -435,7 +435,7 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 // loadFilesAndSetupTransformState loads Go files and sets up transform state
 // Note: This function may call os.Exit() on errors
 func loadFilesAndSetupTransformState(buildArgs astutil.BuildArgs, cfg RunModeConfig) *astutil.TransformState {
-	transformState, err := astutil.LoadGoFiles(buildArgs)
+	transformState, err := astutil.LoadGoFiles(buildArgs, *cfg.Config)
 	if err != nil {
 		log.Printf("#outrig failed to load Go files for AST rewriting: %v", err)
 		os.Exit(1)

@@ -13,9 +13,57 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
+	"github.com/outrigdev/outrig/pkg/config"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 )
+
+// shouldTransformPackage checks if a package should be transformed based on the transform patterns
+func shouldTransformPackage(pkgPath string, transformPkgs []string) bool {
+	if len(transformPkgs) == 0 {
+		return false
+	}
+
+	// Check excludes first
+	for _, pattern := range transformPkgs {
+		if !strings.HasPrefix(pattern, "!") {
+			continue
+		}
+		exclude := pattern[1:] // Remove the "!" prefix
+		// Handle patterns ending with /** to also match the base path
+		if strings.HasSuffix(exclude, "/**") {
+			basePath := exclude[:len(exclude)-3] // Remove "/**"
+			if pkgPath == basePath {
+				return false
+			}
+		}
+		matched, err := doublestar.Match(exclude, pkgPath)
+		if err == nil && matched {
+			return false
+		}
+	}
+
+	// Check includes
+	for _, pattern := range transformPkgs {
+		if strings.HasPrefix(pattern, "!") {
+			continue
+		}
+		// Handle patterns ending with /** to also match the base path
+		if strings.HasSuffix(pattern, "/**") {
+			basePath := pattern[:len(pattern)-3] // Remove "/**"
+			if pkgPath == basePath {
+				return true
+			}
+		}
+		matched, err := doublestar.Match(pattern, pkgPath)
+		if err == nil && matched {
+			return true
+		}
+	}
+
+	return false
+}
 
 // TransformState contains the state for AST transformations including FileSet and packages
 type TransformState struct {
@@ -127,7 +175,7 @@ func IsModuleInWorkspace(transformState *TransformState) (bool, error) {
 
 // addPackageToMap adds a package to the packageMap if not already present
 // and processes its imports to add them as well
-func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Package, visited map[string]bool, transformMods map[string]bool) {
+func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Package, visited map[string]bool, transformPkgs []string) {
 	if pkg == nil || pkg.Module == nil {
 		return
 	}
@@ -138,8 +186,8 @@ func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Pack
 	}
 	visited[key] = true
 
-	if !transformMods[pkg.Module.Dir] {
-		// by default we only transform files in the same module as the main pkg
+	// Check if we should transform this package
+	if !shouldTransformPackage(pkg.Module.Path, transformPkgs) {
 		return
 	}
 
@@ -150,7 +198,7 @@ func addPackageToMap(pkg *packages.Package, packageMap map[string]*packages.Pack
 
 	// Process imports
 	for _, importedPkg := range pkg.Imports {
-		addPackageToMap(importedPkg, packageMap, visited, transformMods)
+		addPackageToMap(importedPkg, packageMap, visited, transformPkgs)
 	}
 }
 
@@ -224,7 +272,7 @@ func DetectToolchainVersion(pkgDir string) (string, error) {
 
 // LoadGoFiles loads the specified Go files using packages.Load with "file=" prefix
 // and returns a TransformState containing the FileSet and package information
-func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
+func LoadGoFiles(buildArgs BuildArgs, cfg config.Config) (*TransformState, error) {
 	if len(buildArgs.GoFiles) == 0 {
 		return nil, fmt.Errorf("no Go files provided")
 	}
@@ -294,14 +342,22 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	// Create package map and populate with all packages recursively
 	packageMap := make(map[string]*packages.Package)
 	visited := make(map[string]bool)
-	transformMods := make(map[string]bool)
 
-	// First, populate transformMods with the main module and find main package
+	// Create combined transform patterns including main module and configured patterns
+	transformPkgs := make([]string, len(cfg.RunMode.TransformPkgs))
+	copy(transformPkgs, cfg.RunMode.TransformPkgs)
+	if len(transformPkgs) >= 0 && buildArgs.Verbose {
+		log.Printf("transformpkgs overrides: %v\n", transformPkgs)
+	}
+
+	// Find main package and add its module to transform patterns
 	var mainPkg *packages.Package
 	for _, pkg := range pkgs {
 		if pkg.Name == "main" && pkg.Dir == mainDir {
 			if pkg.Module != nil {
-				transformMods[pkg.Module.Dir] = true
+				log.Printf("transforming %q\n", pkg.Module.Path)
+				transformPkgs = append(transformPkgs, pkg.Module.Path)
+				transformPkgs = append(transformPkgs, pkg.Module.Path+"/**")
 			}
 			mainPkg = pkg
 		}
@@ -309,7 +365,7 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 
 	// Process each package and its imports
 	for _, pkg := range pkgs {
-		addPackageToMap(pkg, packageMap, visited, transformMods)
+		addPackageToMap(pkg, packageMap, visited, transformPkgs)
 	}
 
 	// Convert packageMap to slice for Packages field, with main package first
