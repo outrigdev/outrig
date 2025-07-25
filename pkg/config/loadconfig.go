@@ -5,6 +5,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -36,14 +37,14 @@ func LoadConfig(overrideFileName string, cwd string) (*Config, error) {
 			return cfg, nil
 		}
 		// If explicitly set but file doesn't exist, that's an error
-		return nil, os.ErrNotExist
+		return nil, fmt.Errorf("config file does not exist: %s", overrideFileName)
 	}
 
 	// 2. Check explicit JSON env var
 	if configJson := os.Getenv(ConfigJsonEnvName); configJson != "" {
 		var cfg Config
 		if err := json.Unmarshal([]byte(configJson), &cfg); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse JSON from %s env var: %w", ConfigJsonEnvName, err)
 		}
 		return &cfg, nil
 	}
@@ -58,7 +59,7 @@ func LoadConfig(overrideFileName string, cwd string) (*Config, error) {
 			return cfg, nil
 		}
 		// If explicitly set but file doesn't exist, that's an error
-		return nil, os.ErrNotExist
+		return nil, fmt.Errorf("config file does not exist (from %s env var): %s", ConfigFileEnvName, configFile)
 	}
 
 	// 4. Walk up directories looking for project root (includes current dir)
@@ -142,12 +143,12 @@ func tryLoadConfig(path string) (*Config, error) {
 		if os.IsNotExist(err) {
 			return nil, nil // File not found is not an error for search
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
 	}
 
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err // JSON parse error is always an error
+		return nil, fmt.Errorf("failed to parse JSON in config file %s: %w", path, err)
 	}
 
 	return &cfg, nil

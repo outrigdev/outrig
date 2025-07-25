@@ -146,6 +146,7 @@ func main() {
 		Short: "Outrig provides real-time debugging for Go programs",
 		Long:  `Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.`,
 		// No Run function for root command - it will just display help and exit
+		SilenceErrors: true, // We handle error printing ourselves
 	}
 
 	monitorCmd := &cobra.Command{
