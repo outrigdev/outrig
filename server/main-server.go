@@ -238,9 +238,10 @@ Example: outrig --dev --verbose run main.go`,
 			}
 
 			cfg := runmode.RunModeConfig{
-				Args:      specialArgs.Args,
-				IsVerbose: specialArgs.IsVerbose,
-				NoRun:     specialArgs.NoRun,
+				Args:       specialArgs.Args,
+				IsVerbose:  specialArgs.IsVerbose,
+				NoRun:      specialArgs.NoRun,
+				ConfigFile: specialArgs.ConfigFile,
 			}
 			return runmode.ExecRunMode(cfg)
 		},

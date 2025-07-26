@@ -23,9 +23,10 @@ import (
 
 // RunModeConfig holds configuration for ExecRunMode
 type RunModeConfig struct {
-	Args      []string
-	IsVerbose bool
-	NoRun     bool
+	Args       []string
+	IsVerbose  bool
+	NoRun      bool
+	ConfigFile string
 }
 
 // findAndTransformMainFileWithReplacement finds the main file AST and adds replacements for outrig import and main function modification
@@ -415,6 +416,7 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 		ProgramArgs: programArgs,
 		WorkingDir:  absWorkingDir,
 		Verbose:     cfg.IsVerbose,
+		ConfigFile:  cfg.ConfigFile,
 	}
 
 	return buildArgs, nil

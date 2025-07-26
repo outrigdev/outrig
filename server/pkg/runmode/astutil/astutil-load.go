@@ -43,6 +43,7 @@ type BuildArgs struct {
 	ProgramArgs []string
 	WorkingDir  string // will always be set (will not be empty)
 	Verbose     bool
+	ConfigFile  string
 }
 
 // ParseGoWorkFile parses a go.work file and returns the absolute paths of modules listed in the use directive
@@ -293,7 +294,7 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 	}
 
 	// Load config after we have MainDir
-	loadedCfg, configSource, err := config.LoadConfig("", mainDir)
+	loadedCfg, configSource, err := config.LoadConfig(buildArgs.ConfigFile, mainDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config (rootdir: %q): %w", mainDir, err)
 	}
