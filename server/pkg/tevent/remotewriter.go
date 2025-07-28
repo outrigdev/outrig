@@ -23,7 +23,7 @@ var (
 	eventsUploaded atomic.Int64
 	uploadAttempts atomic.Int64
 	lastErrorTime  atomic.Int64
-	
+
 	// Global Watch variable for status
 	statusWatch = outrig.NewWatch("tevent:status").ForPush()
 )

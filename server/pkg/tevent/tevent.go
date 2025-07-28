@@ -152,6 +152,7 @@ type TEventProps struct {
 	AppRunConnTimeMs     int64  `json:"apprun:conntimems,omitempty"`
 	AppRunCount          int    `json:"apprun:count,omitempty"`
 	AppRunDemo           bool   `json:"apprun:demo,omitempty"`
+	AppRunRunMode        bool   `json:"apprun:runmode,omitempty"`
 
 	UserSet     *TEventUserProps `json:"$set,omitempty"`
 	UserSetOnce *TEventUserProps `json:"$set_once,omitempty"`
@@ -379,7 +380,7 @@ func SendShutdownEvent() {
 }
 
 // SendAppRunConnectedEvent sends an "apprun:connected" telemetry event
-func SendAppRunConnectedEvent(sdkVersion string, goVersion string, appName string) {
+func SendAppRunConnectedEvent(sdkVersion string, goVersion string, appName string, runMode bool) {
 	if Disabled.Load() {
 		return
 	}
@@ -388,6 +389,7 @@ func SendAppRunConnectedEvent(sdkVersion string, goVersion string, appName strin
 		AppRunSDKVersion:     extractMajorMinorVersion(sdkVersion),
 		AppRunGoVersion:      goVersion,
 		AppRunDemo:           isDemo(appName),
+		AppRunRunMode:        runMode,
 	}
 	event := MakeTEvent("apprun:connected", props)
 	WriteTEvent(*event)

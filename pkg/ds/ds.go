@@ -76,6 +76,7 @@ type AppInfo struct {
 	Hostname         string         `json:"hostname,omitempty"`
 	BuildInfo        *BuildInfoData `json:"buildinfo,omitempty"`
 	OutrigSDKVersion string         `json:"outrigsdkversion,omitempty"`
+	RunMode          bool           `json:"runmode,omitempty"`
 }
 
 type GoroutineInfo struct {

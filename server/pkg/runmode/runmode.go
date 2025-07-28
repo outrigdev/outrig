@@ -602,8 +602,9 @@ func runGoCommand(args []string, transformState *astutil.TransformState, cfg Run
 
 	// Set GOWORK=off to disable workspace mode when using replace directives
 	extraEnv := map[string]string{
-		"GOWORK":      "off",
-		"GOTOOLCHAIN": transformState.ToolchainVersion,
+		"GOWORK":                     "off",
+		"GOTOOLCHAIN":                transformState.ToolchainVersion,
+		config.FromRunModeEnvName:    "1",
 	}
 
 	// Use execlogwrap to execute the command with log capture
