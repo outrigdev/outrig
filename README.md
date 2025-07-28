@@ -12,7 +12,7 @@ Outrig is an open-source observability tool for Go development. It provides real
 
 Outrig runs 100% locally. No data ever leaves your machine.
 
-It is currently available for macOS and Linux (Windows builds coming soon).
+It is currently available for macOS and Linux.
 
 - **Homepage**: https://outrig.run
 - **Discord** (new): https://discord.gg/u9gByfvZm9
@@ -28,6 +28,7 @@ It is currently available for macOS and Linux (Windows builds coming soon).
 - **Variable Watching**: Monitor variables and counters in your application
 - **Runtime Hooks**: Execute hooks in your running application (coming soon)
 - **Minimal Integration**: Integrate into your Go application in seconds
+- **Docker Integration**: See [Using Docker in the Outrig Docs](https://outrig.run/docs/using-docker)
 
 ## How It Works
 
@@ -39,15 +40,13 @@ Outrig consists of two main components that work together:
 
 ## Installation
 
-### For Users
-
 For macOS:
 
 ```bash
 brew install --cask outrigdev/outrig/outrig
 ```
 
-This installs a system tray application. After installation, you'll need to launch the Outrig application from your Applications folder or Spotlight to start the server.
+This installs a system tray application. After installation, you'll need to launch the Outrig application from your Applications folder or Spotlight to start the server. Once you run the application the first time, the `outrig` CLI tool will be available in your path.
 
 For Linux:
 
@@ -74,9 +73,17 @@ task install
 
 ## Usage
 
-### Simple Integration
+The simplest way to try Outrig is by running your `main.go` using the Outrig CLI:
 
-Integrate Outrig by adding a single import to your Go application's main file:
+```bash
+outrig run main.go
+```
+
+The `outrig run` command takes all the same arguments as `go run` (as it is implemented as a thin wrapper around `go run`). Under the hood `outrig run` instruments your code to work with the Outrig monitor, giving you log searching, a full goroutine viewer, and runtime stats out of the box.
+
+### Integration using the SDK
+
+You can also integrate Outrig by adding a single import to your Go application's main file:
 
 ```go
 // Add this import to your main Go file:
@@ -164,10 +171,21 @@ outrig.NewWatch("request-count").
 
 ### Goroutine Monitoring
 
-Outrig captures your goroutine stack traces every second for easy search/viewing. You can optionally name and tag your goroutines for easier inspecting. Using the construct below also allows Outrig to log exact start and end timestamps for tracked goroutines.
+Outrig captures your goroutine stack traces every second for easy search/viewing. You can optionally name and tag your goroutines for easier inspecting.
+
+When using the `outrig run` CLI, you can name any goroutine in your own module by using a special comment above the `go` keyword. This will override the system generated name for the goroutine in the outrig viewer.
 
 ```go
-outrig.Go("worker-pool-1").Run(func() {
+//outrig name="worker-thread"
+go func() {
+	...
+}()
+```
+
+Alternatively you can use the SDK to give your goroutines names and tags:
+
+```go
+outrig.Go("worker-pool-1").WithTags("worker").Run(func() {
     // Goroutine code...
 })
 ```
