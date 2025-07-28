@@ -15,7 +15,12 @@ export const GettingStartedModalContainer: React.FC = () => {
     }
 
     return (
-        <Modal isOpen={isOpen} title="Outrig SDK Integration Instructions" onClose={() => AppModel.closeGettingStartedModal()} className="!w-[700px]">
+        <Modal
+            isOpen={isOpen}
+            title="Outrig Integration Instructions"
+            onClose={() => AppModel.closeGettingStartedModal()}
+            className="!w-[700px]"
+        >
             <div className="overflow-auto">
                 <GettingStartedContent hideTitle={true} hideFooterText={true} />
             </div>

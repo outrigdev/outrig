@@ -21,7 +21,26 @@ const GettingStartedWithOutrig: React.FC = () => {
             <div className="flex">
                 <div className="flex-grow flex-shrink min-w-0" />
                 <div className="max-w-xl w-full">
-                    <DemoAppController />
+                    <div className="bg-panel py-3 w-full">
+                        <div className="border-l-2 border-accentbg px-5">
+                            <div className="flex items-center mb-2">
+                                <div className="text-accent mr-2">
+                                    <BookText size={20} />
+                                </div>
+                                <h3 className="text-primary font-medium">Connect Your Application</h3>
+                            </div>
+                            <p className="text-secondary text-sm mb-3">
+                                Connect your Go application to Outrig with just one line of code
+                            </p>
+                            <button
+                                onClick={() => AppModel.openGettingStartedModal()}
+                                className="flex items-center gap-2 px-4 py-2 rounded transition-colors cursor-pointer border border-accent/50 text-accent hover:bg-accent/10"
+                            >
+                                <Plus size={14} />
+                                Integration Instructions
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div className="flex-grow flex-shrink min-w-0" />
             </div>
@@ -84,32 +103,7 @@ const WelcomeColumn: React.FC<{ hasAppRuns: boolean }> = ({ hasAppRuns }) => {
                 {/* Cards container - stacked layout */}
                 <div className="w-full flex flex-col gap-2">
                     {/* Conditional first card based on app runs */}
-                    {hasAppRuns ? (
-                        /* Demo App Controller when there are app runs */
-                        <DemoAppController />
-                    ) : (
-                        /* Integration Instructions when there are no app runs */
-                        <div className="bg-panel py-3 w-full">
-                            <div className="border-l-2 border-accentbg px-5">
-                                <div className="flex items-center mb-2">
-                                    <div className="text-accent mr-2">
-                                        <BookText size={20} />
-                                    </div>
-                                    <h3 className="text-primary font-medium">Connect Your Application</h3>
-                                </div>
-                                <p className="text-secondary text-sm mb-3">
-                                    Connect your Go application to Outrig with just one line of code
-                                </p>
-                                <button
-                                    onClick={() => AppModel.openGettingStartedModal()}
-                                    className="flex items-center gap-2 px-4 py-2 rounded transition-colors cursor-pointer border border-accent/50 text-accent hover:bg-accent/10"
-                                >
-                                    <Plus size={14} />
-                                    Integration Instructions
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                    <DemoAppController />
                     {/* GitHub section */}
                     <div className="bg-panel py-3 w-full">
                         <div className="border-l-2 border-accentbg px-5">
