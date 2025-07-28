@@ -89,6 +89,11 @@ tasks:
         cmds:
             - OUTRIG_DEVCONFIG=1 go run server/cmd/test/main-test.go
 
+    test:docker:small:
+        desc: internal task used for the test docker container
+        cmds:
+            - OUTRIG_DEVCONFIG=1 outrig run server/cmd/testsmall/main-testsmall.go
+
     test:small:
         desc: run main-testsmall.go to generate minimal test data
         cmds:
