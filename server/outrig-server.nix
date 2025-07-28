@@ -17,17 +17,17 @@ let
     else
       platform;
 
-  # Platform-specific hashes for v0.8.3
+  # Platform-specific hashes for v0.9.0
   hashes = {
-    "x86_64-linux" = "0b76d17ff1c22cafde664fde95337db804b245fc36c0c151bad2bf65d8613c61";
-    "aarch64-linux" = "f0b9b312913828f5c0b16839e8c0fe3c62a1720dd5f70712d7140a7ff759c67b";
-    "x86_64-darwin" = "68799bcaa3b5d04b1c1d4ad39c22b37a7cf28ebeb0edde20495587dec2b4442d";
-    "aarch64-darwin" = "6061b9e9cc4288c77190fe26248877ac8079fe9ae03d8b92c4ace25302d34ec8";
+    "x86_64-linux" = "1ac379f2b87c051b8f70536a345015eb8d50b961e4040574d8e70b74533b1bae";
+    "aarch64-linux" = "613dda1775fd712afd8ee5658c9169cf821ae4c04edd4ce60fc9dfb958a83122";
+    "x86_64-darwin" = "bb0870c681bec991eda245ed9648ac5e41d18d7580e6227d3c818e7dc58662df";
+    "aarch64-darwin" = "1b44ec64f5cf56a764abc8c6451ac26dc3f9ee426fe535e6d0034a703a5c18ae";
   };
 in
 (stdenv.mkDerivation rec {
   pname = "outrig";
-  version = "0.8.3";
+  version = "0.9.0";
 
   src = fetchurl {
     url = "https://github.com/outrigdev/outrig/releases/download/v${version}/${pname}_${version}_${platform}_${arch}.tar.gz";
