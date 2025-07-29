@@ -67,7 +67,6 @@ const GoRoutinesContent: React.FC<GoRoutinesContentProps> = ({ model, tableModel
             ) : containerSize.width > 0 ? (
                 <GoRoutinesTable tableModel={tableModel} model={model} />
             ) : null}
-            <DroppedGoroutinesIndicator model={model} />
         </div>
     );
 };
@@ -93,9 +92,10 @@ export const GoRoutines: React.FC<GoRoutinesProps> = ({ appRunId }) => {
     }
 
     return (
-        <div className="w-full h-full flex flex-col">
+        <div className="w-full h-full flex flex-col relative">
             <GoRoutinesFilters model={model} />
             <GoRoutinesContent model={model} tableModel={tableModel} />
+            <DroppedGoroutinesIndicator model={model} />
         </div>
     );
 };

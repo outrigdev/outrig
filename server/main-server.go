@@ -223,10 +223,11 @@ func main() {
 
 	runCmd := &cobra.Command{
 		Use:   "run [go-args]",
-		Short: "Run a Go program with Outrig enabled",
-		Long: `Run a Go program with Outrig logging. Automatically injects outrig.Init() into the main function via AST rewriting.
-The original source files are never modified - a temporary file is used for execution.
-Example: outrig --dev --verbose run main.go`,
+		Short: "Drop-in replacement for 'go run' with Outrig insights",
+		Long: `A drop-in replacement for "go run" that accepts identical arguments. Run your Go programs as usual and instantly gain access to Outrig's real-time insights—no code changes required.
+
+Example:
+  outrig run main.go`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			specialArgs, err := parseSpecialArgs("run")
 			if err != nil {
