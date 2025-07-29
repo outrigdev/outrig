@@ -5,32 +5,55 @@
         <description>Most recent changes with links to updates.</description>
         <language>en</language>
         <item>
-            <title>Outrig Version 0.8.2</title>
+            <title>Outrig Version 0.9.0</title>
             <description>
-                <![CDATA[
-    				<h2>Version 0.8.2</h2>
-                    
-                ]]>
+<![CDATA[
+<h2>Version 0.9.0</h2>
+<p>Major update featuring a completely redone goroutine viewer and a new way to run outrig without modifying your source code using <code>outrig run main.go</code>.</p>
+<h3>GoRoutine Viewer</h3>
+<ul>
+  <li>Automatic goroutine names (pkg.func:linenum)</li>
+  <li>Goroutine graph + time scrubber</li>
+  <li>Better filtering logic showing persistent counts</li>
+  <li>More compact display to see more information</li>
+  <li>Show <em>all</em> goroutines for the program with timespan information</li>
+  <li>Clickable timelines to see stack traces captured at any point</li>
+</ul>
+<h3>outrig run mode</h3>
+<ul>
+  <li>Run mode automatically instruments all goroutines in the main module</li>
+  <li>Outrig SDK version locking to monitor version</li>
+  <li>Ability to name goroutines using <code>//outrig name="..."</code> syntax</li>
+</ul>
+<h3>Other Improvements</h3>
+<ul>
+  <li>Fix partial log line copying</li>
+  <li>Fix bugs with tracking goroutine timelines when mixing exact and polling data</li>
+  <li>Use new <code>outrigdev/goid</code> package for fast goid lookups</li>
+  <li>MacOS auto-update fixes</li>
+  <li>Dependency updates</li>
+</ul>
+]]>
             </description>
-            <pubDate>Thu, 19 Jun 2025 04:41:39 +0000</pubDate>
+            <pubDate>Mon, 28 Jul 2025 23:17:02 +0000</pubDate>
 			            <enclosure
-                url="https://github.com/outrigdev/outrig/releases/download/v0.8.2/Outrig-darwin-amd64-v0.8.2.dmg"
-                sparkle:version="0.8.2"
-                sparkle:shortVersionString="0.8.2"
+                url="https://github.com/outrigdev/outrig/releases/download/v0.9.0/Outrig-darwin-amd64-v0.9.0.dmg"
+                sparkle:version="0.9.0"
+                sparkle:shortVersionString="0.9.0"
                 sparkle:os="macos"
                 sparkle:arch="x86_64"
-                length="22326299"
+                length="23714725"
                 type="application/x-apple-diskimage"
-                sparkle:edSignature="ZHCTxXVS9XLKoaUCJodVHURGzWQdgmk0Mk5pLgWRNm5naYfHkIjFlP8Bki52lGBCrA18QZn6+JRDUTS0oPHKBA==" />
+                sparkle:edSignature="s2m7TpeVhpeFZT1PWYGpYLnN8jP79Q9CpiXxtQ8hwpoeOgHPMB0KYSO9sTY7dIPe9+TnE1jOmvxPYHNVGjZKDg==" />
             <enclosure
-                url="https://github.com/outrigdev/outrig/releases/download/v0.8.2/Outrig-darwin-arm64-v0.8.2.dmg"
-                sparkle:version="0.8.2"
-                sparkle:shortVersionString="0.8.2"
+                url="https://github.com/outrigdev/outrig/releases/download/v0.9.0/Outrig-darwin-arm64-v0.9.0.dmg"
+                sparkle:version="0.9.0"
+                sparkle:shortVersionString="0.9.0"
                 sparkle:os="macos"
                 sparkle:arch="arm64"
-                length="21265529"
+                length="22559434"
                 type="application/x-apple-diskimage"
-                sparkle:edSignature="QiKPBdOFAVR4Kzw0ivGaH1a57lgSa01jaxXz0JPhLubx5UAlnRtpkFalafyxRBFd3OJS+8MKo5rmz0FkYTHeCQ==" />
+                sparkle:edSignature="fVgjhgQqnud4MsfzkbzsI9iWAZrU79IjA+KiyXKkcD9lbiJ1tOHFC6Zl4+hEnk7VPY+PwPJzn7K2ETBmWTTeDw==" />
 
             <sparkle:minimumSystemVersion>11.0</sparkle:minimumSystemVersion>
         </item>
