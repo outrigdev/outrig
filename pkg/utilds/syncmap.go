@@ -48,11 +48,11 @@ func (sm *SyncMap[K, T]) Delete(key K) {
 func (sm *SyncMap[K, T]) GetOrCreate(key K, createFn func() T) (T, bool) {
 	sm.lock.Lock()
 	defer sm.lock.Unlock()
-	
+
 	if val, ok := sm.m[key]; ok {
 		return val, true
 	}
-	
+
 	// Key doesn't exist, create new value
 	newVal := createFn()
 	sm.m[key] = newVal
@@ -63,12 +63,12 @@ func (sm *SyncMap[K, T]) GetOrCreate(key K, createFn func() T) (T, bool) {
 func (sm *SyncMap[K, T]) Keys() []K {
 	sm.lock.Lock()
 	defer sm.lock.Unlock()
-	
+
 	keys := make([]K, 0, len(sm.m))
 	for k := range sm.m {
 		keys = append(keys, k)
 	}
-	
+
 	return keys
 }
 
@@ -76,7 +76,7 @@ func (sm *SyncMap[K, T]) Keys() []K {
 func (sm *SyncMap[K, T]) Len() int {
 	sm.lock.Lock()
 	defer sm.lock.Unlock()
-	
+
 	return len(sm.m)
 }
 
@@ -84,7 +84,7 @@ func (sm *SyncMap[K, T]) Len() int {
 func (sm *SyncMap[K, T]) ForEach(fn func(K, T)) {
 	sm.lock.Lock()
 	defer sm.lock.Unlock()
-	
+
 	for k, v := range sm.m {
 		fn(k, v)
 	}

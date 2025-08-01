@@ -69,7 +69,7 @@ func SetCollectorsEnabled(enabled bool, cfg *config.Config) {
 func NotifyCollectorsNewConnection() {
 	collectorsLock.Lock()
 	defer collectorsLock.Unlock()
-	
+
 	for _, collector := range collectors {
 		collector.OnNewConnection()
 	}

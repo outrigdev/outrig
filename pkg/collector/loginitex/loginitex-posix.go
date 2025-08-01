@@ -331,12 +331,12 @@ func resolveOutrigPath(cfg config.LogProcessorConfig, isDev bool) (string, error
 	if envPath := os.Getenv(config.OutrigPathEnvName); envPath != "" {
 		return envPath, nil
 	}
-	
+
 	// If a custom path is provided in config, use it
 	if cfg.OutrigPath != "" {
 		return cfg.OutrigPath, nil
 	}
-	
+
 	if isDev {
 		// check bin/outrig first
 		if _, err := os.Stat("bin/outrig"); err == nil {

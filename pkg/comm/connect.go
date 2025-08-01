@@ -174,12 +174,12 @@ func GetServerVersion(cfg *config.Config) (string, string, error) {
 			continue
 		}
 		defer connWrap.Close()
-		
+
 		version, err := connWrap.GetServerVersion(connectAddr.IsTcp())
 		if err != nil {
 			continue
 		}
-		
+
 		return version, connectAddr.DialAddr, nil
 	}
 

@@ -5,6 +5,7 @@ package apppeer
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -425,7 +426,7 @@ func (gp *GoRoutinePeer) GetParsedGoRoutinesAtTimestamp(moduleName string, times
 	if activeOnly && timestamp == 0 {
 		// If activeOnly and timestamp is 0, use currently active goroutines
 		activeGoRoutinesCopy := gp.getActiveGoRoutinesCopy()
-		goroutineIds = utilfn.GetKeys(activeGoRoutinesCopy)
+		goroutineIds = slices.Collect(maps.Keys(activeGoRoutinesCopy))
 	} else {
 		// For all other cases: use all goroutines (either activeOnly with timestamp, or not activeOnly)
 		goroutineIds = allGoroutineIds

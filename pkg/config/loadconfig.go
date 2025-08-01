@@ -80,7 +80,7 @@ func LoadConfig(overrideFileName string, cwd string) (*Config, string, error) {
 func findConfigInParents(cwd string) (*Config, string, error) {
 	var dir string
 	var err error
-	
+
 	if cwd != "" {
 		dir = cwd
 	} else {
@@ -89,7 +89,7 @@ func findConfigInParents(cwd string) (*Config, string, error) {
 			return nil, "", err
 		}
 	}
-	
+
 	dir, err = filepath.Abs(dir)
 	if err != nil {
 		return nil, "", err

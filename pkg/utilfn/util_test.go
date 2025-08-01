@@ -75,15 +75,15 @@ func TestParseTags(t *testing.T) {
 
 func TestParseTagsSetGr(t *testing.T) {
 	input := `2025/06/17 18:48:24 #record #setgr from:Run demo.StdinMonitor (22) &ds.GoDecl{Name:"demo.StdinMonitor", Tags:[]string{"system"}, Pkg:"github.com/outrigdev/outrig", NewLine:"", RunLine:"", NoRecover:false, GoId:22, ParentGoId:1, NumSpawned:0, State:1, StartTs:1750211304225, EndTs:0, FirstPollTs:0, LastPollTs:0, RealCreatedBy:"created by github.com/outrigdev/outrig/server/demo.RunOutrigAcres in goroutine 1\n\t/Users/mike/work/outrig/server/demo/outrigacres.go:782 +0x123"}`
-	
+
 	tags := ParseTags(input)
 	expectedTags := []string{"record", "setgr"}
-	
+
 	if len(tags) != len(expectedTags) {
 		t.Errorf("ParseTags() returned %d tags, expected %d. Got: %+v", len(tags), len(expectedTags), tags)
 		return
 	}
-	
+
 	for i, expected := range expectedTags {
 		if i >= len(tags) || tags[i] != expected {
 			t.Errorf("ParseTags() tag[%d] = %q, expected %q. Full result: %+v", i, tags[i], expected, tags)
@@ -94,15 +94,15 @@ func TestParseTagsSetGr(t *testing.T) {
 
 func TestParseTagsSimple(t *testing.T) {
 	input := "test #record #setgr more"
-	
+
 	tags := ParseTags(input)
 	expectedTags := []string{"record", "setgr"}
-	
+
 	if len(tags) != len(expectedTags) {
 		t.Errorf("ParseTags() returned %d tags, expected %d. Got: %+v", len(tags), len(expectedTags), tags)
 		return
 	}
-	
+
 	for i, expected := range expectedTags {
 		if i >= len(tags) || tags[i] != expected {
 			t.Errorf("ParseTags() tag[%d] = %q, expected %q. Full result: %+v", i, tags[i], expected, tags)
