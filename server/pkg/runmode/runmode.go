@@ -21,12 +21,21 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// RawCmdDef holds configuration for raw command execution
+type RawCmdDef struct {
+	Cmd []string
+	Env map[string]string
+	Cwd string
+	Cfg config.Config
+}
+
 // RunModeConfig holds configuration for ExecRunMode
 type RunModeConfig struct {
 	Args       []string
 	IsVerbose  bool
 	NoRun      bool
 	ConfigFile string
+	RawCmd     *RawCmdDef
 }
 
 // findAndTransformMainFileWithReplacement finds the main file AST and adds replacements for outrig import and main function modification
@@ -477,55 +486,237 @@ func downloadOutrigSDK(transformState *astutil.TransformState, verbose bool) err
 	return nil
 }
 
+// determineWorkingDir determines the working directory based on config file location and ExecConfig.Cwd
+func determineWorkingDir(jsonFilePath string, execConfigCwd string) (string, error) {
+	// Determine working directory - use config file directory as base
+	configDir := filepath.Dir(jsonFilePath)
+	workingDir := configDir
+
+	// If ExecConfig has a Cwd, use that instead (relative to config file)
+	if execConfigCwd != "" {
+		if filepath.IsAbs(execConfigCwd) {
+			workingDir = execConfigCwd
+		} else {
+			workingDir = filepath.Join(configDir, execConfigCwd)
+		}
+	}
+
+	// Convert working directory to absolute path
+	absWorkingDir, err := filepath.Abs(workingDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path for working directory %s: %w", workingDir, err)
+	}
+
+	return absWorkingDir, nil
+}
+
+// handleJSONConfig processes a JSON configuration file for run mode
+func handleJSONConfig(jsonFilePath string, buildFlags []string, verbose bool) (astutil.BuildArgs, error) {
+	// JSON mode doesn't allow build flags
+	if len(buildFlags) > 0 {
+		return astutil.BuildArgs{}, fmt.Errorf("build flags are not allowed when using JSON configuration file")
+	}
+
+	// Read and parse the JSON configuration file
+	jsonData, err := os.ReadFile(jsonFilePath)
+	if err != nil {
+		return astutil.BuildArgs{}, fmt.Errorf("failed to read JSON config file %s: %w", jsonFilePath, err)
+	}
+
+	var config config.Config
+	err = json.Unmarshal(jsonData, &config)
+	if err != nil {
+		return astutil.BuildArgs{}, fmt.Errorf("failed to parse JSON config file %s: %w", jsonFilePath, err)
+	}
+
+	// Validate ExecConfig
+	execConfig := config.Exec
+	err = execConfig.ValidateExecConfig()
+	if err != nil {
+		return astutil.BuildArgs{}, err
+	}
+
+	// If it's a rawcmd, we can't handle it in normal run mode
+	if execConfig.RawCmd != "" {
+		return astutil.BuildArgs{}, fmt.Errorf("rawcmd execution not yet implemented in JSON config mode")
+	}
+
+	// Determine working directory
+	absWorkingDir, err := determineWorkingDir(jsonFilePath, execConfig.Cwd)
+	if err != nil {
+		return astutil.BuildArgs{}, err
+	}
+
+	// Build the BuildArgs from ExecConfig
+	buildArgs := astutil.BuildArgs{
+		GoFiles:     []string{execConfig.Entry}, // Entry becomes the go file/package
+		BuildFlags:  execConfig.BuildFlags,      // Use build flags from ExecConfig
+		ProgramArgs: execConfig.Args,            // Args become program arguments
+		WorkingDir:  absWorkingDir,
+		Verbose:     verbose,
+		ConfigFile:  jsonFilePath,
+	}
+
+	return buildArgs, nil
+}
+
+// setupBuildConfiguration prepares build configuration and handles JSON config files
+func setupBuildConfiguration(cfg RunModeConfig) (RunModeConfig, astutil.BuildArgs, error) {
+	buildArgs, err := setupBuildArgs(cfg)
+	if err != nil {
+		return cfg, astutil.BuildArgs{}, err
+	}
+
+	// Early return if not a JSON file
+	if len(buildArgs.GoFiles) == 0 || !strings.HasSuffix(buildArgs.GoFiles[0], ".json") {
+		return cfg, buildArgs, nil
+	}
+
+	jsonFilePath := buildArgs.GoFiles[0]
+
+	// Read and parse the JSON configuration file
+	jsonData, err := os.ReadFile(jsonFilePath)
+	if err != nil {
+		return cfg, astutil.BuildArgs{}, fmt.Errorf("failed to read JSON config file %s: %w", jsonFilePath, err)
+	}
+
+	var parsedConfig config.Config
+	err = json.Unmarshal(jsonData, &parsedConfig)
+	if err != nil {
+		return cfg, astutil.BuildArgs{}, fmt.Errorf("failed to parse JSON config file %s: %w", jsonFilePath, err)
+	}
+
+	// Validate ExecConfig
+	execConfig := parsedConfig.Exec
+	err = execConfig.ValidateExecConfig()
+	if err != nil {
+		return cfg, astutil.BuildArgs{}, err
+	}
+
+	// Update the config file path to point to the JSON file
+	cfg.ConfigFile = jsonFilePath
+
+	// If it's a rawcmd, set up RawCmdDef
+	if execConfig.RawCmd != "" {
+		// Determine shell to use
+		shell := execConfig.RawCmdShell
+		if shell == "" {
+			shell = os.Getenv("SHELL")
+			if shell == "" {
+				shell = "/bin/sh" // fallback
+			}
+		}
+
+		// Determine working directory
+		absWorkingDir, err := determineWorkingDir(jsonFilePath, execConfig.Cwd)
+		if err != nil {
+			return cfg, astutil.BuildArgs{}, err
+		}
+
+		if cfg.IsVerbose {
+			if execConfig.RawCmdShell != "" {
+				log.Printf("Using custom shell: %s", shell)
+			}
+			log.Printf("Executing raw command: %s", execConfig.RawCmd)
+			log.Printf("Working directory: %s", absWorkingDir)
+		}
+
+		// Set up RawCmdDef
+		cfg.RawCmd = &RawCmdDef{
+			Cmd: []string{shell, "-c", execConfig.RawCmd},
+			Env: execConfig.Env,
+			Cwd: absWorkingDir,
+			Cfg: parsedConfig,
+		}
+
+		// Return empty BuildArgs since we're using RawCmd
+		return cfg, astutil.BuildArgs{}, nil
+	}
+
+	if cfg.IsVerbose {
+		log.Printf("Executing from JSON config: %s", jsonFilePath)
+		log.Printf("Entry point: %s", execConfig.Entry)
+	}
+
+	// Handle normal (non-RawCmd) JSON config
+	buildArgs, err = handleJSONConfig(jsonFilePath, buildArgs.BuildFlags, cfg.IsVerbose)
+	if err != nil {
+		return cfg, astutil.BuildArgs{}, err
+	}
+
+	return cfg, buildArgs, nil
+}
+
 // ExecRunMode handles the "outrig run" command with AST rewriting
 func ExecRunMode(cfg RunModeConfig) error {
-	buildArgs, err := setupBuildArgs(cfg)
+	cfg, buildArgs, err := setupBuildConfiguration(cfg)
 	if err != nil {
 		return err
 	}
+	if cfg.RawCmd != nil {
+		if cfg.NoRun {
+			log.Printf("--norun flag set, not executing command")
+			return nil
+		}
+		return execlogwrap.ExecCommand(cfg.RawCmd.Cmd, config.GetAppRunId(), &cfg.RawCmd.Cfg, cfg.RawCmd.Env)
+	} else {
+		transformState, err := performASTTransformation(buildArgs, cfg)
+		if err != nil {
+			return err
+		}
+		if cfg.NoRun {
+			log.Printf("--norun flag set: transforms complete, tempdir %s", transformState.TempDir)
+			return nil
+		}
+		return runWithOverlay(transformState, buildArgs.GoFiles, buildArgs.BuildFlags, buildArgs.ProgramArgs, cfg)
+	}
+}
+
+// performASTTransformation handles all AST transformation steps
+func performASTTransformation(buildArgs astutil.BuildArgs, cfg RunModeConfig) (*astutil.TransformState, error) {
 	transformState := loadFilesAndSetupTransformState(buildArgs, cfg)
 
 	// Copy go.mod and go.sum to temp directory
-	err = copyGoModFiles(transformState.GoModPath, transformState.TempDir, cfg.IsVerbose)
+	err := copyGoModFiles(transformState.GoModPath, transformState.TempDir, cfg.IsVerbose)
 	if err != nil {
-		return fmt.Errorf("failed to copy go.mod files: %w", err)
+		return nil, fmt.Errorf("failed to copy go.mod files: %w", err)
 	}
 
 	// If we have a go.work file, modify the copied go.mod with replace directives
 	err = addGoWorkReplaceDirectives(transformState)
 	if err != nil {
-		return fmt.Errorf("failed to add go.work replace directives: %w", err)
+		return nil, fmt.Errorf("failed to add go.work replace directives: %w", err)
 	}
 
 	// Add the version locked Outrig SDK dependency to the temp go.mod
 	tempGoModPath := filepath.Join(transformState.TempDir, "go.mod")
 	err = astutil.AddOutrigSDKDependency(tempGoModPath, cfg.IsVerbose, transformState.Config)
 	if err != nil {
-		return fmt.Errorf("failed to add outrig SDK dependency: %w", err)
+		return nil, fmt.Errorf("failed to add outrig SDK dependency: %w", err)
 	}
 
 	// Download dependencies to populate go.sum in temp directory
 	err = downloadOutrigSDK(transformState, cfg.IsVerbose)
 	if err != nil {
-		return fmt.Errorf("failed to download dependencies: %w", err)
+		return nil, fmt.Errorf("failed to download dependencies: %w", err)
 	}
 
 	// Find and transform the main file using new replacement flow
 	err = findAndTransformMainFileWithReplacement(transformState)
 	if err != nil {
-		return fmt.Errorf("main file transformation failed: %w", err)
+		return nil, fmt.Errorf("main file transformation failed: %w", err)
 	}
 
 	// Second pass: transform go statements in all files using replacement system
 	err = transformGoStatementsInAllFilesWithReplacement(transformState)
 	if err != nil {
-		return fmt.Errorf("go statement transformation failed: %w", err)
+		return nil, fmt.Errorf("go statement transformation failed: %w", err)
 	}
 
 	// Write all modified files to temp directory using new replacement system
 	err = writeModifiedFilesWithReplacements(transformState)
 	if err != nil {
-		return fmt.Errorf("failed to write modified files: %w", err)
+		return nil, fmt.Errorf("failed to write modified files: %w", err)
 	}
 
 	if cfg.IsVerbose {
@@ -537,14 +728,7 @@ func ExecRunMode(cfg RunModeConfig) error {
 		}
 	}
 
-	// If NoRun is set, exit early after transforms are complete
-	if cfg.NoRun {
-		log.Printf("--norun flag set: transforms complete, tempdir %s", transformState.TempDir)
-		return nil
-	}
-
-	// Create overlay file mapping and run
-	return runWithOverlay(transformState, buildArgs.GoFiles, buildArgs.BuildFlags, buildArgs.ProgramArgs, cfg)
+	return transformState, nil
 }
 
 // runWithOverlay creates the overlay file and runs the go command
@@ -602,9 +786,9 @@ func runGoCommand(args []string, transformState *astutil.TransformState, cfg Run
 
 	// Set GOWORK=off to disable workspace mode when using replace directives
 	extraEnv := map[string]string{
-		"GOWORK":                     "off",
-		"GOTOOLCHAIN":                transformState.ToolchainVersion,
-		config.FromRunModeEnvName:    "1",
+		"GOWORK":                  "off",
+		"GOTOOLCHAIN":             transformState.ToolchainVersion,
+		config.FromRunModeEnvName: "1",
 	}
 
 	// Use execlogwrap to execute the command with log capture
