@@ -21,6 +21,10 @@ It is currently available for macOS and Linux.
   <img src="assets/outrig-loop.gif" alt="Outrig in action" width="800">
 </p>
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/outrigdev/outrig.svg)](https://pkg.go.dev/github.com/outrigdev/outrig)
+[![Go Report Card](https://goreportcard.com/badge/github.com/outrigdev/outrig)](https://goreportcard.com/report/github.com/outrigdev/outrig)
+![Go Version](https://img.shields.io/github/go-mod/go-version/outrigdev/outrig)
+
 ## Features
 
 - **Real-time Log Viewing**: Stream and search logs from your Go application in real-time
