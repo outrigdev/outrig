@@ -34,7 +34,7 @@ func GenerateRpcClient() error {
 		}
 	}
 	buf.WriteString("\n")
-	written, err := utilfn.WriteFileIfDifferent(RpcClientFileName, []byte(buf.String()))
+	written, err := utilfn.WriteFileIfDifferent(RpcClientFileName, []byte(buf.String()), 0644)
 	if !written {
 		fmt.Fprintf(os.Stderr, "no changes to %s\n", RpcClientFileName)
 	}

@@ -60,7 +60,7 @@ export const DisconnectionModal: React.FC<DisconnectionModalProps> = ({ isOpen, 
                 {/* Header - no close button */}
                 <div className="flex items-center px-4 py-3 border-b border-border">
                     <WifiOff size={20} className="text-error mr-3" />
-                    <h2 className="text-primary font-bold">Server Disconnected</h2>
+                    <h2 className="text-primary font-bold">Monitor Disconnected</h2>
                 </div>
 
                 {/* Content */}

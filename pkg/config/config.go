@@ -5,6 +5,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -89,6 +90,9 @@ type Config struct {
 
 	// RunMode configuration
 	RunMode RunModeConfig `json:"runmode,omitempty"`
+
+	// Exec options
+	Exec ExecConfig `json:"exec,omitempty"`
 }
 
 type LogProcessorConfig struct {
@@ -135,6 +139,36 @@ type RunModeConfig struct {
 
 	// TransformPkgs specifies a list of additional package patterns to transform
 	TransformPkgs []string `json:"transformpkgs,omitempty"`
+}
+
+type ExecConfig struct {
+	// Entry specifies the Go package or .go files to run (relative to config file location).
+	// Examples: ".", "./cmd/myapp", "main.go", "cmd/myapp/main.go"
+	// Must specify either Entry OR RawCmd, not both.
+	Entry string `json:"entry,omitempty"`
+
+	// BuildFlags are Go build flags to pass to the go run command.
+	// Examples: ["-race", "-tags=debug", "-ldflags=-X main.version=1.0"]
+	BuildFlags []string `json:"buildflags,omitempty"`
+
+	// Args are command-line arguments to pass to the Go program after it's built.
+	Args []string `json:"args,omitempty"`
+
+	// Env specifies additional environment variables to set when running the program.
+	Env map[string]string `json:"env,omitempty"`
+
+	// Cwd specifies the working directory for the program (relative to config file location).
+	// If not specified, defaults to the directory containing the config file.
+	Cwd string `json:"cwd,omitempty"`
+
+	// RawCmd specifies a raw shell command to execute instead of running Go code.
+	// This runs through the shell, so $() and `` expansions will work.
+	// Must specify either Entry OR RawCmd, not both.
+	RawCmd string `json:"rawcmd,omitempty"`
+
+	// RawCmdShell specifies which shell to use for RawCmd execution.
+	// Defaults to $SHELL environment variable.
+	RawCmdShell string `json:"rawcmdshell,omitempty"`
 }
 
 // getDefaultConfig returns a default configuration with the specified dev mode
@@ -300,6 +334,17 @@ func (c *RunModeConfig) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*alias)(c))
 }
 
+// UnmarshalJSON implements custom unmarshaling for ExecConfig with defaults
+func (c *ExecConfig) UnmarshalJSON(data []byte) error {
+	// Set defaults first
+	defaultConfig := getDefaultConfig(UseDevConfig())
+	*c = defaultConfig.Exec
+
+	// Then unmarshal user values
+	type alias ExecConfig
+	return json.Unmarshal(data, (*alias)(c))
+}
+
 // UnmarshalJSON implements custom unmarshaling for CollectorConfig with defaults
 func (c *CollectorConfig) UnmarshalJSON(data []byte) error {
 	// Set defaults first
@@ -342,6 +387,30 @@ func (c *CollectorConfig) UnmarshalJSON(data []byte) error {
 	c.Plugins = make(map[string]any)
 	for k, v := range raw {
 		c.Plugins[k] = v // v is json.RawMessage
+	}
+
+	return nil
+}
+
+// ValidateExecConfig validates the ExecConfig for consistency
+func (e *ExecConfig) ValidateExecConfig() error {
+	hasEntry := e.Entry != ""
+	hasRawCmd := e.RawCmd != ""
+	hasBuildFlags := len(e.BuildFlags) > 0
+	hasArgs := len(e.Args) > 0
+
+	// Must have either Entry OR RawCmd, not both
+	if !hasEntry && !hasRawCmd {
+		return fmt.Errorf("ExecConfig must have either 'entry' or 'rawcmd' specified")
+	}
+
+	if hasEntry && hasRawCmd {
+		return fmt.Errorf("ExecConfig cannot have both 'entry' and 'rawcmd' specified")
+	}
+
+	// If you have buildflags or args, you MUST have an Entry (they're not compatible with rawcmd)
+	if (hasBuildFlags || hasArgs) && !hasEntry {
+		return fmt.Errorf("'buildflags' and 'args' are not compatible with 'rawcmd'")
 	}
 
 	return nil
