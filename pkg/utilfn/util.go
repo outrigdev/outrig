@@ -93,12 +93,12 @@ func IndentString(indent string, str string) string {
 	return rtn.String()
 }
 
-func WriteFileIfDifferent(fileName string, contents []byte) (bool, error) {
+func WriteFileIfDifferent(fileName string, contents []byte, perm os.FileMode) (bool, error) {
 	oldContents, err := os.ReadFile(fileName)
 	if err == nil && bytes.Equal(oldContents, contents) {
 		return false, nil
 	}
-	err = os.WriteFile(fileName, contents, 0644)
+	err = os.WriteFile(fileName, contents, perm)
 	if err != nil {
 		return false, err
 	}

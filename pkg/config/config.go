@@ -89,6 +89,9 @@ type Config struct {
 
 	// RunMode configuration
 	RunMode RunModeConfig `json:"runmode,omitempty"`
+
+	// Exec options
+	Exec ExecConfig `json:"exec,omitempty"`
 }
 
 type LogProcessorConfig struct {
@@ -135,6 +138,26 @@ type RunModeConfig struct {
 
 	// TransformPkgs specifies a list of additional package patterns to transform
 	TransformPkgs []string `json:"transformpkgs,omitempty"`
+}
+
+type ExecConfig struct {
+	// relative to config file location
+	Entry string `json:"entry,omitempty"`
+
+	// parameters to pass to the go program
+	Args []string `json:"args,omitempty"`
+
+	// any extra environment arguments
+	Env map[string]string `json:"env,omitempty"`
+
+	// relative to config file location
+	Cwd string `json:"cwd,omitempty"`
+
+	// raw cmd (runs through the shell, so $() and `` will work)
+	RawCmd string `json:"rawcmd,omitempty"`
+
+	// defaults to $SHELL
+	RawCmdShell string `json:"rawcmdshell,omitempty"`
 }
 
 // getDefaultConfig returns a default configuration with the specified dev mode
@@ -297,6 +320,17 @@ func (c *RunModeConfig) UnmarshalJSON(data []byte) error {
 
 	// Then unmarshal user values
 	type alias RunModeConfig
+	return json.Unmarshal(data, (*alias)(c))
+}
+
+// UnmarshalJSON implements custom unmarshaling for ExecConfig with defaults
+func (c *ExecConfig) UnmarshalJSON(data []byte) error {
+	// Set defaults first
+	defaultConfig := getDefaultConfig(UseDevConfig())
+	*c = defaultConfig.Exec
+
+	// Then unmarshal user values
+	type alias ExecConfig
 	return json.Unmarshal(data, (*alias)(c))
 }
 

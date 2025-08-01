@@ -50,7 +50,7 @@ func generateTypesFile(tsTypesMap map[reflect.Type]string) error {
 	}
 	fmt.Fprintf(&buf, "}\n\n")
 	fmt.Fprintf(&buf, "export {}\n")
-	written, err := utilfn.WriteFileIfDifferent(TypesFileName, buf.Bytes())
+	written, err := utilfn.WriteFileIfDifferent(TypesFileName, buf.Bytes(), 0644)
 	if !written {
 		fmt.Fprintf(os.Stderr, "no changes to %s\n", TypesFileName)
 	}
@@ -75,7 +75,7 @@ func generateWshClientApiFile(tsTypeMap map[reflect.Type]string) error {
 	}
 	fmt.Fprintf(&buf, "}\n\n")
 	fmt.Fprintf(&buf, "export const RpcApi = new RpcApiType();\n")
-	written, err := utilfn.WriteFileIfDifferent(ClientApiFileName, buf.Bytes())
+	written, err := utilfn.WriteFileIfDifferent(ClientApiFileName, buf.Bytes(), 0644)
 	if !written {
 		fmt.Fprintf(os.Stderr, "no changes to %s\n", ClientApiFileName)
 	}
