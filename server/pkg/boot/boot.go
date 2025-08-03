@@ -45,12 +45,24 @@ var (
 
 // CLIConfig holds configuration options passed from the command line
 type CLIConfig struct {
+	// Host overrides the default web server host if non-empty
+	Host string
 	// Port overrides the default web server port if non-zero
 	Port int
 	// CloseOnStdin indicates whether the server should shut down when stdin is closed
 	CloseOnStdin bool
 	// TrayAppPid is the PID of the tray application that started the server (0 if not from tray)
 	TrayAppPid int
+}
+
+// getWebServerHost determines the listen host for the web server
+func getWebServerHost(config CLIConfig) string {
+	// Determine web server host for listening
+	listenHost := serverbase.GetWebServerHost()
+	if config.Host != "" {
+		listenHost = config.Host
+	}
+	return listenHost
 }
 
 // getWebServerPorts determines the listen and advertise ports for the web server
@@ -183,11 +195,12 @@ func RunServer(config CLIConfig) error {
 	// Initialize update checker
 	updatecheck.StartUpdateChecker(config.TrayAppPid)
 
-	// Determine web server ports
+	// Determine web server host and ports
+	listenHost := getWebServerHost(config)
 	listenPort, advertisePort := getWebServerPorts(config)
 
 	// Create connection multiplexer
-	multiplexerAddr := "127.0.0.1:" + strconv.Itoa(listenPort)
+	multiplexerAddr := listenHost + ":" + strconv.Itoa(listenPort)
 	listeners, err := MakeMultiplexerListener(ctx, multiplexerAddr)
 	if err != nil {
 		return fmt.Errorf("error creating connection multiplexer: %w", err)

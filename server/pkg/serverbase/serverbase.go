@@ -39,6 +39,12 @@ const OutrigDevEnvName = "OUTRIG_DEV"
 const OutrigTEventsFile = "tevents.jsonl"
 const AppcastURL = "https://updates.outrig.run/appcast.xml"
 
+// Default production host for server
+const ProdWebServerHost = "0.0.0.0"
+
+// Development host for server
+const DevWebServerHost = "127.0.0.1"
+
 // Default production port for server
 const ProdWebServerPort = 5005
 
@@ -65,6 +71,14 @@ func GetOutrigHome() string {
 // GetDomainSocketName returns the full domain socket path
 func GetDomainSocketName() string {
 	return GetOutrigHome() + config.DefaultDomainSocketName
+}
+
+// GetWebServerHost returns the appropriate web server host based on mode
+func GetWebServerHost() string {
+	if IsDev() {
+		return DevWebServerHost
+	}
+	return ProdWebServerHost
 }
 
 // GetWebServerPort returns the appropriate web server port based on mode

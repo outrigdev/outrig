@@ -180,12 +180,14 @@ func main() {
 			}
 
 			// Get the flag values
+			host, _ := cmd.Flags().GetString("host")
 			port, _ := cmd.Flags().GetInt("port")
 			closeOnStdin, _ := cmd.Flags().GetBool("close-on-stdin")
 			trayPid, _ := cmd.Flags().GetInt("tray-pid")
 
 			// Create CLI config
 			cfg := boot.CLIConfig{
+				Host:         host,
 				Port:         port,
 				CloseOnStdin: closeOnStdin,
 				TrayAppPid:   trayPid,
@@ -197,6 +199,7 @@ func main() {
 	// Add flags to monitor command
 	monitorCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
 	monitorCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
+	monitorCmd.Flags().String("host", "", "Override the default web server port (default: 0.0.0.0 for production, 127.0.0.1 for development)")
 	monitorCmd.Flags().Int("port", 0, "Override the default web server port (default: 5005 for production, 6005 for development)")
 	monitorCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
 	monitorCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
