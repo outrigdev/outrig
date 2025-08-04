@@ -183,9 +183,10 @@ export const LeftNavAppRunList: React.FC = () => {
             const aMostRecentRun = groups[a][0];
             const bMostRecentRun = groups[b][0];
 
-            // Compare by most recent run time (using the max of start time and last mod time)
-            const aLatestTime = Math.max(aMostRecentRun.starttime, aMostRecentRun.lastmodtime);
-            const bLatestTime = Math.max(bMostRecentRun.starttime, bMostRecentRun.lastmodtime);
+            // Compare by most recent run time
+            // For running apps, use start time; for non-running apps, use last mod time
+            const aLatestTime = aMostRecentRun.status === "running" ? aMostRecentRun.starttime : aMostRecentRun.lastmodtime;
+            const bLatestTime = bMostRecentRun.status === "running" ? bMostRecentRun.starttime : bMostRecentRun.lastmodtime;
 
             // Sort by most recent first
             if (aLatestTime > bLatestTime) return -1;
