@@ -40,7 +40,7 @@ const OutrigTEventsFile = "tevents.jsonl"
 const AppcastURL = "https://updates.outrig.run/appcast.xml"
 
 // Default host for monitor
-const WebServerHost = "127.0.0.1"
+const WebServerHost = "localhost"
 
 // Default production port for monitor
 const ProdWebServerPort = 5005
