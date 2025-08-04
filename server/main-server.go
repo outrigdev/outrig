@@ -6,8 +6,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/outrigdev/outrig/pkg/config"
@@ -180,13 +182,25 @@ func main() {
 			}
 
 			// Get the flag values
-			port, _ := cmd.Flags().GetInt("port")
+			listenAddr, _ := cmd.Flags().GetString("listen")
 			closeOnStdin, _ := cmd.Flags().GetBool("close-on-stdin")
 			trayPid, _ := cmd.Flags().GetInt("tray-pid")
 
+			// Validate listen address if provided
+			if listenAddr != "" {
+				_, portStr, err := net.SplitHostPort(listenAddr)
+				if err != nil {
+					return fmt.Errorf("invalid listen address '%s': %w", listenAddr, err)
+				}
+				_, err = strconv.Atoi(portStr)
+				if err != nil {
+					return fmt.Errorf("invalid port in listen address '%s': %w", listenAddr, err)
+				}
+			}
+
 			// Create CLI config
 			cfg := boot.CLIConfig{
-				Port:         port,
+				ListenAddr:   listenAddr,
 				CloseOnStdin: closeOnStdin,
 				TrayAppPid:   trayPid,
 			}
@@ -197,7 +211,7 @@ func main() {
 	// Add flags to monitor command
 	monitorCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
 	monitorCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
-	monitorCmd.Flags().Int("port", 0, "Override the default web server port (default: 5005 for production, 6005 for development)")
+	monitorCmd.Flags().String("listen", "", "Override the default web server listen address (default: 127.0.0.1:5005)")
 	monitorCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
 	monitorCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
 	// Hide this flag since it's only used internally by the tray application

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -45,29 +46,52 @@ var (
 
 // CLIConfig holds configuration options passed from the command line
 type CLIConfig struct {
-	// Port overrides the default web server port if non-zero
-	Port int
+	// ListenAddr overrides the default web server listen address
+	ListenAddr string
 	// CloseOnStdin indicates whether the server should shut down when stdin is closed
 	CloseOnStdin bool
 	// TrayAppPid is the PID of the tray application that started the server (0 if not from tray)
 	TrayAppPid int
 }
 
-// getWebServerPorts determines the listen and advertise ports for the web server
-func getWebServerPorts(config CLIConfig) (int, int) {
-	// Determine web server port for listening
-	listenPort := serverbase.GetWebServerPort()
-	if config.Port > 0 {
-		listenPort = config.Port
+// parseListenAddr parses a listen address string into host and port
+func parseListenAddr(addr string) (string, int, error) {
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid listen address format: %w", err)
 	}
+	
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid port number: %w", err)
+	}
+	
+	return host, port, nil
+}
 
-	// Determine the port to advertise to SDK clients
+// getWebServerAddr determines the listen address for the web server
+func getWebServerAddr(config CLIConfig) (string, int) {
+	// Use override if provided
+	if config.ListenAddr != "" {
+		host, port, err := parseListenAddr(config.ListenAddr)
+		if err != nil {
+			log.Printf("Invalid listen address '%s', using default: %v", config.ListenAddr, err)
+		} else {
+			return host, port
+		}
+	}
+	
+	// Use serverbase defaults
+	return serverbase.GetWebServerHost(), serverbase.GetWebServerPort()
+}
+
+// getAdvertisePort determines the port to advertise to SDK clients
+func getAdvertisePort(listenPort int) int {
 	advertisePort := listenPort
 	if serverbase.IsDev() {
 		advertisePort = 5173 // override to the vite port for SDK clients
 	}
-
-	return listenPort, advertisePort
+	return advertisePort
 }
 
 // RunServer initializes and runs the Outrig server
@@ -183,11 +207,12 @@ func RunServer(config CLIConfig) error {
 	// Initialize update checker
 	updatecheck.StartUpdateChecker(config.TrayAppPid)
 
-	// Determine web server ports
-	listenPort, advertisePort := getWebServerPorts(config)
+	// Determine web server host and ports
+	listenHost, listenPort := getWebServerAddr(config)
+	advertisePort := getAdvertisePort(listenPort)
 
 	// Create connection multiplexer
-	multiplexerAddr := "127.0.0.1:" + strconv.Itoa(listenPort)
+	multiplexerAddr := listenHost + ":" + strconv.Itoa(listenPort)
 	listeners, err := MakeMultiplexerListener(ctx, multiplexerAddr)
 	if err != nil {
 		return fmt.Errorf("error creating connection multiplexer: %w", err)
