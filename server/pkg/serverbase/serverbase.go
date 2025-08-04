@@ -39,16 +39,13 @@ const OutrigDevEnvName = "OUTRIG_DEV"
 const OutrigTEventsFile = "tevents.jsonl"
 const AppcastURL = "https://updates.outrig.run/appcast.xml"
 
-// Default production host for server
-const ProdWebServerHost = "0.0.0.0"
+// Default host for monitor
+const WebServerHost = "127.0.0.1"
 
-// Development host for server
-const DevWebServerHost = "127.0.0.1"
-
-// Default production port for server
+// Default production port for monitor
 const ProdWebServerPort = 5005
 
-// Development port for server
+// Development port for monitor
 const DevWebServerPort = 6005
 
 type FDLock interface {
@@ -75,10 +72,7 @@ func GetDomainSocketName() string {
 
 // GetWebServerHost returns the appropriate web server host based on mode
 func GetWebServerHost() string {
-	if IsDev() {
-		return DevWebServerHost
-	}
-	return ProdWebServerHost
+	return WebServerHost
 }
 
 // GetWebServerPort returns the appropriate web server port based on mode
