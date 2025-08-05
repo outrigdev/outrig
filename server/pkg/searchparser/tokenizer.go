@@ -21,13 +21,14 @@ const (
 	TokenEOF        TokenType = "EOF"     // End of input
 
 	// Token types for simple characters (using the actual character)
-	TokenLParen TokenType = "(" // Left parenthesis
-	TokenRParen TokenType = ")" // Right parenthesis
-	TokenPipe   TokenType = "|" // Pipe character
-	TokenMinus  TokenType = "-" // Minus sign
-	TokenDollar TokenType = "$" // Dollar sign
-	TokenTilde  TokenType = "~" // Tilde
-	TokenHash   TokenType = "#" // Hash
+	TokenLParen  TokenType = "(" // Left parenthesis
+	TokenRParen  TokenType = ")" // Right parenthesis
+	TokenPipe    TokenType = "|" // Pipe character
+	TokenMinus   TokenType = "-" // Minus sign
+	TokenDollar  TokenType = "$" // Dollar sign
+	TokenTilde   TokenType = "~" // Tilde
+	TokenHash    TokenType = "#" // Hash
+	TokenPercent TokenType = "%" // Percent sign
 )
 
 // Token represents a token in the search expression
@@ -120,6 +121,9 @@ func (t *Tokenizer) NextToken() Token {
 		t.readChar()
 	case t.ch == '#':
 		tok = Token{Type: "#", Value: "#", Position: Position{Start: startPos, End: t.position + 1}}
+		t.readChar()
+	case t.ch == '%':
+		tok = Token{Type: "%", Value: "%", Position: Position{Start: startPos, End: t.position + 1}}
 		t.readChar()
 	case t.ch == '"':
 		value, incomplete := t.readDoubleQuotedString()
