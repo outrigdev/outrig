@@ -170,7 +170,7 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	effectiveTimestamp := result.EffectiveTimestamp
 
 	// Create user searcher based on search term and get any error spans
-	userSearcher, errorSpans, err := gensearch.GetSearcherWithErrors(data.SearchTerm)
+	userSearcher, errorSpans, _, err := gensearch.GetSearcherWithErrors(data.SearchTerm)
 	if err != nil {
 		return rpctypes.GoRoutineSearchResultData{}, fmt.Errorf("invalid search term: %w", err)
 	}
@@ -194,12 +194,13 @@ func (*RpcServerImpl) GoRoutineSearchRequestCommand(ctx context.Context, data rp
 	}
 
 	// Perform the search
-	filteredGoRoutines, stats, err := gensearch.PerformSearch(
+	filteredGoRoutines, stats, _, err := gensearch.PerformSearch(
 		allGoRoutines,
 		totalCount,
 		gensearch.ParsedGoRoutineToSearchObject,
 		effectiveSearcher,
 		sctx,
+		nil,
 	)
 	if err != nil {
 		return rpctypes.GoRoutineSearchResultData{}, err
@@ -290,7 +291,7 @@ func (*RpcServerImpl) WatchSearchRequestCommand(ctx context.Context, data rpctyp
 	totalCount := len(allWatches)
 
 	// Create user searcher based on search term and get any error spans
-	userSearcher, errorSpans, err := gensearch.GetSearcherWithErrors(data.SearchTerm)
+	userSearcher, errorSpans, _, err := gensearch.GetSearcherWithErrors(data.SearchTerm)
 	if err != nil {
 		return rpctypes.WatchSearchResultData{}, fmt.Errorf("invalid search term: %w", err)
 	}
@@ -314,12 +315,13 @@ func (*RpcServerImpl) WatchSearchRequestCommand(ctx context.Context, data rpctyp
 	}
 
 	// Perform the search
-	filteredWatches, stats, err := gensearch.PerformSearch(
+	filteredWatches, stats, _, err := gensearch.PerformSearch(
 		allWatches,
 		totalCount,
 		combinedWatchSampleToSearchObject,
 		effectiveSearcher,
 		sctx,
+		nil,
 	)
 	if err != nil {
 		return rpctypes.WatchSearchResultData{}, err

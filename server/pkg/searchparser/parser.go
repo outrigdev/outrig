@@ -73,6 +73,24 @@ const (
 	ColorPurple = 5
 )
 
+// ColorToInt8 converts a color string to an int8 value using the defined color constants
+func ColorToInt8(color string) int8 {
+	switch color {
+	case "red":
+		return ColorRed
+	case "green":
+		return ColorGreen
+	case "blue":
+		return ColorBlue
+	case "yellow":
+		return ColorYellow
+	case "purple":
+		return ColorPurple
+	default:
+		return ColorNone
+	}
+}
+
 // --- Node Types & Constants ---
 
 const (

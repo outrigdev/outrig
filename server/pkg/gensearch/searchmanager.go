@@ -19,6 +19,7 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/rpc"
 	"github.com/outrigdev/outrig/server/pkg/rpcclient"
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
+	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
 
 const (
@@ -288,10 +289,11 @@ func (m *SearchManager) GetLastUsed() time.Time {
 // PerformSearch is a generic function that filters items based on search criteria
 // It takes a slice of items of any type T, a total count, a function to convert T to SearchObject,
 // a searcher, and a search context, and returns filtered items and search stats
-func PerformSearch[T any](allItems []T, totalCount int, toSearchObj func(T) SearchObject, searcher Searcher, sctx *SearchContext) ([]T, *SearchStats, error) {
+func PerformSearch[T any](allItems []T, totalCount int, toSearchObj func(T) SearchObject, searcher Searcher, sctx *SearchContext, colorFilters []ColorSearcher) ([]T, *SearchStats, map[int64]string, error) {
 	startTs := time.Now()
 	searchedCount := len(allItems)
 	result := []T{}
+	colorMap := make(map[int64]string)
 
 	// Filter the items based on the search criteria
 	for _, item := range allItems {
@@ -305,6 +307,17 @@ func PerformSearch[T any](allItems []T, totalCount int, toSearchObj func(T) Sear
 
 		if searcher.Match(sctx, searchObj) {
 			result = append(result, item)
+
+			// Apply color filters in reverse order (last color wins)
+			if len(colorFilters) > 0 {
+				for i := len(colorFilters) - 1; i >= 0; i-- {
+					colorFilter := colorFilters[i]
+					if colorFilter.Searcher.Match(sctx, searchObj) {
+						colorMap[searchObj.GetId()] = colorFilter.Color
+						break // First match wins (since we're going in reverse)
+					}
+				}
+			}
 		}
 	}
 
@@ -325,7 +338,7 @@ func PerformSearch[T any](allItems []T, totalCount int, toSearchObj func(T) Sear
 		SearchDuration: searchDuration,
 	}
 	log.Printf("SearchManager: filtered %d/%d items in %dms\n", len(result), searchedCount, searchDuration)
-	return result, stats, nil
+	return result, stats, colorMap, nil
 }
 
 // GetMarkManager returns the MarkManager for the given widget ID
@@ -358,7 +371,7 @@ func (m *SearchManager) GetMarkedLogLines() ([]ds.LogLine, error) {
 	// Get all log lines and total count from the LogLinePeer in a single synchronized call
 	// We don't need to hold the lock during the search since PerformSearch is a pure function
 	allLogs, totalCount := m.LogPeer.GetLogLines()
-	result, _, err := PerformSearch(allLogs, totalCount, LogLineToSearchObject, searcher, sctx)
+	result, _, _, err := PerformSearch(allLogs, totalCount, LogLineToSearchObject, searcher, sctx, nil)
 	return result, err
 }
 
@@ -371,7 +384,7 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string, stream
 	}
 
 	// Get user searcher and any error spans
-	userSearcher, errorSpans, err := GetSearcherWithErrors(searchTerm)
+	userSearcher, errorSpans, colorFilters, err := GetSearcherWithErrors(searchTerm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user searcher: %w", err)
 	}
@@ -401,7 +414,7 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string, stream
 		UserQuery:   userSearcher, // Set the user query searcher for #userquery references
 	}
 	allLogs, totalCount := m.LogPeer.GetLogLines()
-	result, stats, err := PerformSearch(allLogs, totalCount, LogLineToSearchObject, effectiveSearcher, sctx)
+	result, stats, colorMap, err := PerformSearch(allLogs, totalCount, LogLineToSearchObject, effectiveSearcher, sctx, colorFilters)
 	if err != nil {
 		m.UserQuery = uuid.New().String() // set to random value to prevent using cache
 		m.SystemQuery = ""                // Clear the cached system query
@@ -409,6 +422,13 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string, stream
 		m.SystemSearcher = nil
 		m.Stats = SearchStats{}
 		return errorSpans, err
+	}
+
+	// Apply colors to the log lines based on the color map
+	for i := range result {
+		if color, exists := colorMap[result[i].LineNum]; exists {
+			result[i].Color = searchparser.ColorToInt8(color)
+		}
 	}
 
 	m.CachedResult = result

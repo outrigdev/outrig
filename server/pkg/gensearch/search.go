@@ -70,22 +70,28 @@ func GetSearcher(searchTerm string) (Searcher, error) {
 }
 
 // GetSearcherWithErrors returns both a searcher and any error spans found in the search term
-func GetSearcherWithErrors(searchTerm string) (Searcher, []rpctypes.SearchErrorSpan, error) {
+func GetSearcherWithErrors(searchTerm string) (Searcher, []rpctypes.SearchErrorSpan, []ColorSearcher, error) {
 	p := searchparser.NewParser(searchTerm)
 	node := p.Parse()
 
 	// Extract error spans from the AST
 	errorSpans := ExtractErrorSpans(node)
 
+	// Extract color filters from the AST
+	colorFilters, err := ExtractColorFilters(node)
+	if err != nil {
+		return nil, errorSpans, nil, err
+	}
+
 	// Create a searcher from the AST
 	searcher, err := MakeSearcherFromNode(node)
 	if err != nil {
-		return nil, errorSpans, err
+		return nil, errorSpans, nil, err
 	}
 
 	if searcher == nil {
-		return MakeAllSearcher(), errorSpans, nil
+		return MakeAllSearcher(), errorSpans, colorFilters, nil
 	}
 
-	return searcher, errorSpans, nil
+	return searcher, errorSpans, colorFilters, nil
 }
