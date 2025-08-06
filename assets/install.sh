@@ -131,14 +131,21 @@ install_outrig() {
         error "Could not find outrig binary in the downloaded archive"
     fi
     
-    # Install to ~/.local/bin
-    INSTALL_DIR="$HOME/.local/bin"
+    # Check if install dir is specified via environment variable
+    if [ -n "$OUTRIG_INSTALLDIR" ]; then
+        info "Using specified install directory: $OUTRIG_INSTALLDIR"
+        INSTALL_DIR="$OUTRIG_INSTALLDIR"
+    else
+        INSTALL_DIR="$HOME/.local/bin"
+    fi
+
+    # Install to $INSTALL_DIR, defaulting to ~/.local/bin
     mkdir -p "$INSTALL_DIR"
     info "Installing to $INSTALL_DIR..."
     cp "$OUTRIG_BIN" "$INSTALL_DIR/outrig"
     chmod 755 "$INSTALL_DIR/outrig"
     
-    # Check if ~/.local/bin is in PATH using POSIX-compatible pattern matching
+    # Check if install dir is in PATH using POSIX-compatible pattern matching
     case ":$PATH:" in
         *":$INSTALL_DIR:"*) ;;
         *) info "Note: $INSTALL_DIR is not in your PATH. You may need to add it to use outrig." ;;
