@@ -70,3 +70,22 @@ export function sendClickEvent(clickType: string): void {
         console.error("Failed to send click event:", err);
     });
 }
+
+/**
+ * Send a frontend:homepage event when navigating to the homepage
+ */
+export function sendHomepageEvent(): void {
+    // Skip if RPC client is not initialized
+    if (!DefaultRpcClient) {
+        return;
+    }
+
+    const teventData: TEventFeData = {
+        event: "frontend:homepage",
+        props: {},
+    };
+    // Send the event to the backend
+    RpcApi.SendTEventFeCommand(DefaultRpcClient, teventData).catch((err: Error) => {
+        console.error("Failed to send homepage event:", err);
+    });
+}

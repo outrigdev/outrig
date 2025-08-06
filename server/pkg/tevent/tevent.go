@@ -56,6 +56,7 @@ var ValidEventNames = map[string]bool{
 	"frontend:click":            true,
 	"frontend:activity":         true,
 	"frontend:error":            true,
+	"frontend:homepage":         true,
 	"frontend:search:logs":      true,
 	"frontend:search:goroutine": true,
 	"frontend:search:watch":     true,

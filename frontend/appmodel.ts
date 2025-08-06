@@ -6,7 +6,7 @@ import { Toast } from "@/elements/toast";
 import { emitter } from "@/events";
 import { DefaultRpcClient } from "@/init";
 import { RpcApi } from "@/rpc/rpcclientapi";
-import { sendTabEvent } from "@/tevent";
+import { sendHomepageEvent, sendTabEvent } from "@/tevent";
 import { isBlank } from "@/util/util";
 import { atom, Atom, getDefaultStore, PrimitiveAtom } from "jotai";
 
@@ -14,6 +14,9 @@ const AutoFollowStorageKey = "outrig:autoFollow";
 const ThemeLocalStorageKey = "outrig:theme";
 const LeftNavClosedStorageKey = "outrig:leftNavClosed";
 const SearchTipsViewedStorageKey = "outrig:searchtipsviewed";
+
+// Valid tab names
+const VALID_TABS: string[] = ["logs", "goroutines", "watches", "runtimestats"] as const;
 
 // Define URL state type
 interface UrlState {
@@ -106,27 +109,25 @@ class AppModel {
         const tabParam = params.get("tab");
         const appRunIdParam = params.get("appRunId");
 
-        // Set the selected tab if it's valid
-        if (tabParam && ["logs", "goroutines", "watches", "runtimestats"].includes(tabParam)) {
-            getDefaultStore().set(this.selectedTab, tabParam);
-
-            // Send tab event on initial load/refresh
-            // We use setTimeout to ensure this happens after RPC client is initialized
-            setTimeout(() => {
-                if (DefaultRpcClient) {
-                    sendTabEvent(tabParam);
-                }
-            }, 500);
-        }
-
         // Store the appRunId from URL to be set after we verify it exists
         if (appRunIdParam) {
             this._pendingAppRunId = appRunIdParam;
 
-            // Also store the tab we're on, so we can load the right data
-            if (tabParam === "logs" || tabParam === "goroutines") {
-                this._pendingTab = tabParam;
+            // Set the selected tab if it's valid (only matters when we have an appRunId)
+            if (tabParam && VALID_TABS.includes(tabParam)) {
+                getDefaultStore().set(this.selectedTab, tabParam);
+
+                // Send tab event on initial load/refresh
+                // We use setTimeout to ensure this happens after RPC client is initialized
+                setTimeout(() => {
+                    sendTabEvent(tabParam);
+                }, 500);
             }
+        } else {
+            // No appRunId parameter means we're on the homepage - send homepage event
+            setTimeout(() => {
+                sendHomepageEvent();
+            }, 500);
         }
     }
 
@@ -170,7 +171,6 @@ class AppModel {
 
     // Pending state from URL that needs to be verified
     private _pendingAppRunId: string | null = null;
-    private _pendingTab: string | null = null;
 
     async loadAppRuns() {
         // Let errors propagate to the caller
@@ -198,7 +198,6 @@ class AppModel {
 
             // Clear the pending state
             this._pendingAppRunId = null;
-            this._pendingTab = null;
         }
     }
 
@@ -260,6 +259,8 @@ class AppModel {
         getDefaultStore().set(this.selectedTab, "logs");
         // Use pushState to create a new history entry for navigating to the homepage
         this.updateUrl({ appRunId: null, tab: null }, true);
+        // Send homepage event
+        sendHomepageEvent();
     }
 
     selectLogsTab() {
@@ -483,7 +484,7 @@ class AppModel {
         }
 
         // Update the selected tab
-        if (tabParam && ["logs", "goroutines", "watches", "runtimestats"].includes(tabParam)) {
+        if (tabParam && VALID_TABS.includes(tabParam)) {
             // Only update if it's different from the current selection
             if (tabParam !== selectedTab) {
                 getDefaultStore().set(this.selectedTab, tabParam);
