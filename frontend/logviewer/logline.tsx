@@ -7,6 +7,7 @@ import { cn } from "@/util/util";
 import EmojiJS from "emoji-js";
 import { getDefaultStore, useAtomValue } from "jotai";
 import React, { useCallback, useMemo } from "react";
+import { getLogLineColorClass } from "./colors";
 import { LogViewerModel } from "./logviewer-model";
 
 // Initialize emoji parser
@@ -212,7 +213,10 @@ export const LogLineComponent = React.memo<LogLineComponentProps>(
                 onContextMenu={handleContextMenu}
                 className={cn(
                     "flex text-muted select-none pl-1 pr-2",
-                    isMarked ? "bg-accentbg/20" : "hover:bg-buttonhover"
+                    getLogLineColorClass(line.color) ||
+                        (isMarked
+                            ? "bg-gray-400/20 hover:bg-gray-400/30"
+                            : "hover:bg-gray-800/10 dark:hover:bg-gray-200/10")
                 )}
             >
                 {formatMarkedLineNumber(
