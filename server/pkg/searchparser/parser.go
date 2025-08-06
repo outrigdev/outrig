@@ -62,6 +62,17 @@ var validColors = map[string]bool{
 	"purple": true,
 }
 
+// Color constants for log line coloring
+// NOTE: These constants must be kept in sync with frontend/logviewer/colors.ts
+const (
+	ColorNone   = 0
+	ColorRed    = 1
+	ColorGreen  = 2
+	ColorBlue   = 3
+	ColorYellow = 4
+	ColorPurple = 5
+)
+
 // --- Node Types & Constants ---
 
 const (

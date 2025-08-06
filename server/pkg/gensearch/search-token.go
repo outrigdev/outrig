@@ -4,9 +4,17 @@
 package gensearch
 
 import (
+	"sort"
+
 	"github.com/outrigdev/outrig/server/pkg/rpctypes"
 	"github.com/outrigdev/outrig/server/pkg/searchparser"
 )
+
+// ColorSearcher represents a color filter with its associated searcher
+type ColorSearcher struct {
+	Color    string
+	Searcher Searcher
+}
 
 // ExtractErrorSpans extracts all error nodes from the AST
 func ExtractErrorSpans(node *searchparser.Node) []rpctypes.SearchErrorSpan {
@@ -141,4 +149,74 @@ func createSearcherFromSearchNode(node *searchparser.Node) (Searcher, error) {
 		// Default to case-insensitive exact search
 		return MakeExactSearcher(node.Field, node.SearchTerm, false), nil
 	}
+}
+
+// colorFilterWithPosition holds a color filter and its position for sorting
+type colorFilterWithPosition struct {
+	ColorSearcher
+	Position int
+}
+
+// ExtractColorFilters extracts all color filter nodes from the AST and returns them ordered by position
+func ExtractColorFilters(node *searchparser.Node) ([]ColorSearcher, error) {
+	if node == nil {
+		return nil, nil
+	}
+
+	var colorFiltersWithPos []colorFilterWithPosition
+
+	err := extractColorFiltersRecursive(node, &colorFiltersWithPos)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort by position
+	sort.Slice(colorFiltersWithPos, func(i, j int) bool {
+		return colorFiltersWithPos[i].Position < colorFiltersWithPos[j].Position
+	})
+
+	// Extract just the ColorSearcher structs
+	var result []ColorSearcher
+	for _, cf := range colorFiltersWithPos {
+		result = append(result, cf.ColorSearcher)
+	}
+
+	return result, nil
+}
+
+// extractColorFiltersRecursive recursively extracts color filters from the AST
+func extractColorFiltersRecursive(node *searchparser.Node, colorFilters *[]colorFilterWithPosition) error {
+	if node == nil {
+		return nil
+	}
+
+	// Check if this node is a color filter node
+	if node.Type == searchparser.NodeTypeSearch && node.SearchType == SearchTypeColorFilter {
+		// Create searcher from the first child (the inner expression)
+		if len(node.Children) > 0 {
+			searcher, err := MakeSearcherFromNode(node.Children[0])
+			if err != nil {
+				return err
+			}
+			if searcher != nil {
+				*colorFilters = append(*colorFilters, colorFilterWithPosition{
+					ColorSearcher: ColorSearcher{
+						Color:    node.Color,
+						Searcher: searcher,
+					},
+					Position: node.Position.Start,
+				})
+			}
+		}
+	}
+
+	// Recursively check children
+	for _, child := range node.Children {
+		err := extractColorFiltersRecursive(child, colorFilters)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
