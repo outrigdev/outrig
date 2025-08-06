@@ -80,6 +80,8 @@ type SearchManager struct {
 	SystemQuery    string   // System-generated query that may reference UserQuery
 	SystemSearcher Searcher // Searcher for the system query
 
+	ColorFilters []ColorSearcher // Color filters for search result colorization
+
 	CachedResult []ds.LogLine // Filtered log lines matching the search criteria
 	Stats        SearchStats  // Statistics about the search operation
 	TrimmedCount int          // Number of lines trimmed from the filtered logs
@@ -145,6 +147,19 @@ func (m *SearchManager) ProcessNewLine(line ds.LogLine) {
 	if !effectiveSearcher.Match(sctx, searchObj) {
 		return
 	}
+
+	// Apply colorization to the line if color filters are available
+	if len(m.ColorFilters) > 0 {
+		// Check color filters in reverse order (last match wins)
+		for i := len(m.ColorFilters) - 1; i >= 0; i-- {
+			colorFilter := m.ColorFilters[i]
+			if colorFilter.Searcher.Match(sctx, searchObj) {
+				line.Color = searchparser.ColorToInt8(colorFilter.Color)
+				break // First match wins (since we're going in reverse)
+			}
+		}
+	}
+
 	m.CachedResult = append(m.CachedResult, line)
 	if len(m.CachedResult) > LogLineBufferSize+TrimSize {
 		m.TrimmedCount += TrimSize
@@ -408,6 +423,7 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string, stream
 	m.UserQuery = searchTerm
 	m.SystemQuery = systemQuery
 	m.Streaming = streaming
+	m.ColorFilters = colorFilters
 
 	sctx := &SearchContext{
 		MarkedLines: m.MarkManager.GetMarkedIds(),
@@ -420,6 +436,7 @@ func (m *SearchManager) maybeRunNewSearch(searchTerm, systemQuery string, stream
 		m.SystemQuery = ""                // Clear the cached system query
 		m.UserSearcher = nil              // Clear the cached searchers on error
 		m.SystemSearcher = nil
+		m.ColorFilters = nil              // Clear the cached color filters on error
 		m.Stats = SearchStats{}
 		return errorSpans, err
 	}
