@@ -135,6 +135,8 @@ func createSearcherFromSearchNode(node *searchparser.Node) (Searcher, error) {
 		return MakeTagSearcher(node.Field, node.SearchTerm), nil
 	case SearchTypeNumeric:
 		return MakeNumericSearcher(node.Field, node.SearchTerm, node.Op)
+	case SearchTypeColorFilter:
+		return MakeColorFilterSearcher(), nil
 	default:
 		// Default to case-insensitive exact search
 		return MakeExactSearcher(node.Field, node.SearchTerm, false), nil

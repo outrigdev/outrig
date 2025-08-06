@@ -10,17 +10,18 @@ import (
 
 // Re-export search type constants from searchparser package
 const (
-	SearchTypeExact      = searchparser.SearchTypeExact
-	SearchTypeExactCase  = searchparser.SearchTypeExactCase
-	SearchTypeRegexp     = searchparser.SearchTypeRegexp
-	SearchTypeRegexpCase = searchparser.SearchTypeRegexpCase
-	SearchTypeFzf        = searchparser.SearchTypeFzf
-	SearchTypeFzfCase    = searchparser.SearchTypeFzfCase
-	SearchTypeNot        = searchparser.SearchTypeNot
-	SearchTypeTag        = searchparser.SearchTypeTag
-	SearchTypeUserQuery  = searchparser.SearchTypeUserQuery
-	SearchTypeMarked     = searchparser.SearchTypeMarked
-	SearchTypeNumeric    = searchparser.SearchTypeNumeric
+	SearchTypeExact       = searchparser.SearchTypeExact
+	SearchTypeExactCase   = searchparser.SearchTypeExactCase
+	SearchTypeRegexp      = searchparser.SearchTypeRegexp
+	SearchTypeRegexpCase  = searchparser.SearchTypeRegexpCase
+	SearchTypeFzf         = searchparser.SearchTypeFzf
+	SearchTypeFzfCase     = searchparser.SearchTypeFzfCase
+	SearchTypeNot         = searchparser.SearchTypeNot
+	SearchTypeTag         = searchparser.SearchTypeTag
+	SearchTypeUserQuery   = searchparser.SearchTypeUserQuery
+	SearchTypeMarked      = searchparser.SearchTypeMarked
+	SearchTypeNumeric     = searchparser.SearchTypeNumeric
+	SearchTypeColorFilter = searchparser.SearchTypeColorFilter
 
 	// Additional constants not in searchparser
 	SearchTypeAnd = "and"
