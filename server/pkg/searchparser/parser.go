@@ -7,9 +7,10 @@
 // or_expr          = and_expr { WS? "|" WS? and_expr } ;
 // and_expr         = group { WS group } ;
 // group            = "(" WS? or_expr WS? ")" | token
-// token            = not_token | field_token | unmodified_token ;
+// token            = not_token | field_token | colorfilter_token | unmodified_token ;
 // not_token        = "-" field_token | "-" unmodified_token ;
 // field_token      = "$" WORD | "$" WORD unmodified_token ;
+// colorfilter_token = "%" WORD "(" WS? or_expr WS? ")" ;
 // unmodified_token = fuzzy_token | regexp_token | tag_token | simple_token ;
 // fuzzy_token      = "~" simple_token ;
 // regexp_token     = REGEXP | CREGEXP;
@@ -26,6 +27,11 @@
 // - A literal "-" at the start of a token must be quoted: "-hello" searches for "-hello" literally
 // - Numeric field search supports operators: >, <, >=, <= (e.g., $goid:>500, $goid:<=200)
 // Once parsing a WORD the only characters that break a WORD are whitespace, "|", "(", ")", "\"", "'", and EOF
+//
+// Debugging:
+// To debug parser behavior and see tokenization/parse tree output, use the parsetest tool:
+//   go run ./server/cmd/parsetest "your search query here"
+// This will show both the tokenization and the resulting AST structure with positions.
 
 package searchparser
 
@@ -47,6 +53,44 @@ var numericOperatorRegex = regexp.MustCompile(`^([><]=?)(.*)$`)
 // Uses SimpleTagRegexStr from utilfn/util.go for consistency
 var TagRegexp = regexp.MustCompile(`^` + utilfn.SimpleTagRegexStr + `$`)
 
+// validColors defines the allowed color names for color filters
+var validColors = map[string]bool{
+	"red":    true,
+	"green":  true,
+	"blue":   true,
+	"yellow": true,
+	"purple": true,
+}
+
+// Color constants for log line coloring
+// NOTE: These constants must be kept in sync with frontend/logviewer/colors.ts
+const (
+	ColorNone   = 0
+	ColorRed    = 1
+	ColorGreen  = 2
+	ColorBlue   = 3
+	ColorYellow = 4
+	ColorPurple = 5
+)
+
+// ColorToInt8 converts a color string to an int8 value using the defined color constants
+func ColorToInt8(color string) int8 {
+	switch color {
+	case "red":
+		return ColorRed
+	case "green":
+		return ColorGreen
+	case "blue":
+		return ColorBlue
+	case "yellow":
+		return ColorYellow
+	case "purple":
+		return ColorPurple
+	default:
+		return ColorNone
+	}
+}
+
 // --- Node Types & Constants ---
 
 const (
@@ -57,17 +101,18 @@ const (
 )
 
 const (
-	SearchTypeExact      = "exact"
-	SearchTypeExactCase  = "exactcase"
-	SearchTypeRegexp     = "regexp"
-	SearchTypeRegexpCase = "regexpcase"
-	SearchTypeFzf        = "fzf"
-	SearchTypeFzfCase    = "fzfcase"
-	SearchTypeNot        = "not"
-	SearchTypeTag        = "tag"
-	SearchTypeUserQuery  = "userquery"
-	SearchTypeMarked     = "marked"
-	SearchTypeNumeric    = "numeric"
+	SearchTypeExact       = "exact"
+	SearchTypeExactCase   = "exactcase"
+	SearchTypeRegexp      = "regexp"
+	SearchTypeRegexpCase  = "regexpcase"
+	SearchTypeFzf         = "fzf"
+	SearchTypeFzfCase     = "fzfcase"
+	SearchTypeNot         = "not"
+	SearchTypeTag         = "tag"
+	SearchTypeUserQuery   = "userquery"
+	SearchTypeMarked      = "marked"
+	SearchTypeNumeric     = "numeric"
+	SearchTypeColorFilter = "colorfilter"
 )
 
 // --- AST Node Definition ---
@@ -85,6 +130,7 @@ type Node struct {
 	SearchTerm   string   // The actual search text (only for search nodes)
 	Field        string   // Optional field specifier (only for search nodes)
 	Op           string   // Optional operator for numeric searches (>, <, >=, <=)
+	Color        string   // Color for colorfilter tokens (only for colorfilter nodes)
 	IsNot        bool     // Set to true if preceded by '-' (for not tokens)
 	ErrorMessage string   // For error nodes, a simple error message
 }
@@ -108,6 +154,9 @@ func (n *Node) PrettyPrint(indent string, originalQuery string) string {
 		}
 		if n.Op != "" {
 			sb.WriteString(fmt.Sprintf(" op:%q", n.Op))
+		}
+		if n.Color != "" {
+			sb.WriteString(fmt.Sprintf(" color:%q", n.Color))
 		}
 		if n.IsNot {
 			sb.WriteString(" not:true")
@@ -486,7 +535,7 @@ func (p *Parser) parseTokenWithErrorSync() *Node {
 }
 
 // parseToken parses a token according to the grammar:
-// token = not_token | field_token | unmodified_token
+// token = not_token | field_token | colorfilter_token | unmodified_token
 func (p *Parser) parseToken() (*Node, error) {
 	// Check for "-" to parse a not token
 	if p.current().Type == TokenMinus {
@@ -496,6 +545,11 @@ func (p *Parser) parseToken() (*Node, error) {
 	// Check for "$" to parse a field token
 	if p.current().Type == TokenDollar {
 		return p.parseFieldToken()
+	}
+
+	// Check for "%" to parse a colorfilter token
+	if p.current().Type == TokenPercent {
+		return p.parseColorFilterToken()
 	}
 
 	// Otherwise, parse an unmodified token directly
@@ -832,4 +886,73 @@ func (p *Parser) parseSimpleToken() (*Node, error) {
 	default:
 		return nil, nil // Not a simple token, no error
 	}
+}
+
+// parseColorFilterToken parses a colorfilter token according to the grammar:
+// colorfilter_token = "%" WORD "(" WS? or_expr WS? ")"
+func (p *Parser) parseColorFilterToken() (*Node, error) {
+	startPos := p.getCurrentStartPos()
+
+	// Consume the "%" token (we already checked it exists in parseToken)
+	_, hasPercent := p.consumeToken(TokenPercent)
+	if !hasPercent {
+		return nil, fmt.Errorf("expected '%%' token")
+	}
+
+	// Must be followed by a WORD (color name)
+	colorToken, hasColor := p.consumeToken(TokenWord)
+	if !hasColor {
+		return nil, fmt.Errorf("'%%' must be followed by a color name")
+	}
+
+	// Validate the color name
+	if !validColors[colorToken.Value] {
+		return nil, fmt.Errorf("invalid color '%s': must be one of red, green, blue, yellow, purple", colorToken.Value)
+	}
+
+	// Expect opening parenthesis
+	_, hasLParen := p.consumeToken(TokenLParen)
+	if !hasLParen {
+		return nil, fmt.Errorf("color filter must be followed by '('")
+	}
+
+	// Skip optional whitespace
+	p.skipOptionalWhitespace()
+
+	// Parse the or_expr inside the parentheses
+	innerNode := p.parseOrExpr()
+
+	// Skip optional whitespace
+	p.skipOptionalWhitespace()
+
+	var cfNode *Node
+	if innerNode == nil {
+		cfNode = makeErrorNode(Position{Start: startPos, End: 0}, "colorfilter must not be empty, must include at least one search term")
+	} else {
+		cfNode = &Node{
+			Type:       NodeTypeSearch,
+			Position:   Position{Start: startPos, End: 0}, // end needs to be set
+			SearchType: SearchTypeColorFilter,
+			Color:      colorToken.Value,
+			Children:   []*Node{innerNode},
+		}
+	}
+
+	// Expect closing parenthesis
+	rparenToken, hasRParen := p.consumeToken(TokenRParen)
+	if !hasRParen {
+		// If we're at EOF, treat it as if the parenthesis was closed (for typeahead search)
+		if p.atEOF() {
+			// Just return the colorfilter node without an error, as if the parenthesis was closed
+			cfNode.Position.End = p.current().Position.Start
+			return cfNode, nil
+		}
+
+		// Not at EOF, so this is an error - missing closing parenthesis
+		return nil, fmt.Errorf("color filter must end with ')'")
+	}
+
+	// Create a colorfilter node that wraps the inner expression
+	cfNode.Position.End = rparenToken.Position.End
+	return cfNode, nil
 }

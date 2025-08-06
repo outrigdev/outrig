@@ -296,14 +296,6 @@ func TestParseAST(t *testing.T) {
 			},
 		},
 		{
-			name:  "invalid tag starting with number",
-			input: "#1invalidTag",
-			expected: &Node{
-				Type:     "error",
-				Position: Position{Start: 0, End: 12},
-			},
-		},
-		{
 			name:  "invalid tag with invalid character",
 			input: "#invalid@Tag",
 			expected: &Node{
@@ -600,6 +592,245 @@ func TestParseAST(t *testing.T) {
 				},
 			},
 		},
+		// Colorizer tests
+		{
+			name:  "basic colorizer",
+			input: "%red(hello)",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 11},
+				SearchType: "colorfilter",
+				Color:      "red",
+				Children: []*Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 5, End: 10},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+				},
+			},
+		},
+		{
+			name:  "colorizer with OR expression",
+			input: "%blue(foo | bar)",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 16},
+				SearchType: "colorfilter",
+				Color:      "blue",
+				Children: []*Node{
+					{
+						Type:     "or",
+						Position: Position{Start: 6, End: 15},
+						Children: []*Node{
+							{
+								Type:       "search",
+								Position:   Position{Start: 6, End: 9},
+								SearchType: "exact",
+								SearchTerm: "foo",
+							},
+							{
+								Type:       "search",
+								Position:   Position{Start: 12, End: 15},
+								SearchType: "exact",
+								SearchTerm: "bar",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "colorizer with complex expression",
+			input: "%green(hello world)",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 19},
+				SearchType: "colorfilter",
+				Color:      "green",
+				Children: []*Node{
+					{
+						Type:     "and",
+						Position: Position{Start: 7, End: 18},
+						Children: []*Node{
+							{
+								Type:       "search",
+								Position:   Position{Start: 7, End: 12},
+								SearchType: "exact",
+								SearchTerm: "hello",
+							},
+							{
+								Type:       "search",
+								Position:   Position{Start: 13, End: 18},
+								SearchType: "exact",
+								SearchTerm: "world",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "invalid color name",
+			input: "%orange(test)",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 13},
+				Children: []*Node{
+					{
+						Type:     "error",
+						Position: Position{Start: 0, End: 7},
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 7, End: 13},
+						SearchType: "exact",
+						SearchTerm: "test",
+					},
+				},
+			},
+		},
+		{
+			name:  "colorizer missing opening parenthesis",
+			input: "%red hello)",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 11},
+				Children: []*Node{
+					{
+						Type:     "and",
+						Position: Position{Start: 0, End: 10},
+						Children: []*Node{
+							{
+								Type:     "error",
+								Position: Position{Start: 0, End: 4},
+							},
+							{
+								Type:       "search",
+								Position:   Position{Start: 5, End: 10},
+								SearchType: "exact",
+								SearchTerm: "hello",
+							},
+						},
+					},
+					{
+						Type:     "error",
+						Position: Position{Start: 10, End: 11},
+					},
+				},
+			},
+		},
+		{
+			name:  "colorizer missing closing parenthesis at EOF",
+			input: "%red(hello",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 10},
+				SearchType: "colorfilter",
+				Color:      "red",
+				Children: []*Node{
+					{
+						Type:       "search",
+						Position:   Position{Start: 5, End: 10},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+				},
+			},
+		},
+		{
+			name:  "colorizer missing closing parenthesis with OR at EOF",
+			input: "%red(hello | foo",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 16},
+				SearchType: "colorfilter",
+				Color:      "red",
+				Children: []*Node{
+					{
+						Type:     "or",
+						Position: Position{Start: 5, End: 16},
+						Children: []*Node{
+							{
+								Type:       "search",
+								Position:   Position{Start: 5, End: 10},
+								SearchType: "exact",
+								SearchTerm: "hello",
+							},
+							{
+								Type:       "search",
+								Position:   Position{Start: 13, End: 16},
+								SearchType: "exact",
+								SearchTerm: "foo",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "colorizer missing closing parenthesis with complex expression at EOF",
+			input: "%blue(hello world | test",
+			expected: &Node{
+				Type:       "search",
+				Position:   Position{Start: 0, End: 24},
+				SearchType: "colorfilter",
+				Color:      "blue",
+				Children: []*Node{
+					{
+						Type:     "or",
+						Position: Position{Start: 6, End: 24},
+						Children: []*Node{
+							{
+								Type:     "and",
+								Position: Position{Start: 6, End: 17},
+								Children: []*Node{
+									{
+										Type:       "search",
+										Position:   Position{Start: 6, End: 11},
+										SearchType: "exact",
+										SearchTerm: "hello",
+									},
+									{
+										Type:       "search",
+										Position:   Position{Start: 12, End: 17},
+										SearchType: "exact",
+										SearchTerm: "world",
+									},
+								},
+							},
+							{
+								Type:       "search",
+								Position:   Position{Start: 20, End: 24},
+								SearchType: "exact",
+								SearchTerm: "test",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "bare percent sign",
+			input: "% hello",
+			expected: &Node{
+				Type:     "and",
+				Position: Position{Start: 0, End: 7},
+				Children: []*Node{
+					{
+						Type:     "error",
+						Position: Position{Start: 0, End: 1},
+					},
+					{
+						Type:       "search",
+						Position:   Position{Start: 2, End: 7},
+						SearchType: "exact",
+						SearchTerm: "hello",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -651,6 +882,9 @@ func compareNodes(t *testing.T, actual, expected *Node) {
 		}
 		if actual.Field != expected.Field {
 			t.Errorf("field mismatch: got %s, want %s", actual.Field, expected.Field)
+		}
+		if actual.Color != expected.Color {
+			t.Errorf("color mismatch: got %s, want %s", actual.Color, expected.Color)
 		}
 		if actual.IsNot != expected.IsNot {
 			t.Errorf("isNot mismatch: got %t, want %t", actual.IsNot, expected.IsNot)

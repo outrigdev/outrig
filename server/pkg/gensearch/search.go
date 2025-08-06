@@ -10,17 +10,18 @@ import (
 
 // Re-export search type constants from searchparser package
 const (
-	SearchTypeExact      = searchparser.SearchTypeExact
-	SearchTypeExactCase  = searchparser.SearchTypeExactCase
-	SearchTypeRegexp     = searchparser.SearchTypeRegexp
-	SearchTypeRegexpCase = searchparser.SearchTypeRegexpCase
-	SearchTypeFzf        = searchparser.SearchTypeFzf
-	SearchTypeFzfCase    = searchparser.SearchTypeFzfCase
-	SearchTypeNot        = searchparser.SearchTypeNot
-	SearchTypeTag        = searchparser.SearchTypeTag
-	SearchTypeUserQuery  = searchparser.SearchTypeUserQuery
-	SearchTypeMarked     = searchparser.SearchTypeMarked
-	SearchTypeNumeric    = searchparser.SearchTypeNumeric
+	SearchTypeExact       = searchparser.SearchTypeExact
+	SearchTypeExactCase   = searchparser.SearchTypeExactCase
+	SearchTypeRegexp      = searchparser.SearchTypeRegexp
+	SearchTypeRegexpCase  = searchparser.SearchTypeRegexpCase
+	SearchTypeFzf         = searchparser.SearchTypeFzf
+	SearchTypeFzfCase     = searchparser.SearchTypeFzfCase
+	SearchTypeNot         = searchparser.SearchTypeNot
+	SearchTypeTag         = searchparser.SearchTypeTag
+	SearchTypeUserQuery   = searchparser.SearchTypeUserQuery
+	SearchTypeMarked      = searchparser.SearchTypeMarked
+	SearchTypeNumeric     = searchparser.SearchTypeNumeric
+	SearchTypeColorFilter = searchparser.SearchTypeColorFilter
 
 	// Additional constants not in searchparser
 	SearchTypeAnd = "and"
@@ -69,22 +70,28 @@ func GetSearcher(searchTerm string) (Searcher, error) {
 }
 
 // GetSearcherWithErrors returns both a searcher and any error spans found in the search term
-func GetSearcherWithErrors(searchTerm string) (Searcher, []rpctypes.SearchErrorSpan, error) {
+func GetSearcherWithErrors(searchTerm string) (Searcher, []rpctypes.SearchErrorSpan, []ColorSearcher, error) {
 	p := searchparser.NewParser(searchTerm)
 	node := p.Parse()
 
 	// Extract error spans from the AST
 	errorSpans := ExtractErrorSpans(node)
 
+	// Extract color filters from the AST
+	colorFilters, err := ExtractColorFilters(node)
+	if err != nil {
+		return nil, errorSpans, nil, err
+	}
+
 	// Create a searcher from the AST
 	searcher, err := MakeSearcherFromNode(node)
 	if err != nil {
-		return nil, errorSpans, err
+		return nil, errorSpans, nil, err
 	}
 
 	if searcher == nil {
-		return MakeAllSearcher(), errorSpans, nil
+		return MakeAllSearcher(), errorSpans, colorFilters, nil
 	}
 
-	return searcher, errorSpans, nil
+	return searcher, errorSpans, colorFilters, nil
 }

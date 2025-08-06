@@ -184,6 +184,7 @@ declare global {
         ts: number;
         msg: string;
         source?: string;
+        color: number;
     };
 
     // rpctypes.LogWidgetAdminData

@@ -39,6 +39,7 @@ type LogLine struct {
 	Ts      int64  `json:"ts"`
 	Msg     string `json:"msg"`
 	Source  string `json:"source,omitempty"`
+	Color   int8   `json:"color"`
 }
 
 // MultiLogLines represents a collection of log lines to be processed together
