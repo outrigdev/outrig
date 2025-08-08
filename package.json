@@ -17,7 +17,7 @@
     "clsx": "^2.1.1",
     "emoji-js": "^3.8.1",
     "jotai": "^2.12.5",
-    "lucide-react": "^0.536.0",
+    "lucide-react": "^0.539.0",
     "mitt": "^3.0.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
