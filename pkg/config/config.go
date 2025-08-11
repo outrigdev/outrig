@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const OutrigSDKVersion = "v0.9.1-beta.0"
+const OutrigSDKVersion = "v0.9.1"
 
 // Environment variables
 const (
