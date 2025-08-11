@@ -33,6 +33,7 @@ type FullRpcInterface interface {
 	MessageCommand(ctx context.Context, data CommandMessageData) error
 
 	LogSearchRequestCommand(ctx context.Context, data SearchRequestData) (SearchResultData, error)
+	LogSearchRangeCommand(ctx context.Context, data LogSearchRangeRequest) (LogSearchRangeResultData, error)
 	LogWidgetAdminCommand(ctx context.Context, data LogWidgetAdminData) error
 	LogStreamUpdateCommand(ctx context.Context, data StreamUpdateData) error
 	LogUpdateMarkedLinesCommand(ctx context.Context, data MarkedLinesData) error
@@ -109,6 +110,16 @@ type SearchRequestData struct {
 	Streaming    bool   `json:"streaming"`
 }
 
+type LogSearchRangeRequest struct {
+	WidgetId    string `json:"widgetid"`
+	AppRunId    string `json:"apprunid"`
+	SearchTerm  string `json:"searchterm"`
+	SystemQuery string `json:"systemquery,omitempty"`
+	Offset      int    `json:"offset"`
+	Limit       int    `json:"limit"`
+	Streaming   bool   `json:"streaming"`
+}
+
 type PageData struct {
 	PageNum int          `json:"pagenum"`
 	Lines   []ds.LogLine `json:"lines"`
@@ -127,7 +138,16 @@ type SearchResultData struct {
 	TotalCount    int               `json:"totalcount"`
 	MaxCount      int               `json:"maxcount"`
 	Pages         []PageData        `json:"pages"`
-	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"` // Error spans in the search query
+	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"`
+}
+
+type LogSearchRangeResultData struct {
+	FilteredCount int               `json:"filteredcount"`
+	SearchedCount int               `json:"searchedcount"`
+	TotalCount    int               `json:"totalcount"`
+	MaxCount      int               `json:"maxcount"`
+	Lines         []ds.LogLine      `json:"lines"`
+	ErrorSpans    []SearchErrorSpan `json:"errorspans,omitempty"`
 }
 
 type StreamUpdateData struct {

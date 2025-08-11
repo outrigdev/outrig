@@ -518,6 +518,43 @@ func (m *SearchManager) SearchLogs(ctx context.Context, data rpctypes.SearchRequ
 	}, nil
 }
 
+// SearchLogsRange handles a range-based search request for logs
+func (m *SearchManager) SearchLogsRange(ctx context.Context, data rpctypes.LogSearchRangeRequest) (rpctypes.LogSearchRangeResultData, error) {
+	m.Lock.Lock()
+	defer m.Lock.Unlock()
+
+	m.LastUsed = time.Now()
+	m.RpcSource = rpc.GetRpcSourceFromContext(ctx)
+	errorSpans, err := m.maybeRunNewSearch(data.SearchTerm, data.SystemQuery, data.Streaming)
+	if err != nil {
+		return rpctypes.LogSearchRangeResultData{}, err
+	}
+
+	filteredSize := len(m.CachedResult)
+	
+	// Calculate start and end indices with bounds checking
+	startIndex := utilfn.BoundValue(data.Offset, 0, filteredSize)
+	endIndex := utilfn.BoundValue(startIndex+data.Limit, startIndex, filteredSize)
+	
+	// Extract the requested range of lines (will be empty slice if startIndex >= filteredSize)
+	var lines []ds.LogLine
+	if startIndex < filteredSize {
+		lines = make([]ds.LogLine, endIndex-startIndex)
+		copy(lines, m.CachedResult[startIndex:endIndex])
+	} else {
+		lines = []ds.LogLine{}
+	}
+
+	return rpctypes.LogSearchRangeResultData{
+		FilteredCount: filteredSize,
+		SearchedCount: m.Stats.SearchedCount,
+		TotalCount:    m.Stats.TotalCount,
+		MaxCount:      LogLineBufferSize,
+		Lines:         lines,
+		ErrorSpans:    errorSpans,
+	}, nil
+}
+
 // GetAllSearchManagerInfos returns a map of widget ID to SearchManagerInfo for all search managers
 func GetAllSearchManagerInfos() map[string]SearchManagerInfo {
 	keys := widgetManagers.Keys()

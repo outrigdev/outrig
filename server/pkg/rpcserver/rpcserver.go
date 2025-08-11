@@ -353,6 +353,13 @@ func (*RpcServerImpl) LogSearchRequestCommand(ctx context.Context, data rpctypes
 	return manager.SearchLogs(ctx, data)
 }
 
+// LogSearchRangeCommand handles range-based search requests for logs
+func (*RpcServerImpl) LogSearchRangeCommand(ctx context.Context, data rpctypes.LogSearchRangeRequest) (rpctypes.LogSearchRangeResultData, error) {
+	peer := apppeer.GetAppRunPeer(data.AppRunId, false)
+	manager := gensearch.GetOrCreateManager(data.WidgetId, data.AppRunId, peer.Logs)
+	return manager.SearchLogsRange(ctx, data)
+}
+
 // LogWidgetAdminCommand handles widget administration requests
 func (*RpcServerImpl) LogWidgetAdminCommand(ctx context.Context, data rpctypes.LogWidgetAdminData) error {
 	manager := gensearch.GetManager(data.WidgetId)
