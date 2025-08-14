@@ -4,9 +4,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -139,6 +144,91 @@ func getVersion() string {
 	}
 }
 
+func runMonitorStop(cmd *cobra.Command, args []string) error {
+	// Get flags
+	serverAddr, _ := cmd.Flags().GetString("addr")
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	
+	var host string
+	var port int
+	
+	if serverAddr != "" {
+		// Parse the provided server address
+		var err error
+		var portStr string
+		host, portStr, err = net.SplitHostPort(serverAddr)
+		if err != nil {
+			return fmt.Errorf("invalid server address '%s': %w", serverAddr, err)
+		}
+		port, err = strconv.Atoi(portStr)
+		if err != nil {
+			return fmt.Errorf("invalid port in server address '%s': %w", serverAddr, err)
+		}
+	} else {
+		// Use default values
+		host = serverbase.GetWebServerHost()
+		port = serverbase.GetWebServerPort()
+	}
+	
+	// Construct the shutdown URL using proper URL construction
+	baseURL := &url.URL{
+		Scheme: "http",
+		Host:   net.JoinHostPort(host, strconv.Itoa(port)),
+		Path:   "/api/shutdown",
+	}
+	shutdownURL := baseURL.String()
+	
+	// Create POST request
+	req, err := http.NewRequest("POST", shutdownURL, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return fmt.Errorf("failed to connect to server: %w", err)
+	}
+	
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	
+	// Make the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to connect to server: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+	
+	if resp.StatusCode == http.StatusOK {
+		// Success case
+		if verbose {
+			fmt.Printf("Response Status: %s\n", resp.Status)
+			// Try to parse as JSON for pretty printing
+			var jsonResponse map[string]interface{}
+			if err := json.Unmarshal(body, &jsonResponse); err == nil {
+				prettyJSON, _ := json.MarshalIndent(jsonResponse, "", "  ")
+				fmt.Printf("Response Body:\n%s\n", string(prettyJSON))
+			} else {
+				fmt.Printf("Response Body: %s\n", string(body))
+			}
+		} else {
+			fmt.Printf("Outrig server shutdown initiated\n")
+		}
+		return nil
+	} else {
+		// Error case - try to extract error message from JSON response
+		var jsonResponse map[string]interface{}
+		if err := json.Unmarshal(body, &jsonResponse); err == nil {
+			if errorMsg, ok := jsonResponse["error"].(string); ok {
+				return fmt.Errorf("server error: %s", errorMsg)
+			}
+		}
+		return fmt.Errorf("shutdown request failed with status: %s", resp.Status)
+	}
+}
+
 func main() {
 	// Set serverbase consts from main (which gets overridden by build tags)
 	serverbase.OutrigBuildTime = OutrigBuildTime
@@ -217,6 +307,19 @@ func main() {
 	monitorCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
 	// Hide this flag since it's only used internally by the tray application
 	monitorCmd.Flags().MarkHidden("tray-pid")
+
+	monitorStopCmd := &cobra.Command{
+		Use:   "stop",
+		Short: "Stop the running Outrig Monitor",
+		Long:  `Send a shutdown request to the running Outrig Monitor server.`,
+		RunE:  runMonitorStop,
+		SilenceUsage: true,
+	}
+	monitorStopCmd.Flags().String("addr", "", "Override the default server address to connect to (default: localhost:5005)")
+	monitorStopCmd.Flags().BoolP("verbose", "v", false, "Show detailed response information")
+	
+	// Add stop as a subcommand of monitor
+	monitorCmd.AddCommand(monitorStopCmd)
 
 	versionCmd := &cobra.Command{
 		Use:   "version",

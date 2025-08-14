@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -42,6 +43,11 @@ type WebFnType = func(http.ResponseWriter, *http.Request)
 type WebFnOpts struct {
 	AllowCaching bool
 	JsonErrors   bool
+}
+
+// WebConfig holds configuration for the web server
+type WebConfig struct {
+	ShutdownFn func()
 }
 
 // TrayAppRunInfo contains minimal app run information for the tray app
@@ -118,6 +124,73 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// validateOriginAndReferrer checks if the request origin and referrer are valid
+func validateOriginAndReferrer(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	referrer := r.Header.Get("Referer")
+	
+	// Allow requests with no origin/referrer (e.g., curl)
+	if origin == "" && referrer == "" {
+		return true
+	}
+	
+	// Get the host from the request
+	host := r.Host
+	if host == "" {
+		return false
+	}
+	
+	// Check origin if present
+	if origin != "" {
+		if !strings.HasPrefix(origin, "http://"+host) && !strings.HasPrefix(origin, "https://"+host) {
+			return false
+		}
+	}
+	
+	// Check referrer if present
+	if referrer != "" {
+		if !strings.HasPrefix(referrer, "http://"+host) && !strings.HasPrefix(referrer, "https://"+host) {
+			return false
+		}
+	}
+	
+	return true
+}
+
+// handleShutdown handles POST requests to shutdown the server
+func handleShutdown(config *WebConfig) WebFnType {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Only allow POST requests
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		
+		// Validate origin and referrer
+		if !validateOriginAndReferrer(r) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		
+		// Check if shutdown function is available
+		if config == nil || config.ShutdownFn == nil {
+			WriteJsonError(w, fmt.Errorf("shutdown not available"))
+			return
+		}
+		
+		// Send success response before shutting down
+		WriteJsonSuccess(w, map[string]interface{}{
+			"message": "shutdown initiated",
+		})
+		
+		// Initiate shutdown in a goroutine to allow response to be sent
+		go func() {
+			log.Printf("Shutdown requested via API")
+			config.ShutdownFn()
+		}()
+	}
+}
+
 func WebFnWrap(opts WebFnOpts, fn WebFnType) WebFnType {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -149,7 +222,7 @@ func MakeTCPListener(serviceName string, addr string) (net.Listener, error) {
 }
 
 // blocking
-func runWebServerInternal(ctx context.Context, listener net.Listener) {
+func runWebServerInternal(ctx context.Context, listener net.Listener, config *WebConfig) {
 	gr := mux.NewRouter()
 
 	// WebSocket endpoint - this will be handled separately to avoid the timeout handler
@@ -158,6 +231,7 @@ func runWebServerInternal(ctx context.Context, listener net.Listener) {
 	apiRouter := gr.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/health", WebFnWrap(WebFnOpts{AllowCaching: false, JsonErrors: true}, handleHealth))
 	apiRouter.HandleFunc("/status", WebFnWrap(WebFnOpts{AllowCaching: false, JsonErrors: true}, handleStatus))
+	apiRouter.HandleFunc("/shutdown", WebFnWrap(WebFnOpts{AllowCaching: false, JsonErrors: true}, handleShutdown(config)))
 
 	// Add more API endpoints here as needed
 
@@ -227,9 +301,9 @@ func runWebServerInternal(ctx context.Context, listener net.Listener) {
 }
 
 // RunWebServerWithListener runs the HTTP server using the provided listener
-func RunWebServerWithListener(ctx context.Context, httpListener net.Listener) {
+func RunWebServerWithListener(ctx context.Context, httpListener net.Listener, config *WebConfig) {
 	go func() {
 		outrig.SetGoRoutineName("web.wait")
-		runWebServerInternal(ctx, httpListener)
+		runWebServerInternal(ctx, httpListener, config)
 	}()
 }

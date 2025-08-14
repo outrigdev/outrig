@@ -219,8 +219,15 @@ func RunServer(config CLIConfig) error {
 	}
 	log.Printf("Outrig server running on http://%s\n", listeners.HTTPListener.Addr().String())
 
+	// Create web config with shutdown function
+	webConfig := &web.WebConfig{
+		ShutdownFn: func() {
+			gracefulShutdown(cancelFn, &wg)
+		},
+	}
+
 	// Run web server with HTTP listener from multiplexer
-	web.RunWebServerWithListener(ctx, listeners.HTTPListener)
+	web.RunWebServerWithListener(ctx, listeners.HTTPListener, webConfig)
 
 	// Run TCP accept loop for custom protocol connections
 	err = runTCPAcceptLoop(ctx, listeners.TCPListener, advertisePort)
