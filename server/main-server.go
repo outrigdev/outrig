@@ -24,10 +24,11 @@ import (
 )
 
 type specialArgs struct {
-	IsVerbose  bool
-	ConfigFile string
-	NoRun      bool
-	Args       []string
+	IsVerbose           bool
+	ConfigFile          string
+	NoRun               bool
+	NoMonitorAutostart  bool
+	Args                []string
 }
 
 func parseSpecialArgs(keyArg string) (specialArgs, error) {
@@ -253,10 +254,11 @@ Example:
 			}
 
 			cfg := runmode.RunModeConfig{
-				Args:       specialArgs.Args,
-				IsVerbose:  specialArgs.IsVerbose,
-				NoRun:      specialArgs.NoRun,
-				ConfigFile: specialArgs.ConfigFile,
+				Args:               specialArgs.Args,
+				IsVerbose:          specialArgs.IsVerbose,
+				NoRun:              specialArgs.NoRun,
+				NoMonitorAutostart: specialArgs.NoMonitorAutostart,
+				ConfigFile:         specialArgs.ConfigFile,
 			}
 			return runmode.ExecRunMode(cfg)
 		},
@@ -335,6 +337,8 @@ Example: outrig --dev exec ls -latrh`,
 	rootCmd.PersistentFlags().MarkHidden("verbose")
 	rootCmd.PersistentFlags().Bool("norun", false, "Stop 'run' mode after generating new source files")
 	rootCmd.PersistentFlags().MarkHidden("norun")
+	rootCmd.PersistentFlags().Bool("no-monitor-autostart", false, "Disable automatic monitor startup")
+	rootCmd.PersistentFlags().MarkHidden("no-monitor-autostart")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

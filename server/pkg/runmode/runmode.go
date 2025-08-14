@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/config"
@@ -20,6 +22,11 @@ import (
 	"github.com/outrigdev/outrig/server/pkg/runmode/gr"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
+)
+
+const (
+	MonitorStartupTimeout = 2 * time.Second
+	MonitorCheckInterval  = 100 * time.Millisecond
 )
 
 // RawCmdDef holds configuration for raw command execution
@@ -32,11 +39,12 @@ type RawCmdDef struct {
 
 // RunModeConfig holds configuration for ExecRunMode
 type RunModeConfig struct {
-	Args       []string
-	IsVerbose  bool
-	NoRun      bool
-	ConfigFile string
-	RawCmd     *RawCmdDef
+	Args               []string
+	IsVerbose          bool
+	NoRun              bool
+	NoMonitorAutostart bool
+	ConfigFile         string
+	RawCmd             *RawCmdDef
 }
 
 // findAndTransformMainFileWithReplacement finds the main file AST and adds replacements for outrig import and main function modification
@@ -677,32 +685,163 @@ func setupBuildConfiguration(cfg RunModeConfig) (RunModeConfig, astutil.BuildArg
 	return cfg, buildArgs, nil
 }
 
-// checkMonitorVersion verifies that the outrig monitor is running and compatible
-func checkMonitorVersion(cfg RunModeConfig) error {
-	var monitorConfig *config.Config
-
-	if cfg.RawCmd != nil {
-		monitorConfig = &cfg.RawCmd.Cfg
-	} else {
-		// For non-RawCmd cases, use default config for now
-		monitorConfig = config.DefaultConfig()
+// isMonitorLocal determines if the monitor is running locally based on config and environment
+func isMonitorLocal(monitorConfig *config.Config) bool {
+	// If we're in a docker container, monitor is not local
+	if utilfn.InDockerEnv() {
+		return false
 	}
+
+	// Get the connect addresses that would be used
+	connectAddrs := comm.MakeConnectAddrs(monitorConfig)
+
+	// Domain sockets are always local, but we skip them for this check
+	// since the task says "we toss that one"
+	for _, addr := range connectAddrs {
+		if addr.Network == "tcp" {
+			return addr.IsLocal()
+		}
+	}
+
+	// If no TCP addresses found, default to false
+	return false
+}
+
+// startMonitorProcess starts the monitor process in a daemonized way with logging
+func startMonitorProcess(cfg RunModeConfig) error {
+	// Get our own executable path
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	cmd := exec.Command(executable, "monitor")
+
+	// If we're in dev mode, add OUTRIG_DEV=1 environment variable
+	if config.UseDevConfig() {
+		cmd.Env = append(os.Environ(), "OUTRIG_DEV=1")
+	}
+
+	// Verbose logging of the command we're about to run
+	if cfg.IsVerbose {
+		envStr := ""
+		if config.UseDevConfig() {
+			envStr = " (with OUTRIG_DEV=1)"
+		}
+		log.Printf("Starting monitor with command: %s monitor%s", executable, envStr)
+	}
+
+	// Redirect output to log file (similar to macOS app pattern)
+	logPath := filepath.Join(os.TempDir(), "outrig-monitor.log")
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		if cfg.IsVerbose {
+			log.Printf("Warning: failed to open monitor log file: %v", err)
+		}
+		// Fall back to discarding output
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+	} else {
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
+		if cfg.IsVerbose {
+			log.Printf("Monitor output will be logged to: %s", logPath)
+		}
+	}
+
+	// Use process group detachment for daemonization
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true, // Create new process group
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		if logFile != nil {
+			logFile.Close()
+		}
+		return fmt.Errorf("failed to start monitor: %w", err)
+	}
+
+	// Don't wait for the process - let it run independently
+	go func() {
+		cmd.Wait() // Clean up zombie process
+		if logFile != nil {
+			logFile.Close()
+		}
+	}()
+
+	return nil
+}
+
+// AutostartMonitor attempts to start the monitor locally and waits for it to be ready
+func AutostartMonitor(cfg RunModeConfig, buildArgs astutil.BuildArgs) error {
+	monitorConfig := getOutrigConfig(cfg, buildArgs)
+
+	if !monitorConfig.Quiet {
+		fmt.Printf("#outrig Local outrig monitor not detected, attempting to autostart (suppress with --no-monitor-autostart)...\n")
+	}
+
+	// Start the monitor process in a daemonized way
+	if err := startMonitorProcess(cfg); err != nil {
+		return err
+	}
+
+	// Wait for monitor to start with retry loop
+	startTime := time.Now()
+	for time.Since(startTime) < MonitorStartupTimeout {
+		isRunning, err := checkMonitorVersion(cfg, buildArgs)
+		if err != nil {
+			// If we have an error and the monitor is running, it's a version mismatch or other non-recoverable error
+			if isRunning {
+				return err
+			}
+			// Otherwise, continue retrying
+		}
+		if isRunning {
+			// Success - monitor is running
+			if !monitorConfig.Quiet {
+				port := "5005" // default port
+				if monitorConfig.TcpAddr != "" && monitorConfig.TcpAddr != "-" {
+					port = monitorConfig.TcpAddr
+				}
+				fmt.Printf("#outrig monitor started successfully, running on port %s\n", port)
+			}
+			return nil
+		}
+		time.Sleep(MonitorCheckInterval)
+	}
+
+	return fmt.Errorf("outrig monitor failed to start within %v", MonitorStartupTimeout)
+}
+
+// checkMonitorVersion verifies that the outrig monitor is running and compatible
+// Returns (isRunning bool, error)
+func checkMonitorVersion(cfg RunModeConfig, buildArgs astutil.BuildArgs) (bool, error) {
+	monitorConfig := getOutrigConfig(cfg, buildArgs)
 
 	serverVersion, _, err := comm.GetServerVersion(monitorConfig)
 	if err != nil {
-		return fmt.Errorf("outrig monitor is not running: %w", err)
+		// Monitor is not running
+		return false, fmt.Errorf("outrig monitor is not running: %w", err)
 	}
 
 	comparison, err := utilfn.CompareSemVerCore(serverVersion, comm.MinServerVersion)
 	if err != nil {
-		return fmt.Errorf("invalid server version format: %s", serverVersion)
+		return true, fmt.Errorf("invalid server version format: %s", serverVersion)
 	}
 
 	if comparison < 0 {
-		return fmt.Errorf("outrig monitor version %s is incompatible (minimum required: %s)", serverVersion, comm.MinServerVersion)
+		return true, fmt.Errorf("outrig monitor version %s is incompatible (minimum required: %s)", serverVersion, comm.MinServerVersion)
 	}
 
-	return nil
+	return true, nil
+}
+
+func getOutrigConfig(rmCfg RunModeConfig, buildArgs astutil.BuildArgs) *config.Config {
+	if rmCfg.RawCmd != nil {
+		return &rmCfg.RawCmd.Cfg
+	}
+	return &buildArgs.Config
 }
 
 // ExecRunMode handles the "outrig run" command with AST rewriting
@@ -713,9 +852,24 @@ func ExecRunMode(cfg RunModeConfig) error {
 	}
 
 	// Check if monitor is running and compatible
-	err = checkMonitorVersion(cfg)
-	if err != nil {
+	isRunning, err := checkMonitorVersion(cfg, buildArgs)
+	if err != nil && isRunning {
+		// Monitor is running but there's a compatibility issue
 		return err
+	}
+	if !isRunning {
+		// Monitor is not running, check if we should autostart
+		monitorConfig := getOutrigConfig(cfg, buildArgs)
+		isLocal := isMonitorLocal(monitorConfig)
+		if isLocal && !cfg.NoMonitorAutostart {
+			// Try to autostart the monitor
+			if autostartErr := AutostartMonitor(cfg, buildArgs); autostartErr != nil {
+				return fmt.Errorf("outrig monitor autostart failed: %w", autostartErr)
+			}
+		} else {
+			// Cannot or should not autostart
+			return err
+		}
 	}
 
 	if cfg.RawCmd != nil {
