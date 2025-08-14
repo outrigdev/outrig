@@ -13,8 +13,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/junegunn/fzf v0.62.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/outrigdev/goid v0.2.0
-	github.com/outrigdev/outrig v0.9.0
+	github.com/outrigdev/goid v0.3.0
+	github.com/outrigdev/outrig v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	golang.org/x/mod v0.26.0
