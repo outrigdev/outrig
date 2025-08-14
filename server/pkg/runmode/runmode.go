@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/pkg/utilfn"
 	"github.com/outrigdev/outrig/server/pkg/execlogwrap"
@@ -418,14 +419,43 @@ func setupBuildArgs(cfg RunModeConfig) (astutil.BuildArgs, error) {
 		return astutil.BuildArgs{}, fmt.Errorf("failed to get absolute path for working directory %s: %w", workingDir, err)
 	}
 
+	// Determine MainDir and file patterns
+	mainDir, filePatterns, err := astutil.DetermineMainDirAndPatterns(absWorkingDir, goFiles)
+	if err != nil {
+		return astutil.BuildArgs{}, err
+	}
+	if cfg.IsVerbose {
+		log.Printf("main-directory: %q\n", mainDir)
+	}
+
+	// Load config after we have MainDir
+	loadedCfg, configSource, err := config.LoadConfig(cfg.ConfigFile, mainDir)
+	if err != nil {
+		return astutil.BuildArgs{}, fmt.Errorf("failed to load config (rootdir: %q): %w", mainDir, err)
+	}
+	var configObj config.Config
+	if loadedCfg == nil {
+		configObj = *config.DefaultConfig()
+		configSource = "default-config"
+	} else {
+		configObj = *loadedCfg
+	}
+
+	if cfg.IsVerbose {
+		log.Printf("config loaded from: %s\n", configSource)
+	}
+
 	// Load the specified Go files using the new astutil.LoadGoFiles function
 	buildArgs := astutil.BuildArgs{
-		GoFiles:     goFiles,
-		BuildFlags:  buildFlags,
-		ProgramArgs: programArgs,
-		WorkingDir:  absWorkingDir,
-		Verbose:     cfg.IsVerbose,
-		ConfigFile:  cfg.ConfigFile,
+		GoFiles:      goFiles,
+		BuildFlags:   buildFlags,
+		ProgramArgs:  programArgs,
+		WorkingDir:   absWorkingDir,
+		MainDir:      mainDir,
+		FilePatterns: filePatterns,
+		Config:       configObj,
+		Verbose:      cfg.IsVerbose,
+		ConfigFile:   cfg.ConfigFile,
 	}
 
 	return buildArgs, nil
@@ -647,12 +677,47 @@ func setupBuildConfiguration(cfg RunModeConfig) (RunModeConfig, astutil.BuildArg
 	return cfg, buildArgs, nil
 }
 
+// checkMonitorVersion verifies that the outrig monitor is running and compatible
+func checkMonitorVersion(cfg RunModeConfig) error {
+	var monitorConfig *config.Config
+
+	if cfg.RawCmd != nil {
+		monitorConfig = &cfg.RawCmd.Cfg
+	} else {
+		// For non-RawCmd cases, use default config for now
+		monitorConfig = config.DefaultConfig()
+	}
+
+	serverVersion, _, err := comm.GetServerVersion(monitorConfig)
+	if err != nil {
+		return fmt.Errorf("outrig monitor is not running: %w", err)
+	}
+
+	comparison, err := utilfn.CompareSemVerCore(serverVersion, comm.MinServerVersion)
+	if err != nil {
+		return fmt.Errorf("invalid server version format: %s", serverVersion)
+	}
+
+	if comparison < 0 {
+		return fmt.Errorf("outrig monitor version %s is incompatible (minimum required: %s)", serverVersion, comm.MinServerVersion)
+	}
+
+	return nil
+}
+
 // ExecRunMode handles the "outrig run" command with AST rewriting
 func ExecRunMode(cfg RunModeConfig) error {
 	cfg, buildArgs, err := setupBuildConfiguration(cfg)
 	if err != nil {
 		return err
 	}
+
+	// Check if monitor is running and compatible
+	err = checkMonitorVersion(cfg)
+	if err != nil {
+		return err
+	}
+
 	if cfg.RawCmd != nil {
 		if cfg.NoRun {
 			log.Printf("--norun flag set, not executing command")

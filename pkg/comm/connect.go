@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +27,44 @@ type ConnectAddr struct {
 
 func (ca ConnectAddr) IsTcp() bool {
 	return ca.Network == "tcp"
+}
+
+func (ca ConnectAddr) IsLocal() bool {
+	// Domain sockets are always local
+	if ca.Network == "unix" {
+		return true
+	}
+
+	// For TCP addresses, extract the host part
+	if ca.Network == "tcp" {
+		host, _, err := net.SplitHostPort(ca.DialAddr)
+		if err != nil {
+			// If we can't parse it, assume it might be just a host without port
+			host = ca.DialAddr
+		}
+
+		// Check for common local addresses
+		switch strings.ToLower(host) {
+		case "localhost", "127.0.0.1", "::1", "0.0.0.0", "::":
+			return true
+		}
+
+		// Check if it's an IPv4 loopback address (127.x.x.x)
+		if ip := net.ParseIP(host); ip != nil {
+			return ip.IsLoopback()
+		}
+
+		// Check if it resolves to a loopback address
+		if ips, err := net.LookupIP(host); err == nil {
+			for _, ip := range ips {
+				if ip.IsLoopback() {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 func connectAddrsToStrings(addrs []ConnectAddr) []string {
@@ -163,7 +202,7 @@ func Connect(mode string, submode string, appRunId string, cfg *config.Config) (
 // Returns (version, peerAddr, error).
 func GetServerVersion(cfg *config.Config) (string, string, error) {
 	if cfg == nil {
-		cfg = config.DefaultConfig()
+		return "", "", fmt.Errorf("GetServerVersion requires a config")
 	}
 
 	connectAddrs := MakeConnectAddrs(cfg)

@@ -38,12 +38,15 @@ type TransformState struct {
 
 // BuildArgs contains the build configuration for loading Go files
 type BuildArgs struct {
-	GoFiles     []string
-	BuildFlags  []string
-	ProgramArgs []string
-	WorkingDir  string // will always be set (will not be empty)
-	Verbose     bool
-	ConfigFile  string
+	GoFiles      []string
+	BuildFlags   []string
+	ProgramArgs  []string
+	WorkingDir   string        // will always be set (will not be empty)
+	MainDir      string        // absolute path to main directory
+	FilePatterns []string      // file patterns for packages.Load
+	Config       config.Config // loaded configuration (must be set)
+	Verbose      bool
+	ConfigFile   string
 }
 
 // ParseGoWorkFile parses a go.work file and returns the absolute paths of modules listed in the use directive
@@ -227,6 +230,50 @@ func DetectToolchainVersion(pkgDir string) (string, error) {
 	return version, nil
 }
 
+// DetermineMainDirAndPatterns determines the main directory and file patterns from the provided Go files
+func DetermineMainDirAndPatterns(workingDir string, goFiles []string) (string, []string, error) {
+	var mainDir string
+	var filePatterns []string
+
+	for _, goFile := range goFiles {
+		if strings.HasSuffix(goFile, ".go") {
+			// Validate .go file exists
+			filePath := filepath.Join(workingDir, goFile)
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				return "", nil, fmt.Errorf("Go file does not exist: %s", filePath)
+			}
+
+			filePatterns = append(filePatterns, "file="+goFile)
+			if mainDir == "" {
+				mainDir = filepath.Dir(goFile)
+			}
+		} else {
+			// Validate directory exists
+			dirPath := filepath.Join(workingDir, goFile)
+			if stat, err := os.Stat(dirPath); os.IsNotExist(err) {
+				return "", nil, fmt.Errorf("directory does not exist: %s", dirPath)
+			} else if err != nil {
+				return "", nil, fmt.Errorf("error checking directory %s: %w", dirPath, err)
+			} else if !stat.IsDir() {
+				return "", nil, fmt.Errorf("path is not a directory: %s (full module paths are not supported)", dirPath)
+			}
+
+			filePatterns = append(filePatterns, goFile)
+			if mainDir == "" {
+				mainDir = goFile
+			}
+		}
+	}
+
+	// Make MainDir absolute
+	mainDir, err := filepath.Abs(mainDir)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get absolute path for main directory: %w", err)
+	}
+
+	return mainDir, filePatterns, nil
+}
+
 // LoadGoFiles loads the specified Go files using packages.Load with "file=" prefix
 // and returns a TransformState containing the FileSet and package information
 func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
@@ -251,64 +298,10 @@ func LoadGoFiles(buildArgs BuildArgs) (*TransformState, error) {
 		pkgConfig.Dir = buildArgs.WorkingDir
 	}
 
-	// Prepare file patterns with "file=" prefix and determine MainDir
-	var filePatterns []string
-	var mainDir string
-	for _, goFile := range buildArgs.GoFiles {
-		if strings.HasSuffix(goFile, ".go") {
-			// Validate .go file exists
-			filePath := filepath.Join(buildArgs.WorkingDir, goFile)
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
-				return nil, fmt.Errorf("Go file does not exist: %s", filePath)
-			}
-
-			filePatterns = append(filePatterns, "file="+goFile)
-			if mainDir == "" {
-				mainDir = filepath.Dir(goFile)
-			}
-		} else {
-			// Validate directory exists
-			dirPath := filepath.Join(buildArgs.WorkingDir, goFile)
-			if stat, err := os.Stat(dirPath); os.IsNotExist(err) {
-				return nil, fmt.Errorf("directory does not exist: %s", dirPath)
-			} else if err != nil {
-				return nil, fmt.Errorf("error checking directory %s: %w", dirPath, err)
-			} else if !stat.IsDir() {
-				return nil, fmt.Errorf("path is not a directory: %s (full module paths are not supported)", dirPath)
-			}
-
-			filePatterns = append(filePatterns, goFile)
-			if mainDir == "" {
-				mainDir = goFile
-			}
-		}
-	}
-
-	// Make MainDir absolute
-	mainDir, err := filepath.Abs(mainDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path for main directory: %w", err)
-	}
-	if buildArgs.Verbose {
-		log.Printf("main-directory: %q\n", mainDir)
-	}
-
-	// Load config after we have MainDir
-	loadedCfg, configSource, err := config.LoadConfig(buildArgs.ConfigFile, mainDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config (rootdir: %q): %w", mainDir, err)
-	}
-	var cfg config.Config
-	if loadedCfg == nil {
-		cfg = *config.DefaultConfig()
-		configSource = "default-config"
-	} else {
-		cfg = *loadedCfg
-	}
-
-	if buildArgs.Verbose {
-		log.Printf("config loaded from: %s\n", configSource)
-	}
+	// Use MainDir, file patterns, and config from BuildArgs
+	mainDir := buildArgs.MainDir
+	filePatterns := buildArgs.FilePatterns
+	cfg := buildArgs.Config
 
 	// Load packages using the file patterns
 	pkgs, err := packages.Load(pkgConfig, filePatterns...)

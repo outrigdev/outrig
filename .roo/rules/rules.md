@@ -14,6 +14,7 @@ Outrig provides real-time debugging for Go programs, similar to Chrome DevTools.
     - in Go code, prefer using Printf() vs Println()
     - use "Make" as opposed to "New" for struct initialization func names
     - in general const decls go at the top fo the file (before types and functions)
+    - NEVER run `go build` (especially in weird sub-package directories). we can tell if everything compiles by seeing there are no problems/errors.
 - **Synchronization**:
     - Always prefer to use the `lock.Lock(); defer lock.Unlock()` pattern for synchronization if possible
     - Avoid inline lock/unlock pairs - instead create helper functions that use the defer pattern
