@@ -32,6 +32,7 @@ const (
 	AppNameEnvName            = "OUTRIG_APPNAME"
 	RunSDKReplacePathEnvName  = "OUTRIG_RUN_SDKREPLACEPATH"
 	FromRunModeEnvName        = "OUTRIG_FROMRUNMODE"
+	DaemonEnvName             = "OUTRIG_DAEMON"
 )
 
 // Home directory paths

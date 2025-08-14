@@ -715,7 +715,7 @@ func startMonitorProcess(cfg RunModeConfig) error {
 		return fmt.Errorf("failed to get executable path: %w", err)
 	}
 
-	cmd := exec.Command(executable, "monitor")
+	cmd := exec.Command(executable, "monitor", "start")
 
 	// If we're in dev mode, add OUTRIG_DEV=1 environment variable
 	if config.UseDevConfig() {

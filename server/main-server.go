@@ -144,6 +144,58 @@ func getVersion() string {
 	}
 }
 
+func runMonitorStart(cmd *cobra.Command, args []string) error {
+	// Check if telemetry should be disabled
+	noTelemetry, _ := cmd.Flags().GetBool("no-telemetry")
+	noTelemetryEnv := os.Getenv("OUTRIG_NOTELEMETRY")
+	if noTelemetry || noTelemetryEnv != "" {
+		if noTelemetry {
+			log.Printf("Telemetry collection is disabled (via --no-telemetry flag)\n")
+		} else {
+			log.Printf("Telemetry collection is disabled (via OUTRIG_NOTELEMETRY env var)\n")
+		}
+		tevent.Disabled.Store(true)
+	}
+
+	// Check if update checking should be disabled
+	noUpdateCheck, _ := cmd.Flags().GetBool("no-updatecheck")
+	noUpdateCheckEnv := os.Getenv("OUTRIG_NOUPDATECHECK")
+	if noUpdateCheck || noUpdateCheckEnv != "" {
+		if noUpdateCheck {
+			log.Printf("Update checking is disabled (via --no-updatecheck flag)\n")
+		} else {
+			log.Printf("Update checking is disabled (via OUTRIG_NOUPDATECHECK env var)\n")
+		}
+		updatecheck.Disabled.Store(true)
+	}
+
+	// Get the flag values
+	listenAddr, _ := cmd.Flags().GetString("listen")
+	closeOnStdin, _ := cmd.Flags().GetBool("close-on-stdin")
+	trayPid, _ := cmd.Flags().GetInt("tray-pid")
+
+	// Validate listen address if provided
+	if listenAddr != "" {
+		_, portStr, err := net.SplitHostPort(listenAddr)
+		if err != nil {
+			return fmt.Errorf("invalid listen address '%s': %w", listenAddr, err)
+		}
+		_, err = strconv.Atoi(portStr)
+		if err != nil {
+			return fmt.Errorf("invalid port in listen address '%s': %w", listenAddr, err)
+		}
+	}
+
+	// Create CLI config
+	cfg := boot.CLIConfig{
+		ListenAddr:   listenAddr,
+		CloseOnStdin: closeOnStdin,
+		TrayAppPid:   trayPid,
+	}
+
+	return boot.RunServer(cfg)
+}
+
 func runMonitorStop(cmd *cobra.Command, args []string) error {
 	// Get flags
 	serverAddr, _ := cmd.Flags().GetString("addr")
@@ -248,65 +300,25 @@ func main() {
 		Short:   "Run the Outrig Monitor",
 		Long:    `Run the Outrig Monitor which provides real-time debugging capabilities.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Check if telemetry should be disabled
-			noTelemetry, _ := cmd.Flags().GetBool("no-telemetry")
-			noTelemetryEnv := os.Getenv("OUTRIG_NOTELEMETRY")
-			if noTelemetry || noTelemetryEnv != "" {
-				if noTelemetry {
-					log.Printf("Telemetry collection is disabled (via --no-telemetry flag)\n")
-				} else {
-					log.Printf("Telemetry collection is disabled (via OUTRIG_NOTELEMETRY env var)\n")
-				}
-				tevent.Disabled.Store(true)
-			}
-
-			// Check if update checking should be disabled
-			noUpdateCheck, _ := cmd.Flags().GetBool("no-updatecheck")
-			noUpdateCheckEnv := os.Getenv("OUTRIG_NOUPDATECHECK")
-			if noUpdateCheck || noUpdateCheckEnv != "" {
-				if noUpdateCheck {
-					log.Printf("Update checking is disabled (via --no-updatecheck flag)\n")
-				} else {
-					log.Printf("Update checking is disabled (via OUTRIG_NOUPDATECHECK env var)\n")
-				}
-				updatecheck.Disabled.Store(true)
-			}
-
-			// Get the flag values
-			listenAddr, _ := cmd.Flags().GetString("listen")
-			closeOnStdin, _ := cmd.Flags().GetBool("close-on-stdin")
-			trayPid, _ := cmd.Flags().GetInt("tray-pid")
-
-			// Validate listen address if provided
-			if listenAddr != "" {
-				_, portStr, err := net.SplitHostPort(listenAddr)
-				if err != nil {
-					return fmt.Errorf("invalid listen address '%s': %w", listenAddr, err)
-				}
-				_, err = strconv.Atoi(portStr)
-				if err != nil {
-					return fmt.Errorf("invalid port in listen address '%s': %w", listenAddr, err)
-				}
-			}
-
-			// Create CLI config
-			cfg := boot.CLIConfig{
-				ListenAddr:   listenAddr,
-				CloseOnStdin: closeOnStdin,
-				TrayAppPid:   trayPid,
-			}
-
-			return boot.RunServer(cfg)
+			fmt.Printf("Usage has changed: please run `outrig monitor start` instead.\n")
+			return fmt.Errorf("command deprecated")
 		},
 	}
-	// Add flags to monitor command
-	monitorCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
-	monitorCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
-	monitorCmd.Flags().String("listen", "", "Override the default web server listen address (default: 127.0.0.1:5005)")
-	monitorCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
-	monitorCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
-	// Hide this flag since it's only used internally by the tray application
-	monitorCmd.Flags().MarkHidden("tray-pid")
+
+	monitorStartCmd := &cobra.Command{
+		Use:   "start",
+		Short: "Start the Outrig Monitor",
+		Long:  `Start the Outrig Monitor which provides real-time debugging capabilities.`,
+		RunE:  runMonitorStart,
+		SilenceUsage: true,
+	}
+	// Add flags to start command
+	monitorStartCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
+	monitorStartCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
+	monitorStartCmd.Flags().String("listen", "", "Override the default web server listen address (default: 127.0.0.1:5005)")
+	monitorStartCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
+	monitorStartCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
+	monitorStartCmd.Flags().MarkHidden("tray-pid")
 
 	monitorStopCmd := &cobra.Command{
 		Use:   "stop",
@@ -318,7 +330,8 @@ func main() {
 	monitorStopCmd.Flags().String("addr", "", "Override the default server address to connect to (default: localhost:5005)")
 	monitorStopCmd.Flags().BoolP("verbose", "v", false, "Show detailed response information")
 	
-	// Add stop as a subcommand of monitor
+	// Add start and stop as subcommands of monitor
+	monitorCmd.AddCommand(monitorStartCmd)
 	monitorCmd.AddCommand(monitorStopCmd)
 
 	versionCmd := &cobra.Command{

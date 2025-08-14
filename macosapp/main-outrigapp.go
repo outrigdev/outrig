@@ -375,7 +375,7 @@ func startServer() {
 	log.Printf("Starting Outrig server...\n")
 	outrigPath := getOutrigPath()
 	trayPid := os.Getpid()
-	serverCmd = exec.Command(outrigPath, "server", "--close-on-stdin", "--tray-pid", fmt.Sprintf("%d", trayPid))
+	serverCmd = exec.Command(outrigPath, "monitor", "start", "--close-on-stdin", "--tray-pid", fmt.Sprintf("%d", trayPid))
 
 	// Create a pipe for stdin
 	stdin, err := serverCmd.StdinPipe()
