@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/junegunn/fzf v0.62.0
+	github.com/junegunn/fzf v0.65.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/outrigdev/goid v0.3.0
 	github.com/outrigdev/outrig v0.9.1
