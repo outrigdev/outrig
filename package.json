@@ -16,7 +16,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "emoji-js": "^3.8.1",
-    "jotai": "^2.12.5",
+    "jotai": "^2.13.1",
     "lucide-react": "^0.539.0",
     "mitt": "^3.0.1",
     "react": "^19.1.1",
