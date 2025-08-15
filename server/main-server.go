@@ -404,16 +404,26 @@ func main() {
 	}
 
 	monitorCmd := &cobra.Command{
-		Use:     "monitor",
-		Aliases: []string{"server"},
-		Short:   "Manage the Outrig Monitor",
-		Long:    `Manage the Outrig Monitor which provides real-time debugging capabilities.`,
+		Use:   "monitor",
+		Short: "Manage the Outrig Monitor",
+		Long:  `Manage the Outrig Monitor which provides real-time debugging capabilities.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Printf("Please specify a subcommand:\n")
 			fmt.Printf("  outrig monitor start      - Start monitor as daemon\n")
 			fmt.Printf("  outrig monitor foreground - Start monitor in foreground\n")
 			fmt.Printf("  outrig monitor stop       - Stop running monitor\n\n")
 			return fmt.Errorf("subcommand required")
+		},
+	}
+
+	serverCmd := &cobra.Command{
+		Use:          "server",
+		Short:        "Deprecated: use 'outrig monitor' instead",
+		Long:         `The 'outrig server' command has been renamed to 'outrig monitor'. Please use 'outrig monitor' instead.`,
+		Hidden:       true,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return fmt.Errorf("'outrig server' has been changed to 'outrig monitor'. Please use 'outrig monitor' instead")
 		},
 	}
 
@@ -566,6 +576,7 @@ Example: outrig --dev exec ls -latrh`,
 	demoCmd.Flags().Bool("close-on-stdin", false, "Shut down the demo when stdin is closed")
 
 	rootCmd.AddCommand(monitorCmd)
+	rootCmd.AddCommand(serverCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(captureLogsCmd)
 	rootCmd.AddCommand(execCmd)
