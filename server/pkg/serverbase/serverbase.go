@@ -83,6 +83,15 @@ func GetWebServerPort() int {
 	return ProdWebServerPort
 }
 
+// GetAdvertisePort determines the port to advertise to SDK clients
+func GetAdvertisePort(listenPort int) int {
+	advertisePort := listenPort
+	if IsDev() {
+		advertisePort = 5173 // override to the vite port for SDK clients
+	}
+	return advertisePort
+}
+
 // EnsureOutrigId ensures that the outrig.id file exists and contains a valid UUID.
 // If the file doesn't exist and shouldCreate is true, it creates it with a new UUID.
 // If the file exists but contains an invalid UUID and shouldCreate is true, it overwrites it with a new UUID.

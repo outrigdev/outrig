@@ -85,15 +85,6 @@ func getWebServerAddr(config CLIConfig) (string, int) {
 	return serverbase.GetWebServerHost(), serverbase.GetWebServerPort()
 }
 
-// getAdvertisePort determines the port to advertise to SDK clients
-func getAdvertisePort(listenPort int) int {
-	advertisePort := listenPort
-	if serverbase.IsDev() {
-		advertisePort = 5173 // override to the vite port for SDK clients
-	}
-	return advertisePort
-}
-
 // RunServer initializes and runs the Outrig server
 func RunServer(config CLIConfig) error {
 	if serverbase.IsDev() {
@@ -209,7 +200,7 @@ func RunServer(config CLIConfig) error {
 
 	// Determine web server host and ports
 	listenHost, listenPort := getWebServerAddr(config)
-	advertisePort := getAdvertisePort(listenPort)
+	advertisePort := serverbase.GetAdvertisePort(listenPort)
 
 	// Create connection multiplexer
 	multiplexerAddr := listenHost + ":" + strconv.Itoa(listenPort)

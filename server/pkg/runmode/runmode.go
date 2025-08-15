@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/outrigdev/outrig/pkg/comm"
@@ -707,7 +706,7 @@ func isMonitorLocal(monitorConfig *config.Config) bool {
 	return false
 }
 
-// startMonitorProcess starts the monitor process in a daemonized way with logging
+// startMonitorProcess starts the monitor process using the new daemonized start command
 func startMonitorProcess(cfg RunModeConfig) error {
 	// Get our own executable path
 	executable, err := os.Executable()
@@ -728,47 +727,32 @@ func startMonitorProcess(cfg RunModeConfig) error {
 		if config.UseDevConfig() {
 			envStr = " (with OUTRIG_DEV=1)"
 		}
-		log.Printf("Starting monitor with command: %s monitor%s", executable, envStr)
+		log.Printf("Starting monitor with command: %s monitor start%s", executable, envStr)
 	}
 
-	// Redirect output to log file (similar to macOS app pattern)
-	logPath := filepath.Join(os.TempDir(), "outrig-monitor.log")
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	// Use CombinedOutput to get the daemon startup output
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		if cfg.IsVerbose {
-			log.Printf("Warning: failed to open monitor log file: %v", err)
-		}
-		// Fall back to discarding output
-		cmd.Stdout = nil
-		cmd.Stderr = nil
-	} else {
-		cmd.Stdout = logFile
-		cmd.Stderr = logFile
-		if cfg.IsVerbose {
-			log.Printf("Monitor output will be logged to: %s", logPath)
-		}
-	}
-
-	// Use process group detachment for daemonization
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true, // Create new process group
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		if logFile != nil {
-			logFile.Close()
-		}
 		return fmt.Errorf("failed to start monitor: %w", err)
 	}
 
-	// Don't wait for the process - let it run independently
-	go func() {
-		cmd.Wait() // Clean up zombie process
-		if logFile != nil {
-			logFile.Close()
+	outputStr := string(output)
+	
+	if cfg.IsVerbose {
+		// In verbose mode, print the full output
+		fmt.Printf("%s", outputStr)
+	} else {
+		// In non-verbose mode, try to parse and show just the key info
+		lines := strings.Split(strings.TrimSpace(outputStr), "\n")
+		for _, line := range lines {
+			// Look for the line with PID and address info
+			if strings.Contains(line, "Outrig monitor started") {
+				fmt.Printf("%s\n", line)
+			} else if strings.Contains(line, "Logs:") {
+				fmt.Printf("%s\n", line)
+			}
 		}
-	}()
+	}
 
 	return nil
 }

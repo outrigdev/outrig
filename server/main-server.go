@@ -13,10 +13,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"syscall"
+	"time"
 
+	"github.com/outrigdev/outrig/pkg/comm"
 	"github.com/outrigdev/outrig/pkg/config"
 	"github.com/outrigdev/outrig/server/demo"
 	"github.com/outrigdev/outrig/server/pkg/boot"
@@ -29,11 +33,11 @@ import (
 )
 
 type specialArgs struct {
-	IsVerbose           bool
-	ConfigFile          string
-	NoRun               bool
-	NoMonitorAutostart  bool
-	Args                []string
+	IsVerbose          bool
+	ConfigFile         string
+	NoRun              bool
+	NoMonitorAutostart bool
+	Args               []string
 }
 
 func parseSpecialArgs(keyArg string) (specialArgs, error) {
@@ -144,7 +148,7 @@ func getVersion() string {
 	}
 }
 
-func runMonitorStart(cmd *cobra.Command, args []string) error {
+func runMonitorForeground(cmd *cobra.Command, args []string) error {
 	// Check if telemetry should be disabled
 	noTelemetry, _ := cmd.Flags().GetBool("no-telemetry")
 	noTelemetryEnv := os.Getenv("OUTRIG_NOTELEMETRY")
@@ -196,14 +200,139 @@ func runMonitorStart(cmd *cobra.Command, args []string) error {
 	return boot.RunServer(cfg)
 }
 
+func runMonitorStart(cmd *cobra.Command, args []string) error {
+	// Load default config to check if monitor is already running
+	cfg, err := loadOutrigConfig("", "")
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// First, try to connect to see if monitor is already running
+	version, peerAddr, err := comm.GetServerVersion(cfg)
+	if err == nil {
+		// Monitor is already running
+		fmt.Printf("Outrig monitor already running (version %s) on %s\n", version, peerAddr)
+		return nil
+	}
+
+	// Monitor is not running, start it
+	// Get our own executable path
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	// Copy os.Args and change "start" to "foreground"
+	cmdArgs := make([]string, len(os.Args)-1) // Skip the executable name
+	copy(cmdArgs, os.Args[1:])
+
+	// Find and replace "start" with "foreground"
+	for i, arg := range cmdArgs {
+		if arg == "start" {
+			cmdArgs[i] = "foreground"
+			break
+		}
+	}
+
+	// Create the command
+	daemonCmd := exec.Command(executable, cmdArgs...)
+
+	// Set up logging to temp directory
+	logPath := filepath.Join(os.TempDir(), "outrig-monitor.log")
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+	defer logFile.Close()
+
+	// Redirect output to log file
+	daemonCmd.Stdout = logFile
+	daemonCmd.Stderr = logFile
+
+	// Use process group detachment for daemonization
+	daemonCmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true, // Create new process group
+	}
+
+	// Start the daemon process
+	err = daemonCmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start monitor daemon: %w", err)
+	}
+
+	// Get the listen address for output
+	listenAddr, _ := cmd.Flags().GetString("listen")
+	var advertiseAddr string
+	if listenAddr == "" {
+		host := serverbase.GetWebServerHost()
+		port := serverbase.GetWebServerPort()
+		listenAddr = fmt.Sprintf("%s:%d", host, port)
+		advertisePort := serverbase.GetAdvertisePort(port)
+		advertiseAddr = fmt.Sprintf("%s:%d", host, advertisePort)
+	} else {
+		// Parse the provided listen address to get the port
+		_, portStr, err := net.SplitHostPort(listenAddr)
+		if err != nil {
+			return fmt.Errorf("invalid listen address '%s': %w", listenAddr, err)
+		}
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			return fmt.Errorf("invalid port in listen address '%s': %w", listenAddr, err)
+		}
+		host, _, _ := net.SplitHostPort(listenAddr)
+		advertisePort := serverbase.GetAdvertisePort(port)
+		advertiseAddr = fmt.Sprintf("%s:%d", host, advertisePort)
+	}
+
+	// Output daemon information
+	fmt.Printf("Outrig monitor started (pid %d) on %s\n", daemonCmd.Process.Pid, advertiseAddr)
+	fmt.Printf("Logs: %s\n", logPath)
+
+	// Verification loop - try to connect for up to 3 seconds
+	startTime := time.Now()
+	timeout := 3 * time.Second
+	checkInterval := 100 * time.Millisecond
+
+	for time.Since(startTime) < timeout {
+		// Check if the process is still alive
+		if err := daemonCmd.Process.Signal(syscall.Signal(0)); err != nil {
+			// Process died
+			return fmt.Errorf("failed to start - monitor process died, see the log for details")
+		}
+
+		// Try to connect
+		version, _, err := comm.GetServerVersion(cfg)
+		if err == nil {
+			// Successfully connected
+			fmt.Printf("Monitor started successfully (version %s)\n", version)
+
+			// Don't wait for the process - let it run independently
+			go func() {
+				daemonCmd.Wait() // Clean up zombie process
+			}()
+
+			return nil
+		}
+
+		time.Sleep(checkInterval)
+	}
+
+	// Timeout reached - check if process is still alive
+	if err := daemonCmd.Process.Signal(syscall.Signal(0)); err != nil {
+		return fmt.Errorf("failed to start - monitor process died, see the log for details")
+	}
+
+	return fmt.Errorf("failed to start - could not connect to monitor after 3 seconds, see the log for details")
+}
+
 func runMonitorStop(cmd *cobra.Command, args []string) error {
 	// Get flags
 	serverAddr, _ := cmd.Flags().GetString("addr")
 	verbose, _ := cmd.Flags().GetBool("verbose")
-	
+
 	var host string
 	var port int
-	
+
 	if serverAddr != "" {
 		// Parse the provided server address
 		var err error
@@ -221,7 +350,7 @@ func runMonitorStop(cmd *cobra.Command, args []string) error {
 		host = serverbase.GetWebServerHost()
 		port = serverbase.GetWebServerPort()
 	}
-	
+
 	// Construct the shutdown URL using proper URL construction
 	baseURL := &url.URL{
 		Scheme: "http",
@@ -229,16 +358,16 @@ func runMonitorStop(cmd *cobra.Command, args []string) error {
 		Path:   "/api/shutdown",
 	}
 	shutdownURL := baseURL.String()
-	
+
 	// Create POST request
 	req, err := http.NewRequest("POST", shutdownURL, bytes.NewBuffer([]byte{}))
 	if err != nil {
 		return fmt.Errorf("failed to connect to server: %w", err)
 	}
-	
+
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	// Make the request
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -246,13 +375,13 @@ func runMonitorStop(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to connect to server: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	// Read response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	if resp.StatusCode == http.StatusOK {
 		// Success case
 		if verbose {
@@ -297,41 +426,57 @@ func main() {
 	monitorCmd := &cobra.Command{
 		Use:     "monitor",
 		Aliases: []string{"server"},
-		Short:   "Run the Outrig Monitor",
-		Long:    `Run the Outrig Monitor which provides real-time debugging capabilities.`,
+		Short:   "Manage the Outrig Monitor",
+		Long:    `Manage the Outrig Monitor which provides real-time debugging capabilities.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("Usage has changed: please run `outrig monitor start` instead.\n")
-			return fmt.Errorf("command deprecated")
+			fmt.Printf("Please specify a subcommand:\n")
+			fmt.Printf("  outrig monitor start      - Start monitor as daemon\n")
+			fmt.Printf("  outrig monitor foreground - Start monitor in foreground\n")
+			fmt.Printf("  outrig monitor stop       - Stop running monitor\n\n")
+			return fmt.Errorf("subcommand required")
 		},
 	}
 
 	monitorStartCmd := &cobra.Command{
-		Use:   "start",
-		Short: "Start the Outrig Monitor",
-		Long:  `Start the Outrig Monitor which provides real-time debugging capabilities.`,
-		RunE:  runMonitorStart,
+		Use:          "start",
+		Short:        "Start the Outrig Monitor",
+		Long:         `Start the Outrig Monitor which provides real-time debugging capabilities.`,
+		RunE:         runMonitorStart,
 		SilenceUsage: true,
 	}
 	// Add flags to start command
 	monitorStartCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
 	monitorStartCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
 	monitorStartCmd.Flags().String("listen", "", "Override the default web server listen address (default: 127.0.0.1:5005)")
-	monitorStartCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
-	monitorStartCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
-	monitorStartCmd.Flags().MarkHidden("tray-pid")
+
+	monitorForegroundCmd := &cobra.Command{
+		Use:          "foreground",
+		Short:        "Start the Outrig Monitor in foreground",
+		Long:         `Start the Outrig Monitor in foreground mode which provides real-time debugging capabilities.`,
+		RunE:         runMonitorForeground,
+		SilenceUsage: true,
+	}
+	// Add flags to foreground command (same as start)
+	monitorForegroundCmd.Flags().Bool("no-telemetry", false, "Disable telemetry collection")
+	monitorForegroundCmd.Flags().Bool("no-updatecheck", false, "Disable checking for updates")
+	monitorForegroundCmd.Flags().String("listen", "", "Override the default web server listen address (default: 127.0.0.1:5005)")
+	monitorForegroundCmd.Flags().Bool("close-on-stdin", false, "Shut down the server when stdin is closed")
+	monitorForegroundCmd.Flags().Int("tray-pid", 0, "PID of the tray application that started the server")
+	monitorForegroundCmd.Flags().MarkHidden("tray-pid")
 
 	monitorStopCmd := &cobra.Command{
-		Use:   "stop",
-		Short: "Stop the running Outrig Monitor",
-		Long:  `Send a shutdown request to the running Outrig Monitor server.`,
-		RunE:  runMonitorStop,
+		Use:          "stop",
+		Short:        "Stop the running Outrig Monitor",
+		Long:         `Send a shutdown request to the running Outrig Monitor server.`,
+		RunE:         runMonitorStop,
 		SilenceUsage: true,
 	}
 	monitorStopCmd.Flags().String("addr", "", "Override the default server address to connect to (default: localhost:5005)")
 	monitorStopCmd.Flags().BoolP("verbose", "v", false, "Show detailed response information")
-	
-	// Add start and stop as subcommands of monitor
+
+	// Add start, foreground, and stop as subcommands of monitor
 	monitorCmd.AddCommand(monitorStartCmd)
+	monitorCmd.AddCommand(monitorForegroundCmd)
 	monitorCmd.AddCommand(monitorStopCmd)
 
 	versionCmd := &cobra.Command{
