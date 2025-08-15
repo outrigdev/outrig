@@ -208,7 +208,7 @@ func runMonitorStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// First, try to connect to see if monitor is already running
-	version, peerAddr, err := comm.GetServerVersion(cfg)
+	version, _, peerAddr, err := comm.GetServerVersion(cfg)
 	if err == nil {
 		// Monitor is already running
 		fmt.Printf("Outrig monitor already running (version %s) on %s\n", version, peerAddr)
@@ -260,32 +260,8 @@ func runMonitorStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to start monitor daemon: %w", err)
 	}
 
-	// Get the listen address for output
-	listenAddr, _ := cmd.Flags().GetString("listen")
-	var advertiseAddr string
-	if listenAddr == "" {
-		host := serverbase.GetWebServerHost()
-		port := serverbase.GetWebServerPort()
-		listenAddr = fmt.Sprintf("%s:%d", host, port)
-		advertisePort := serverbase.GetAdvertisePort(port)
-		advertiseAddr = fmt.Sprintf("%s:%d", host, advertisePort)
-	} else {
-		// Parse the provided listen address to get the port
-		_, portStr, err := net.SplitHostPort(listenAddr)
-		if err != nil {
-			return fmt.Errorf("invalid listen address '%s': %w", listenAddr, err)
-		}
-		port, err := strconv.Atoi(portStr)
-		if err != nil {
-			return fmt.Errorf("invalid port in listen address '%s': %w", listenAddr, err)
-		}
-		host, _, _ := net.SplitHostPort(listenAddr)
-		advertisePort := serverbase.GetAdvertisePort(port)
-		advertiseAddr = fmt.Sprintf("%s:%d", host, advertisePort)
-	}
-
 	// Output daemon information
-	fmt.Printf("Outrig monitor started (pid %d) on %s\n", daemonCmd.Process.Pid, advertiseAddr)
+	fmt.Printf("Outrig monitor started (pid %d)\n", daemonCmd.Process.Pid)
 	fmt.Printf("Logs: %s\n", logPath)
 
 	// Verification loop - try to connect for up to 3 seconds
@@ -301,10 +277,14 @@ func runMonitorStart(cmd *cobra.Command, args []string) error {
 		}
 
 		// Try to connect
-		version, _, err := comm.GetServerVersion(cfg)
+		version, port, _, err := comm.GetServerVersion(cfg)
 		if err == nil {
 			// Successfully connected
-			fmt.Printf("Monitor started successfully (version %s)\n", version)
+			if port != 0 {
+				fmt.Printf("Monitor started successfully (version %s) http://localhost:%d\n", version, port)
+			} else {
+				fmt.Printf("Monitor started successfully (version %s)\n", version)
+			}
 
 			// Don't wait for the process - let it run independently
 			go func() {

@@ -197,12 +197,12 @@ func Connect(mode string, submode string, appRunId string, cfg *config.Config) (
 	return nil, nil, errors.New(errMsg)
 }
 
-// GetServerVersion connects to the Outrig server, retrieves the server version, and closes the connection.
+// GetServerVersion connects to the Outrig server, retrieves the server version and HTTP port, and closes the connection.
 // It uses the provided configuration to determine connection addresses.
-// Returns (version, peerAddr, error).
-func GetServerVersion(cfg *config.Config) (string, string, error) {
+// Returns (version, httpPort, peerAddr, error).
+func GetServerVersion(cfg *config.Config) (string, int, string, error) {
 	if cfg == nil {
-		return "", "", fmt.Errorf("GetServerVersion requires a config")
+		return "", 0, "", fmt.Errorf("GetServerVersion requires a config")
 	}
 
 	connectAddrs := MakeConnectAddrs(cfg)
@@ -214,13 +214,13 @@ func GetServerVersion(cfg *config.Config) (string, string, error) {
 		}
 		defer connWrap.Close()
 
-		version, err := connWrap.GetServerVersion(connectAddr.IsTcp())
+		version, httpPort, err := connWrap.GetServerVersion(connectAddr.IsTcp())
 		if err != nil {
 			continue
 		}
 
-		return version, connectAddr.DialAddr, nil
+		return version, httpPort, connectAddr.DialAddr, nil
 	}
 
-	return "", "", errors.New("failed to connect to any Outrig server")
+	return "", 0, "", errors.New("failed to connect to any Outrig server")
 }

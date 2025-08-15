@@ -733,27 +733,21 @@ func startMonitorProcess(cfg RunModeConfig) error {
 	// Use CombinedOutput to get the daemon startup output
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to start monitor: %w", err)
+		return fmt.Errorf("failed to auto-start monitor: %w", err)
 	}
 
 	outputStr := string(output)
-	
+
 	if cfg.IsVerbose {
 		// In verbose mode, print the full output
-		fmt.Printf("%s", outputStr)
-	} else {
-		// In non-verbose mode, try to parse and show just the key info
-		lines := strings.Split(strings.TrimSpace(outputStr), "\n")
-		for _, line := range lines {
-			// Look for the line with PID and address info
-			if strings.Contains(line, "Outrig monitor started") {
-				fmt.Printf("%s\n", line)
-			} else if strings.Contains(line, "Logs:") {
-				fmt.Printf("%s\n", line)
-			}
+		if strings.HasSuffix(outputStr, "\n") {
+			fmt.Printf("%s", outputStr)
+		} else {
+			fmt.Printf("%s\n", outputStr)
 		}
 	}
 
+	// Return nil to indicate success - AutostartMonitor will handle verification
 	return nil
 }
 
@@ -765,37 +759,33 @@ func AutostartMonitor(cfg RunModeConfig, buildArgs astutil.BuildArgs) error {
 		fmt.Printf("#outrig Local outrig monitor not detected, attempting to autostart (suppress with --no-monitor-autostart)...\n")
 	}
 
-	// Start the monitor process in a daemonized way
-	if err := startMonitorProcess(cfg); err != nil {
+	// Start the monitor process
+	err := startMonitorProcess(cfg)
+	if err != nil {
 		return err
 	}
 
-	// Wait for monitor to start with retry loop
-	startTime := time.Now()
-	for time.Since(startTime) < MonitorStartupTimeout {
-		isRunning, err := checkMonitorVersion(cfg, buildArgs)
-		if err != nil {
-			// If we have an error and the monitor is running, it's a version mismatch or other non-recoverable error
-			if isRunning {
-				return err
-			}
-			// Otherwise, continue retrying
-		}
+	// Verify the monitor is actually running and compatible
+	isRunning, err := checkMonitorVersion(cfg, buildArgs)
+	if err != nil {
 		if isRunning {
-			// Success - monitor is running
-			if !monitorConfig.Quiet {
-				port := "5005" // default port
-				if monitorConfig.TcpAddr != "" && monitorConfig.TcpAddr != "-" {
-					port = monitorConfig.TcpAddr
-				}
-				fmt.Printf("#outrig monitor started successfully, running on port %s\n", port)
-			}
-			return nil
+			// Monitor is running but there's a compatibility issue
+			return err
 		}
-		time.Sleep(MonitorCheckInterval)
+		// Monitor failed to start properly
+		return fmt.Errorf("monitor started but is not responding: %w", err)
 	}
 
-	return fmt.Errorf("outrig monitor failed to start within %v", MonitorStartupTimeout)
+	if !isRunning {
+		return fmt.Errorf("monitor started but is not responding")
+	}
+
+	// Success - monitor is running
+	if !monitorConfig.Quiet {
+		fmt.Printf("#outrig monitor started successfully\n")
+	}
+
+	return nil
 }
 
 // checkMonitorVersion verifies that the outrig monitor is running and compatible
@@ -803,7 +793,7 @@ func AutostartMonitor(cfg RunModeConfig, buildArgs astutil.BuildArgs) error {
 func checkMonitorVersion(cfg RunModeConfig, buildArgs astutil.BuildArgs) (bool, error) {
 	monitorConfig := getOutrigConfig(cfg, buildArgs)
 
-	serverVersion, _, err := comm.GetServerVersion(monitorConfig)
+	serverVersion, _, _, err := comm.GetServerVersion(monitorConfig)
 	if err != nil {
 		// Monitor is not running
 		return false, fmt.Errorf("outrig monitor is not running: %w", err)

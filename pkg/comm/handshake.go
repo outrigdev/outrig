@@ -28,7 +28,8 @@ const MinClientVersion = "v0.9.0"
 const MinServerVersion = "v0.9.0"
 
 type ServerHandshakePacket struct {
-	OutrigVersion string `json:"outrigversion"`
+	OutrigVersion  string `json:"outrigversion"`
+	ServerHttpPort int    `json:"serverhttpport,omitempty"`
 }
 
 // ClientHandshakePacket represents the JSON structure for client handshake
@@ -222,7 +223,8 @@ func (cw *ConnWrap) ServerHandshake(webServerPort int, isTcp bool) (*ClientHands
 
 	// Create and send the server handshake packet (use config not serverbase to avoid importing outrig/server)
 	serverPacket := ServerHandshakePacket{
-		OutrigVersion: config.OutrigSDKVersion,
+		OutrigVersion:  config.OutrigSDKVersion,
+		ServerHttpPort: webServerPort,
 	}
 
 	jsonData, err := json.Marshal(serverPacket)
@@ -300,21 +302,21 @@ func (cw *ConnWrap) ServerHandshake(webServerPort int, isTcp bool) (*ClientHands
 	return &packet, nil
 }
 
-// GetServerVersion reads the server handshake packet and returns the server version.
+// GetServerVersion reads the server handshake packet and returns the server version and HTTP port.
 // This method assumes the connection is already established and positioned to read the server handshake.
 // For TCP connections, the caller should send "!OUTRIG" first if needed.
-func (cw *ConnWrap) GetServerVersion(isTcp bool) (string, error) {
+func (cw *ConnWrap) GetServerVersion(isTcp bool) (string, int, error) {
 	// For TCP connections, send the Outrig identifier first
 	if isTcp {
 		if err := cw.WriteLine("!OUTRIG"); err != nil {
-			return "", fmt.Errorf("failed to send TCP identifier: %v", err)
+			return "", 0, fmt.Errorf("failed to send TCP identifier: %v", err)
 		}
 	}
 
 	// Read the server handshake packet
 	packetLine, err := cw.ReadLine()
 	if err != nil {
-		return "", fmt.Errorf("failed to read server handshake packet: %v", err)
+		return "", 0, fmt.Errorf("failed to read server handshake packet: %v", err)
 	}
 
 	packetLine = strings.TrimSpace(packetLine)
@@ -322,8 +324,8 @@ func (cw *ConnWrap) GetServerVersion(isTcp bool) (string, error) {
 	// Parse the JSON packet
 	var serverPacket ServerHandshakePacket
 	if err := json.Unmarshal([]byte(packetLine), &serverPacket); err != nil {
-		return "", fmt.Errorf("invalid server handshake packet format: %v", err)
+		return "", 0, fmt.Errorf("invalid server handshake packet format: %v", err)
 	}
 
-	return serverPacket.OutrigVersion, nil
+	return serverPacket.OutrigVersion, serverPacket.ServerHttpPort, nil
 }
