@@ -17,7 +17,7 @@ require (
 	github.com/outrigdev/outrig v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
-	golang.org/x/mod v0.26.0
+	golang.org/x/mod v0.27.0
 	golang.org/x/sys v0.35.0
 	golang.org/x/tools v0.35.0
 )
