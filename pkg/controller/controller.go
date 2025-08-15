@@ -129,6 +129,11 @@ func (c *ControllerImpl) createAppInfo(appName string, cfg *config.Config) ds.Ap
 		}
 	}
 
+	// Check if running in run mode
+	if os.Getenv(config.FromRunModeEnvName) != "" {
+		appInfo.RunMode = true
+	}
+
 	return appInfo
 }
 
